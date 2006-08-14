@@ -1,0 +1,122 @@
+// ########################
+// --- Arremecar Items ---
+
+[PLEVEL 1]
+arremecar
+
+[FUNCTION arremecar] 
+if (<src.findlayer(layer_hand1)> == 1) || (<src.findlayer(layer_hand2)> == 1)
+ src.findlayer(layer_hand1).unequip
+ src.findlayer(layer_hand2).unequip
+endif
+ src.findid.i_arremecar.remove
+ src.newitem i_arremecar
+ src.act.cont <src.uid>
+ src.act.use
+
+[itemdef i_arremecar]
+id=i_deed
+layer=30
+type=t_eq_script
+name=Funcao arremecar
+
+on=@dclick
+ src.tag.arremecaritem 0
+ if (0<src.tag.arremecarskill> == 0)
+  src.tag.arremecarskill <eval {500 600}>
+ endif
+ src.sysmessage (Arremecar Skill) - <eval <src.tag.arremecarskill>>%!
+ target Selecione o objeto que deseja arremecar...
+ return 1
+
+on=@targon_item
+ if (0<src.tag.arremecaritem> == 1)
+  src.sysmessage Nao e possivel arremecar neste objeto...
+  return 1
+ endif
+ if (<src.targ.topobj.uid> != <src.uid>)
+  src.sysmessage Este objeto nao lhe pertence...
+  return 1
+ endif
+ if (<src.targ.attr>&10) || (<src.targ.attr>&8000)
+  src.sysmessage Nao e possivel arremecar este objeto...
+  return 1
+ endif
+ if (<src.targ.weight> > 200)
+  src.sysmessage Este objeto e muito pesado...
+  return 1
+ endif
+ src.tag.arremecarid=<src.targ.id>
+ src.tag.arremecaruid=<src.targ.uid>
+ src.tag.arremecarweight=<src.targ.weight>
+ src.tag.arremecaritem 1
+ target Selecione a criatura em que deseja arremecar...
+ return 1
+
+on=@targon_char
+ if (0<src.tag.arremecaritem> == 0)
+  src.sysmessage Objeto nao foi selecionado...
+  return 1
+ endif
+ if (<src.targ.uid> == <Src.uid>)
+  src.sysmessage Nao e possivel arremecar em voce mesmo...
+  return 1
+ endif
+
+var.hit={9 4 3 7 9 2 10 6} 
+var.miss={9 3 2 6 8 1 10 6} 
+subirarremecarskill
+
+if (<var.hit> > <var.miss>)
+
+ if (<src.targ.distance> < 4) && (<src.canseelos>)
+  try uid.<src.tag.arremecaruid>.cont=<src.targ.findlayer(21).uid>
+  src.say * Arremeca um objeto *
+  src.anim 11 
+  src.targ.effect 0,<src.tag.arremecarid>,10,1,0
+  sfx 0232
+  src.targ.damage <eval ((<src.tag.arremecarskill> / (10)) + (<src.str> / (10)) + (0<src.tag.arremecarweight> / (20))) / (10)>
+  return 1
+ elif (<src.targ.distance> < 6) && (<src.canseelos>)
+  try uid.<src.tag.arremecaruid>.cont=<src.targ.findlayer(21).uid>
+  src.say * Arremeca um objeto *
+  src.anim 11 
+  src.targ.effect 0,<src.tag.arremecarid>,10,1,0
+  sfx 0232 
+  src.targ.damage <eval (((<src.tag.arremecarskill> / (10)) + (<src.str> / (10)) + (0<src.tag.arremecarweight> / (20))) / (10)) + (-2)>
+  return 1
+ elif (<src.targ.distance> < 10) && (<src.canseelos>)
+  try uid.<src.tag.arremecaruid>.cont=<src.targ.findlayer(21).uid>
+  src.say * Arremeca um objeto *
+  src.anim 11 
+  src.targ.effect 0,<src.tag.arremecarid>,10,1,0
+  sfx 0232
+  src.targ.damage <eval (((<src.tag.arremecarskill> / (10)) + (<src.str> / (10)) + (0<src.tag.arremecarweight> / (20))) / (10)) + (-4)>
+  return 1
+ elif (<src.targ.distance> >= 10)
+  src.sysmessage Voce esta muito distante...
+  return 1
+ elif (<src.canseelos> == 0)
+  src.sysmessage Fora da linha de visao...
+  return 1
+ endif
+
+else
+
+ src.say * Arremeca um objeto *
+ src.anim 11 
+ sfx 0232
+ src.targ.effect 0,<src.tag.arremecarid>,10,1,0
+ src.targ.say * Se Esquiva *
+ try uid.<src.tag.arremecaruid>.p=<src.targ.p>
+ return 1
+endif
+return 1
+
+[function subirarremecarskill]
+if ((0<src.tag.arremecarskill> == 0)
+ src.tag.arremecarskill={100 500}
+if (1 == {1 10}) && (0<src.tag.arremecarskill> < 1000)
+ src.tag.arremecarskill=<src.tag.arremecarskill> + 1
+ src.sysmessageblue (Arremecar Skill) - Aumentou 0.1%!
+endif

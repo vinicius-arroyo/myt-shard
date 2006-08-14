@@ -1,0 +1,112 @@
+[FUNCTION checkplayers]
+SERV.ALLCLIENTS playerconter
+src.newitem i_mry_timercont
+src.act.link=<src.uid>
+src.act.equip
+src.act.use
+return 1
+
+[FUNCTION playerconter]
+if (<src.gm>==1)
+ src.sysmessage Tentativa de Linger:
+ src.sysmessage player logando.
+else
+ var.pconter=<var.pconter>+1
+endif
+return 1
+
+[FUNCTION linger]
+if (<gm>==1)
+ consume 2 i_mry_linger
+ sysmessage Linger desabilidato.
+ return 1
+else
+ var.pconter=0
+ say vou esconectar
+ tryp 1 disconnect
+ return 1
+endif
+
+
+[ITEMDEF i_mry_timercont]
+id=i_memory
+name=checkplayers timer
+type=t_eq_script
+layer=30
+
+on=@dclick
+cont.sysmessage Checando quantidade de players online
+cont.sysmessage O limite atual eh de 8 players.
+timer=1
+return 1
+
+on=@timer
+cont.sysmessage quantidade de players: <var.pconter>/08
+if (<eval <var.pconter>> >= 9)
+ cont.linger
+else
+ cont.sysmessage Check completo. Bem vindo.
+endif
+var.pconter=0
+remove
+return 1
+
+[ITEMDEF i_mry_disconnect]
+id=i_memory
+name=desconectando
+type=t_eq_script
+layer=30
+
+on=@dclick
+cont.say Desconectarei em:
+timer=1
+more1=5
+
+
+on=@timer
+if (<more1> <1)
+ cont.say adeus.
+ cont.newitem i_disconnector
+ cont.act.p=<cont.p>
+ cont.act.link=<cont.uid>
+ cont.act.timer=1
+ remove
+ return 1
+else
+ cont.say <eval <more1>>
+ more1=<more1>+-1
+ timer=1
+ return 1
+endif
+
+[ITEMDEF i_disconnector]
+id=0eda
+name=desconectador
+type=t_script
+
+on=@create
+attr=080
+
+on=@timer
+say "<link.account>"
+tryp 1 disco <link.account>
+remove
+return 1
+
+[FUNCTION disco]
+SERV.ACCOUNT <args> kick
+return 1
+
+
+
+[FUNCTION discon]
+src.newitem i_mry_disconnect
+src.act.link=<src.uid>
+src.act.equip
+src.act.use
+return 1
+
+[PLEVEL 1]
+checkplayers
+linger
+discon

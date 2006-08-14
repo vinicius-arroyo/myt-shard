@@ -1,0 +1,207 @@
+
+// Memory de Taming Possivel
+
+[itemdef i_taming_able] 
+ID=i_deed
+name=Taming Able Memory 
+type=t_eq_script 
+weight=0 
+layer=30 
+
+on=@create 
+ATTR=attr_decay
+timer=1 
+more=10 
+
+on=@equip
+return 0 
+
+on=@timer
+// Checar se ja foi tamed
+ if (<link.memoryfindtype.02> == 1)
+  cont.sysmessage Este animal ja possui dono...
+  cont.events=-e_tamingcheck
+  remove
+  return 1
+ endif
+
+
+// Checar distancia
+ if (<link.p.x> > ( <cont.p.x> +(4) )) || (<link.p.x> < ( <cont.p.x> +(-4) ))
+  cont.sysmessage O animal se distanciou demais...
+  cont.events=-e_tamingcheck
+  remove
+  return 1
+ endif
+
+ if (<link.p.y> > (<cont.p.y>+(4))) || (<link.p.y> < (<cont.p.y>+(-4)))
+  cont.sysmessage O animal se distanciou demais...
+  cont.events=-e_tamingcheck
+  remove
+  return 1
+ endif
+
+// Se o animal estiver sendo atacado
+ if (<link.flags>&statf_War)
+  cont.sysmessage O animal nao pode ser domado enquanto estiver enfurecido...
+  cont.events=-e_tamingcheck
+  remove
+  return 1
+ endif
+
+if (<more> > 1 )
+ More=<more>+ (-1) 
+ TIMER=2
+  dorand 4 
+   cont.say Nao vou machucar voce. 
+   cont.say Eu sempre quis um <link.name> como voce. 
+   cont.say Aqui <link.name>. 
+   cont.say Bom <link.name>. 
+  enddo
+return 1 
+elif !(<more> > 1)
+   if ( {1 <eval (<cont.taming> + <cont.animallore>)/(20) >} >= <eval (35)+(-<link.food>)>)
+    cont.sysmessage Parece que ele aceitou voce como novo dono... 
+    link.newitem=i_memory 
+    link.act.link=<cont.UID> 
+    link.act.name=<cont.name> 
+    link.act.color=042 
+    link.tag.more=04 
+    link.act.morep=<cont.p> 
+    link.equip <link.act> 
+    link.flags=<link.flags> | 08000000 
+    f_tamingskillraise 
+    cont.events=-e_tamingcheck
+    remove
+    return 1
+   elif ( {1 <eval (<cont.taming> + <cont.animallore>)/(20) >} < <eval (35)+(-<link.food>)>)
+    cont.message Voce falhou ao tentar domar o animal
+    f_tamingskillraise 
+    cont.events=-e_tamingcheck
+    remove
+    return 1
+   endif
+endif 
+return 1
+
+
+[Itemdef i_taming_unable] 
+ID=i_deed
+name=Taming Unable Memory 
+type=t_eq_script 
+weight=0 
+layer=30 
+
+on=@create 
+ATTR=attr_decay
+timer=1 
+more=10 
+
+on=@equip 
+return 0 
+
+on=@timer 
+// Checar se ja foi tamed
+ if (<link.memoryfindtype.02> == 1)
+  cont.sysmessage Este animal ja possui dono...
+  cont.events=-e_tamingcheck
+  remove
+  return 1
+ endif
+
+// Checar distancia
+ if (<link.p.x> > (<cont.p.x>+(4))) || (<link.p.x> < (<cont.p.x>+(-4)))
+  cont.sysmessage O animal se distanciou demais...
+  cont.events=-e_tamingcheck
+  remove
+  return 1
+ endif
+
+ if (<link.p.y> > (<cont.p.y>+(4))) || (<link.p.y> < (<cont.p.y>+(-4)))
+  cont.sysmessage O animal se distanciou demais...
+  cont.events=-e_tamingcheck
+  remove
+  return 1
+ endif
+
+// Se o animal estiver sendo atacado
+ if (<link.flags>&statf_War)
+  cont.sysmessage O animal nao pode ser domado enquanto estiver enfurecido...
+  cont.events=-e_tamingcheck
+  remove
+  return 1
+ endif
+
+if (<more> > 1 )
+ More=<more>+ (-1) 
+ TIMER=2
+  dorand 4 
+   cont.say Nao vou machucar voce. 
+   cont.say Eu sempre quis um <link.name> como voce. 
+   cont.say Aqui <link.name>. 
+   cont.say Bom <link.name>. 
+  enddo 
+return 1 
+elif !(<more> > 1)
+ cont.sysmessage O animal e muito selvagem para voce domar...
+ cont.message Voce enfureceu o animal
+ link.flags=<link.flags>|statf_War
+ dorand 4
+  link.attack <cont.uid>
+ enddo
+ f_tamingskillraise 
+ cont.events=-e_tamingcheck
+ remove
+endif 
+return 1
+
+[function f_tamingskillraise] 
+if (<cont.taming> < 100.0)
+ if ({1 <eval (<cont.taming>)/(10)>} == 1)
+  cont.taming=<cont.taming>+(0.1)
+ endif
+endif
+
+if (<cont.animallore> < 100.0)
+ if ({1 <eval (<cont.animallore>)/(10)>} == 1)
+  cont.animallore=<cont.animallore>+(0.1)
+ endif
+endif
+
+
+[events e_tamingcheck]
+on=@gethit
+ findid.i_taming_able.remove
+ findid.i_taming_unable.remove
+ sysmessage Voce se desconcentrou...
+ events=-e_tamingcheck
+
+
+
+// ###############################
+// Function de Canseelos no @timer
+
+[function timercsl_taming]
+ cont.findid.i_bit_taming.remove
+ cont.newitem i_bit_taming
+ cont.act.link <link.uid>
+ cont.act.p <cont.p>
+ cont.act.timer=2
+
+[itemdef i_bit_taming]
+id=i_nodraw
+name=CanSeeLos Tester
+layer=0
+type=t_eq_script
+
+on=@create
+attr=attr_decay
+
+on=@step
+ src.tag.timercsl_taming <link.canseelos>
+ remove
+return 1
+
+on=@timer
+remove
+return 1

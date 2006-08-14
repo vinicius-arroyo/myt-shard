@@ -1,0 +1,207 @@
+//Speed up boats, v1.5
+//1.0 - Initial release of script.
+//1.1 - Ship speed now calculated by number of clients
+//1.2 - Auto-drydocking added.
+//1.3 - Fixed auto-drydocking so that the ship always goes to
+//	the captain's pack, instead of the last person off.
+//1.4 - Speed is now changable by the player via the "Faster",
+//	"Slower", and "Full speed" commands.
+//1.5 - If a player crashes on the boat, they will be teleported
+//	to the boat's new location on logon, if it still exists.
+
+//By Rudenid
+//Meant for Sphere .55i.
+//If anyone ports this to a newer Sphere version, you may submit
+//the port if you leave this header intact.
+
+//Makes boats move at about 7x their normal speed.
+//Rename your existing speech block in sphereitem_multi.scp
+//To something else before using this. If using a boat bug fix,
+//You may need to add the "fix" code below the respective speech
+//Blocks.
+
+//This part goes in Skillclass 0 in spheretables.scp!
+
+
+
+//The rest goes in its own file.
+
+[FUNCTION countclients]
+VAR.CLIENTCOUNT=<EVAL <VAR.CLIENTCOUNT> + 1>
+
+[ITEMDEF i_shiphaste]
+ID=01ea7
+TYPE=t_eq_script
+NAME=Ship Speed Control
+
+ON=@Timer
+TAG.OLDLINK=<LINK>
+TAG.LINKID=<LINK.ID>
+TAG.LINKNAME=<LINK.NAME>
+TAG.LINKMORE=<LINK.MORE>
+TAG.LINKMORE1=<LINK.MORE1>
+LINK=<MORE1>
+IF !(<LINK.REGION.FLAGS>&region_flag_ship) //Don't do anything unless they're actually on board
+
+LINK.NEWITEM i_model_ship
+LINK.ACT.TYPE=t_deed
+LINK.ACT.NAME=<TAG.LINKNAME>
+LINK.ACT.MORE=<eval <TAG.LINKID>>
+LINK.ACT.MORE2=<eval <TAG.LINKMORE1>>
+LINK.ACT.CONT=<LINK.ACT.MORE2>
+LINK.ACT.MORE2=0
+
+TAG.LINKMORE1=
+
+REGION.ALLCLIENTS GO <LINK.P>
+
+LINK=<eval <TAG.OLDLINK>>
+TAG.OLDLINK=
+LINK.TAG.HASTEUID=
+REMOVE
+LINK.REMOVE
+RETURN 1
+ELSE
+LINK=<eval <TAG.OLDLINK>>
+TAG.OLDLINK=
+
+VAR.CLIENTCOUNT=0
+REGION.ALLCLIENTS countclients
+
+TAG.MAXTIMERCOUNT=<EVAL <EVAL <VAR.CLIENTCOUNT> / 3> + 1>
+
+IF (<EVAL <TAG.TIMERCOUNT>> < <EVAL <TAG.MAXTIMERCOUNT>>)
+TAG.TIMERCOUNT=<EVAL <TAG.MAXTIMERCOUNT>>
+LINK.LINK.SAY Toda velocidade a frente, capitao! (<EVAL <TAG.TIMERCOUNT>>).
+ENDIF
+
+TIMERd=<EVAL <TAG.TIMERCOUNT> + 1>
+LINK.TIMERd=<EVAL <TAG.TIMERCOUNT>>
+
+RETURN 1
+ENDIF
+
+
+[SPEECH spk_ship_cmds]
+
+ON=nome *
+// Changes Ship's name, where *=name.
+NAME=<strmid(<args>,8,64)>
+
+ON=Toda velocidade
+IF (<EVAL <TAG.HASTEUID>> > 0)
+	VAR.OLDACT=<SRC.ACT.UID>
+	SRC.ACT=<EVAL <TAG.HASTEUID>>
+	SRC.ACT.TAG.TIMERCOUNT=0
+	SRC.ACT=<EVAL <VAR.OLDACT>>
+	VAR.OLDACT=
+ELSE
+	LINK.SAY Ainda nao estamos nos movendo, Capitao.
+ENDIF
+
+ON=Devagar
+IF (<EVAL <TAG.HASTEUID>> > 0)
+	VAR.OLDACT=<SRC.ACT.UID>
+	SRC.ACT=<EVAL <TAG.HASTEUID>>
+	SRC.ACT.TAG.TIMERCOUNT=<EVAL <SRC.ACT.TAG.TIMERCOUNT> + 1>
+	LINK.SAY Ye bancos de areia... sempre querendo atrasar o barco. que seja. (<EVAL <SRC.ACT.TAG.TIMERCOUNT>>)
+	SRC.ACT=<EVAL <VAR.OLDACT>>
+	VAR.OLDACT=
+ELSE
+	LINK.SAY Ainda nao estamos nos movendo, Capitao.
+ENDIF
+
+ON=Rapido
+IF (<EVAL <TAG.HASTEUID>> > 0)
+	VAR.OLDACT=<SRC.ACT.UID>
+	SRC.ACT=<EVAL <TAG.HASTEUID>>
+	IF (<EVAL <SRC.ACT.TAG.TIMERCOUNT> +(-1)> < <EVAL <SRC.ACT.TAG.MAXTIMERCOUNT>>)
+		LINK.SAY Ja estamos indo na velocidade mexima , capitao!
+	ELSE
+		SRC.ACT.TAG.TIMERCOUNT=<EVAL <SRC.ACT.TAG.TIMERCOUNT> + (-1)>
+		LINK.SAY Aye aye, Capitao! (<EVAL <SRC.ACT.TAG.TIMERCOUNT>>)
+	ENDIF
+	SRC.ACT=<EVAL <VAR.OLDACT>>
+	VAR.OLDACT=
+ELSE
+	LINK.SAY Ainda nao estamos nos movendo, Capitao.
+ENDIF
+
+ON=baixar velas	// parar
+ON=Parar			// Stops current ship movement.
+	SHIPSTOP
+
+ON=virar esquerda
+ON=virar a estibordo		// Turn Left
+	SHIPTURNLEFT
+
+ON=virar direita
+ON=virar a boreste	// Turn Right
+	SHIPTURNRIGHT
+
+ON=esquerda		// Move ship in desired direction.
+ON=mover a estibordo
+	SHIPDRIFTLEFT
+
+ON=direita		// Move ship in desired direction.
+ON=mover a boreste
+	SHIPDRIFTRIGHT
+
+ON=para tras		// Move ship backwards
+ON=atras		// Move ship backwards
+ON=popa	// Move ship backwards
+	SHIPBACK
+
+ON=para frente
+ON=frente		// Moves ship forward.
+ON=insar velas
+on=proa 
+ 	// Moves ship forward.
+	IF (<eval <TAG.HASTEUID>> == 0)
+	SRC.NEWITEM i_shiphaste
+	TAG.HASTEUID=<SRC.ACT.UID>
+	SRC.ACT.LINK=<UID>
+	SRC.ACT.MORE1=<SRC.UID>
+	SRC.ACT.NAME=Ship Speed Control for <NAME>
+	SRC.ACT.ATTR=attr_invis|attr_move_never
+	SRC.ACT.P=<P>
+	SRC.ACT.TIMER=1
+	ENDIF
+	SHIPFORE
+
+ON=proa esquerda
+on=frente esquerda	
+        SHIPFORELEFT
+
+ON=proa direita
+ON=frente direita
+        SHIPFORERIGHT
+
+ON=popa esquerda
+ON=atras esquerda
+	SHIPBACKLEFT
+
+ON=popa direita
+ON=atras direita
+	SHIPBACKRIGHT
+
+ON=levantar ancora
+on=içar ancora
+	SHIPANCHORRAISE
+
+ON=lancar ancora
+ON=levantar ancora
+        SHIPANCHORDROP
+
+ON=girar
+ON=rodar
+	SHIPTURN
+
+ON=subir
+	SHIPUP
+
+ON=descer
+	SHIPDOWN
+
+ON=aportar
+	SHIPLAND

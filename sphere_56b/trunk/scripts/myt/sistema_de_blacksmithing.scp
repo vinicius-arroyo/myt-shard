@@ -1,0 +1,5215 @@
+   //////////////////////////////////////////
+  //////Sistema de blacksmithing - MyT//////
+ ////// v1.0 - por: Galthar e Silver //////
+//////////////////////////////////////////
+
+//--------------legenda-----------------//
+//
+//  LF = lingot ferro
+//  LP = lingot de prata
+//  PF = placa ferro
+//  PC = peca couro correspondente
+//  CF = cabo ferro
+//  CM = cabo madeira
+//  TF = tacha ferro
+//  AF = argorla ferro
+//  
+//
+//
+//
+//
+//
+//
+//
+//
+//------------------------------------//
+// sfx 
+// 022b - som de uma placa sendo feita
+// 02a  - PAN! PAN
+// 0146 - DUUM.	
+// 01ff - correntes
+
+
+
+
+
+//--itens usados pelo bs--//
+
+[ITEMDEF i_bigorna]
+ID=0faf
+name=bigorna
+DEFNAME=i_bigorna
+TYPE=T_ANVIL
+FLIP=1
+WEIGHT=30
+CATEGORY=MyT
+SUBSECTION=Blacksmith
+DESCRIPTION=bigorna (N)
+DUPELIST=0fb0
+
+
+on=@dclick
+if (<src.blacksmithing> < 50)
+src.sysmessage skill negada.
+return 1
+elseif (<src.findlayer(1).ID> == 4020 )
+	if (<src.targ.distance> > 1)
+  		src.sysmessage Chegue mais perto.
+  		return 1
+ 	else
+		var.blacksmithing_bs=<src.blacksmithing>
+                src.dialog d_menu_bs	
+		return 1
+	endif
+else
+  src.sysmessage Voce nao esta equipado com  ferramenta correta.
+return 1
+endif 
+
+
+[ITEMDEF i_martelo_ferreiro]
+ID=0fb4
+NAME=martelo de ferreiro
+DEFNAME=i_martelo_ferreiro
+WEIGHT=4
+TYPE=T_WEAPON_MACE_SMITH
+FLIP=1
+DAM=4,16
+//SPEED=60
+SKILL=Mace Fighting
+REQSTR=30
+TWOHANDS=N
+CATEGORY=MyT
+SUBSECTION=Blacksmith
+DESCRIPTION=martelo de ferreiro
+DUPELIST=0fb5
+
+ON=@Create
+HITPOINTS={31 60}
+
+on=@dclick
+src.equip
+target Selecione a bigorna:
+return 1
+
+on=@TARGON_ITEM
+if (<src.blacksmithing> < 50)
+src.sysmessage skill negada.
+return 1
+elseif (<src.targ.type>==t_anvil)
+ if (<src.targ.distance> > 1)
+  src.sysmessage Chegue mais perto.
+  return 1
+ endif
+ src.repairfix
+else
+ src.sysmessage Isso nao e uma bigorna.
+endif
+return 1
+
+[ITEMDEF i_trefila]
+name=trefila
+id=01884
+type=t_normal
+WEIGHT=4
+CATEGORY=MyT
+SUBSECTION=Blacksmith
+
+description=trefila
+
+on=@create
+color=008ac
+
+on=@dclick
+src.sysmessage Utilize o metal fundido.
+return 1
+
+[ITEMDEF i_alicate]
+name=alicate
+id=0fbc
+type=t_script
+WEIGHT=0.1
+CATEGORY=MyT
+SUBSECTION=Blacksmith
+DESCRIPTION=alicate
+
+on=@dclick
+if (<src.blacksmithing> < 50)
+src.sysmessage skill negada.
+return 1
+elseif (<src.targ.distance> > 1) && (<topobj.uid> != <src.uid>)
+src.sysmessage Chegue mais perto
+return 1
+else
+src.sysmessage Use-a sozinha ou com o martelo.
+src.targ.bounce
+ if (<src.restest i_cabo_ferro>)
+  var.blacksmithing_bs=<src.blacksmithing>>
+  src.skillmenu sm_bs_alicate
+  return 1
+ else
+  src.sysmessage Voce precisa de arame ou argolas.
+  return 1
+  endif
+return 1
+endif
+return 1
+
+ 
+//--itens feitos pelo bs--//
+
+
+[itemdef i_pregos]
+id=014fb
+type=t_script
+name=prego%s
+pile=1
+category=MyT
+subsection=Blacksmith
+description=pregos
+WEIGHT=0
+
+on=@create
+color=00b27
+
+on=@dlick
+src.sysmessage usado por carpinteiros.
+
+[itemdef i_argola_barril]
+id=010e2
+name=argolas de ferro
+flip=1
+CATEGORY=MyT
+SUBSECTION=Blacksmith
+DESCRIPTION=argolas para barril
+
+[ITEMDEF i_picareta]
+ID=0e85
+DEFNAME=i_picareta
+TYPE=T_WEAPON_MACE_PICK
+FLIP=1
+DAM=1,15
+SPEED=40
+REQSTR=25
+TWOHANDS=N
+WEIGHT=11
+CATEGORY=MyT
+SUBSECTION=Blacksmith
+DESCRIPTION=picareta
+dupelist=0e86
+
+
+ON=@Create
+HITPOINTS={31 60}
+
+
+[itemdef i_pa]
+//Shovel (unique type of unequipable item)
+//LAYER=0
+id=0f39
+DEFNAME=i_pa
+TYPE=T_Normal
+FLIP=1
+WEIGHT=5
+CATEGORY=MyT
+SUBSECTION=Blacksmith
+DESCRIPTION=ap
+SKILLMAKE=TINKERING 20.0,t_tinker_tools
+DUPELIST=0f3a
+
+ON=@Create
+HITPOINTS={31 60}
+
+ON=@userDClick
+src.tag.resourcetype=1
+target Onde quer usar a pa ?
+//return <resource_dclick>
+return 1
+ON=@Targon_item
+
+SRC.SYSMESSAGE You can't mine that.
+return 1
+ON=@Targon_char
+SRC.SYSMESSAGE You can't mine that.
+return 1
+ON=@Targon_ground
+return <resource_targon_ground>
+
+//[itemdef i_poste_amarre]
+//name=poste de amarre
+//id=014e7
+//weight=8
+//type=t_furniture
+//category=MyT
+//subsection=Blacksmith
+//description=poste de amarre
+//dupelist=014e8
+
+[ITEMDEF i_ferradura]
+name=ferraduras
+id=4022
+type=t_normal
+weight=1
+CATEGORY=MyT
+subsection=Blacksmith
+description=ferraduras
+
+
+//--Cabos--//
+
+[itemdef 6262]
+defname=i_iron_wire
+ 
+[ITEMDEF i_cabo_ferro]
+NAME=arame%s% de ferro
+ID=i_iron_wire
+WEIGHT=0.2
+CATEGORY=MyT
+SUBSECTION=Blacksmith
+DESCRIPTION=arame de ferro
+PILE=1
+
+//[ITEMDEF i_cabo_prata]
+//ID=6263
+//WEIGHT=2
+//CATEGORY=MyT
+//SUBSECTION=Blacksmith
+//DESCRIPTION=cabo de prata
+
+//ON=@Create
+//COLOR=color_o_silver
+
+//[ITEMDEF i_cabo_ouro]
+//ID=6264
+//WEIGHT=2
+//CATEGORY=MyT
+//SUBSECTION=Blacksmith
+//DESCRIPTION=cabo de ouro
+
+
+//ON=@Create
+//COLOR=color_o_gold
+
+//[ITEMDEF i_cabo_cobre] 
+//ID=6265
+//WEIGHT=2
+//CATEGORY=MyT
+//SUBSECTION=Blacksmith
+//DESCRIPTION=cabo de cobre
+
+//ON=@Create
+//COLOR=color_o_copper
+
+//--pré-itens--//
+
+[itemdef i_bigorna_forjada]
+name=metal forjado
+WEIGHT=30
+id=i_anvil
+type=t_script
+
+on=@dclick
+target Selecione a tina de agua:
+return 1
+
+on=@create
+color=007a
+
+on=@TARGON_ITEM
+if (<src.targ.dispid>==i_barrel_water)
+ if (<src.targ.distance> > 1)
+  src.sysmessage Chegue mais perto.
+  return 1
+ endif
+ sfx 054
+ src.targ.effect 2,i_fx_smoke,0,15,0
+ src.newitem=<more2>
+ src.act.tag.dono=<src.uid>
+ src.tag.furniact=0<src.tag.furniact>+1
+ src.act.bounce
+ remove
+else
+ src.sysmessage Isso nao e uma tina de agua.
+endif
+return 1
+
+//[itemdef i_bigorna_forjada]
+//name=metal forjado
+//id=i_anvil
+//type=t_script
+
+//on=@dclick
+//target Selecione a tina de agua:
+//return 1
+
+//on=@create
+//color=007a
+
+//on=@TARGON_ITEM
+//if (<src.targ.dispid>==i_barrel_water)
+ //if (<src.targ.distance> > 1)
+  //src.sysmessage Chegue mais perto.
+  //return 1
+ //endif
+ //sfx 054
+ //src.targ.effect 2,i_fx_smoke,0,15,0
+ //src.newitem=<more2>
+ //src.act.bounce
+ //remove
+//else
+ //src.sysmessage Isso nao e uma tina de agua.
+//endif
+//return 1
+
+[ITEMDEF i_ponta_picareta]
+//usado tambem para representar laminas de machados.
+name=metal forjado
+id=01043
+type=t_script
+
+on=@create
+color=0845
+
+on=@dclick
+target Selecione a tina de agua:
+return 1
+
+on=@TARGON_ITEM
+if (<src.targ.dispid>==i_barrel_water)
+ if (<src.targ.distance> > 1)
+  src.sysmessage Chegue mais perto.
+  return 1
+ endif
+ sfx 054
+ src.targ.effect 2,i_fx_smoke,0,15,0
+ src.newitem=<more2>
+ src.act.more1=<more1>
+ src.act.bounce
+ remove
+else
+ src.sysmessage Isso nao e uma tina de agua.
+endif
+return 1
+
+[ITEMDEF i_metal_forjado]
+name=metal forjado
+id=0fb7
+type=t_script
+
+
+on=@dclick
+target Selecione a tina de agua:
+return 1
+
+on=@TARGON_ITEM
+if (<src.targ.dispid>==i_barrel_water)
+ if (<src.targ.distance> > 1)
+  src.sysmessage Chegue mais perto.
+  return 1
+ endif
+ sfx 054
+ src.targ.effect 2,i_fx_smoke,0,15,0
+ src.newitem=<more2>
+ src.act.more1=<more1>
+ src.act.bounce
+ remove
+else
+ src.sysmessage Isso nao e uma tina de agua.
+endif
+return 1
+
+[ITEMDEF i_bola_maca]
+name=bola para maca
+//antigo id 01cb
+id=3699
+type=t_script
+
+on=@create
+color=00b0c
+
+on=@dclick
+target Selecione a tina de agua:
+return 1
+
+on=@TARGON_ITEM
+if (<src.targ.dispid>==i_barrel_water)
+ if (<src.targ.distance> > 1)
+  src.sysmessage Chegue mais perto.
+  return 1
+ endif
+ sfx 054
+ src.targ.effect 2,i_fx_smoke,0,15,0
+ src.newitem=<more2>
+ src.act.more1=<more1>
+ src.act.bounce
+ remove
+else
+ src.sysmessage Isso nao e uma tina de agua.
+endif
+return 1
+
+
+[ITEMDEF i_maca_martelo]
+name=maca para o martelo
+id=01044
+type=t_script
+
+on=@create
+color=0845
+
+on=@dclick
+if (<src.restest 1 i_cabo_madeira>)
+ target Selecione a tina de agua:
+else
+ src.sysmessage Falta um item para confeccionar.
+endif
+return 1
+
+on=@TARGON_ITEM
+if (<src.targ.dispid>==i_barrel_water)
+ if (<src.targ.distance> > 1)
+  src.sysmessage Chegue mais perto.
+  return 1
+ endif
+ sfx 054
+ src.targ.effect 2,i_fx_smoke,0,15,0
+ src.consume=1 i_cabo_madeira
+ src.newitem=i_martelo_ferreiro
+ src.act.more1=<more1>
+ src.act.bounce
+ remove
+else
+ src.sysmessage Isso nao e uma tina de agua.
+endif
+return 1
+
+
+
+
+[ITEMDEF i_metal_fundido]
+name=metal fundido
+id=0136b
+type=t_script
+//cor antiga = 0489
+on=@create
+color=0f89
+
+on=@dclick
+if (<src.restest 1 i_trefila>)
+ target Selecione a tina de agua:
+else
+ src.sysmessage Voce precisa de uma trefila.
+endif
+return 1
+
+on=@TARGON_ITEM
+if (<src.targ.dispid>==i_barrel_water)
+ if (<src.targ.distance> > 1)
+  src.sysmessage Chegue mais perto.
+  return 1
+ endif
+ sfx 054
+ src.targ.effect 2,i_fx_smoke,0,15,0
+ src.newitem=i_cabo_ferro
+ src.act.bounce
+ remove
+else
+ src.sysmessage Isso nao e uma tina de agua.
+endif
+return 1
+
+[ITEMDEF i_barra_metal]
+name=barra%s de metal
+id=0f8a
+weight=0.1
+type=t_script
+
+on=@create
+color=00482
+
+on=@dclick
+src.sysmessage Use a bola para maca para montar.
+return 1
+
+[ITEMDEF i_tacha_armor]
+name=tachas para armadura
+id=0f12
+type=t_script
+weight=0.1
+PILE=1
+
+on=@create
+color=0430
+
+on=@dclick
+src.sysmessage Utilize o martelo para fixar
+src.sysmessage as tachas numa armadura de couro.
+return 1
+
+[ITEMDEF i_anel_ferro]
+name=anel de ferro
+id=0f87
+weight=0
+type=t_script
+PILE=1
+
+on=@create
+color=0847
+
+on=@dclick
+src.sysmessage Utilize o martelo para criar
+src.sysmessage as pecas.
+return 1
+
+[ITEMDEF i_tacha_forjada]
+name=metal forjado
+id=7847
+weight=0.1
+type=t_script
+Pile=0
+
+on=@create
+color=00b0c
+
+
+on=@dclick
+target Selecione a tina de agua:
+return 1
+
+on=@TARGON_ITEM
+if (<src.targ.dispid>==i_barrel_water)
+
+ if (<src.targ.distance> > 1)
+  src.sysmessage Chegue mais perto.
+  return 1
+ endif
+ sfx 054
+ src.targ.effect 2,i_fx_smoke,0,15,0
+ src.newitem=<more2>
+ src.act.bounce
+ remove
+else
+ src.sysmessage Isso nao e uma tina de agua.
+endif
+return 1
+
+[ITEMDEF i_placa_ferro_forjada]
+name=placa de ferro
+id=01f25
+type=t_script
+weight=0
+pile=1
+
+on=@create
+color=0b0e
+
+on=@dclick
+target Selecione a tina de agua:
+return 1
+
+on=@TARGON_ITEM
+if (<src.targ.dispid>==i_barrel_water)
+ if (<src.targ.distance> > 1)
+  src.sysmessage Chegue mais perto.
+  return 1
+ endif
+ sfx 054
+ src.targ.effect 2,i_fx_smoke,0,15,0
+ src.newitem=i_placa_ferro
+ src.act.bounce
+ remove
+else
+ src.sysmessage Isso nao e uma tina de agua.
+endif
+return 1
+
+
+[ITEMDEF i_placa_ferro]
+name=placa de ferro
+id=01f25
+type=t_script
+weight=8
+pile=1
+
+on=@create
+color=09a4
+
+on=@dclick
+src.sysmessage Utilize o martelo para criar
+src.sysmessage pecas com a placa de ferro.
+return 1
+
+@StackOn 
+amount=<amount>+1
+
+
+
+
+//--Lixo gerado--//
+
+[itemdef i_foligem_bs]
+name=foligem
+id=01038
+type=t_script
+category=MyT
+subsection=Carpentry
+description=foligem
+
+on=@create
+color=009a7
+attr=00002
+timer=30
+
+//--gumps--//
+
+[DIALOG d_menu_bs]
+0, 230
+PAGE 0
+resizepic 3 5 5120 453 248
+resizepic 25 30 5054 125 189
+resizepic 167 30 5054 125 189
+resizepic 310 30 5054 125 189
+text 200 7 995 0
+text 121 7 152 1
+text 283 9 152 2
+text 64 34 1345 3
+text 194 34 1345 4
+text 337 35 1345 5
+text 52 59 995 6
+text 52 79 995 7
+text 52 99 995 8
+text 52 139 995 9
+text 52 119 995 10    
+text 52 159 995 16   //-> new text
+text 192 59 995 11
+text 192 79 995 18  //-> new text malhas
+text 192 99 995 13
+text 192 119 995 14  // 
+text 192 139 995 12  
+text 335 59 995 15 
+text 335 79 995 17 // pontas de flecha
+text 335 99 995 19 // novo outros  
+text 335 119 995 20
+text 300 220 995 21 // <-- make last item
+button 31 64 2224 2224 1 0 1
+button 31 84 2224 2224 1 0 2
+button 31 104 2224 2224 1 0 3
+button 31 124 2224 2224 1 0 4
+button 31 144 2224 2224 1 0 6 // modificado
+button 31 164 2224 2224 1 0 5 //-> index 6 eh o da lança modificado
+button 172 64 2224 2224 1 0 7
+button 172 84 2224 2224 1 0 8
+button 172 104 2224 2224 1 0 9
+button 172 124 2224 2224 1 0 10
+button 172 144 2224 2224 1 0 13
+button 315 64 2224 2224 1 0 11
+button 315 104 2224 2224 1 0 12
+button 315 84  2224 2224 1 0 14
+button 315 124 2224 2224 1 0 15
+button 280 224 2224 2224 1 0 16 //<--botão make last item
+
+[DIALOG d_menu_bs TEXT]
+Ferreiro
+(MyT)
+(MyT)
+Armas
+Armaduras
+Utilidades
+Facas  //--- > antes eram adagas , mudei pra facas
+Espadas
+Machados
+Macas
+Lancas
+Couro
+Elmos
+Placa
+Escudos
+Ferramentas
+Martelos
+Pontas
+Malha 
+Outros
+Prata
+Fazer Ultimo Item
+
+
+
+[DIALOG d_menu_bs BUTTON]
+on=1
+SKILLMENU=sm_bs_adagas
+return 1
+
+on=2
+SKILLMENU=sm_bs_espadas
+return 1
+
+
+on=3
+SKILLMENU=sm_bs_machados
+return 1
+
+on=4
+SKILLMENU=sm_bs_lancas
+return 1
+
+on=5
+SKILLMENU=sm_bs_martelos
+return 1
+
+on=6
+SKILLMENU=sm_bs_macas
+return 1
+
+on=7
+SKILLMENU=sm_bs_armor_couro
+return 1
+
+on=8
+SKILLMENU=sm_bs_armor_malhas
+return 1
+
+on=9
+SKILLMENU=sm_bs_armor_placa
+return 1
+
+on=10
+SKILLMENU=sm_bs_armor_escudos
+return 1
+
+on=11
+SKILLMENU=sm_bs_ferramentas
+return 1
+
+on=12
+SKILLMENU=sm_bs_outros
+return 1
+
+on=13
+SKILLMENU=sm_bs_armor_elmos
+return 1
+
+on=14
+SKILLMENU=sm_bs_pontasflecha
+return 1
+
+on=15
+skillmenu=sm_bs_prata
+return 1
+
+on=16
+src.tag.qtditem=<src.tag.qtditeml>
+src.dialog=d_bs_fazitem
+return 1
+
+[DIALOG d_bs_fazitem]
+-310, 120
+PAGE 0
+noclose
+//nomove
+resizepic 312 219 3500 165 135
+button 325 250 2224 2224 1 0 0  // <- botao do +1
+button 325 270 2224 2224 1 0 1	// <- botao do -1
+button 325 310 2224 2224 1 0 2	// <- botao de zerar
+button 400 270 2224 2224 1 0 3	// <- botao de fazer
+button 400 310 2224 2224 1 0 4 	// <- botao de sair
+button 325 290 2224 2224 1 0 5  // <- botao de MAX
+text 345 225 152 0 	//<--- texto label
+text 345 246 1345 1 	//<--- texto do mais 1
+text 435 226 162 2	//<--- texto do contador	
+text 345 267 95 3	//<--- texto do menos 1
+text 345 305 95 4	//<--- texto de zerar
+text 420 267 95 5       //<--- texto para fazer
+text 420 305 41 6       //<--- texto para sair
+text 345 285 95 7	//<--- texto para MAX
+[DIALOG d_bs_fazitem TEXT]
+Quantidade:
++1
+<eval 0<src.tag.qtditem>>
+-1
+zerar
+fazer
+sair
+max
+[DIALOG d_bs_fazitem BUTTON]
+
+on=
+	src.dialog=d_bs_fazitem
+ 	src.update
+	return 
+on=0					//INCREMENTA
+	if ( <src.tag.qtditem> < 10 )
+		src.tag.qtditem=<src.tag.qtditem>+1
+		src.dialog=d_bs_fazitem
+ 		src.update
+		return 
+	else
+		src.sysmessageyellow Limite alcancado
+		src.dialog=d_bs_fazitem
+ 		src.update
+		return 
+on=1					//DECREMENTA
+	if ( <src.tag.qtditem> >0 )	
+		src.tag.qtditem=<src.tag.qtditem>-1
+		src.update
+ 		src.dialog=d_bs_fazitem
+		return 
+	else
+		src.sysmessageyellow Limite alcancado
+		src.dialog=d_bs_fazitem
+		src.update
+		return 
+on=2					// ZERA O CONTADOR
+	src.tag.qtditem=0 
+	src.update
+ 	src.dialog=d_bs_fazitem
+	return 
+on=3					//FAZ O ITEM
+	if (<src.tag.qtditem> == 0 )
+		src.sysmessageyellow Nao foi selecionada a quantidade
+		return
+	else
+		src.fazitem <src.tag.qtditem>
+		src.update	
+		return 
+on=4
+	src.tag.qtditeml=<src.tag.qtditem>
+	src.tag.qtditem=
+	return
+on=5  
+	src.tag.qtditem=10
+	src.dialog=d_bs_fazitem
+	src.update
+	return
+
+[SKillmenu sm_bs_prata]
+O que deseja construir?
+
+ON=i_adaga_silver faca (2LP)
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=40				//skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=20			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.amt1=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_adaga_silver 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_KRYSS_Silver <name> (4LP)
+TESTIF= ( <src.armslore> >= 500 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=55				//skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=30			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.amt1=4 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_kryss_silver 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_ponta_prata de prata (2LP)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=60				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.amt1=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_ponta_prata		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_club_silver porrete (6LP)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=30				//skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=25			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.amt1=6 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_club_silver		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_broadsword_silver espada curta (6LP)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=40				//skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=25			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.amt1=6 			//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_broadsword_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_sword_long_silver espada longa (8LP)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=65				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.amt1=8 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_sword_long_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+
+src.fazitem
+return 1
+
+on=i_sword_viking_silver espada larga (10LP)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=50			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.amt1=10				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_sword_viking_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_katana_silver katana (7LP)
+TESTIF= ( <src.armslore> >= 900 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=80				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.amt1=7				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_katana_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_cutlass_silver sabre (7LP)
+TESTIF= ( <src.armslore> >= 800 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=45				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.amt1=7 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_cutlass_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_scimitar_silver cimitarra (7LP)
+TESTIF= ( <src.armslore> >= 800 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=50				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=45			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.amt1=7				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_scimitar_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_AXE_Silver machado (5LP,2CM)
+TESTIF= ( <src.armslore> >= 300 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=60				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=35			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira		//ID resource número 2
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=5 				//quantidade do resource
+obj.tag.amt2=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_axe_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_axe_double_Silver machado duplo (10LP,2CM)
+TESTIF= ( <src.armslore> >= 500 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=69				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=45			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=10 			//quantidade do resource
+obj.tag.amt2=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_axe_double_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_axe_battle_Silver machado de batalha (10LP,2CM)
+TESTIF= (<src.armslore> >= 450 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=75				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=45			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=10 			//quantidade do resource
+obj.tag.amt2=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_cutlass_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_axe_battle_large_Silver grade machado de batalha (11LP,CM)
+TESTIF= ( <src.armslore> >= 620 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=80				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=11				//quantidade do resource
+obj.tag.amt2=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_axe_battle_large_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_axe_exec_Silver machado de execucao (8LP,2CM)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=85				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=50			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=8 				//quantidade do resource
+obj.tag.amt2=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_axe_exec_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_axe_two_hand_Silver machado de duas maos (11LP,2CM)
+TESTIF= ( <src.armslore> >= 580 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=85				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=45			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=11 			//quantidade do resource
+obj.tag.amt2=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_axe_two_hand_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_axe_war_Silver machado de guerra(8LP,2CM)
+TESTIF= ( <src.armslore> >= 550 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=8
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_axe_war_silver 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_mace_silver maca (6LP,1BM)
+TESTIF= ( <src.armslore> >= 350 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=60				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=15			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_barra_metal
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=barra de metal
+obj.tag.amt1=6   			//quantidade do resource
+obj.tag.amt2=1
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_mace_silver 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_mace_war_Silver maca de guerra (10LP,BM)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=69				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=29			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_barra_metal
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=barra de metal		//nome do resource
+obj.tag.amt1=10 			//quantidade do resource
+obj.tag.amt2=1
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_mace_war_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_maul_silver maca de infantaria (10LP,2BM)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=75				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=36			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_barra_metal
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=barras de metal
+obj.tag.amt1=10 
+obj.tag.amt2=2			//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_maul_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_hammer_war_Silver martelo de guerra (10LP)
+TESTIF= ( <src.armslore> >= 700 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=45			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabo de madeira		//nome do resource
+obj.tag.amt1=10 			//quantidade do resource
+obj.tag.amt2=1
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_maca_martelo
+obj.tag.more2=i_hammer_war_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_HAMMER_PICK_Silver martelo longo(8LP,CM)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=65				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira		//nome do resource
+obj.tag.amt1=8				//quantidade do resource
+obj.tag.amt2=1
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_hammer_pick_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_SPEAR_SHORT_Silver lanca curta (6LP,1CM)
+TESTIF= ( <src.armslore> >= 400 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabo de madeira		//nome do resource
+obj.tag.amt1=6 				//quantidade do resource
+obj.tag.amt2=1
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_spear_short_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_WAR_FORK_Silver garfo de guerra (6LP,2CM)
+TESTIF= ( <src.armslore> >= 300 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=65				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=45			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira		//nome do resource
+obj.tag.amt1=6 				//quantidade do resource
+obj.tag.amt2=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_war_fork_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_PITCHFORK_Silver forquilha (6LP,2CM)
+TESTIF= ( <src.armslore> >= 400 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=30			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=6
+obj.tag.amt2=2	 			//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_pitchfork_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_SPEAR_Silver lanca (3LP,3CM)
+TESTIF= ( <src.armslore> >= 300 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=65				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=45			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira	//nome do resource
+obj.tag.amt1=3
+obj.tag.amt2=3 			//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_spear_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_HALBERD_Silver alabarda (8LP,3CM)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=90				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira		//nome do resource
+obj.tag.amt1=8 				//quantidade do resource
+obj.tag.amt2=3
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_halberd_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_BARDICHE_Silver bardiche (8LP,3CM)
+TESTIF= ( <src.armslore> >= 700 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=85				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.nam2=cabos de madeira		//nome do resource
+obj.tag.amt1=8
+obj.tag.amt2=3				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_bardiche_silver 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+
+
+[skillmenu sm_bs_pontasflecha]
+O que deseja construir?
+
+ON=i_ponta_ferro de ferro(LF)
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=50				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingote de ferro		//nome do resource
+obj.tag.amt1=1
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_ponta_ferro 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_ponta_precisao de precisao (2LF)
+TESTIF= ( <src.armslore> >= 620 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=50				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingote de ferro		//nome do resource
+obj.tag.amt1=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_ponta_precisao		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_ponta_perfurante perfurante (2LF)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=50				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingote de ferro		//nome do resource
+obj.tag.amt1=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_ponta_perfurante		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_ponta_leve de ferro tratado (2LF)
+TESTIF= (<src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=50				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_ponta_leve		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+on=i_ponta_prata de prata (2LP)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=60				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_silver		//resource necessario
+obj.tag.nam1=lingotes de prata		//nome do resource
+obj.tag.amt1=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_ponta_prata		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+[SKILLMENU sm_bs_adagas]
+O que deseja construir?
+
+ON=i_adaga faca (2LF)
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=25				//skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=10			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingote de ferro		//nome do resource
+obj.tag.amt1=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_adaga		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_kryss <name> (5LF)
+TESTIF= ( <src.armslore> >= 500 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=40				//skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=10			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingote de ferro		//nome do resource
+obj.tag.amt1=5 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_kryss		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_cutelo cutelo (2LF)
+TESTIF= ( <src.armslore> >= 300 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=25				//skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=10			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingote de ferro		//nome do resource
+obj.tag.amt1=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_cutelo		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+on=i_faca_pelar faca de pelar (2LF)
+TESTIF= (<src.armslore> >= 200 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=20				//skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=10			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingote de ferro		//nome do resource
+obj.tag.amt1=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_faca_pelar		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_faca_corte faca de corte (2LF)
+TESTIF= (<src.armslore> >= 200 )
+obj=<src.findid.i_faz_item.uid> 
+obj.cleartags
+obj.tag.dif=20				//skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=10			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingote de ferro		//nome do resource
+obj.tag.amt1=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_faca_corte		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+
+[SKILLMENU sm_bs_espadas]
+O que deseja construir?
+
+ON=i_sword_broad espada curta (6LF)
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=50				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=35			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=6				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_espada_curta 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+on=i_espada_longa espada longa (8LF)
+TESTIF= ( <src.armslore> >= 550 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=60				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=8				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_espada_longa 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+on=i_espada_larga espada larga (7LF)
+TESTIF= ( <src.armslore> >= 650 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=68				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=45			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=7 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_espada_larga 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+on=i_katana_n katana (7LF)
+TESTIF= ( <src.armslore> >= 900 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=90				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=80			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=7 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_katana_n 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_sabre sabre (5LF)
+TESTIF= ( <src.armslore> >= 700 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=65				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=35			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=5				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_sabre		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_cimitarra cimitarra (5LF)
+TESTIF= ( <src.armslore> >= 750 )
+
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=5 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_cimitarra		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_gladio gladio (4LF)
+TESTIF= ( <src.armslore> >= 550 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=55				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=4 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_gladio 			//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_claymore claymore (10LF)
+TESTIF= ( <src.armslore> >= 850 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=80				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=10 			//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_claymore 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+[SKILLMENU sm_bs_machados]
+O que deseja construir?
+
+
+on=i_machadinha machadinha (2LF,CM)
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=30			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=2
+obj.tag.amt2=1 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_machadinha 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_machado machado (5LF,CM )
+TESTIF= ( <src.armslore> >= 350 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=45				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=35			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=5
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_machado 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_machado_duplo machado duplo (10LF,2CM)
+TESTIF= ( <src.armslore> >= 500 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=55				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=10
+obj.tag.amt2=2				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_machado_duplo 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_machadob machado de batalha (6LF,2CM)
+TESTIF= (<src.armslore> >= 550 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=55				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=45			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=6
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_machadob 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_machadob_grande grade machado de batalha (7LF,2CM)
+TESTIF= ( <src.armslore> >= 650 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=45			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=7
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_machadob_grande 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_machado_execucao machado de execucao (9LF,2CM)
+TESTIF= ( <src.armslore> >= 750 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=45			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=9
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_machado_execucao 	//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_machado_duasm machado de duas maos (10LF,2CM)
+TESTIF= (<src.armslore> >= 700 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=55			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=10
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_machado_duasm		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_machado_guerra machado de guerra(5LF,2CM)
+TESTIF= (<src.armslore> >= 800 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=5
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_machado_guerra		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+[SKILLMENU sm_bs_macas]
+O que deseja construir?
+
+ON=i_barra_metal barra de metal (2LF)
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=35				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=20			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_barra_metal			
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+
+ON=i_maca maca (3LF,BM)
+TESTIF= ( <src.armslore> >= 450 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=30			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_barra_metal
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=barra de metal
+obj.tag.amt1=3
+obj.tag.amt2=1 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_bola_maca
+obj.tag.more2=i_maca			//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_maca_guerra maca de guerra (6LF,2BM)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=65				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_barra_metal
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=barras de metal
+obj.tag.amt1=6
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_bola_maca
+obj.tag.more2=i_maca_guerra		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_maca_infantaria maca de infantaria (5LF,3BM)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=70			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_barra_metal
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=barras de metal
+obj.tag.amt1=5
+obj.tag.amt2=3				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_bola_maca
+obj.tag.more2=i_maca_infantaria		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+[SKILLMENU sm_bs_lancas]
+O que deseja construir?
+
+ON=i_barra_metal barra de metal (2LF)
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=35				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=20			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingote de ferro		//nome do resource
+obj.tag.amt1=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_barra_metal			
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+src.fazitem
+return 1
+
+ON=i_lanca_curta lanca curta (4LF,2CM)
+TESTIF= ( <src.armslore> >= 450 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=45				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=30			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=4
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_lanca_curta		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_garfo_guerra garfo de guerra (3LF,2CM)
+TESTIF= ( <src.armslore> >= 300 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=45				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=30			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=3
+obj.tag.amt2=2				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_garfo_guerra		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_forquilha forquilha (3LF,2CM)
+TESTIF= ( <src.armslore> >= 400 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=70			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=3
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_forquilha		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_lanca lanca (3LF,3CM)
+TESTIF= ( <src.armslore> >= 440 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=50				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=30			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=3
+obj.tag.amt2=3 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_lanca			//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_lanca lanca leve (2LF,3CM)
+TESTIF= ( <src.armslore> >= 400 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=45				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=30			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=2
+obj.tag.amt2=3 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_lanca_leve		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_lanca lanca pesada (3LF,2BM)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=60				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=30			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_barra_metal
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=barras de metal
+obj.tag.amt1=3
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_lanca_pesada		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_lanca lanca de cavalaria(5LF,3BM)
+TESTIF= ( <src.armslore> >= 700 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=69				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=30			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_barra_metal
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=barras de metal
+obj.tag.amt1=5
+obj.tag.amt2=3 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_lanca_cavalaria		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+ON=i_alabarda alabarda (5LF,3CM)
+TESTIF= ( <src.armslore> >= 700 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=5
+obj.tag.amt2=3				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_alabarda		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_cabo_bardiche bardiche (5LF,3CM)
+TESTIF= ( <src.armslore> >= 700 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=5
+obj.tag.amt2=3 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_cabo_bardiche		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+[SKILLMENU sm_bs_martelos]
+O que deseja construir?
+
+ON=i_martelo_guerra martelo de guerra (6LF.2CM)
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=55				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=40			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=6
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_maca_martelo
+obj.tag.more2=i_martelo_guerra		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_martelo_longo martelo longo(8LF,2CM)
+TESTIF= ( <src.armslore> >= 600 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=50			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=8
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_maca_martelo
+obj.tag.more2=i_martelo_longo		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+[SKILLMENU sm_bs_armor_couro]
+O que deseja construir?
+
+ON=i_tacha_armor tachas para armadura (LF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=45
+obj.tag.delay=20
+obj.tag.res1=i_ingot_iron
+obj.tag.nam1=lingote de ferro
+obj.tag.amt1=1
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_tacha_forjada
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.more2=i_tacha_armor
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_braco_courom armadura de couro melhorada (bracos) (30TF,PC)
+TESTIF= ( <src.armslore> >= 550)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=60
+obj.tag.delay=60
+obj.tag.res1=i_tacha_armor
+obj.tag.res2=i_braco_couro
+obj.tag.nam1=tachas para armadura
+obj.tag.nam2=armadura de couro (braco)
+obj.tag.amt1=30
+obj.tag.amt2=1
+obj.tag.item=i_braco_courom
+obj.tag.anim=9
+obj.tag.sfx=0146
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.emote=atachando
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_luva_courom armadura de couro melhorada (luvas) (10TF,PC)
+TESTIF= ( <src.armslore> >= 525)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=55
+obj.tag.delay=70
+obj.tag.res1=i_anel_ferro
+obj.tag.res2=i_peito_couro
+obj.tag.nam1=aneis de ferro
+obj.tag.nam2=armadura de couro (busto)
+obj.tag.amt1=600
+obj.tag.amt2=1
+obj.tag.item=i_peito_anel
+obj.tag.anim=9
+obj.tag.sfx=0146
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.emote=atachando
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_pescoco_courom armadura de couro melhorada (pescocera ) (20TF,PC)
+TESTIF= (<src.armslore> >= 525)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=55
+obj.tag.delay=70
+obj.tag.res1=i_anel_ferro
+obj.tag.res2=i_peito_couro
+obj.tag.nam1=aneis de ferro
+obj.tag.nam2=armadura de couro (busto)
+obj.tag.amt1=600
+obj.tag.amt2=1
+obj.tag.item=i_peito_anel
+obj.tag.anim=9
+obj.tag.sfx=0146
+obj.tag.emote=atachando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_perna_courom armadura de couro melhorada (calcas) (40TF,PC)
+TESTIF= (<src.restest 40 i_tacha_armor, 1 i_perna_couro>) && (<src.armslore> >= 525)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=62
+obj.tag.delay=70
+obj.tag.res1=i_anel_ferro
+obj.tag.res2=i_peito_couro
+obj.tag.nam1=aneis de ferro
+obj.tag.nam2=armadura de couro (busto)
+obj.tag.amt1=600
+obj.tag.amt2=1
+obj.tag.item=i_peito_anel
+obj.tag.anim=9
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.sfx=0146
+obj.tag.emote=atachando
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_peito_courom armadura de couro melhorada (50TF,PC)
+TESTIF= (<src.restest 50 i_tacha_armor, 1 i_peito_couro>) && (<src.armslore> >= 525)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=70
+obj.tag.delay=70
+obj.tag.res1=i_anel_ferro
+obj.tag.res2=i_peito_couro
+obj.tag.nam1=aneis de ferro
+obj.tag.nam2=armadura de couro (busto)
+obj.tag.amt1=600
+obj.tag.amt2=1
+obj.tag.item=i_peito_anel
+obj.tag.anim=9
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.sfx=0146
+obj.tag.emote=atachando
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+[SKILLMENU sm_bs_armor_elmos]
+O que deseja construir?
+
+ON=7673 placa de ferro (5LF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=022b				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=5				//quantidade do resource
+obj.tag.espid=i_alicate			
+obj.tag.espname=alicate			
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa		
+obj.tag.item=i_placa_ferro_forjada	
+obj.tag.more2=i_placa_ferro		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_elmo_aberto elmo (2PF)
+TESTIF= ( <src.armslore> >= 550)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=55
+obj.tag.delay=35
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placas de ferro
+obj.tag.amt1=2
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_elmo_aberto
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_elmo_placa armadura de placas (elmo) (2PF)
+TESTIF= ( <src.armslore> >= 780)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=80
+obj.tag.delay=40
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placas de ferro
+obj.tag.amt1=3
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_elmo_placa
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_elmo_semi elmo semi aberto (2PF)
+TESTIF= ( <src.armslore> >= 650)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=65
+obj.tag.delay=40
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placas de ferro
+obj.tag.amt1=3
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_elmo_semi
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_elmo_bascinet bascinet (3PF)
+TESTIF= ( <src.armslore> >= 700)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=70
+obj.tag.delay=40
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placas de ferro
+obj.tag.amt1=3
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_elmo_bascinet
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_elmo_fechado elmo fechado (3PF)
+TESTIF= ( <src.armslore> >= 750)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=80
+obj.tag.delay=40
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placas de ferro
+obj.tag.amt1=3
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_elmo_fechado
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+[SKILLMENU sm_bs_armor_placa]
+O que deseja construir?
+
+ON=7673 placa de ferro (5LF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=022b				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=5				//quantidade do resource
+obj.tag.espid=i_alicate			
+obj.tag.espname=alicate			
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa		
+obj.tag.item=i_placa_ferro_forjada	
+obj.tag.more2=i_placa_ferro		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_peito_placa armadura de placas (busto) (5PF)
+TESTIF= ( <src.armslore> >= 900)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=85
+obj.tag.delay=300
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placas de ferro
+obj.tag.amt1=5
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_peito_placa
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_perna_placa armadura de placas (calcas) (4PF)
+TESTIF= (<src.armslore> >= 850)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=80
+obj.tag.delay=250
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placas de ferro
+obj.tag.amt1=4
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_perna_placa
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_braco_placa armadura de placas (bracos) (3PF)
+TESTIF= ( <src.armslore> >= 780)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=80
+obj.tag.delay=250
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placas de ferro
+obj.tag.amt1=3
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_braco_placa
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_pescoco_placa armadura de placas (pescocera) (PF)
+TESTIF= ( <src.armslore> >= 750)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=70
+obj.tag.delay=120
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placa de ferro
+obj.tag.amt1=1
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_pescoco_placa
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_luva_placa armadura de placas (luvas) (PF)
+TESTIF= ( <src.armslore> >= 700)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=75
+obj.tag.delay=120
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placa de ferro
+obj.tag.amt1=1
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_luva_placa
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+[SKILLMENU sm_bs_armor_escudos]
+O que deseja construir?
+
+ON=7673 placa de ferro (5LF) 
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=022b				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=5				//quantidade do resource
+obj.tag.espid=i_alicate			
+obj.tag.espname=alicate			
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa		
+obj.tag.item=i_placa_ferro_forjada	
+obj.tag.more2=i_placa_ferro		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_broquel broquel (PF)
+TESTIF= ( <src.armslore> >= 550)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=46
+obj.tag.delay=60
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placa de ferro
+obj.tag.amt1=1
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_broquel
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_escudo_metal escudo de metal (PF)
+TESTIF= ( <src.armslore> >= 570)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=55
+obj.tag.delay=70
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placa de ferro
+obj.tag.amt1=1
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_escudo_metal
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_escudo_batalha escudo de batalha (2PF)
+TESTIF= ( <src.armslore> >= 680)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=65
+obj.tag.delay=80
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placas de ferro
+obj.tag.amt1=2
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_escudo_batalha
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_escudo_corpo escudo de corpo (3PF)
+TESTIF= ( <src.armslore> >= 750)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=70
+obj.tag.delay=120
+obj.tag.res1=i_placa_ferro
+obj.tag.nam1=placas de ferro
+obj.tag.amt1=3
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_escudo_corpo
+obj.tag.anim=09
+obj.tag.sfx=022b
+obj.tag.emote=forjando
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa	
+obj.tag.iswpn=1
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+[SKILLMENU sm_bs_ferramentas]
+O que deseja construir?
+
+on=i_navalha navalha (LF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.nam1=lingote de ferro
+obj.tag.amt1=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_navalha
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+on=i_cabelo_tesoura tesoura de cabelos (LF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.nam1=lingote de ferro
+obj.tag.amt1=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_cabelo_tesoura
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+on=i_tesoura tesoura de costura (LF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.nam1=lingote de ferro
+obj.tag.amt1=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_tesoura
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+on=i_raspadeira_p raspadeira pequena (LF,CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingote de ferro
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=1
+obj.tag.amt2=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_raspadeira_p
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+on=i_raspadeira raspadeira (2LF,CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=2
+obj.tag.amt2=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_raspadeira
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+on=i_racha racha (LF,CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingote de ferro
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=1
+obj.tag.amt2=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_racha
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_serra_duasm serra larga (2LF,2CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=2
+obj.tag.amt2=2
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_serra_duasm
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_martelo martelo  (LF,CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingote de ferro
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=1
+obj.tag.amt2=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_talhadeira
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON= i_talhadeira talhadeira (LF,CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingote de ferro
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=1
+obj.tag.amt2=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_talhadeira
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON= i_serra cerra (LF,CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingote de ferro
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=1
+obj.tag.amt2=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_serrote
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON= i_serrote serrote (LF,CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingote de ferro
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=1
+obj.tag.amt2=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_serrote
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_forquilha forquilha (3LF,2CM)
+TESTIF= ( <src.armslore> >= 400 )
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=70			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=3
+obj.tag.amt2=2 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_forquilha		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_machadinha machadinha (2LF,CM)
+TESTIF= ( <src.armslore> >= 300)
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.iswpn=1
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=30			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=2
+obj.tag.amt2=1 				//quantidade do resource
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_machadinha 		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+on=i_arado arado (PF,5CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_placa_ferro
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=placa de ferro
+obj.tag.nam2=cabos de madeira
+obj.tag.amt1=2
+obj.tag.amt2=5
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_arado
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+
+ON=i_frigideira frigideira (2LF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.nam1=lingotes de ferro
+obj.tag.amt1=2
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_frigideira
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_panela panela (2LF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.nam1=lingotes de ferro
+obj.tag.amt1=2
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_panela
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_martelo_ferreiro martelo de ferreiro (LF,CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingote de ferro
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=1
+obj.tag.amt2=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_martelo_ferreiro
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_tinker_tools ferramentas de artesao (3LF,CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=3
+obj.tag.amt2=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_tinker_tools
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_picareta picareta (2LF,CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=3
+obj.tag.amt2=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_picareta
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+on=i_pa pa (3LF,CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=35
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro
+obj.tag.nam2=cabo de madeira
+obj.tag.amt1=3
+obj.tag.amt2=1
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_ponta_picareta
+obj.tag.more2=i_pa
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.emote=trabalhando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+[SKILLMENU sm_bs_outros]
+O que deseja construir?
+
+ON=i_barra_metal barra de metal (2LF)
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.dif=35				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=02a				//sfx
+obj.tag.delay=20			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=2
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge		
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.more2=i_barra_metal			
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=7673 placa de ferro (5LF)
+TESTIF= (<src.armslore> > 300) 
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=022b				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.amt1=5				//quantidade do resource
+obj.tag.espid=i_alicate			
+obj.tag.espname=alicate			
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa		
+obj.tag.item=i_placa_ferro_forjada	
+obj.tag.more2=i_placa_ferro		//id do item a ser feito.
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_cabo_ferro arame de ferro (3LF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=40
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.nam1=lingotes de ferro
+obj.tag.amt1=3
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.espname=trefila
+obj.tag.espid=i_trefila
+obj.tag.item=i_metal_fundido
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=fundindo metal
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_pregos pregos (CF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=45
+obj.tag.delay=10
+obj.tag.res1=i_cabo_ferro
+obj.tag.nam1=arame de ferro
+obj.tag.amt1=1
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_pregos
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.amount=<eval 0<src.blacksmithing>>
+obj.tag.emote=trabalhando
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+
+//on=i_ferradura ferraduras (2 LF)
+//TESTIF= (<src.restest 2 i_ingot_iron, 1 i_alicate>) 
+//src.tag.bs_res=2
+//src.tag.bs_resn=i_ingot_iron
+//src.tag.bs_make=i_ferradura
+//src.tag.bs_name=ferraduras
+//src.tag.bs_delay=3
+//src.tag.bs_dif=4
+//src.bs_fazitem
+
+//on=i_poste_amarre poste de amarre (2 PF)
+//TESTIF= (<src.restest 2 i_placa_ferro, 1 i_alicate>)  src.tag.bs_res=2
+//src.tag.bs_resn=i_placa_ferro
+//src.tag.bs_make=i_poste_amarre
+//src.tag.bs_name=poste de amarre
+//src.tag.bs_delay=13
+//src.tag.bs_dif=15
+//src.bs_fazarmor5
+
+on=i_vaso_oleo vaso p/ oleo(2PF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=022b				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_placa_ferro		//resource necessario
+obj.tag.nam1=placas de ferro		//nome do resource
+obj.tag.amt1=2				//quantidade do resource
+obj.tag.espid=i_alicate			
+obj.tag.espname=alicate			
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa		
+obj.tag.item=i_vaso_oleo
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+on=i_caldeirao caldeirao (2PF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=022b				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_placa_ferro		//resource necessario
+obj.tag.nam1=placas de ferro		//nome do resource
+obj.tag.amt1=2				//quantidade do resource
+obj.tag.espid=i_alicate			
+obj.tag.espname=alicate			
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa		
+obj.tag.item=i_caldeirao	
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.wmakefurn=1
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+on=i_kit_suporte_caldeirao suporte caldeirao (CF,5BM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=022b				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_barra_metal		//resource necessario
+obj.tag.res2=i_cabo_ferro
+obj.tag.nam1=barras de metal		//nome do resource
+obj.tag.nam2=cabos de ferro
+obj.tag.amt1=5				//quantidade do resource
+obj.tag.amt2=1
+obj.tag.espid=i_alicate			
+obj.tag.espname=alicate			
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa		
+obj.tag.item=i_kit_suporte_caldeirao	
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_argola_barril argolas de barril (1PF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.dif=30				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=022b				//sfx
+obj.tag.delay=40				//delay
+obj.tag.res1=i_placa_ferro		//resource necessario
+obj.tag.nam1=placa de ferro		//nome do resource
+obj.tag.amt1=1				//quantidade do resource
+obj.tag.espid=i_alicate			
+obj.tag.espname=alicate			
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa		
+obj.tag.item=i_argola_barril	
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+on=i_bigorna bigorna (35LF,10CM)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.dif=70				//dificuldade skill
+obj.tag.skill=blacksmithing
+obj.tag.anim=9				//animação			
+obj.tag.sfx=022b				//sfx
+obj.tag.delay=60			//delay
+obj.tag.res1=i_ingot_iron		//resource necessario
+obj.tag.res2=i_cabo_madeira
+obj.tag.nam1=lingotes de ferro		//nome do resource
+obj.tag.nam2=cabos de madeira		//nome do resource
+obj.tag.amt1=35				//quantidade do resource
+obj.tag.amt2=10
+obj.tag.espid=i_alicate			
+obj.tag.espname=alicate			
+obj.tag.neartype=t_forge				
+obj.tag.nearname=forja acesa		
+obj.tag.item=i_kit_suporte_caldeirao	
+obj.tag.emote=forjando
+obj.tag.needtype=t_anvil				
+obj.tag.need=bigorna
+obj.tag.wmakefurn=1			// torna furniture
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+[SKILLMENU sm_bs_armor_malhas]
+O que deseja construir?
+
+ON=i_cabo_ferro arame de ferro (3LF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=40
+obj.tag.delay=30
+obj.tag.res1=i_ingot_iron
+obj.tag.nam1=lingotes de ferro
+obj.tag.amt1=3
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.espname=trefila
+obj.tag.espid=i_trefila
+obj.tag.item=i_metal_fundido
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=fundindo metal
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_anel_ferro aneis de ferro (CF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=45
+obj.tag.delay=30
+obj.tag.res1=i_cabo_ferro
+obj.tag.nam1=arame de ferro
+obj.tag.amt1=1
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_anel_ferro
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.amount=<eval 0<src.blacksmithing>>
+obj.tag.emote=fechando aneis
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_luva_malha luvas de malha (200AF)
+TESTIF= (<src.armslore> >= 500)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=53
+obj.tag.delay=180
+obj.tag.res1=i_anel_ferro
+obj.tag.nam1=aneis de ferro
+obj.tag.amt1=200
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_luva_malha
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 2}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+ON=i_pescoco_malha pescoco/malha (100AF)
+TESTIF= (<src.armslore> >= 500)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=53
+obj.tag.delay=180
+obj.tag.res1=i_anel_ferro
+obj.tag.nam1=aneis de ferro
+obj.tag.amt1=100
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_pescoco_malha
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_cabeca_malha capuz de malha (500AF)
+TESTIF= (<src.armslore> >= 600)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=63
+obj.tag.delay=240
+obj.tag.res1=i_anel_ferro
+obj.tag.nam1=aneis de ferro
+obj.tag.amt1=500
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_cabeca_malha
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_braco_malha bracos de malha (550AF)
+TESTIF= (<src.armslore> >= 640)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=67
+obj.tag.delay=300
+obj.tag.res1=i_anel_ferro
+obj.tag.nam1=aneis de ferro
+obj.tag.amt1=550
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_braco_malha
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+ON=i_perna_malha calcas de malha (600AF)
+TESTIF= (<src.armslore> >= 640)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=120
+obj.tag.delay=300
+obj.tag.res1=i_anel_ferro
+obj.tag.nam1=aneis de ferro
+obj.tag.amt1=600
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_perna_malha
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+ON=i_peito_malha tunica de malha (1000AF)
+TESTIF= (<src.armslore> >= 750)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=78
+obj.tag.delay=600
+obj.tag.res1=i_anel_ferro
+obj.tag.nam1=aneis de ferro
+obj.tag.amt1=1000
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_peito_malha
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_luva_anel luva de aneis (200AF,PC)
+TESTIF=  (<src.armslore> >= 460)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=49
+obj.tag.delay=120
+obj.tag.res1=i_anel_ferro
+obj.tag.res2=i_luva_couro
+obj.tag.nam1=aneis de ferro
+obj.tag.nam2=armadura de couro (luva)
+obj.tag.amt1=500
+obj.tag.amt2=1
+obj.tag.item=i_luva_anel
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis em couro
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+ON=i_pescoco_anel pescoco/anel (100AF,PC)
+TESTIF= (<src.armslore> >= 460)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=49
+obj.tag.delay=60
+obj.tag.res1=i_anel_ferro
+obj.tag.res2=i_pescoco_couro
+obj.tag.nam1=aneis de ferro
+obj.tag.nam2=armadura de couro (pescoco)
+obj.tag.amt1=100
+obj.tag.amt2=1
+obj.tag.item=i_pescoco_anel
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis em couro
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+ON=i_braco_anel bracos de aneis (300AF,PC)
+TESTIF= (<src.armslore> >= 460)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=59
+obj.tag.delay=180
+obj.tag.res1=i_anel_ferro
+obj.tag.res2=i_braco_couro
+obj.tag.nam1=aneis de ferro
+obj.tag.nam2=armadura de couro (bracos)
+obj.tag.amt1=300
+obj.tag.amt2=1
+obj.tag.item=i_braco_anel
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis em couro
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_perna_anel calcas de aneis (500AF,PC)
+TESTIF= (<src.armslore> >= 560)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=60
+obj.tag.delay=180
+obj.tag.res1=i_anel_ferro
+obj.tag.res2=i_perna_couro
+obj.tag.nam1=aneis de ferro
+obj.tag.nam2=armadura de couro (perna)
+obj.tag.amt1=500
+obj.tag.amt2=1
+obj.tag.item=i_perna_anel
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis em couro
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+
+return 1
+
+ON=i_peito_anel tunica de aneis (600AF,PC)
+TESTIF= (<src.armslore> >= 600)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=70
+obj.tag.delay=200
+obj.tag.res1=i_anel_ferro
+obj.tag.res2=i_peito_couro
+obj.tag.nam1=aneis de ferro
+obj.tag.nam2=armadura de couro (busto)
+obj.tag.amt1=600
+obj.tag.amt2=1
+obj.tag.item=i_peito_anel
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis em couro
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+[skillmenu sm_bs_alicate]
+O que deseja fazer?
+
+ON=i_pregos pregos (1 CF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=45
+obj.tag.delay=10
+obj.tag.res1=i_cabo_ferro
+obj.tag.nam1=arame de ferro
+obj.tag.amt1=1
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_pregos
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.amount=<eval 0<src.blacksmithing>>
+obj.tag.emote=trabalhando
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_anel_ferro aneis de ferro (CF)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=45
+obj.tag.delay=30
+obj.tag.res1=i_cabo_ferro
+obj.tag.nam1=arame de ferro
+obj.tag.amt1=1
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_anel_ferro
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.amount=<eval 0<src.blacksmithing>>
+obj.tag.emote=fechando aneis
+obj.tag.scrap=i_foligem_bs
+src.fazitem
+return 1
+
+ON=i_luva_malha luvas de malha (200 AF)
+TESTIF= (<src.armslore> >= 500)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=53
+obj.tag.delay=60
+obj.tag.res1=i_anel_ferro
+obj.tag.nam1=aneis de ferro
+obj.tag.amt1=200
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_luva_malha
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_pescoco_malha pescoco/malha (100 AF)
+TESTIF= (<src.armslore> >= 500)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=53
+obj.tag.delay=60
+obj.tag.res1=i_anel_ferro
+obj.tag.nam1=aneis de ferro
+obj.tag.amt1=100
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_pescoco_malha
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_cabeca_malha capuz de malha (500 AF)
+TESTIF= (<src.armslore> >= 600)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=63
+obj.tag.delay=80
+obj.tag.res1=i_anel_ferro
+obj.tag.nam1=aneis de ferro
+obj.tag.amt1=500
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_cabeca_malha
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_braco_malha bracos de malha (550 AF)
+TESTIF= (<src.armslore> >= 640)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=67
+obj.tag.delay=100
+obj.tag.res1=i_anel_ferro
+obj.tag.nam1=aneis de ferro
+obj.tag.amt1=550
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_braco_malha
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_perna_malha calcas de malha (600 AF)
+TESTIF= (<src.armslore> >= 640)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=67
+obj.tag.delay=110
+obj.tag.res1=i_anel_ferro
+obj.tag.nam1=aneis de ferro
+obj.tag.amt1=600
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_perna_malha
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+ON=i_peito_malha tunica de malha (1000 AF)
+TESTIF= (<src.armslore> >= 750)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=blacksmithing
+obj.tag.dif=78
+obj.tag.delay=120
+obj.tag.res1=i_anel_ferro
+obj.tag.nam1=aneis de ferro
+obj.tag.amt1=1000
+obj.tag.espname=alicate
+obj.tag.espid=i_alicate
+obj.tag.item=i_peito_malha
+obj.tag.anim=34
+obj.tag.sfx=0248
+obj.tag.emote=ligando aneis
+obj.tag.iswpn=1
+obj.tag.scrap=i_foligem_bs
+if ({0 10}==0)
+ GAIN_SKILL armslore
+endif
+src.fazitem
+return 1
+
+
+
+
+
+
+//----------funcoes genericas--------//
+[function bs_calc]
+var.dificuldade_bs=<eval <src.tag.bs_dif>>
+
+if (0<eval <var.blacksmithing_bs>/10> >= 99 ) //99 %
+var.base_bs=0<eval (rand(51))> - 5
+elseif (0<eval <var.blacksmithing_bs>/10> >= 99 ) //95 %
+var.base_bs=0<eval (rand(51))> + 5
+elseif (0<eval <var.blacksmithing_bs>/10> >= 95)  // 90 %
+var.base_bs=0<eval (rand(51))> + 7   // 90 %
+elseif (0<eval <var.blacksmithing_bs>/10> >= 90 ) // 85 %
+var.base_bs=0<eval (rand(51))> + 9
+elseif (0<eval <var.blacksmithing_bs>/10> >= 85 ) // 80 %
+var.base_bs=0<eval (rand(51))> + 11
+elseif (0<eval <var.blacksmithing_bs>/10> >= 80 ) // 75 %
+var.base_bs=0<eval (rand(51))> + 14
+elseif (0<eval <var.blacksmithing_bs>/10> <= 75 ) // 85 %
+var.base_bs=0<eval (rand(51))> + 17
+elseif (0<eval <var.blacksmithing_bs>/10> <= 70 ) // 80 %
+var.base_bs=0<eval (rand(51))> + 19
+elseif (0<eval <var.blacksmithing_bs>/10> <= 65 ) // 75 %
+var.base_bs=0<eval (rand(51))> + 21
+elseif (0<eval <var.blacksmithing_bs>/10> <= 60 ) // 70 %
+var.base_bs=0<eval (rand(51))> + 27
+elseif (0<eval <var.blacksmithing_bs>/10> <= 55 ) // 60 %
+var.base_bs=0<eval (rand(51))> + 29   
+elseif (0<eval <var.blacksmithing_bs>/10> <= 50 ) // 55 %
+var.base_bs=0<eval (rand(51))> + 30  
+else
+var.base_bs=0<eval (rand(51))> + 40 // 10 %
+return 1
+endif
+
+var.falhando_bs=<var.base_bs> + <var.dificuldade_bs> 
+return 1
+
+
+[FUNCTION tentarganhar_bs]
+if (<blacksmithing> <=1000) && (RAND(4))
+ GAIN_SKILL blacksmithing
+endif
+if (<armslore> <=1000) && (RAND(4))
+ GAIN_SKILL armslore
+endif
+
+[FUNCTION tentarganhar_bs2]
+//if (<blacksmithing> <= 1000)
+ GAIN_SKILL blacksmithing
+//endif
+//if (<armslore> <= 1000)
+ GAIN_SKILL armslore
+//endif
+
+[FUNCTION GAIN_SKILL_blacksmithing]
+obj=<uid>
+var.SKILL_TO_GAIN=<obj.blacksmithing>
+if (<var.SKILL_TO_GAIN> > 665)
+ obj.tag.GAIN_SKILL_POINTS_blacksmithing=<hval (0<obj.tag.GAIN_SKILL_POINTS_blacksmithing>+{0 200}>
+elif (<var.SKILL_TO_GAIN> > 333)
+ obj.tag.GAIN_SKILL_POINTS_blacksmithing=<hval (0<obj.tag.GAIN_SKILL_POINTS_blacksmithing>+{25 225}>
+else
+ obj.tag.GAIN_SKILL_POINTS_blacksmithing=<hval (0<obj.tag.GAIN_SKILL_POINTS_blacksmithing>+{50 250})>
+endif
+if (0<obj.tag.GAIN_SKILL_POINTS_blacksmithing> >= <obj.blacksmithing>)
+ obj.blacksmithing=<obj.blacksmithing>+1
+ obj.tag.GAIN_SKILL_POINTS_blacksmithing=0
+endif
+if (0<var.debug_skills>==1) && (<obj.isgm>)
+ obj.sysmessage Tenho <eval <obj.tag.GAIN_SKILL_POINTS_blacksmithing>> em blacksmithing.
+endif
+
+[FUNCTION GAIN_SKILL_armslore]
+obj=<uid>
+var.SKILL_TO_GAIN=<obj.armslore>
+if (<var.SKILL_TO_GAIN> > 665)
+ obj.tag.GAIN_SKILL_POINTS_armslore=<hval (0<obj.tag.GAIN_SKILL_POINTS_armslore>+{0 200}>
+elif (<var.SKILL_TO_GAIN> > 333)
+ obj.tag.GAIN_SKILL_POINTS_armslore=<hval (0<obj.tag.GAIN_SKILL_POINTS_armslore>+{25 225}>
+else
+ obj.tag.GAIN_SKILL_POINTS_armslore=<hval (0<obj.tag.GAIN_SKILL_POINTS_armslore>+{50 250})>
+endif
+if (0<obj.tag.GAIN_SKILL_POINTS_armslore> >= <obj.armslore>)
+ obj.armslore=<obj.armslore>+1
+ obj.tag.GAIN_SKILL_POINTS_armslore=0
+endif
+if (0<var.debug_skills>==1) && (<obj.isgm>)
+ obj.sysmessage Tenho <eval <obj.tag.GAIN_SKILL_POINTS_armslore>> em armslore.
+endif
+
+
+[COMMENT tentarganhar_bs2]
+if ({1 1100} >= <cont.blacksmithing>) && (<cont.blacksmithing> <=1000)
+ cont.blacksmithing=<cont.blacksmithing>+1
+endif
+if ({1 1100} >= <cont.armslore>) && (<cont.armslore> <=1000)
+ cont.armslore=<cont.armslore>+1
+ endif
+
+
+//####### REPARANDO ITENS ##########//
+
+[Function REPAIRFIX]
+SRC.NEWITEM i_f_repair
+SRC.ACT.EQUIP
+
+[itemdef i_f_repair]
+name=repair fix
+ID=i_worldgem_bit 
+TYPE=T_EQ_SCRIPT 
+WEIGHT=0
+LAYER=layer_special 
+
+on=@create 
+COLOR=021 
+ATTR=attr_invis|attr_decay 
+
+ON=@EQUIP
+TARGET O que deseja reparar?
+TIMER 60
+RETURN 1
+
+on=@timer
+IF (0<VAR.REPAIRING> == 1)
+	CONT.MESSAGE * Reparou *
+	cont.tentarganhar_bs2
+        REMOVE
+ELSEIF (0<VAR.REPAIRING> == 2)
+	CONT.SYSMESSAGE * Falhou *
+	cont.tentarganhar_bs2
+        CONT.SFX 43
+	REMOVE
+ELSEIF (0<VAR.REPAIRING> == 3)
+	CONT.SFX 43
+	cont.tentarganhar_bs2
+        CONT.MESSAGE * Destroi o item *
+	REMOVE
+ELSE
+	REMOVE
+	VAR.REPAIRING //cabo o tempo
+ENDIF
+RETURN 1
+
+ON=@TARGON_ITEM
+//make sure in pack
+IF !(<CONT.RESTEST 3 i_ingot_iron>)
+	SRC.SYSMESSAGE Voce nao tem material para isso.
+	RETURN 1
+ENDIF
+
+IF (<CONT.TARG.TOPOBJ.DISTANCE>>=2) || (<SRC.TARG.CanSeeLos>!=1)
+	CONT.SYSMESSAGE Esta muito longe.
+	RETURN 1
+ENDIF
+
+//make sure item is armor/swords etc
+IF !(<CONT.TARG.TYPE>==t_weapon_mace_smith) && !(<CONT.TARG.TYPE>==t_weapon_sword) && !(<CONT.TARG.TYPE>==t_weapon_fence) && !(<CONT.TARG.TYPE>==t_armor) && !(<CONT.TARG.TYPE>==t_weapon_axe) && !(<CONT.TARG.TYPE> == t_weapon_mace_pick) && !(<CONT.TARG.TYPE> == t_weapon_mace_sharp) && !(<CONT.TARG.TYPE>==t_shield)
+	CONT.SYSMESSAGE voce nao pode reparar isto.
+	REMOVE
+	RETURN 1
+ENDIF
+
+IF (0<CONT.TARG.MORE1l>)
+	IF (<CONT.TARG.MOREY> == <CONT.TARG.HITPOINTS>)
+		SRC.SYSMESSAGE Nao esta danificado.	
+		REMOVE
+		RETURN 1
+	ENDIF
+ENDIF
+
+// Get Percentage Factors
+IF (<CONT.BLACKSMITHING> < 51.5)
+	VAR.Rpercent <eval (rand(10)) + 15>
+	VAR.RSuccess <eval 100 - <var.RAdjust>>  // 80 - 90%
+	var.RWeaken 4
+ENDIF
+
+IF (<CONT.BLACKSMITHING> > 51.5)
+	VAR.Rpercent <eval (rand(10)) + 10>
+	VAR.RSuccess <eval 100 - <var.RAdjust>>  // 80 - 90%
+	var.RWeaken 3
+ENDIF
+
+IF (<CONT.BLACKSMITHING> > 61.5)
+	VAR.Rpercent <eval (rand(3)) + 7>
+	VAR.RSuccess <eval 100 - <var.RAdjust>>  // 90 - 93% 
+	var.RWeaken 3
+ENDIF
+
+IF (<CONT.BLACKSMITHING> > 71.5)
+	VAR.Rpercent <eval (rand(3)) + 4>
+	VAR.RSuccess <eval 100 - <var.RAdjust>>  // 93 - 96% 
+	var.RWeaken 2
+ENDIF
+
+IF (<CONT.BLACKSMITHING> > 81.5)
+	VAR.Rpercent <eval (rand(2)) + 2>
+	VAR.RSuccess <eval 100 - <var.RAdjust>>  // 96 - 98% 
+	var.RWeaken 1
+ENDIF
+
+IF (<CONT.BLACKSMITHING> > 91.5)
+	VAR.Rpercent <eval (rand(1)) + 1>
+	VAR.RSuccess <eval 100 - <var.RAdjust>>  // 98 - 99% 
+	var.RWeaken 1
+ENDIF
+
+IF (<CONT.BLACKSMITHING> == 100.0)
+	VAR.RSuccess 99
+	var.RWeaken 1
+ENDIF
+
+
+IF ((rand(100)) < <VAR.RSuccess>) //Success
+	CONT.TARG.HITPOINTS <eval <CONT.TARG.MORE1l> - 1> //fill up hitpoints 
+	VAR.REPAIRING 1
+ELSE //Failed - do percent chance, later, on breaking item completely?
+
+	IF ((<eval <CONT.TARG.HITPOINTS> - <VAR.RWEAKEN>>) < 1)
+		CONT.TARG.REMOVE
+		VAR.REPAIRING 3
+		CONT.CONSUME 3 i_ingot_iron
+	ELSE
+		VAR.BakMore1h <CONT.TARG.MORE1l> //back up max hp
+		CONT.TARG.HITPOINTS <eval <CONT.TARG.HITPOINTS>> - <VAR.RWEAKEN>>//Weaken Hitpoints
+		CONT.TARG.MOREY <eval <VAR.BakMore1h> - <VAR.RWEAKEN>>  //restore more1h and Weaken Max Hitpoints
+		VAR.REPAIRING 2
+		CONT.CONSUME 1 i_ingot_iron
+	ENDIF
+ENDIF
+
+CONT.ANIM 11
+CONT.SFX 42
+TIMER = 2
+RETURN 1
+
+
+
+[EOF]

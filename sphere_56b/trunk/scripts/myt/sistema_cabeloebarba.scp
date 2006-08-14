@@ -1,0 +1,1337 @@
+////////////////////////////////////////////////////
+//////// sistema de corte de cabelo ///////////////
+////////       Jean Gabin (MyT)     ///////////////
+////////         V. beta 0.8        ///////////////
+//////////////////////////////////////////////////
+
+/////////////////////////////////////////////////
+////////////// memory Sem barba /////////////////
+////////////////////////////////////////////////
+
+[ITEMDEF i_barba_careca]
+id=i_memory
+NAME=Sem barba
+TYPE=T_eq_script
+weight=0
+
+ON=@Create
+	src.targ.equip
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_beard_short_med
+	cont.act.color=<cont.tag.corbarba>
+	cont.equip <cont.act.uid>
+	remove
+	return 1
+
+
+/////////////////////////////////////////////////
+////////////// memory Careca ////////////////////
+////////////////////////////////////////////////
+
+[ITEMDEF i_cabelo_careca]
+id=i_memory
+NAME=Cabeca raspada
+TYPE=T_eq_script
+WEIGHT=0
+
+ON=@Create
+	src.targ.equip
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_hair_receding
+	cont.act.color=<cont.tag.corcabelo>
+	cont.equip <cont.act.uid>
+	remove
+	return 1
+
+
+////////////////////////////////////////////////////
+/////////// resto de cabelo no chão ////////////////
+///////////////////////////////////////////////////
+
+[ITEMDEF i_cabelo]
+NAME=cabelo cortado
+ID=0dfe
+type=t_script
+WEIGHT=0
+
+on=@create
+attr=04002
+
+
+////////////////////////////////////////////////////
+/////////// navalha e menus navalha ////////////////
+///////////////////////////////////////////////////
+
+
+[ITEMDEF i_navalha]
+NAME=Navalha
+ID=09a5
+TYPE=t_script
+WEIGHT=2
+
+on=@dclick
+target Em quem voce deseja usar isso?
+return 1
+
+ON=@Targon_ground 
+ SRC.SYSMESSAGE Use a navalha apenas para raspar a barba e o cabelo.
+RETURN 1  
+
+ON=@Targon_item 
+ SRC.SYSMESSAGE Use a navalha apenas para raspar a barba e o cabelo.
+RETURN 1 
+
+on=@targon_char
+if (<src.targ.body>!=c_man)&&(<src.targ.body>!=c_woman)
+ SRC.SYSMESSAGE Use a navalha apenas em pessoas.
+return 1
+elif (<src.targ.uid> != <src.uid>)
+	src.tag.freguesUID=<src.targ.uid>	// tag que contém o uid do freguês
+	src.targ.newitem=i_memory_aceitanavalha	// memory de aceita o corte que vai ser equipada no freguês
+	src.targ.act.link=<src.uid>		// linkando a memory com o barbeiro
+	src.targ.act.cont=<src.tag.freguesUID>	// jogando a memory na bag do freguês
+	src.targ.menu autorizacorte		// abre para o freguês o menu autorizacorte
+	src.sysmessage Se a pessoa autorizar, vai aparecer o menu.
+return 1
+else
+	src.menu navalha
+endif
+return 1
+
+
+///////////////////////////////////////////////
+
+[MENU autorizacorte]
+Voce autoriza esta pessoa a cortar seu cabelo ou sua barba?
+
+ON=0 SIM
+	src.tag.autorizacorte=1		// seta a tag autorizacorte=1 no fregues
+return 1
+
+
+on=0 NAO
+	src.tag.autorizacorte=2
+return 1
+
+
+
+/////////////////////////////////
+
+
+[ITEMDEF i_memory_aceitanavalha]
+id=i_memory
+NAME=aceita o corte
+TYPE=T_eq_script
+WEIGHT=0
+
+ON=@Create
+	src.targ.equip
+	ATTR=attr_newbie
+	timer=1
+	more1=0
+
+
+ON=@TIMER
+
+	if (<cont.tag.autorizacorte>=1)		// se existe a tag.autorizacorte=1 ou se a tag tem esse valor a
+	  link.menu navalhaoutro  		//  chama menu de corte 
+	  cont.tag.autorizacorte=		// apaga tag.autorizacorte
+	  remove				// apaga a memory
+	return 1
+	elif (<cont.tag.autorizacorte>=2)
+	  cont.say Eu nao quero cortar nada.
+	  cont.tag.autorizacorte=
+	  remove
+	return 1
+	else
+	gambiarratemp
+	return 1
+	endif
+	return 1
+
+
+[function gambiarratemp]
+	if (<more1>>=10)
+	remove
+	return 1
+	else
+	more1=<more1>+1
+	timer=1	
+	return 1
+	endif
+	return1
+
+
+/////////////////////////////////////////////////
+/////////  usar a navalha em outro  ////////////
+/////////////////////////////////////////////////
+
+
+[MENU navalhaoutro]
+O que voce deseja?
+ON=0 Fazer a barba
+if (<UID.<src.tag.freguesUID>.findlayer(6).baseid>!=0)
+ src.say Retire o chapeu, mascara ou o elmo para que eu possa fazer a sua barba.
+return 1
+elif (<UID.<src.tag.freguesUID>.findlayer(16).baseid>==0)
+ src.say Voce nao tem barba para ser feita.
+return 1
+else
+	src.targ.uid=<src.tag.freguesUID>
+	clearsysm
+	src.tag.freguesUID=
+	src.skillmenu sm_navalha_barba
+	endif
+return 1
+
+on=0 Corte especial de cabelo
+if (<UID.<src.tag.freguesUID>.findlayer(6).baseid>!=0)
+ src.say Retire o chapeu, mascara ou o elmo para que eu possa fazer o corte no seu cabelo.
+return 1
+elif (<UID.<src.tag.freguesUID>.findlayer(11).baseid>==i_hair_ponytail)||(<src.targ.findlayer(11).baseid>==i_hair_2_pigtails)
+ src.say Solte o cabelo para que eu possa fazer o corte.
+return 1
+elif (<UID.<src.tag.freguesUID>..findlayer(11).baseid>!=i_hair_afro)&&(<UID.<src.tag.freguesUID>.findlayer(11).baseid>!=i_hair_buns)&&(<UID.<src.tag.freguesUID>.findlayer(layer_hair).baseid>!=i_hair_pageboy)&&(<UID.<src.tag.freguesUID>.findlayer(layer_hair).baseid>!=i_hair_long)
+	src.say Nao da para fazer nenhum corte especial com o cabelo deste tamanho. Espere ele crescer mais.
+	return 1
+	else
+	src.targ.uid=<src.tag.freguesUID>
+	clearsysm
+	src.tag.freguesUID=
+	src.menu navalha_cabelo
+	endif
+return 1
+
+ON=0 Raspar a cabeca
+if (<UID.<src.tag.freguesUID>.findlayer(6).baseid>!=0)
+ src.say Retire o chapeu, mascara ou o elmo para que eu possa raspar seu cabelo.
+return 1
+elif (<UID.<src.tag.freguesUID>.findlayer(11).baseid>==0)
+ src.say Voce nao tem cabelo para ser raspado.
+return 1
+elif (<UID.<src.tag.freguesUID>.findlayer(11).baseid>==i_hair_ponytail)||(<UID.<src.tag.freguesUID>.findlayer(11).baseid>==i_hair_2_pigtails)
+ src.sysmessage Solte o cabelo para que eu possa raspa-lo.
+return 1
+else
+	src.targ.uid=<src.tag.freguesUID>
+	clearsysm
+	sfx 059
+	src.targ.tag.corcabelo=<src.targ.findlayer(layer_hair).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(layer_hair).remove
+	src.targ.newitem=i_cabelo_careca
+	src.targ.act.cont=<src.tag.freguesUID>
+	src.targ.tag.corcabelo=
+	src.tag.freguesUID=
+endif
+	return 1
+
+
+/////////////////////////////////////////////////
+///////  usar a navalha em si mesmo  ////////////
+/////////////////////////////////////////////////
+
+[MENU navalha]
+O que voce deseja?
+ON=0 Fazer a barba
+if (<src.targ.findlayer(6).baseid>!=0)
+ src.sysmessage Retire o chapeu, mascara ou o elmo para fazer a barba.
+return 1
+elif (<src.targ.findlayer(16).baseid>==0)
+src.sysmessage Nao tem barba para ser feita.
+return 1
+else
+	src.skillmenu sm_navalha_barba
+	endif
+return 1
+
+on=0 Corte especial de cabelo
+if (<src.targ.findlayer(6).baseid>!=0)
+ src.sysmessage Retire o chapeu, mascara ou o elmo para fazer o corte de cabelo.
+return 1
+elif (<src.targ.findlayer(11).baseid>==i_hair_ponytail)||(<src.targ.findlayer(11).baseid>==i_hair_2_pigtails)
+ src.sysmessage Solte o cabelo antes de fazer o corte.
+return 1
+elif (<src.targ.findlayer(11).baseid>!=i_hair_afro)&&(<src.targ.findlayer(11).baseid>!=i_hair_buns)&&(<src.targ.findlayer(layer_hair).baseid>!=i_hair_pageboy)&&(<src.targ.findlayer(layer_hair).baseid>!=i_hair_long)
+	src.sysmessage Nao da para fazer nenhum corte especial com o cabelo deste tamanho. Espere ele crescer mais.
+	return 1
+	else
+	src.menu navalha_cabelo
+	endif
+return 1
+
+ON=0 Raspar a cabeca
+if (<src.targ.findlayer(6).baseid>!=0)
+ src.sysmessage Retire o chapeu, mascara ou o elmo para raspar o cabelo.
+return 1
+elif (<src.targ.findlayer(11).baseid>==0)
+src.sysmessage Nao tem cabelo para raspar.
+return 1
+elif (<src.targ.findlayer(11).baseid>==i_hair_ponytail)||(<src.targ.findlayer(11).baseid>==i_hair_2_pigtails)
+ src.sysmessage Solte o cabelo antes de raspa-lo.
+return 1
+else
+	sfx 059
+	src.targ.tag.corcabelo=<src.targ.findlayer(layer_hair).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	var.srctarg=<src.targ.uid>
+	src.targ.findlayer(layer_hair).remove
+	src.targ.newitem=i_cabelo_careca
+	src.targ.act.cont=<var.srctarg>
+	src.targ.tag.corcabelo=
+endif
+	return 1
+
+/////////////////////////////////////////////////
+
+[skillmenu sm_navalha_barba]
+Qual o corte que você deseja fazer?
+
+ON=i_beard_long <name>
+TESTIF=(<src.targ.findlayer(16).baseid>==i_beard_long_med)
+if (<src.targ.uid>==<src.uid>)
+	sfx 059
+	src.tag.corbarba=<src.findlayer(16).color>
+	src.newitem=i_cabelo
+	src.act.color=<src.tag.corbarba>
+	src.act.p=<src.p>
+	src.act.timer={10 20]
+	src.findlayer(16).remove
+	src.newitem=i_beard_long
+	src.act.color=<src.tag.corbarba>
+	src.equip <src.act.uid>
+	src.tag.corbarba=
+	return 1
+else
+	sfx 059
+	src.targ.tag.corbarba=<src.targ.findlayer(16).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(16).remove
+	src.targ.newitem=i_beard_long
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.equip <src.targ.act.uid>
+	src.tag.corbarba=
+endif
+	return 1
+
+ON=i_beard_short_med <name>
+TESTIF=(<src.targ.findlayer(16).baseid>==i_beard_long_med)
+if (<src.targ.uid>==<src.uid>)
+	sfx 059
+	src.tag.corbarba=<src.findlayer(16).color>
+	src.newitem=i_cabelo
+	src.act.color=<src.tag.corbarba>
+	src.act.p=<src.p>
+	src.act.timer={10 20]
+	src.findlayer(16).remove
+	src.newitem=i_beard_short_med
+	src.act.color=<src.tag.corbarba>
+	src.equip <src.act.uid>
+	src.tag.corbarba=
+	return 1
+else
+	sfx 059
+	src.targ.tag.corbarba=<src.targ.findlayer(16).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(16).remove
+	src.targ.newitem=i_beard_short_med
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.equip <src.targ.act.uid>
+	src.tag.corbarba=
+endif
+	return 1
+
+ON=i_beard_short <name>
+TESTIF=(<src.targ.findlayer(16).baseid>==i_beard_long_med)||(<src.targ.findlayer(16).baseid>==i_beard_long)||(<src.targ.findlayer(16).baseid>==i_beard_short_med)
+if (<src.targ.uid>==<src.uid>)
+	sfx 059
+	src.tag.corbarba=<src.findlayer(16).color>
+	src.newitem=i_cabelo
+	src.act.color=<src.tag.corbarba>
+	src.act.p=<src.p>
+	src.act.timer={10 20]
+	src.findlayer(16).remove
+	src.newitem=i_beard_short
+	src.act.color=<src.tag.corbarba>
+	src.equip <src.act.uid>
+	src.tag.corbarba=
+	return 1
+else
+	sfx 059
+	src.targ.tag.corbarba=<src.targ.findlayer(16).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(16).remove
+	src.targ.newitem=i_beard_short
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.equip <src.targ.act.uid>
+	src.tag.corbarba=
+endif
+	return 1
+
+ON=i_beard_goatee <name>
+TESTIF=(<src.targ.findlayer(16).baseid>==i_beard_short)||(<src.targ.findlayer(16).baseid>==i_beard_short_med)||(<src.targ.findlayer(16).baseid>==i_beard_long)||(<src.targ.findlayer(16).baseid>==i_beard_long_med)||(<src.targ.findlayer(16).baseid>==i_beard_vandyke)
+if (<src.targ.uid>==<src.uid>)
+	sfx 059
+	src.tag.corbarba=<src.findlayer(16).color>
+	src.newitem=i_cabelo
+	src.act.color=<src.tag.corbarba>
+	src.act.p=<src.p>
+	src.act.timer={10 20]
+	src.findlayer(16).remove
+	src.newitem=i_beard_goatee
+	src.act.color=<src.tag.corbarba>
+	src.equip <src.act.uid>
+	src.tag.corbarba=
+	return 1
+else
+	sfx 059
+	src.targ.tag.corbarba=<src.targ.findlayer(16).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(16).remove
+	src.targ.newitem=i_beard_goatee
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.equip <src.targ.act.uid>
+	src.tag.corbarba=
+endif
+	return 1
+
+ON=i_beard_mustache <name>
+TESTIF=(<src.targ.findlayer(16).baseid>==i_beard_long_med)||(<src.targ.findlayer(16).baseid>==i_beard_short_med)||(<src.targ.findlayer(16).baseid>==i_beard_vandyke)
+if (<src.targ.uid>==<src.uid>)
+	sfx 059
+	src.tag.corbarba=<src.findlayer(16).color>
+	src.newitem=i_cabelo
+	src.act.color=<src.tag.corbarba>
+	src.act.p=<src.p>
+	src.act.timer={10 20]
+	src.findlayer(16).remove
+	src.newitem=i_beard_mustache
+	src.act.color=<src.tag.corbarba>
+	src.equip <src.act.uid>
+	src.tag.corbarba=
+	return 1
+else
+	sfx 059
+	src.targ.tag.corbarba=<src.targ.findlayer(16).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(16).remove
+	src.targ.newitem=i_beard_mustache
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.equip <src.targ.act.uid>
+	src.tag.corbarba=
+endif
+	return 1
+
+ON=i_beard_vandyke <name>
+TESTIF=(<src.targ.findlayer(16).baseid>==i_beard_long_med)||(<src.targ.findlayer(16).baseid>==i_beard_short_med)
+if (<src.targ.uid>==<src.uid>)
+	sfx 059
+	src.tag.corbarba=<src.findlayer(16).color>
+	src.newitem=i_cabelo
+	src.act.color=<src.tag.corbarba>
+	src.act.p=<src.p>
+	src.act.timer={10 20]
+	src.findlayer(16).remove
+	src.newitem=i_beard_vandyke
+	src.act.color=<src.tag.corbarba>
+	src.equip <src.act.uid>
+	src.tag.corbarba=
+	return 1
+else
+	sfx 059
+	src.targ.tag.corbarba=<src.targ.findlayer(16).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(16).remove
+	src.targ.newitem=i_beard_vandyke
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.equip <src.targ.act.uid>
+	src.tag.corbarba=
+endif
+	return 1
+
+ON=i_barba_careca <name>
+if (<src.targ.uid>==<src.uid>)
+	sfx 059
+	src.tag.corbarba=<src.findlayer(16).color>
+	src.newitem=i_cabelo
+	src.act.color=<src.tag.corbarba>
+	src.act.p=<src.p>
+	src.act.timer={10 20]
+	var.srctarg=<src.uid>
+	src.findlayer(16).remove
+	src.newitem=i_barba_careca
+	src.act.cont=<var.srctarg>
+	src.tag.corbarba=
+	return 1
+else
+	sfx 059
+	src.targ.tag.corbarba=<src.targ.findlayer(16).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corbarba>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	var.srctarg=<src.targ.uid>
+	src.targ.findlayer(16).remove
+	src.targ.newitem=i_barba_careca
+	src.targ.act.cont=<var.srctarg>
+	src.tag.corbarba=
+endif
+	return 1
+
+/////////////////////////////////////////////////
+
+[MENU navalha_cabelo]
+Que tipo de corte especial voce deseja fazer?
+on=0 Cabelo moicano
+	sfx 059
+	src.targ.tag.corcabelo=<src.targ.findlayer(layer_hair).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(layer_hair).remove
+	src.targ.newitem=i_hair_mohawk
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.equip <src.targ.act.uid>
+	src.tag.corcabelo=
+	return 1
+
+on=0 Cabelo Hare Krisna
+	sfx 059
+	src.targ.tag.corcabelo=<src.targ.findlayer(layer_hair).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(layer_hair).remove
+	src.targ.newitem=i_hair_krisna
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.equip <src.targ.act.uid>
+	src.tag.corcabelo=
+	return 1
+
+
+////////////////////////////////////////////////////
+///////////// tesoura de barbeiro ////////////////
+///////////////////////////////////////////////////
+
+
+[ITEMDEF i_cabelo_tesoura]
+NAME=tesoura para cortar cabelo
+ID=0dfc
+TYPE=t_script
+WEIGHT=2
+
+on=@dclick
+target Que cabelo voce deseja cortar?
+return 1
+
+ON=@Targon_ground 
+ SRC.SYSMESSAGE Use a tesoura de cortar cabelo apenas em cabelo.
+RETURN 1  
+
+ON=@Targon_item 
+ SRC.SYSMESSAGE Use a tesoura de cortar cabelo apenas em cabelo.
+RETURN 1 
+
+on=@targon_char
+if (<src.targ.body>!=c_man)&&(<src.targ.body>!=c_woman)
+ SRC.SYSMESSAGE Use a tesoura de cortar cabelo apenas em pessoas.
+return 1
+elif (<src.targ.findlayer(6).baseid>!=0)
+ src.sysmessage Retire o chapeu, mascara ou o elmo para cortar o cabelo.
+return 1
+elif (<src.targ.findlayer(11).baseid>==i_hair_ponytail)||(<src.targ.findlayer(11).baseid>==i_hair_2_pigtails)
+ src.sysmessage Solte o cabelo antes de corta-lo.
+return 1
+elif (<src.targ.findlayer(11).baseid>!=i_hair_long)&&(<src.targ.findlayer(11).baseid>!=i_hair_pageboy)&&(<src.targ.findlayer(11).baseid>!=i_hair_buns)&&(<src.targ.findlayer(11).baseid>!=i_hair_afro)&&(<src.targ.findlayer(11).baseid>!=i_hair_short)
+ SRC.SYSMESSAGE Este cabelo nao tem tamanho suficiente para ser cortado. Se quiser raspa-lo use uma navalha.
+return 1
+elif (<src.targ.uid> != <src.uid>)
+	src.tag.freguesUID=<src.targ.uid>	// tag que contém o uid do freguês
+	src.targ.newitem=i_memory_aceitatesoura	// memory de aceita o corte que vai ser equipada no freguês
+	src.targ.act.link=<src.uid>		// linkando a memory com o barbeiro
+	src.targ.act.cont=<src.tag.freguesUID>	// jogando a memory na bag do freguês
+	src.targ.menu autorizacorte		// abre para o freguês o menu autorizacorte
+	src.sysmessage Se a pessoa autorizar, vai aparecer o menu.
+return 1
+else
+	src.skillmenu sm_cabelo_tesoura
+endif
+return 1
+
+
+
+///////////////////////////////////////////////
+
+[ITEMDEF i_memory_aceitatesoura]
+id=i_memory
+NAME=aceita o corte
+TYPE=T_eq_script
+WEIGHT=0
+
+ON=@Create
+	src.targ.equip
+	ATTR=attr_newbie
+	timer=1
+
+
+ON=@TIMER
+
+	if (<cont.tag.autorizacorte>=1)		// se existe a tag.autorizacorte=1 ou se a tag tem esse valor a
+	  link.skillmenu sm_cabelo_tesoura	//  chama menu de corte 
+	  cont.tag.autorizacorte=		// apaga tag.autorizacorte
+	  remove				// apaga a memory
+	return 1
+	elif (<cont.tag.autorizacorte>=2)
+	  cont.say Eu nao quero cortar o cabelo.
+	  cont.tag.autorizacorte=
+	  remove
+	return 1
+	else
+	else
+	gambiarratemp
+	return 1
+	endif
+	return 1
+
+/////////////////////////////////////////////////
+
+[skillmenu sm_cabelo_tesoura]
+Qual o corte que você deseja fazer?
+
+ON=i_hair_pageboy <name>
+TESTIF=(<src.targ.findlayer(11).baseid>==i_hair_long)
+if (<src.targ.uid>==<src.uid>)
+	sfx 0248
+	src.tag.corcabelo=<src.findlayer(layer_hair).color>
+	src.newitem=i_cabelo
+	src.act.color=<src.tag.corcabelo>
+	src.act.p=<src.p>
+	src.act.timer={10 20]
+	src.findlayer(layer_hair).remove
+	src.newitem=i_hair_pageboy
+	src.act.color=<src.tag.corcabelo>
+	src.equip <src.act.uid>
+	src.tag.corcabelo=
+	return 1
+else
+	src.targ.uid=<src.tag.freguesUID>
+	clearsysm
+	sfx 0248
+	src.targ.tag.corcabelo=<src.targ.findlayer(layer_hair).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(layer_hair).remove
+	src.targ.newitem=i_hair_pageboy
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.equip <src.targ.act.uid>
+	src.tag.corcabelo=
+	src.tag.freguesUID=
+endif
+	return 1
+
+ON=i_hair_buns <name>
+TESTIF=(<src.targ.findlayer(11).baseid>==i_hair_long)||(<src.targ.findlayer(11).baseid>==i_hair_pageboy)
+if (<src.targ.uid>==<src.uid>)
+	sfx 0248
+	src.tag.corcabelo=<src.findlayer(layer_hair).color>
+	src.newitem=i_cabelo
+	src.act.color=<src.tag.corcabelo>
+	src.act.p=<src.p>
+	src.act.timer={10 20]
+	src.findlayer(layer_hair).remove
+	src.newitem=i_hair_buns
+	src.act.color=<src.tag.corcabelo>
+	src.equip <src.act.uid>
+	src.tag.corcabelo=
+	return 1
+else
+	src.targ.uid=<src.tag.freguesUID>
+	clearsysm
+	sfx 0248
+	src.targ.tag.corcabelo=<src.targ.findlayer(layer_hair).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(layer_hair).remove
+	src.targ.newitem=i_hair_buns
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.equip <src.targ.act.uid>
+	src.tag.corcabelo=
+	src.tag.freguesUID=
+endif
+	return 1
+
+ON=i_hair_afro <name>
+TESTIF=(<src.targ.findlayer(11).baseid>==i_hair_long)||(<src.targ.findlayer(11).baseid>==i_hair_pageboy)||(<src.targ.findlayer(11).baseid>==i_hair_buns)
+if (<src.targ.uid>==<src.uid>)
+	sfx 0248
+	src.tag.corcabelo=<src.findlayer(layer_hair).color>
+	src.newitem=i_cabelo
+	src.act.color=<src.tag.corcabelo>
+	src.act.p=<src.p>
+	src.act.timer={10 20]
+	src.findlayer(layer_hair).remove
+	src.newitem=i_hair_afro
+	src.act.color=<src.tag.corcabelo>
+	src.equip <src.act.uid>
+	src.tag.corcabelo=
+	return 1
+else
+	src.targ.uid=<src.tag.freguesUID>
+	clearsysm
+	sfx 0248
+	src.targ.tag.corcabelo=<src.targ.findlayer(layer_hair).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(layer_hair).remove
+	src.targ.newitem=i_hair_afro
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.equip <src.targ.act.uid>
+	src.tag.corcabelo=
+	src.tag.freguesUID=
+endif
+	return 1
+
+ON=i_hair_short <name>
+TESTIF=(<src.targ.findlayer(11).baseid>==i_hair_long)||(<src.targ.findlayer(11).baseid>==i_hair_pageboy)||(<src.targ.findlayer(11).baseid>==i_hair_buns)||(<src.targ.findlayer(11).baseid>==i_hair_afro)
+if (<src.targ.uid>==<src.uid>)
+	sfx 0248
+	src.tag.corcabelo=<src.findlayer(layer_hair).color>
+	src.newitem=i_cabelo
+	src.act.color=<src.tag.corcabelo>
+	src.act.p=<src.p>
+	src.act.timer={10 20]
+	src.findlayer(layer_hair).remove
+	src.newitem=i_hair_short
+	src.act.color=<src.tag.corcabelo>
+	src.equip <src.act.uid>
+	src.tag.corcabelo=
+	return 1
+else
+	src.targ.uid=<src.tag.freguesUID>
+	clearsysm
+	sfx 0248
+	src.targ.tag.corcabelo=<src.targ.findlayer(layer_hair).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(layer_hair).remove
+	src.targ.newitem=i_hair_short
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.equip <src.targ.act.uid>
+	src.tag.corcabelo=
+	src.tag.freguesUID=
+endif
+	return 1
+
+ON=i_hair_receding <name>
+TESTIF=(<src.targ.findlayer(11).baseid>==i_hair_long)||(<src.targ.findlayer(11).baseid>==i_hair_pageboy)||(<src.targ.findlayer(11).baseid>==i_hair_buns)||(<src.targ.findlayer(11).baseid>==i_hair_afro)||(<src.targ.findlayer(11).baseid>==i_hair_short)
+if (<src.targ.uid>==<src.uid>)
+	sfx 0248
+	src.tag.corcabelo=<src.findlayer(layer_hair).color>
+	src.newitem=i_cabelo
+	src.act.color=<src.tag.corcabelo>
+	src.act.p=<src.p>
+	src.act.timer={10 20]
+	src.findlayer(layer_hair).remove
+	src.newitem=i_hair_receding
+	src.act.color=<src.tag.corcabelo>
+	src.equip <src.act.uid>
+	src.tag.corcabelo=
+	return 1
+else
+	src.targ.uid=<src.tag.freguesUID>
+	clearsysm
+	sfx 0248
+	src.targ.tag.corcabelo=<src.targ.findlayer(layer_hair).color>
+	src.targ.newitem=i_cabelo
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.act.p=<src.targ.p>
+	src.targ.act.timer={10 20]
+	src.targ.findlayer(layer_hair).remove
+	src.targ.newitem=i_hair_receding
+	src.targ.act.color=<src.targ.tag.corcabelo>
+	src.targ.equip <src.targ.act.uid>	src.tag.corcabelo=
+	src.tag.freguesUID=
+endif
+	return 1
+
+
+////////////////////////////////////////////////
+///////// função de cabelo comprido ///////////
+////////////////////////////////////////////////
+
+[function rabo]
+if (<src.findlayer(11).baseid>==i_hair_2_pigtails)
+src.sysmessage solte o cabelo primeiro para poder fazer um rabo.
+	return 1
+elif (<src.findlayer(11).baseid>!=i_hair_long)
+src.sysmessage Voce tem que ter cabelo comprido para poder fazer um rabo.
+return 1
+else
+	sfx 048 //prender. soltar é o 058
+	src.tag.corcabelo=<src.findlayer(layer_hair).color>
+	src.findlayer(layer_hair).remove
+	src.newitem=i_hair_ponytail
+	src.act.color=<src.tag.corcabelo>
+	src.equip <src.act.uid>
+endif
+return 1
+
+
+////////////////////////////////////////////////
+
+[function tranca]
+if (<src.findlayer(11).baseid>==i_hair_ponytail)
+src.sysmessage solte o cabelo primeiro para poder fazer uma tranca.
+	return 1
+elif (<src.findlayer(11).baseid>!=i_hair_long)
+src.sysmessage Voce tem que ter cabelo comprido para poder fazer uma tranca.
+	return 1
+else
+	sfx 048 //prender. soltar é o 058
+	src.tag.corcabelo=<src.findlayer(layer_hair).color>
+	src.findlayer(layer_hair).remove
+	src.newitem=i_hair_2_pigtails
+	src.act.color=<src.tag.corcabelo>
+	src.equip <src.act.uid>
+endif
+return 1
+
+
+///////////////////////////////////////////////
+
+[function solto]
+if (<src.findlayer(11).baseid>==i_hair_ponytail)||(<src.findlayer(11).baseid>==i_hair_2_pigtails)
+	sfx 058
+	src.tag.corcabelo=<src.findlayer(layer_hair).color>
+	src.findlayer(layer_hair).remove
+	src.newitem=i_hair_long
+	src.act.color=<src.tag.corcabelo>
+	src.equip <src.act.uid>
+	return 1
+else
+	src.sysmessage Voce quer soltar o que?
+endif
+return 1
+
+[PLEVEL 1] 
+rabo 
+tranca
+solto
+
+
+
+////////////////////////////////////////////////////
+////////////// cortes de cabelo ///////////////////
+///////////////////////////////////////////////////
+
+[ITEMDEF 02048]
+defname=i_hair_receding
+NAME=Cabelo calvo
+TYPE=T_HAIR
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Cabelo
+DESCRIPTION=Cabelo calvo
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_hair_short
+	cont.act.color=<cont.findlayer(layer_hair).color>
+	cont.equip <cont.act.uid>
+	return 1
+
+
+///////////////////////////////////////////////
+
+[ITEMDEF 0203b]
+defname=i_hair_short
+NAME=Cabelo curto
+TYPE=T_HAIR
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Cabelo
+DESCRIPTION=Cabelo curto
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_hair_afro
+	cont.act.color=<cont.findlayer(layer_hair).color>
+	cont.act.more=1
+	cont.equip <cont.act.uid>
+	return 1
+
+
+
+////////////////////////////////////////////////
+
+[ITEMDEF 02047]
+defname=i_hair_afro
+NAME=Cabelo afro
+TYPE=T_HAIR
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Cabelo
+DESCRIPTION=Cabelo afro
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_hair_buns
+	cont.act.color=<cont.findlayer(layer_hair).color>
+	cont.equip <cont.act.uid>
+	return 1
+
+////////////////////////////////////////////////
+
+[ITEMDEF 02046]
+defname=i_hair_buns
+NAME=Cabelo cheio
+TYPE=T_HAIR
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Cabelo
+DESCRIPTION=Cabelo cheio
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_hair_pageboy
+	cont.act.color=<cont.findlayer(layer_hair).color>
+	cont.equip <cont.act.uid>
+	return 1
+
+
+////////////////////////////////////////////////
+
+[ITEMDEF 02045]
+defname=i_hair_pageboy
+NAME=Cabelo medio
+TYPE=T_HAIR
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Cabelo
+DESCRIPTION=Cabelo medio
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_hair_long
+	cont.act.color=<cont.findlayer(layer_hair).color>
+	cont.equip <cont.act.uid>
+	return 1
+
+/////////////////////////////////////////////////
+
+[ITEMDEF 0203c]
+defname=i_hair_long
+NAME=Cabelo comprido
+TYPE=T_HAIR
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Cabelo
+DESCRIPTION=Cabelo comprido
+
+ON=@Create
+ATTR=attr_newbie
+
+ON=@TIMER
+	return 1
+
+////////////////////////////////////////////////
+
+[ITEMDEF 0203d]
+defname=i_hair_ponytail
+NAME=rabo de cavalo
+TYPE=T_HAIR
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Cabelo
+DESCRIPTION=Cabelo com rabo
+
+ON=@Create
+ATTR=attr_newbie
+
+ON=@TIMER
+	return 1
+
+
+////////////////////////////////////////////////
+
+[ITEMDEF 02049]
+defname=i_hair_2_pigtails
+NAME=Cabelo com trancas
+TYPE=T_HAIR
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Cabelo
+DESCRIPTION=Cabelo com trancas
+
+ON=@Create
+ATTR=attr_newbie
+
+ON=@TIMER
+	return 1
+
+
+////////////////////////////////////////////////
+///////// cortes especiais (navalha) ///////////
+////////////////////////////////////////////////
+
+[ITEMDEF 02044]
+defname=i_hair_mohawk
+NAME=Cabelo Moicano
+TYPE=T_HAIR
+VALUE={8 12}
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Cabelo
+DESCRIPTION=Cabelo moicano
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_hair_short
+	cont.act.color=<cont.findlayer(layer_hair).color>
+	cont.act.more=1
+	cont.equip <cont.act.uid>
+	return 1
+
+////////////////////////////////////////////////
+
+[ITEMDEF 0204a]
+defname=i_hair_krisna
+NAME=Cabelo hare krisna
+TYPE=T_HAIR
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Cabelo
+DESCRIPTION=Cabelo hare krisna
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_hair_receding
+	cont.act.color=<cont.findlayer(layer_hair).color>
+	cont.equip <cont.act.uid>
+	return 1
+
+
+////////////////////////////////////////////////
+/////////////////// barba //////////////////////
+////////////////////////////////////////////////
+
+[ITEMDEF 0203f] // sem bigode
+defname=i_beard_short
+NAME=Barbaicha media
+TYPE=T_BEARD
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Barba
+DESCRIPTION=Barbicha media
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_beard_short_med
+	cont.act.color=<cont.findlayer(layer_beard).color>
+	cont.equip <cont.act.uid>
+	return 1
+
+
+////////////////////////////////////////////////
+
+[ITEMDEF 0204b] // real barba curta
+defname=i_beard_short_med
+NAME=Barba curta
+TYPE=T_BEARD
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Barba
+DESCRIPTION=Barba curta
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_beard_long_med
+	cont.act.color=<cont.findlayer(layer_beard).color>
+	cont.equip <cont.act.uid>
+	return 1
+
+
+////////////////////////////////////////////////
+
+
+[ITEMDEF 0203e]
+defname=i_beard_long
+NAME=Barbicha longa
+TYPE=T_BEARD
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Barba
+DESCRIPTION=Barbicha longa
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_beard_long_med
+	cont.act.color=<cont.findlayer(layer_beard).color>
+	cont.equip <cont.act.uid>
+	return 1
+
+////////////////////////////////////////////////
+
+[ITEMDEF 0204c]
+defname=i_beard_long_med
+NAME=barba longa
+TYPE=T_BEARD
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Barba
+DESCRIPTION=Barba longa
+
+
+ON=@Create
+	ATTR=attr_newbie
+
+ON=@TIMER
+	return 1
+
+
+////////////////////////////////////////////////
+///////// corte especial barba /////////////////
+///////////////////////////////////////////////
+
+
+[ITEMDEF 02040]
+defname=i_beard_goatee
+NAME=Barbicha
+TYPE=T_BEARD
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Barba
+DESCRIPTION=Barbicha
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_beard_short
+	cont.act.color=<cont.findlayer(layer_beard).color>
+	cont.equip <cont.act.uid>
+	return 1
+
+////////////////////////////////////////////////
+
+[ITEMDEF 02041]
+defname=i_beard_mustache
+NAME=Bigode
+TYPE=T_BEARD
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Barba
+DESCRIPTION=Bigode
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_beard_short_med
+	cont.act.color=<cont.findlayer(layer_beard).color>
+	cont.equip <cont.act.uid>
+	return 1
+
+
+////////////////////////////////////////////////
+
+
+[ITEMDEF 0204d]
+defname=i_beard_vandyke
+NAME=Cavanhaque
+TYPE=T_BEARD
+
+CATEGORY=Myt itens (Jean Gabin)
+SUBSECTION=Barba
+DESCRIPTION=Cavanhaque
+
+ON=@Create
+	ATTR=attr_newbie
+	TIMER=550000
+//timer=5
+
+ON=@TIMER
+	if !<cont>	// on ground?
+		return 0
+	endif
+	if <cont.brain>	// players only
+		return 1
+	endif
+	cont.newitem=i_beard_short_med
+	cont.act.color=<cont.findlayer(layer_beard).color>
+	cont.equip <cont.act.uid>
+	return 1
+
+
+
+[eof]

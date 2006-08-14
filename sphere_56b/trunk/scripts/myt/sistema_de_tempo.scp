@@ -1,0 +1,580 @@
+////////////////////////
+///Sistema de clima, ///
+///tempo e luz       ///
+///                  ///
+///Por: Galthar      ///
+///v1.0b              ///
+///////////////////////
+//////////////////////
+/////////////////////
+
+
+//***********************************
+//**    Seção de configurações     **/////////////////////////////////////////////////////////////////////////////////////
+//***********************************
+
+[DEFNAME tempo]
+segundos_por_minuto=9
+minutos_por_hora=59
+horas_por_dia=24
+dias_por_mes=30
+meses_por_ano=12
+
+
+//corresponde ao código de luz do Sphere para cada
+//hora do dia.
+luz_0=1 //Só acontece se a pedra do tempo sumir. (i_pedra_tempo DEVE estar sempre no shard. E apenas UMA.)
+
+luz_1=30
+luz_2=30
+luz_3=30
+luz_4=28
+luz_5=20
+luz_6=12
+luz_7=5
+luz_8=5
+luz_9=4
+luz_10=2
+luz_11=2
+luz_12=1
+luz_13=2
+luz_14=2
+luz_15=3
+luz_16=4
+luz_17=4
+luz_18=12
+luz_19=22
+luz_20=25
+luz_21=30
+luz_22=30
+luz_23=30
+luz_24=30
+
+temp_0=20 //Só acontece se a pedra do tempo sumir.
+temp_1=15
+temp_2=15
+temp_3=16
+temp_4=16
+temp_5=17
+temp_6=17
+temp_7=18
+temp_8=18
+temp_9=19
+temp_10=19
+temp_11=19
+temp_12=20
+temp_13=19
+temp_14=19
+temp_15=18
+temp_16=18
+temp_17=17
+temp_18=17
+temp_19=16
+temp_20=16
+temp_21=16
+temp_22=15
+temp_23=15
+temp_24=15
+
+temp_verao=7
+temp_outono=-2
+temp_inverno=-11
+temp_primavera=0
+
+
+//***********************************
+//**       Seção de eventos        **/////////////////////////////////////////////////////////////////////////////////////
+//***********************************
+
+[EVENTS e_clima]
+on=@login
+if (<UID.<var.tUID>.TIMER> < 0)
+  try UID.<var.tUID>.TIMER segundos_por_minuto
+endif
+src.consume 30 i_mry_clima
+if !(<src.restest 1 i_mry_clima>)
+ src.newitem i_mry_clima
+ src.act.equip
+endif
+src.check_temp
+src.findid.i_mry_clima.timer=90
+
+on=@environchange
+
+if (0<var.fixclima>==1)
+ if !(<src.restest 1 i_mry_clima>)
+  src.newitem i_mry_clima
+  src.act.equip
+ endif
+ src.findid.i_mry_clima.timer=8
+endif
+
+src.events -e_clima
+if (<src.region.flags>&0800)
+ sector.light 30
+ src.events +e_clima
+ return 1
+endif
+
+LOCAL.luz =<eval(luz_<eval <var.thora>>)>
+if (<sector.light>!=<LOCAL.luz>)
+ sector.light=<local.luz>
+endif
+if (<findid.i_mry_clima.TIMER> < 0)
+  findid.i_mry_clima.timer=8
+endif
+
+src.events +e_clima
+
+on=@itemdclick
+if (<src.act.type>==t_clock)
+ src.vertempo
+ return 1
+endif
+
+//***********************************
+//**        Seção de itens         **/////////////////////////////////////////////////////////////////////////////////////
+//***********************************
+
+[ITEMDEF i_pedra_tempo]
+id=01810
+name=Pedra dos Tempos
+CATEGORY=MyT itens (Galthar)
+SUBSECTION=Tempo
+DESCRIPTION=Pedra dos Tempos
+type=t_script
+
+on=@create
+attr=08012
+
+on=@dclick
+var.tUID=<uid>
+src.dialog d_tempo
+return 1
+
+on=@timer
+timer=segundos_por_minuto
+morex=<morex> +1
+if (<morex> > minutos_por_hora) //minuto
+ if (<eval <more1>>==12) || (<eval <more1>>==1) || (<eval <more1>>==2)
+  var.estacao inverno
+ elif (<eval <more1>>==3) || (<eval <more1>>==4) || (<eval <more1>>==5)
+  var.estacao primavera
+ elif (<eval <more1>>==6) || (<eval <more1>>==7) || (<eval <more1>>==8)
+  var.estacao verao
+ elif (<eval <more1>>==9) || (<eval <more1>>==10) || (<eval <more1>>==11)
+  var.estacao outono
+ endif
+ morey=<morey>+1
+ morex=0
+
+ serv.allclients findid.i_mry_clima.timer=8
+ serv.allclients sector.light=0
+ if (0<var.fixclima>==1)
+  say *arrumando clima*
+  serv.allclients events +e_clima
+  serv.allclients sysmessageorange ,*arrumando clima*
+ endif
+endif
+
+if (<morey> > horas_por_dia)  //hora
+ morez=<morez>+1
+ morey=1
+endif
+if (<morez> > dias_por_mes)   //dia
+ more1=<more1>+1
+ morez=1
+endif
+if (<more1> > meses_por_ano)  //meses 
+ more2=<more2>+1
+ more1=1
+endif
+var.tano <more2>
+var.tmes <more1>
+var.tdia <morez>
+var.thora <morey>
+var.tminutos <morex>
+//say <eval 0<var.thora>>:<eval 0<var.tminutos>> -- <eval 0<var.tdia>>/<eval 0<var.tmes>>/<eval 0<var.tano>>
+timer=segundos_por_minuto
+return 1
+
+[ITEMDEF i_clima_off]
+ID=0495
+type=t_script
+name=clima off (entra)
+
+on=@create
+attr=08090
+timer 0
+color=084c
+
+on=@step
+src.tag.no_clima=1
+
+[ITEMDEF i_clima_on]
+ID=0495
+type=t_script
+name=clima on (sai)
+
+on=@create
+attr=08090
+timer 0
+color=0b0c
+
+on=@step
+src.tag.no_clima=
+
+[itemdef i_termometro]
+id=0104b
+name=Termometro
+type=t_script
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Tempo
+DESCRIPTION=Termometro
+weight=0
+
+on=@create
+color=0321
+
+on=@dclick
+src.calc_temp
+message Temperatura: <eval <src.region.tag.temp>>oC
+message Estacao: <var.estacao>
+return 1
+
+
+[ITEMDEF i_mry_clima]
+ID=020E8
+NAME=controle de clima
+TYPE=t_eq_script
+LAYER=30
+
+ON=@CREATE
+COLOR=07A1
+ATTR=08014
+
+ON=@EQUIP
+TIMER=90
+
+on=@timer
+timer={4 8}
+obj=<cont.uid>
+obj.check_temp
+if (0<var.neve_chao>==1) && (<more1> > 0) && (<cont.flags>&~1000000)
+ obj.addneve
+ more1=<more1>-1
+endif
+if (0<var.chuvachao>==1) && (<more2> > 0) && (<cont.flags>&~100000)
+ obj.addpoca
+ more2=<more2>-1
+endif
+return 1
+
+[ITEMDEF i_neve]
+ID=020E8
+NAME=neve
+TYPE=t_script
+
+ON=@CREATE
+COLOR=07A1
+attr=08012
+TIMER={6 15}
+
+ON=@DCLICK
+TARGET Voce pegou um pouco de neve e fez uma bola. Deseja atacar em quem?
+return 1
+
+on=@targon_char
+SRC.TARG.EFFECT 0,0E73,6,30,0
+src.targ.sysmessageyellow Jogaram uma bola de neve em voce!
+remove
+return 1
+
+on=@step
+remove
+return 1
+
+//***********************************
+//**      Seção de functions       **/////////////////////////////////////////////////////////////////////////////////////
+//***********************************
+
+
+[function vertempo]
+if (<var.tminutos> <=9 )
+ sysmessage Data: <eval 0<var.thora>>:0<eval 0<var.tminutos>> -- <eval 0<var.tdia>>/<eval 0<var.tmes>>/<eval 0<var.tano>>
+else
+ sysmessage Data: <eval 0<var.thora>>:<eval 0<var.tminutos>> -- <eval 0<var.tdia>>/<eval 0<var.tmes>>/<eval 0<var.tano>>
+endif
+return 1
+
+[FUNCTION calc_temp]
+LOCAL.temph =<eval(temp_<eval <var.thora>>)>
+LOCAL.tempe =<eval(temp_<var.estacao>)>
+LOCAL.temp=<local.tempe>+<local.temph>
+if (0<region.tag.modtemp>!=0)
+ LOCAL.temp=(<LOCAL.temp>+<region.tag.modtemp>)
+endif
+region.tag.temp=<local.temp>
+
+[FUNCTION check_temp]
+obj=<uid>
+obj.calc_temp
+if (0<obj.tag.no_clima>==1) || (<obj.isgm>) || (<obj.flags>&01000000)
+ obj.findid.i_mry_clima.more1=0
+ obj.findid.i_mry_clima.more2=0
+ return 1
+endif
+LOCAL.cloth=0
+if (<obj.findlayer.3.type>==t_clothing) || (<obj.findlayer.3.type>==t_armor_leather)
+ LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.3.weight>)
+endif
+if (<obj.findlayer.4.type>==t_clothing)
+ LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.4.weight>)
+endif
+if (<obj.findlayer.5.type>==t_clothing) || (<obj.findlayer.5.type>==t_armor_leather)
+ LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.5.weight>)
+endif
+if (<obj.findlayer.7.type>==t_clothing) || (<obj.findlayer.7.type>==t_armor_leather)
+ LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.7.weight>)
+endif
+if (<obj.findlayer.17.type>==t_clothing)
+ LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.17.weight>)
+endif
+if (<obj.findlayer.21.type>==t_clothing)
+ LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.21.weight>)
+endif
+if (<obj.findlayer.22.type>==t_clothing)
+ LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.22.weight>)
+endif
+if (<obj.findlayer.23.type>==t_clothing)
+ LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.23.weight>)
+endif
+LOCAL.cloth=<eval 31-<LOCAL.cloth>/5>
+if (<obj.isneartype t_fire 1>)
+ LOCAL.cloth=<LOCAL.cloth>-3
+endif
+if (<obj.isneartype t_forge 1>)
+ LOCAL.cloth=<LOCAL.cloth>-2
+endif
+if (<obj.body>==c_man_gm)
+ LOCAL.cloth=<LOCAL.cloth>-2
+endif
+local.frio=<obj.region.tag.temp>+100
+local.cloth=<local.cloth>+100
+if (<eval <local.cloth>-15> > <eval <local.frio>>)
+ obj.acaoclima 3
+elif (<eval <local.cloth>> > <eval <local.frio>>)
+ obj.acaoclima 2
+elif (<eval <local.cloth>> < <eval <local.frio>-15>)
+ obj.acaoclima 1
+endif
+
+[FUNCTION acaoclima]
+obj=<uid>
+if (0<argn>==1)
+ if (<obj.hits> >= 10)
+  obj.stam=<obj.stam>-{1 3}
+ endif
+ DORAND 2
+  obj.sysmessagegreen Voce esta se sentindo cancado devido ao calor.
+  obj.emotered sua
+ ENDDO
+elif (0<argn>==2)
+ if (<obj.hits> >= 10)  && (<obj.stam> > 5)
+  obj.stam=<obj.stam>-{2 4}
+ elif (<obj.hits> < 10)  && (<obj.stam> > 5)
+  obj.stam=<obj.stam>-{1 2}
+ else (<obj.stam>==0)
+  obj.hits=(<obj.hits>-{2 5}
+ endif
+ DORAND 2
+  obj.sysmessagegreen Voce esta sentindo frio. Abrigue-se.
+  obj.emotered treme
+ ENDDO
+elif (0<argn>==3)
+ obj.hits=<obj.hits>-{2 5}
+ obj.stam=<obj.stam>-{1 3}
+ DORAND 3
+  obj.sysmessagered Seus membros estao congelando de frio! Voce vai morrer!
+  obj.sysmessagegreen Voce esta sentindo MUITO frio. Abrigue-se.
+  obj.emotered treme muito
+ ENDDO
+endif
+if (<src.stam> < 0) || (<src.stam> > 900)
+ src.stam=0
+endif
+
+[FUNCTION ft_snow]
+region.RAINCHANCE=0
+region.COLDCHANCE=064
+src.findid.i_mry_clima.more1={3 4}
+sector.snow
+
+[FUNCTION ft_rain]
+region.RAINCHANCE=064
+region.COLDCHANCE=0
+src.findid.i_mry_clima.more2={3 4}
+sector.rain
+
+[FUNCTION ft_dry]
+region.RAINCHANCE=0
+region.COLDCHANCE=0
+src.findid.i_mry_clima.more1=0
+src.findid.i_mry_clima.more2=0
+sector.dry
+
+[FUNCTION addneve]
+newitem i_neve
+act.movenear <uid> 6
+
+[FUNCTION addpoca]
+src.newitem i_poca
+src.act.timer {6 15}
+src.act.movenear <src.uid> 6
+
+[FUNCTION fixclima]
+if (0<var.fixclima>==0)
+ serv.allclients sysmessageyellow Implementacao do sistema de clima acionado
+ serv.allclients sysmessageyellow ,[Isso PODE gerar algum lag]
+ var.fixclima=1
+else
+ serv.allclients sysmessageyellow Desabilitando implementacao do sistema de clima
+ serv.allclients sysmessageyellow ,[Servico completo]
+ var.fixclima=0
+endif
+if (<UID.<var.tUID>.TIMER> < 0)
+  try UID.<var.tUID>.TIMER segundos_por_minuto
+endif
+
+//***********************************
+//**      Seção de Gumps        **/////////////////////////////////////////////////////////////////////////////////////
+//***********************************
+ 
+[DIALOG d_tempo]
+250, 125	
+resizepic 0 0 3600 250 210
+
+resizepic 20 20 3000 50 22
+textentry 20 20 50 25 0 1 0
+text 75 20 026 1
+
+resizepic 20 50 3000 50 22
+textentry 20 50 50 25 0 2 2
+text 75 50 026 3
+
+resizepic 20 80 3000 50 22
+textentry 20 80 50 25 0 3 4
+text 75 80 026 5
+
+resizepic 20 110 3000 50 22
+textentry 20 110 50 25 0 4 6
+text 75 110 026 7
+
+resizepic 20 140 3000 50 22
+textentry 20 140 50 25 0 5 8
+text 75 140 026 9
+
+button 170 18 239 238 1 0 1
+button 170 48 239 238 1 0 2
+button 170 78 239 238 1 0 3
+button 170 108 239 238 1 0 4
+button 170 138 239 238 1 0 5
+button 100 168 248 247 1 0 6
+
+[DIALOG d_tempo TEXT]
+<EVAL <UID.<var.tUID>.MOREX>>
+Minutos
+<EVAL <UID.<var.tUID>.MOREY>>
+Horas
+<EVAL <UID.<var.tUID>.MOREZ>>
+Dia
+<EVAL <UID.<var.tUID>.MORE1>>
+Mes
+<EVAL <UID.<var.tUID>.MORE2>>
+Ano
+
+[DIALOG d_tempo BUTTON]
+
+ONBUTTON=0
+SYSMESSAGE O tempo nao foi modificado.
+
+ONBUTTON=1
+IF (<ARGTXT[1]>>0) && (<ARGTXT[1]><<EVAL (minutos_por_hora)+1>)
+try UID.<var.tUID>.MOREX <ARGTXT[1]>
+SYSMESSAGE Minutos modificado.
+ELSE
+SYSMESSAGE Horas devem ser entre 0 e <EVAL (minutos_por_hora)>.
+ENDIF
+try UID.<var.tUID>.TIMER segundos_por_minuto
+
+ONBUTTON=2
+IF (<ARGTXT[2]>>0) && (<ARGTXT[2]><<EVAL (horas_por_dia)+1>)
+try UID.<var.tUID>.MOREY <ARGTXT[2]>
+SYSMESSAGE Hora modificada
+ELSE
+SYSMESSAGE Horas devem ser entre 0 e <EVAL (horas_por_dia)>.
+ENDIF
+try UID.<var.tUID>.TIMER segundos_por_minuto
+
+ONBUTTON=3
+IF (<ARGTXT[3]>>0) && (<ARGTXT[3]><<EVAL (dias_por_mes)+1>)
+try UID.<var.tUID>.MOREZ <ARGTXT[3]>
+SYSMESSAGE Dia modificado.
+ELSE
+SYSMESSAGE Dias devem ser entre 1 e <EVAL (dias_por_mes)>.
+ENDIF
+try UID.<var.tUID>.TIMER segundos_por_minuto
+
+ONBUTTON=4
+IF (<ARGTXT[4]>>0) && (<ARGTXT[4]><<EVAL (meses_por_ano)+1>)
+try UID.<var.tUID>.MORE1 <ARGTXT[4]>
+SYSMESSAGE Months have been modified.
+ELSE
+SYSMESSAGE Meses devem ser entre 1 e <EVAL (meses_por_ano)>.
+ENDIF
+try UID.<var.tUID>.TIMER segundos_por_minuto
+
+ONBUTTON=5
+IF (<ARGTXT[5]>>0)
+try UID.<var.tUID>.MORE2 <ARGTXT[5]>
+SYSMESSAGE Anos modificados.
+ELSE
+SYSMESSAGE Anos não podem ser negativo.
+ENDIF
+try UID.<var.tUID>.TIMER segundos_por_minuto
+
+ONBUTTON=6
+IF (<ARGTXT[1]>>0) && (<ARGTXT[1]><<EVAL (minutos_por_hora)+1>)
+try UID.<var.tUID>.MOREX <ARGTXT[1]>
+SYSMESSAGE Minutos modificados.
+ELSE
+SYSMESSAGE Minutos devem ser entre 0 e <EVAL (minutos_por_hora)>.
+ENDIF
+IF (<ARGTXT[2]>>0) && (<ARGTXT[2]><<EVAL (horas_por_dia)+1>)
+try UID.<var.tUID>.MOREY <ARGTXT[2]>
+SYSMESSAGE Hora modificada
+ELSE
+SYSMESSAGE Horas devem ser entre 0 e <EVAL (horas_por_dia)>.
+ENDIF
+IF (<ARGTXT[3]>>0) && (<ARGTXT[3]><<EVAL (dias_por_mes)+1>)
+try UID.<var.tUID>.MOREZ <ARGTXT[3]>
+SYSMESSAGE Dia modificado.
+ELSE
+SYSMESSAGE Dias devem ser entr 1 e <EVAL (dias_por_mes)>.
+ENDIF
+IF (<ARGTXT[4]>>0) && (<ARGTXT[4]><<EVAL (meses_por_ano)+1>)
+try UID.<var.tUID>.MORE1 <ARGTXT[4]>
+SYSMESSAGE Mes modificado
+ELSE
+SYSMESSAGE Meses devem ser entre 1 e <EVAL (meses_por_ano)>.
+ENDIF
+IF (<ARGTXT[5]>>0)
+try UID.<var.tUID>.MORE2 <ARGTXT[5]>
+SYSMESSAGE Anos modificado
+ELSE
+SYSMESSAGE Anos nao podem ser negativos
+ENDIF
+try UID.<var.tUID>.TIMER segundos_por_minuto
+
+
+[EOF]

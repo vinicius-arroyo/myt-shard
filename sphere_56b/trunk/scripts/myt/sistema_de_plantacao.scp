@@ -1,0 +1,1841 @@
+//*****************************************************************************
+//**                        Sistema de plantação v1.2                        **
+//**                          Mystical Tales Shard                           **
+//*****************************************************************************
+
+//Tabela de valor MORE2 contido em cada ojeto de semente para cada fruto a ser colhido.
+//
+//	MORE2		FRUTO		ITEMDEF
+//
+//	0001		batata          i_sem_batata
+//	0002		milho		i_sem_milho
+//	0003		ervilha		i_sem_ervilha
+//	0004		trigo		i_sem_trigo
+//	0005		cenoura		i_sem_cenoura
+//	0006		alface		i_sem_alface
+//	0007		ginsen		i_sem_ginsen
+//	0008		mandrake	i_sem_mandrake
+//	0009		alho		i_sem_alho
+//	0010		nightshade	i_sem_nightshade
+//	0011		macieira	i_sem_maca
+//	0012		parreira	i_sem_uva
+//	0013		bananeira	i_sem_banana
+//	0014		algodoeira	i_sem_algodao
+
+//*****************************************************************************
+//**                        Configurações do sistema                         **
+//*****************************************************************************
+
+//####################### Mude conforme a necessidade #########################
+
+[DEFNAME Config_de_plantação]
+// configurações gerais. Altere conforme necessário.
+
+tempo_de_plantacao=60*60
+//Tempo total de crescimento de uma planta para que ela se torne madura.
+//No caso das árvores perenes, o valor será triplicado automaticamente.
+
+uso_da_terra_arada=4
+//Número de vezes que pode-se plantar em um tile de terra arada antes 
+//dele se tornar esteril novamente.
+
+chance_colher_sementes=18
+//Porcentágem de chance que um player tem de retirar novas sementes quando 
+//terminam os frutos da planta.
+
+tempo_de_decay_planta=15
+//Tempo em segundos entre a colheita do ultimo fruto e a 'morte' da planta.
+//O player só poderá tentar colher sementes durante este intervalo de tempo.
+
+ferramenta_para_colher=0f51
+//ID Hex da ferramente que deve estar na mão do player para ele conseguir colher
+//os frutos. Coloque 0 (zero) para desabilitar a necessidade de uma ferramenta.
+
+//*****************************************************************************
+//**                                TYPEDEF                                  **
+//*****************************************************************************
+
+[TYPEDEF t_semente]
+ON=@CREATE
+more1=5
+
+ON=@CLICK
+MESSAGE <name> (<more1>)
+return 1
+
+
+ON=@dclick
+target Selecione a terra arada:
+return 1
+
+ON=@TARGON_GROUND
+TARGET Voce nao pode plantar nisso. Selecione onde plantar:
+RETURN 1
+
+ON=@TARGON_CHAR
+TARGET Voce nao pode plantar em criaturas. Selecione onde plantar:
+RETURN 1
+
+ON=@TARGON_ITEM
+if (<src.targ.id>==0914)
+	if ( <src.targ.distance>>1)
+		SRC.SYSMESSAGE Voce esta muito lonje.
+		return 1
+	endif
+	if ( <src.targ.more2>==1 )
+		SRC.SYSMESSAGE Esta terra ja esta sendo usada. Use outra.
+		return 1
+	endif
+	SRC.targ.link=<src.uid>
+	src.targ.more2=1 // Flag que a terra tá sendo usada
+	src.targ.timer=tempo_de_plantacao //tempo pro Flag cair
+//-?-QUE TIPO DE SEMENTE É? QUE PLANTA VAI NASCER?
+	if (<more2>==0001)
+		src.newitem i_plan_batata1
+	elseif (<more2>==0002)
+		src.newitem i_plan_milho1
+	elseif (<more2>==0003)
+		src.newitem i_plan_ervilha1
+	elseif (<more2>==0004)
+		src.newitem i_plan_trigo1
+	elseif (<more2>==0005)
+		src.newitem i_plan_cenoura1
+	elseif (<more2>==0006)
+		src.newitem i_plan_alface1
+	elseif (<more2>==0007)
+		src.newitem i_plan_ginsen1
+	elseif (<more2>==0008)
+		src.newitem i_plan_mandrake1
+	elseif (<more2>==0009)
+		src.newitem i_plan_alho1
+	elseif (<more2>==0010)
+		src.newitem i_plan_nightshade1
+	elseif (<more2>==0011)
+		src.newitem i_plan_maca1
+	elseif (<more2>==0012)
+		src.newitem i_plan_uva1
+	elseif (<more2>==0013)
+		src.newitem i_plan_banana1
+	elseif (<more2>==0014)
+		src.newitem i_plan_algodao1	//-?-PONHA AQUI O NOVOS TIPOS DE PLANTAS.
+	endif
+	src.act.p=<src.targp>
+	src.act.link=<src.uid>
+	more1=(<more1>-1)
+	if (<more1>==0)
+		remove
+		return 1
+	endif
+	src.act=0
+	src.f_planta
+	return 1
+else
+	src.sysmessage Voce nao pode plantar nisso.
+	return 1
+endif
+[TYPEDEF t_planta]
+
+ON=@CLICK
+if (<more1>==0ffffffff)
+	MESSAGE <name> (morreu)
+	return 1
+else
+	MESSAGE <name> (<more1>)
+	return 1
+endif
+
+
+//*****************************************************************************
+//**                           Functions e Memorys                           **
+//*****************************************************************************
+
+
+[ITEMDEF i_mry_planta]
+ID=I_MEMORY
+TYPE=T_EQ_SCRIPT
+NAME=Planta
+
+ON=@CREATE
+SRC.ACT.EQUIP
+TIMER=1
+
+ON=@EQUIP
+if (<cont.gm>==0)
+	cont.flags=(<cont.flags>|000000004)
+endif
+return 1
+
+ON=@DCLICK
+SRC.ACT.EQUIP
+return 1
+
+ON=@TIMER
+	sfx 0145
+	cont.anim 12
+if (<more1>==5)
+	if (<cont.gm>==0)
+		cont.flags=(<cont.flags>-000000004)
+	endif
+	remove
+	return 1
+else
+	more1=(<more1>+1)
+	TIMER=1
+	return 1
+endif
+
+[FUNCTION F_PLANTA]
+src.newitem=i_mry_planta
+src.act.equip
+RETURN 1
+
+[FUNCTION f_colhe]
+if (ferramenta_para_colher!=0)
+	if (<src.findlayer(1).ID> == ferramenta_para_colher )
+		src.newitem=<args>
+		src.anim 12
+		src.act.bounce
+		src.sfx 004f
+		src.say *colhendo <src.act.name>*
+		return 1
+	else
+		src.sysmessage Voce nao esta equipado com  ferramenta correta.
+		src.say *estragou um fruto*
+		return 1
+	endif
+endif
+
+
+[FUNCTION f_sementes]
+if ( chance_colher_sementes >= <eval rand(100)>)
+	if (ferramenta_para_colher!=0)
+		if (<src.findlayer(1).ID> == ferramenta_para_colher )
+			src.newitem=<args>
+			src.act.bounce
+			src.anim 12
+			src.sfx 004f
+			src.say *colhendo <src.act.name>*
+			src.sysmessage Voce tirou algumas novas sementes da planta.
+			return 1
+		else
+			src.sysmessage Voce nao esta equipado com  ferramenta correta.
+			return 1
+		endif
+	endif
+else
+	src.anim 12
+	src.sfx 004f
+	src.sysmessage Voce nao tirou novas sementes da planta.
+	return 1
+endif
+
+
+//*****************************************************************************
+//**                             Terra e Arado                               **
+//*****************************************************************************
+
+
+[ITEMDEF i_terra_esteril]
+//terra que não dá pra palntar
+NAME=terra esteril
+ID=055C
+DEFNAME=i_terra_esteril
+TYPE=t_normal
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Terra Esteril
+
+ON=@CREATE
+attr=08010
+
+ON=@DCLICK
+SRC.SYSMESSAGE Esta terra e infertil.
+SRC.SYSMESSAGE Voce precisa ara-la.
+RETURN 1
+
+[ITEMDEF i_terra_arada]
+//Arado
+NAME=terra arada
+ID=0914
+DEFNAME=i_terra_arada
+TYPE=T_Normal
+FLIP=0
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Terra arada
+
+ON=@CREATE
+attr=08010
+MORE1=0
+more2=0
+timer=-1
+
+ON=@TIMER
+MORE1=(<more1>+1)
+IF (<more1>> (uso_da_terra_arada)-1)
+	link.newitem=i_terra_esteril
+	link.act.p=<p>
+	link.act.nudgeup 1
+	link.act.say *secou*
+	remove
+	return 1
+endif
+more2=0
+timer=-1
+return 1
+
+
+[ITEMDEF i_arado]
+//Arado
+NAME=arado
+ID=01507
+DEFNAME=i_arado
+RESOURCES=2 i_ingot_iron, 1 i_log
+TYPE=T_SCRIPT
+WEIGHT=8
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Arado
+
+ON=@DCLICK
+TARGET Selecione onde arar:
+RETURN 1
+
+ON=@TARGON_GROUND
+TARGET Voce nao pode arar isso. Selecione onde arar:
+RETURN 1
+
+ON=@TARGON_CHAR
+TARGET Voce nao pode arar criaturas. Selecione onde arar:
+RETURN 1
+
+ON=@TARGON_ITEM
+if (<src.targ.id>==055C)
+	if ( <src.targ.distance>>1)
+		SRC.SYSMESSAGE Voce esta muito lonje.
+		return 1
+	endif
+	src.targ.remove
+	src.newitem=i_terra_arada
+	src.act.p=<src.targ.p>
+	src.act.link=<SRC.UID>
+	src.act=0
+	src.F_PLANTA
+	return 1
+elseif (<src.targ.id>==0914)
+	src.sysmessage Esta terra ja esta arada.
+RETURN 1
+endif
+
+//*****************************************************************************
+//**                                Sementes                                 **
+//*****************************************************************************
+
+//########################### Vegetais Comestíveis#############################
+
+
+[ITEMDEF i_sem_batata]
+NAME=sementes de batata
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de batata
+
+ON=@CREATE
+MORE1=5
+MORE2=0001 //caracteriza que esta semente é de batata.
+
+[ITEMDEF i_sem_milho]
+NAME=sementes de milho
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de milho
+
+ON=@CREATE
+MORE1=8
+MORE2=0002 //caracteriza que esta semente é de milho.
+
+
+[ITEMDEF i_sem_ervilha]
+NAME=sementes de ervilha
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de ervilha
+
+ON=@CREATE
+MORE1=5
+MORE2=0003 //caracteriza que esta semente é de ervilha.
+
+[ITEMDEF i_sem_trigo]
+NAME=sementes de trigo
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de trigo
+
+ON=@CREATE
+MORE1=7
+MORE2=0004 //caracteriza que esta semente é de trigo.
+
+[ITEMDEF i_sem_cenoura]
+NAME=sementes de cenoura
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de cenoura
+
+ON=@CREATE
+MORE1=3
+MORE2=0005 //caracteriza que esta semente é de cenoura.
+
+[ITEMDEF i_sem_alface]
+NAME=sementes de alface
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de alface
+
+ON=@CREATE
+MORE1=7
+MORE2=0006 //caracteriza que esta semente é de alface.
+
+
+//################################ Reagentes ##################################
+
+[ITEMDEF i_sem_ginsen]
+NAME=sementes de ginseng
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de Ginseng
+
+ON=@CREATE
+MORE1=3
+MORE2=0007 //caracteriza que esta semente é de ginsen.
+
+[ITEMDEF i_sem_mandrake]
+NAME=sementes de mandrake root
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de mandrake
+
+ON=@CREATE
+MORE1=3
+MORE2=0008 //caracteriza que esta semente é de mandrake root.
+
+[ITEMDEF i_sem_alho]
+NAME=sementes de alho
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de alho
+
+ON=@CREATE
+MORE1=3
+MORE2=0009 //caracteriza que esta semente é de alho.
+
+[ITEMDEF i_sem_nightshade]
+NAME=sementes de nightshade
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de nightshade
+
+ON=@CREATE
+MORE1=3
+MORE2=0010 //caracteriza que esta semente é de nightshade.
+
+//########################### arvores persistentes ############################
+
+[ITEMDEF i_sem_maca]
+NAME=semente de macieira
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de maçã
+
+ON=@CREATE
+MORE1=1
+MORE2=0011 //caracteriza que esta semente é de macieira.
+
+[ITEMDEF i_sem_uva]
+NAME=semente de parreira
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de uva
+
+ON=@CREATE
+MORE1=1
+MORE2=0012 //caracteriza que esta semente é de parreira.
+
+[ITEMDEF i_sem_banana]
+NAME=semente de bananeira
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de banana
+
+ON=@CREATE
+MORE1=1
+MORE2=0013 //caracteriza que esta semente é de bananeira.
+
+//################################### Outros #############################
+
+
+[ITEMDEF i_sem_algodao]
+NAME=sementes de pe de algodao
+ID=i_bag
+TYPE=t_semente
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Plantacao
+DESCRIPTION=Semente de algodão
+
+ON=@CREATE
+MORE1=4
+MORE2=0014 //caracteriza que esta semente é de algodao.
+
+
+//*****************************************************************************
+//**                         Plantas e Suas Evoluções                        **
+//*****************************************************************************
+
+//############################ Vegetais Comestíveis ###########################
+
+//****batata****
+
+[ITEMDEF i_plan_batata1]
+ID=0c5e
+TYPE=t_script
+NAME=batata (broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_batata2
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o broto.
+return 1
+
+[ITEMDEF i_plan_batata2]
+ID=0c5f
+TYPE=t_script
+NAME=batata (jovem)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_batata3
+link.act.link=<link.uid>
+link.act.p=<p>
+link.act.nudgeup 1
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o isso jovem.
+return 1
+
+[ITEMDEF i_plan_batata3]
+ID=0c60
+TYPE=t_planta
+NAME=batata (madura)
+// por sections de menu
+
+ON=@CREATE
+MORE1=3 +(Rand(1)-1) //O primeiro número é o número de frutos q a planta vai dar.
+
+//ON=@CLICK
+//MESSAGE <name> (<more1>)
+//return 1
+
+ON=@DCLICK
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more1> > 0)
+	src.f_colhe I_BATATA
+	if (<more1>==1)
+		timer=tempo_de_decay_planta
+	endif
+	more1=(<more1>-1)
+	return 1
+elseif (<more1> !=-1)
+	src.f_sementes i_sem_batata
+	timer=1
+	more1=-1
+	return 1
+else
+	return 1
+endif
+
+ON=@TIMER
+if (<more2>==0)
+	SAY *morreu*
+	more2=1
+	timer=2
+	return 1
+else
+	remove
+	return 1
+endif
+
+//****milho****
+
+[ITEMDEF i_plan_milho1]
+ID=0cb5
+TYPE=t_script
+NAME=milho (broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_milho2
+link.act.link=<link.uid>
+link.act.p=<p>
+link.act.nudgeup 1
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o broto.
+return 1
+
+[ITEMDEF i_plan_milho2]
+ID=0c7e
+TYPE=t_script
+NAME=milho (jovem)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_milho3
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o isso jovem.
+return 1
+
+[ITEMDEF i_plan_milho3]
+ID=0c7d
+TYPE=t_planta
+NAME=milho (maduro)
+// por sections de menu
+
+ON=@CREATE
+MORE1=1 //O primeiro número é o número de frutos q a planta vai dar.
+
+ON=@CLICK
+MESSAGE <name> (<more1>)
+return 1
+
+ON=@DCLICK
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more1> > 0)
+	src.f_colhe I_FRUIT_CORN
+	if (<more1>==1)
+		timer=tempo_de_decay_planta
+	endif
+	more1=(<more1>-1)
+	return 1
+elseif (<more1> !=-1)
+	src.f_sementes i_sem_milho
+	timer=1
+	more1=-1
+	return 1
+else
+	return 1
+endif
+
+ON=@TIMER
+if (<more2>==0)
+	SAY *morreu*
+	more2=1
+	timer=2
+	return 1
+else
+	remove
+	return 1
+endif
+
+
+
+//****ervilha****
+
+[ITEMDEF i_plan_ervilha1]
+ID=0cb5
+TYPE=t_script
+NAME=ervilha (broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_ervilha2
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o broto.
+return 1
+
+[ITEMDEF i_plan_ervilha2]
+ID=0cb0
+TYPE=t_script
+NAME=ervilha (jovem)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_ervilha3
+link.act.link=<link.uid>
+link.act.p=<p>
+link.act.nudgeup 1
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher isso jovem.
+return 1
+
+[ITEMDEF i_plan_ervilha3]
+ID=0c8d
+TYPE=t_planta
+NAME=ervilha (madura)
+// por sections de menu
+
+ON=@CREATE
+MORE1=3 +(Rand(1)-1) //O primeiro número é o número de frutos q a planta vai dar.
+
+ON=@CLICK
+MESSAGE <name> (<more1>)
+return 1
+
+ON=@DCLICK
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more1> > 0)
+	src.f_colhe I_ERVILHA
+	if (<more1>==1)
+		timer=tempo_de_decay_planta
+	endif
+	more1=(<more1>-1)
+	return 1
+elseif (<more1> !=-1)
+	src.f_sementes i_sem_ervilha
+	timer=1
+	more1=-1
+	return 1
+else
+	return 1
+endif
+
+ON=@TIMER
+if (<more2>==0)
+	SAY *morreu*
+	more2=1
+	timer=2
+	return 1
+else
+	remove
+	return 1
+endif
+
+
+//****trigo****
+
+[ITEMDEF i_plan_trigo1]
+ID=01EBF
+TYPE=t_script
+NAME=trigo(broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_trigo2
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o broto.
+return 1
+
+[ITEMDEF i_plan_trigo2]
+ID=0c59
+TYPE=t_script
+NAME=trigo (jovem)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_trigo3
+link.act.link=<link.uid>
+link.act.p=<p>
+link.act.nudgeup 1
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher isso jovem.
+return 1
+
+[ITEMDEF i_plan_trigo3]
+ID=0c5a
+TYPE=t_planta
+NAME=trigo (maduro)
+// por sections de menu
+
+ON=@CREATE
+MORE1=1 //O primeiro número é o número de frutos q a planta vai dar.
+
+ON=@CLICK
+MESSAGE <name> (<more1>)
+return 1
+
+ON=@DCLICK
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more1> > 0)
+	src.f_colhe i_wheat_sheaf
+	if (<more1>==1)
+		timer=tempo_de_decay_planta
+	endif
+	more1=(<more1>-1)
+	return 1
+elseif (<more1> !=-1)
+	src.f_sementes i_sem_trigo
+	timer=1
+	more1=-1
+	return 1
+else
+	return 1
+endif
+
+
+ON=@TIMER
+if (<more2>==0)
+	SAY *morreu*
+	more2=1
+	timer=2
+	return 1
+else
+	remove
+	return 1
+endif
+
+//****cenoura****
+
+[ITEMDEF i_plan_cenoura1]
+ID=0c68
+TYPE=t_script
+NAME=cenoura(broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_cenoura2
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o broto.
+return 1
+
+[ITEMDEF i_plan_cenoura2]
+ID=0c69
+TYPE=t_script
+NAME=cenoura (jovem)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_cenoura3
+link.act.link=<link.uid>
+link.act.p=<p>
+link.act.nudgeup 1
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher isso jovem.
+return 1
+
+[ITEMDEF i_plan_cenoura3]
+ID=0c76
+TYPE=t_planta
+NAME=cenoura (madura)
+// por sections de menu
+
+ON=@CREATE
+MORE1=6 +(Rand(1)-1) //O primeiro número é o número de frutos q a planta vai dar.
+
+ON=@CLICK
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+MESSAGE <name> (<more1>)
+return 1
+
+ON=@DCLICK
+if (<more1> > 0)
+	src.f_colhe i_fruit_carrot
+	if (<more1>==1)
+		timer=tempo_de_decay_planta
+	endif
+	more1=(<more1>-1)
+	return 1
+elseif (<more1> !=-1)
+	src.f_sementes i_sem_cenoura
+	timer=1
+	more1=-1
+	return 1
+else
+	return 1
+endif
+
+
+ON=@TIMER
+if (<more2>==0)
+	SAY *morreu*
+	more2=1
+	timer=2
+	return 1
+else
+	remove
+	return 1
+endif
+
+
+//****alface****
+
+[ITEMDEF i_plan_alface1]
+ID=0c71
+TYPE=t_script
+NAME=alface(broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_alface2
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o broto.
+return 1
+
+[ITEMDEF i_plan_alface2]
+ID=0c71
+TYPE=t_script
+NAME=alface (jovem)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_alface3
+link.act.link=<link.uid>
+link.act.p=<p>
+link.act.nudgeup 1
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher isso jovem.
+return 1
+
+[ITEMDEF i_plan_alface3]
+ID=0c71
+TYPE=t_planta
+NAME=alface (madura)
+// por sections de menu
+
+ON=@CREATE
+MORE1=1 //O primeiro número é o número de frutos q a planta vai dar.
+
+ON=@CLICK
+MESSAGE <name> (<more1>)
+return 1
+
+ON=@DCLICK
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more1> > 0)
+	src.f_colhe i_fruit_lettuce
+	if (<more1>==1)
+		timer=tempo_de_decay_planta
+	endif
+	more1=(<more1>-1)
+	return 1
+elseif (<more1> !=-1)
+	src.f_sementes i_sem_alface
+	timer=1
+	more1=-1
+	return 1
+else
+	return 1
+endif
+
+
+ON=@TIMER
+if (<more2>==0)
+	SAY *morreu*
+	more2=1
+	timer=2
+	return 1
+else
+	remove
+	return 1
+endif
+
+//################################ Reagentes ##################################
+
+//****ginsen****
+
+[ITEMDEF i_plan_ginsen1]
+ID=0cb5
+TYPE=t_script
+NAME=ginsen (broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_ginsen2
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o broto.
+return 1
+
+[ITEMDEF i_plan_ginsen2]
+ID=0cb0
+TYPE=t_script
+NAME=ginsen (jovem)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_ginsen3
+link.act.link=<link.uid>
+link.act.p=<p>
+link.act.nudgeup 1
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher isso jovem.
+return 1
+
+[ITEMDEF i_plan_ginsen3]
+ID=018e9
+TYPE=t_planta
+NAME=ginsen (maduro)
+// por sections de menu
+
+ON=@CREATE
+MORE1=Rand(2)+1 //O primeiro número é o número de frutos q a planta vai dar.
+
+ON=@CLICK
+MESSAGE <name> (<more1>)
+return 1
+
+ON=@DCLICK
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more1> > 0)
+	src.f_colhe i_r_ginseng
+	if (<more1>==1)
+		timer=tempo_de_decay_planta
+	endif
+	more1=(<more1>-1)
+	return 1
+elseif (<more1> !=-1)
+	src.f_sementes i_sem_ginsen
+	timer=1
+	more1=-1
+	return 1
+else
+	return 1
+endif
+
+
+ON=@TIMER
+if (<more2>==0)
+	SAY *morreu*
+	more2=1
+	timer=2
+	return 1
+else
+	remove
+	return 1
+endif
+
+//****mandrake root****
+
+[ITEMDEF i_plan_mandrake1]
+ID=018df
+TYPE=t_script
+NAME=mandrake root (broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_mandrake2
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o broto.
+return 1
+
+[ITEMDEF i_plan_mandrake2]
+ID=018df
+TYPE=t_script
+NAME=mandrake root (jovem)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_mandrake3
+link.act.link=<link.uid>
+link.act.p=<p>
+link.act.nudgeup 1
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher isso jovem.
+return 1
+
+[ITEMDEF i_plan_mandrake3]
+ID=018df
+TYPE=t_planta
+NAME=mandrake root (maduro)
+// por sections de menu
+
+ON=@CREATE
+MORE1=Rand(2)+1 //O primeiro número é o número de frutos q a planta vai dar.
+
+ON=@CLICK
+MESSAGE <name> (<more1>)
+return 1
+
+ON=@DCLICK
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more1> > 0)
+	src.f_colhe i_r_raiz_de_mandrake
+	if (<more1>==1)
+		timer=tempo_de_decay_planta
+	endif
+	more1=(<more1>-1)
+	return 1
+elseif (<more1> !=-1)
+	src.f_sementes i_sem_mandrake
+	timer=1
+	more1=-1
+	return 1
+else
+	return 1
+endif
+
+
+ON=@TIMER
+if (<more2>==0)
+	SAY *morreu*
+	more2=1
+	timer=2
+	return 1
+else
+	remove
+	return 1
+endif
+
+
+//****alho****
+
+[ITEMDEF i_plan_alho1]
+ID=018e1
+TYPE=t_script
+NAME=alho (broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_alho2
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o broto.
+return 1
+
+[ITEMDEF i_plan_alho2]
+ID=018e1
+TYPE=t_script
+NAME=alho (jovem)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_alho3
+link.act.link=<link.uid>
+link.act.p=<p>
+link.act.nudgeup 1
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher isso jovem.
+return 1
+
+[ITEMDEF i_plan_alho3]
+ID=018e1
+TYPE=t_planta
+NAME=alho (maduro)
+// por sections de menu
+
+ON=@CREATE
+MORE1=Rand(2)+1 //O primeiro número é o número de frutos q a planta vai dar.
+
+ON=@CLICK
+MESSAGE <name> (<more1>)
+return 1
+
+ON=@DCLICK
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more1> > 0)
+	src.f_colhe i_r_alho
+	if (<more1>==1)
+		timer=tempo_de_decay_planta
+	endif
+	more1=(<more1>-1)
+	return 1
+elseif (<more1> !=-1)
+	src.f_sementes i_sem_alho
+	timer=1
+	more1=-1
+	return 1
+else
+	return 1
+endif
+
+
+ON=@TIMER
+if (<more2>==0)
+	SAY *morreu*
+	more2=1
+	timer=2
+	return 1
+else
+	remove
+	return 1
+endif
+
+//****nightshade****
+
+[ITEMDEF i_plan_nightshade1]
+ID=0cb5
+TYPE=t_script
+NAME=nightshade (broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_nightshade2
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o broto.
+return 1
+
+[ITEMDEF i_plan_nightshade2]
+ID=018e5
+TYPE=t_script
+NAME=nightshade (jovem)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_nightshade3
+link.act.link=<link.uid>
+link.act.p=<p>
+link.act.nudgeup 1
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher isso jovem.
+return 1
+
+[ITEMDEF i_plan_nightshade3]
+ID=018e5
+TYPE=t_planta
+NAME=nightshade (maduro)
+// por sections de menu
+
+ON=@CREATE
+MORE1=Rand(2)+1 //O primeiro número é o número de frutos q a planta vai dar.
+
+ON=@CLICK
+MESSAGE <name> (<more1>)
+return 1
+
+ON=@DCLICK
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more1> > 0)
+	src.f_colhe i_r_nightshade
+	if (<more1>==1)
+		timer=tempo_de_decay_planta
+	endif
+	more1=(<more1>-1)
+	return 1
+elseif (<more1> !=-1)
+	src.f_sementes i_sem_nightshade
+	timer=1
+	more1=-1
+	return 1
+else
+	return 1
+endif
+
+
+ON=@TIMER
+if (<more2>==0)
+	SAY *morreu*
+	more2=1
+	timer=2
+	return 1
+else
+	remove
+	return 1
+endif
+
+//################################### Arvores persistentes #############################
+
+// **** macieira ****
+
+[ITEMDEF i_plan_maca1]
+ID=0cb5
+TYPE=t_script
+NAME=macieira (broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)
+
+ON=@timer
+link.newitem=i_plan_maca2
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Brotos nao dao frutos.
+return 1
+
+[ITEMDEF i_plan_maca2]
+ID=0CC7
+TYPE=t_script
+NAME=macieira (pequena arvore)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)
+
+ON=@timer
+link.newitem=i_plan_maca3
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Esta arvore e muito jovem para dar frutos.
+return 1
+
+[ITEMDEF i_plan_maca3]
+NAME=macieira
+ID=0cd3
+type=t_script
+
+on=@create
+attr=08010
+timer=1
+
+on=@timer
+link.newitem=i_arvore_macieira2
+link.act.p=<p>
+return 1
+
+[ITEMDEF i_arvore_macieira2]
+NAME=macieira
+ID=0cd4
+TYPE=t_script
+
+on=@create
+attr=08010
+timer=(tempo_de_plantacao)
+more1=0
+more2=0
+
+on=@timer
+more1=1
+more2=rand(4)+2
+return 1
+
+on=@dclick
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more2>>0)
+	src.f_colhe=i_fruit_apple
+	more2=(<more2>-1)
+else
+	src.sysmessage Nao ha frutos nessa arvore.
+	if (<more1>==1
+		timer=(tempo_de_plantacao)
+		more1=0
+	endif
+endif
+return 1
+
+// **** parreira ****
+
+[ITEMDEF i_plan_uva1]
+ID=0B1
+TYPE=t_script
+NAME=poste da parreira
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)
+
+ON=@timer
+nudgeup 5
+link.newitem=i_plan_uva2
+link.act.link=<link.uid>
+link.act.p=<p>
+return 1
+
+ON=@DCLICK
+return 1
+
+[ITEMDEF i_plan_uva2]
+ID=0CEA
+TYPE=t_script
+NAME=parreira (pequena arvore)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)
+
+ON=@timer
+link.newitem=i_plan_uva3
+link.act.link=<link.uid>
+link.act.p=<p>
+link.act.nudgedown 10
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Esta arvore e muito jovem para dar frutos.
+return 1
+
+[ITEMDEF i_plan_uva3]
+NAME=parreira
+ID=0ced
+type=t_script
+
+on=@create
+attr=08010
+timer=(tempo_de_plantacao)
+more1=0
+more2=0
+
+on=@timer
+more1=1
+more2=(rand(4)+2)
+return 1
+
+on=@dclick
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more2>>0)
+	src.f_colhe=i_fruit_grapes
+	more2=(<more2>-1)
+else
+	src.sysmessage Nao ha frutos nessa arvore.
+	if (<more1>==1
+		timer=(tempo_de_plantacao)
+		more1=0
+	endif
+endif
+return 1
+
+
+
+
+[ITEMDEF i_plan_banana1]
+ID=0CAB
+TYPE=t_script
+NAME=bananeira (broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)
+
+ON=@timer
+link.newitem=i_plan_banana2
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Esta arvore e muito jovem para dar frutos.
+return 1
+
+[ITEMDEF i_plan_banana2]
+ID=0CA8
+TYPE=t_script
+NAME=bananeira (pequena arvore)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)
+
+ON=@timer
+link.newitem=i_plan_banana3
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Esta arvore e muito jovem para dar frutos.
+return 1
+
+[ITEMDEF i_plan_banana3]
+NAME=bananeira
+ID=0CAA
+type=t_script
+
+on=@create
+attr=08010
+timer=(tempo_de_plantacao)
+more1=0
+more2=0
+
+on=@timer
+more1=1
+more2=(rand(4)+2)
+return 1
+
+on=@dclick
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more2>>0)
+	src.f_colhe=i_fruit_banana
+	more2=(<more2>-1)
+else
+	src.sysmessage Nao ha frutos nessa arvore.
+	if (<more1>==1
+		timer=(tempo_de_plantacao)
+		more1=0
+	endif
+endif
+return 1
+
+//################################### Outros #############################
+
+
+*** algodao ***
+
+[ITEMDEF i_plan_algodao1]
+ID=0cb5
+TYPE=t_script
+NAME=pe de algodao (broto)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_algodao2
+link.act.link=<link.uid>
+link.act.p=<p>
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o broto.
+return 1
+
+[ITEMDEF i_plan_algodao2]
+ID=0C51
+TYPE=t_script
+NAME=pe de algodao (jovem)
+// por sections de menu
+
+ON=@create
+attr=08010
+timer=(tempo_de_plantacao)/2
+
+ON=@timer
+link.newitem=i_plan_algodao3
+link.act.link=<link.uid>
+link.act.p=<p>
+link.act.nudgeup 1
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessage Voce nao pode colher o isso jovem.
+return 1
+
+[ITEMDEF i_plan_algodao3]
+ID=0C53
+TYPE=t_planta
+NAME=pe de algodao (maduro)
+// por sections de menu
+
+ON=@CREATE
+MORE1=6 +(Rand(1)-1) //O primeiro número é o número de frutos q a planta vai dar.
+
+ON=@CLICK
+MESSAGE <name> (<more1>)
+return 1
+
+ON=@DCLICK
+if ( <src.targ.distance>>1)
+	SRC.SYSMESSAGE Voce esta muito lonje.
+	return 1
+endif
+if (<more1> > 0)
+	src.f_colhe i_cotton
+	if (<more1>==1)
+		timer=tempo_de_decay_planta
+	endif
+	more1=(<more1>-1)
+	return 1
+elseif (<more1> !=-1)
+	src.f_sementes i_sem_algodao
+	timer=1
+	more1=-1
+	return 1
+else
+	return 1
+endif
+
+ON=@TIMER
+if (<more2>==0)
+	SAY *morreu*
+	more2=1
+	timer=2
+	return 1
+else
+	remove
+	return 1
+endif
+
+//*****************************************************************************
+//**                               Novos frutos                              **
+//*****************************************************************************
+
+
+
+[ITEMDEF I_BATATA]
+ID=01728
+
+NAME=batata
+//DEFNAME2=i_LEMON
+WEIGHT=.1
+VALUE=3
+TYPE=T_NORMAL
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Cozinha
+DESCRIPTION=Batata
+DEFNAME2=BATATA
+
+ON=@Create
+COLOR=000f7
+
+[ITEMDEF I_ERVILHA]
+ID=0c7f
+NAME=ervilha
+//RESOURCES=I_CROP_CORN
+TYPE=T_NORMAL
+VALUE={2 4}
+WEIGHT=0.2
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Cozinha
+DESCRIPTION=Ervilha
+
+ON=@CREATE
+COLOR=00111
+
+//**********************************************************************************************
+//**                    Script de plantação do Mystical Tales Shard v1.2                      ** 
+//**                               Por: Galthar, O Errante                                    **
+//**                             e-mail: galtar@terra.com.br                                  **
+//**                                     UIN# 44477266                                        **
+//**                                                                                          **
+//**                               24 de junho de 2003, 20:58hs                               **
+//**											      **
+//**                                    "Deus é O Cara!!!"                                    **
+//**********************************************************************************************
+//**											      **
+//**            Por favor, não altere este arquivo sem o consentimento do autor               **
+//**											      **
+//**********************************************************************************************
+
+
+[EOF]

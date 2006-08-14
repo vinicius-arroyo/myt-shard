@@ -1,0 +1,1461 @@
+  //////////////////////////////////////////////////////////////////////////////////
+ /////////                              TYPEDEFS                          /////////
+//////////////////////////////////////////////////////////////////////////////////
+
+[TYPEDEF t_tai_corte]
+on=@dclick
+if (<src.tailoring> < 10)
+ src.sysmessage skill negada...
+ return 1
+Qual é o comando pr amostrar todos os nomes?
+.allnames?endif
+src.sysmessage Utilize um kit para costura.
+return 1
+
+[TYPEDEF t_tai_corte_couro]
+on=@dclick
+if (<src.tailoring> < 10)
+ src.sysmessage skill negada...
+ return 1
+endif
+src.sysmessage Utilize um kit para costura.
+return 1
+
+[TYPEDEF t_roca]
+on=@dclick
+if (<src.tailoring> < 10)
+ src.sysmessage skill negada...
+ return 1
+endif
+src.sysmessage Utilize la ou algodao.
+timer=1
+return 1
+
+on=@timer
+if (<more1>=1)
+ if (<more2> <1)
+  more1=0
+  more2=0
+  timer=1
+  dispid=0101e
+  update
+  return 1
+ else
+  more2=(<more2>+(-1))
+  dorand (5)
+   say rinch!
+  enddo
+  dorand (2)
+   sfx 0184
+   sfx 184
+  enddo
+  dispid=0101d
+  update
+  timer=1
+  return 1
+ endif
+else
+ timer=1
+ return 1
+endif
+
+[TYPEDEF t_tear]
+on=@dclick
+if (<src.tailoring> < 10)
+ src.sysmessage skill negada...
+ return 1
+endif
+src.sysmessage Utilize linha.
+timer=1
+return 1
+
+on=@timer
+if (<dispid>==01064) && (<link.more1>!=1)
+ link.more1=1
+ link.more2=<more2>
+ more1=0
+ more2=0
+ return 1
+elif (<dispid>==01064) && (<link.more1>==1)
+ more1=0
+ more2=0
+ return 1
+endif
+if (<more1>=1)
+ if (<more2> <1)
+  more1=0
+  more2=0
+  timer=1
+  dispid=0105f
+  update
+  return 1
+ else
+  more2=(<more2>+(-1))
+  dorand (2)
+   sfx 0184
+   sfx 184
+  enddo
+  dorand (5)
+   say Clank!
+  enddo
+  dispid=01063
+  update
+  timer=1
+  return 1
+ endif
+else
+ timer=1
+ return 1
+endif
+ 
+ 
+
+  //////////////////////////////////////////////////////////////////////////////////
+ /////////                              ITEMDEFS                          /////////
+//////////////////////////////////////////////////////////////////////////////////
+
+[ITEMDEF i_roca]
+NAME=roca
+ID=0101e
+TYPE=t_roca
+WEIGHT=900
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Tailoring
+DESCRIPTION=Roca
+
+on=@create
+attr=08010
+
+[ITEMDEF i_tear_1]
+NAME=tear
+ID=0105f
+TYPE=t_tear
+WEIGHT=900
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Tailoring
+DESCRIPTION=Tear 1
+
+on=@create
+attr=08010
+
+[ITEMDEF i_tear_2]
+NAME=tear
+ID=01064
+TYPE=t_tear
+WEIGHT=900
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Tailoring
+DESCRIPTION=Tear 2
+
+on=@create
+attr=08010
+
+[ITEMDEF i_fita]
+NAME=fita
+ID=01535
+TYPE=t_script
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Tailoring
+DESCRIPTION=Fita metrica
+
+on=@dclick
+TARGET Tirar as medidas de quem?
+return 1
+
+on=@TARGON_GROUND
+src.sysmessage Alvo invalido.
+return 1
+
+on=@TARGON_ITEM
+src.sysmessage Alvo invalido.
+return 1
+
+on=@TARGON_CHAR
+if (<src.targ.brain>==0)
+ if (<src.targ.distance> <2)
+//determinar medida do player
+ src.targ.tag.mp=<eval ((<src.targ.str>*6)/10)>
+ src.targ.tag.mc=<eval ((<src.targ.str>*5)/10)>
+// aplica mod de raça anã
+ if (strmatch(<src.targ.tag.raca>,Anao))
+  src.targ.tag.mp=<eval ((<src.targ.tag.mp>*8)/10)>
+  src.targ.tag.mc=<eval ((<src.targ.tag.mc>*8)/10)>
+ endif
+// aplica mod de raça orc
+ if (strmatch(<src.targ.tag.raca>,Orc))
+  src.targ.tag.mp=<eval ((<src.targ.tag.mp>*12)/10)>
+  src.targ.tag.mc=<eval ((<src.targ.tag.mc>*12)/10)>
+ endif
+  src.targ.message peito: <eval <src.targ.tag.mp>>
+  src.targ.message cintura: <eval <src.targ.tag.mc>>
+  return 1
+ else
+  src.sysmessage Muito longe...
+  return 1
+ endif
+else
+ src.sysmessage Alvo invalido.
+ return 1
+
+[ITEMDEF i_tesoura]
+NAME=tesoura de costura
+ID=0f9e
+TYPE=t_script
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Tailoring
+DESCRIPTION=Tesoura de costura
+
+
+on=@dclick
+src.newitem=i_mry_tesoura
+src.act.equip
+src.act.use
+return 1
+
+[ITEMDEF i_kit_costura]
+NAME=kit para costura
+ID=0f9d
+TYPE=t_script
+WEIGHT=1
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Tailoring
+DESCRIPTION=Quite para costura
+
+on=@dclick
+if (<src.tailoring> < 10)
+ src.sysmessage skill negada...
+ return 1
+endif
+TARGET Costurar o que?
+return 1
+
+on=@TARGON_ITEM
+if (<src.targ.type>==t_tai_corte)
+ if (<src.restest 0<src.targ.more2> i_thread>==0)
+  src.sysmessage Voce precisa de <eval <src.targ.more2>> carretel(is) de linha...
+  return 1
+ endif
+ src.tag.tai_make=0<src.targ.more1> //define qual é o item a ser fabricado
+ src.tag.tai_dif=((0<src.targ.more2>*5)+10) //define a dificuldade
+ src.tag.tai_linha=0<src.targ.more2> //define quantas linhas vai usar
+ src.tag.tai_color=0<src.targ.color> //define a cor da roupa
+ src.consume 30 i_mry_costura
+ src.newitem i_mry_costura	    // comessa a costurar
+ src.act.more1=((0<src.targ.more2>*4)+4) // tempo que demora a costura
+ src.act.link=<src.targ.uid>
+ src.act.equip
+ src.act.use
+ return 1
+elif (<src.targ.type>==t_yarn)
+ if (<src.targ.cont.uid>!=<src.findlayer(21).uid>)
+  src.sysmessage O novelo deve estar na sua mochila.
+  return 1
+ endif
+ if (<src.tag.trico_make>!=0)  
+  src.menu m_trico_new
+  return 1
+ endif
+ if (<src.tailoring> < 599)
+  src.sysmessage Voce ainda nao domina essas tecnicas.
+  return 1
+ endif
+ src.targ.amount=(<src.targ.amount>+(-1))
+ src.targ.update
+ if (<src.targ.amount>) < 1) || (<src.targ.amount) > 150)
+  src.targ.remove
+ endif
+ src.tag.trico_c=<src.targ.color>
+ src.skillmenu sm_trico
+ return 1
+elif (<src.targ.type>==t_tai_corte_couro)
+ if (<src.restest 0<src.targ.more2> i_thread>==0)
+  src.sysmessage Voce precisa de <eval <src.targ.more2>> carretel(is) de linha...
+  return 1
+ endif
+ src.tag.tai_make=0<src.targ.more1> //define qual é o item a ser fabricado
+ src.tag.tai_dif=((0<src.targ.more2>*5)+10) //define a dificuldade
+ src.tag.tai_linha=0<src.targ.more2> //define quantas linhas vai usar
+ src.tag.tai_color=0<src.targ.color> //define a cor da roupa
+ src.consume 30 i_mry_costura
+ src.newitem i_mry_costura	    // comessa a costurar
+ src.act.more1=((0<src.targ.more2>*4)+4) // tempo que demora a costura
+ src.act.link=<src.targ.uid>
+ src.act.equip
+ src.act.use
+ return 1
+else
+ src.sysmessage Alvo invalido.
+ return 1
+endif
+
+on=@targon_char
+src.sysmessage Alvo invalido.
+return 1
+
+on=@targon_ground
+src.sysmessage Alvo invalido.
+return 1
+
+[ITEMDEF i_trico]
+name=trico
+ID=0df6
+type=t_script
+CATEGORY=Myt itens (Galthar)
+SUBSECTION=Tailoring
+DESCRIPTION=Item do trico*
+
+on=@dclick
+if (<link>!=<src.uid>)
+ src.sysmessage Nao pode continuar o trico de outra pessoa.
+ return 1
+endif
+src.newitem=i_mry_trico
+src.act.color=<color>
+src.act.more1=<more1>
+src.act.more2=<more2>
+src.act.morep=<src.p>
+src.act.equip
+src.act.timer=1
+remove
+return 1
+
+  //////////////////////////////////////////////////////////////////////////////////
+ /////////                             MEMORYES                           /////////
+//////////////////////////////////////////////////////////////////////////////////
+
+
+
+[ITEMDEF i_mry_tesoura]
+NAME=Usando Tesoura
+ID=i_memory
+TYPE=t_eq_script
+WEIGHT=0
+LAYER=30
+
+on=@dclick
+TARGET Em que voce deseja usar isso?
+return 1
+
+on=@TARGON_ITEM
+if (<src.targ.type>==t_cloth)
+ if (<src.tailoring> >= 500)
+  src.skillmenu=sm_tesoura
+  src.tag.tai_color=<src.targ.color>
+  remove
+  return 1
+ else
+  src.consume 1 <src.targ.BaseID>
+  src.newitem i_bandage
+  src.act.amount={3 5}
+  src.act.color=<src.targ.color>
+  src.act.bounce
+  sfx 0248
+  remove
+  return 1
+ endif
+endif
+if (<src.targ.type>==t_leather)
+ if (<src.tailoring> < 560)
+  src.sysmessage Voca ainda nao domina essas tecnicas.
+  remove
+  return 1
+ endif
+ src.skillmenu sm_tai_couro
+return 1
+
+
+on=@TARGON_CHAR
+src.sysmessage Corte apenas pano ou couro.
+remove
+return 1
+
+on=@TARGON_GROUND
+src.sysmessage Corte apenas pano ou couro.
+remove
+return 1
+
+[ITEMDEF i_mry_costura]
+NAME=Costurando
+ID=i_memory
+TYPE=t_eq_script
+WEIGHT=0
+
+on=@dclick
+cont.trymedidas
+cont.freeze
+return 1
+
+on=@timer
+if (<more> > 0)
+ more1=(<more1>+(-1))
+ timer=1
+ tai_falhar
+ dorand (7)
+  cont.say *costurando*
+  sfx 04f
+  sfx 048
+  sfx 059
+  sfx 055
+ enddo
+ return 1
+elif (<more1><=0)
+ cont.unfreeze
+ cont.tai_fazitem 777
+ cont.tai_subir
+ link.amount=<link.amount>+(-1)
+ link.update
+ if (<link.amount> < 1)
+  link.remove
+ endif
+ remove
+ return 1
+endif
+
+[ITEMDEF i_mry_cortando_pano]
+NAME=Cortando Pano
+ID=i_memory
+TYPE=t_eq_script
+WEIGHT=0
+
+on=@dclick
+link.freeze
+timer=1
+return 1
+
+on=@timer
+if (<more> > 0)
+ more1=(<more1>+(-1))
+ timer=1
+ tai_falhar 1
+ dorand (5)
+  link.say *cortando pano*
+  sfx 0248
+  sfx 0248
+  sfx 0248
+  sfx 0248
+ enddo
+ return 1
+elif (<more1><=0)
+ link.unfreeze
+ link.tai_fazitem 01768
+ link.tai_subir
+ remove
+ return 1
+endif
+
+[ITEMDEF i_mry_cortando_couro]
+NAME=Cortando Couro
+ID=i_memory
+TYPE=t_eq_script
+WEIGHT=0
+
+on=@dclick
+link.freeze
+timer=1
+return 1
+
+on=@timer
+if (<more> > 0)
+ more1=(<more1>+(-1))
+ timer=1
+ tai_falhar 1
+ dorand (5)
+  link.say *cortando couro*
+  sfx 0248
+  sfx 0248
+  sfx 0248
+  sfx 0248
+ enddo
+ return 1
+elif (<more1><=0)
+ link.unfreeze
+ link.tai_fazitem 01081
+ link.tai_subir
+ remove
+ return 1
+endif
+
+[ITEMDEF i_mry_tingir]
+NAME=Tingindo
+ID=i_memory
+TYPE=t_eq_script
+WEIGHT=0
+
+on=@dclick
+TARGET Em que voce deseja usar isso?
+timer=10
+return 1
+
+on=@timer
+remove
+return 1
+
+on=@TARGON_ITEM
+if (<cont.targ.type>==t_cloth) || (<cont.targ.type>==t_tai_corte) || (<cont.targ.type>==t_yarn) || (<cont.targ.type>==t_thread) || (<cont.targ.type>==t_wool) || (<cont.targ.type>==t_cotton)
+ cont.targ.color=<link.color>
+ remove
+ return 1
+elif (<cont.targ.type>==t_clothing) || (<cont.targ.type>==t_armor)
+ cont.sysmessage Voce nao pode tingir a roupa pronta. Tinja apenas corets de roupa, linha, la crua, algodao cru ou tecidos.
+ remove
+ return 1
+else
+ cont.sysmessage Nao pode tingir isso.
+ remove
+ return 1
+endif
+
+on=@TARGON_CHAR
+ cont.sysmessage Nao pode tingir isso.
+ remove
+ return 1
+
+on=@TARGON_GROUND
+ cont.sysmessage Nao pode tingir isso.
+ remove
+ return 1
+
+[ITEMDEF i_mry_wool]
+NAME=Usando La
+ID=i_memory
+TYPE=t_eq_script
+WEIGHT=0
+
+on=@dclick
+TARGET Em que voce deseja usar isso?
+timer=60
+return 1
+
+on=@TARGON_ITEM
+if (<cont.targ.type>=t_roca)
+ if !(<cont.restest 2 i_wool>)
+  cont.sysmessage Sao necessarias 2 pilhas de la.
+  return 1
+ endif
+ cont.freeze
+ more2=25+(-(<cont.tailoring>/50))
+ cont.targ.more2=<more2>
+ cont.targ.more1=1
+ more1=1
+ timer=1
+endif
+return 1
+
+on=@TARGON_CHAR
+ cont.sysmessage Alvo invalido.
+ remove
+ return 1
+
+on=@TARGON_GROUND
+ cont.sysmessage Alvo invalido.
+ remove
+ return 1
+
+on=@timer
+if (<more1>!=1)
+ remove
+ return 1
+else
+ if (<more2> > 1 )
+  dorand (5)
+   cont.say *fiando*
+   cont.say
+  enddo
+  timer=1
+  more2=(<more2>+(-1))
+  return 1
+ else
+  cont.newitem=i_yarn_ball
+  cont.act.amount=2
+  cont.act.color=<link.color>
+  cont.act.cont=<cont.findlayer(21).uid>
+  link.amount=(<link.amount>+(-2))
+  link.update
+  if (<link.amount> == 0) || (<link.amount> >= 1000)
+   link.remove
+  endif
+  link.update
+  cont.unfreeze
+  return 1
+  remove
+ endif
+endif
+
+[ITEMDEF i_mry_cotton]
+NAME=Usando algodao
+ID=i_memory
+TYPE=t_eq_script
+WEIGHT=0
+
+on=@dclick
+TARGET Em que voce deseja usar isso?
+timer=60
+return 1
+
+on=@timer
+if (<more1>!=1)
+ remove
+ return 1
+else
+ if (<more2> > 1 )
+  dorand (5)
+   cont.say *fiando*
+   cont.say
+  enddo
+  timer=1
+  more2=(<more2>+(-1))
+  return 1
+ else
+  cont.newitem=i_thread
+  cont.act.amount=3
+  cont.act.color=<link.color>
+  cont.act.cont=<cont.findlayer(21).uid>
+  link.amount=(<link.amount>+(-1))
+  link.update
+  if (<link.amount>==0) || (<link.amount> >= 1000)
+   link.remove
+  endif
+  link.update
+  cont.unfreeze
+  return 1
+  remove
+ endif
+endif
+
+on=@TARGON_ITEM
+if (<cont.targ.type>=t_roca)
+ if !(<cont.restest 1 i_cotton>)
+  cont.Sysmessage O algodao precisa estar na sua mochila.
+  return 1
+ endif
+ cont.freeze
+ more2=25+(-(<cont.tailoring>/50))
+ cont.targ.more2=<more2>
+ cont.targ.more1=1
+ more1=1
+ timer=1
+endif
+return 1
+
+on=@TARGON_CHAR
+ cont.sysmessage Alvo invalido.
+ remove
+ return 1
+
+on=@TARGON_GROUND
+ cont.sysmessage Alvo invalido.
+ remove
+ return 1
+
+
+[ITEMDEF i_mry_thread]
+NAME=Usando linha
+ID=i_memory
+TYPE=t_eq_script
+WEIGHT=0
+
+on=@dclick
+TARGET Em que voce deseja usar isso?
+timer=60
+return 1
+
+on=@TARGON_ITEM
+if (<cont.targ.type>==t_tear)
+ if !(<cont.restest 6 i_thread>)
+  cont.sysmessage Sao necessarias 6 carreteis de linha.
+  return 1
+ endif
+ cont.freeze
+ more2=25+(-(<cont.tailoring>/50))
+ cont.targ.more2=<more2>
+ cont.targ.more1=1
+ more1=1
+ timer=1
+endif
+if (<cont.targ.type>==t_roca)
+ if !(<cont.restest 5 i_thread>)
+  cont.sysmessage Sao necessarias 5 carreteis de linha para fazer barbante.
+  return 1
+ endif
+ cont.freeze
+ more2=25+(-(<cont.tailoring>/50))
+ cont.targ.more2=<more2>
+ cont.targ.more1=1
+ more1=2
+ timer=1
+endif
+return 1
+
+on=@TARGON_CHAR
+ cont.sysmessage Alvo invalido.
+ remove
+ return 1
+
+on=@TARGON_GROUND
+ cont.sysmessage Alvo invalido.
+ remove
+ return 1
+
+on=@timer
+if (<more1>!=1) && (<more1>!=2)
+ remove
+ return 1
+else
+ if (<more1>==1)
+  if (<more2> > 1 )
+   dorand (5)
+    cont.say *tecendo*
+    cont.say
+   enddo
+   timer=1
+   more2=(<more2>+(-1))
+   return 1
+  else
+   cont.newitem=i_cloth
+   cont.act.color=<link.color>
+   cont.act.cont=<cont.findlayer(21).uid>
+   link.amount=(<link.amount>+(-6))
+   link.update
+   if (<link.amount> == 0) || (<link.amount> >= 1000)
+    link.remove
+   endif
+   link.update
+   cont.unfreeze
+   return 1
+   remove
+  endif
+ elif (<more1>==2) //////////////////////////////////////////////
+  if (<more2> > 1 )
+   dorand (5)
+    cont.say *fiando*
+    cont.say
+   enddo
+   timer=1
+   more2=(<more2>+(-1))
+   return 1
+  else
+   cont.newitem=i_barbante
+   cont.act.amount=1
+   cont.act.color=<link.color>
+   cont.act.cont=<cont.findlayer(21).uid>
+   link.amount=(<link.amount>+(-5))
+   link.update
+   if (<link.amount> == 0) || (<link.amount> >= 1000)
+    link.remove
+   endif
+   link.update
+   cont.unfreeze
+   return 1
+   remove
+  endif
+ endif
+endif
+return 1
+////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+[ITEMDEF i_mry_trico]
+NAME=Tricotando
+ID=i_memory
+TYPE=t_eq_script
+WEIGHT=0
+
+on=@dclick
+morep=<cont.p>
+cont.trymedidas 1
+return 1
+
+on=@timer
+if (<more1> < 1)
+ cont.events -e_tricotando
+ cont.newitem=<cont.tag.trico_make>
+ cont.act.cont=<cont.findlayer(21).uid>
+ cont.act.color=<color>
+ cont.act.more2=<more2>
+ cont.tag.trico_make=
+ cont.tag.trico_maken=
+ cont.say *concluiu*
+ remove
+ return 1
+endif
+if (<more2>==0)
+ if (<cont.tag.trico_make>==i_calsas_curtas_la) || (<cont.tag.trico_make>==i_calsas_longas_la)
+  more2=<cont.tag.tai_mc>
+ else
+  more2=<cont.tag.tai_mp>
+ endif
+endif
+if (<cont.p.x>!=<morex>) || (<cont.p.y>!=<morey>)
+ cont.say *parou de tricotar*
+ cont.events -e_tricotando
+ cont.newitem=i_trico
+ cont.act.color=<color>
+ cont.act.name=trico (<cont.tag.trico_maken>)
+ cont.act.link=<cont.uid>
+ cont.act.more1=<more1>
+ cont.act.more2=<more2>
+ cont.act.cont=<cont.findlayer(21).uid>
+ remove
+ return 1
+endif
+cont.events +e_tricotando
+dorand (5)
+ cont.say *tricotando*
+enddo
+tai_falhar 2
+timer=1
+more1=(<more1>+(-1))
+return 1
+
+  //////////////////////////////////////////////////////////////////////////////////
+ /////////                              FUNCTIONS                         /////////
+//////////////////////////////////////////////////////////////////////////////////
+
+[FUNCTION tai_make]
+if (<argn>==1)
+ src.tag.tai_dif=15
+ src.newitem=i_mry_cortando_pano
+ src.act.link=<src.uid>
+ src.act.more1={5 15}
+ src.act.equip
+ src.act.use
+return 1
+endif
+if (<argn>==2)
+ src.tag.tai_dif=25
+ src.newitem=i_mry_cortando_pano
+ src.act.link=<src.uid>
+ src.act.more1={10 25}
+ src.act.equip
+ src.act.use
+return 1
+endif
+if (<argn>==3)
+ src.tag.tai_dif=15
+ src.newitem=i_mry_cortando_couro
+ src.act.link=<src.uid>
+ src.act.more1={10 15}
+ src.act.equip
+ src.act.use
+return 1
+endif
+
+[FUNCTION tai_make2]
+ src.newitem=i_mry_cortando_pano
+ src.act.link=<src.uid>
+ src.act.more1={5 15}
+ src.act.equip
+ src.act.use
+
+[FUNCTION tai_falhar]
+if (<argn>==2)
+ if ({1 (<eval <cont.tailoring>>/5)}==1)
+  cont.tai_subir
+  cont.say *errou*
+  more1=<eval <more1>+(15)>
+  morep=0,0,0,0
+ endif
+else
+ if ({1 (<eval <cont.tailoring>>/<eval <cont.tag.tai_dif>>)}==1)
+  cont.unfreeze
+  cont.tai_subir
+  cont.say *falhou*
+  if (<argn>==1)
+   cont.consume 1 i_cloth
+  else
+   cont.consume {1 <cont.tag.tai_linha>} i_thread
+  endif
+  remove
+  return 1
+ else
+  return 1
+ endif
+ return 1
+endif
+
+[FUNCTION tai_subir]
+if ({1 <eval (<tailoring>/10)>}==1)
+ tailoring=(<tailoring>+1)
+endif
+return 1
+
+[FUNCTION tai_fazitem]
+if (<argn>==01768)
+ newitem=<argn>
+ act.name=corte para <tag.tai_maken>
+ act.more1=<tag.tai_make>
+ act.more2=<tag.tai_makel>
+ act.color=<tag.tai_color>
+ act.type=t_tai_corte
+ act.cont=<findlayer(21).uid>
+ sfx 0248
+ consume 1 i_cloth
+ consume 30 i_mry_tesoura
+ return 1
+elif (<argn>==777)
+ say *terminou*
+ newitem <tag.tai_make>
+ act.color=<tag.tai_color>
+ act.cont=<findlayer(21).uid>
+ poemedidas
+ sfx 0248
+ consume <tag.tai_linha> i_thread
+elif (<argn>==01081)
+ newitem=<argn>
+ act.name=corte para <tag.tai_maken>
+ act.more1=<tag.tai_make>
+ act.more2=<tag.tai_makel>
+ act.color=<tag.tai_color>
+ act.type=t_tai_corte_couro
+ act.cont=<findlayer(21).uid>
+ sfx 0248
+ consume 1 i_hide
+ consume 30 i_mry_tesoura
+ return 1
+endif
+ 
+[FUNCTION trymedidas]
+if (<argn>==1)
+ if (<tag.trico_make>==i_camisa_la) || (<tag.trico_make>==i_camisa_longa_la) || (<tag.trico_make>==i_vestido_la) || (<tag.trico_make>==i_robe_la)
+  dialog=d_mp
+  return 1
+ elif (<tag.trico_make>==i_calsas_curtas_la) || (<tag.trico_make>==i_calsas_longas_la)
+  dialog=d_mc
+  return 1
+ else
+  findid(i_mry_costura).timer=1
+  return 1
+ endif
+else
+ if (<tag.tai_make>==01f03) || (<tag.tai_make>==01f01) || (<tag.tai_make>==01eff) || (<tag.tai_make>==01fa1) || (<tag.tai_make>==01f9f) || (<tag.tai_make>==01517) || (<tag.tai_make>==01efd) || (<tag.tai_make>==01f7b)
+  dialog=d_mp
+  return 1
+ elif (<tag.tai_make>==0152e) || (<tag.tai_make>==01539) || (<tag.tai_make>==01516) || (<tag.tai_make>==01537)
+  dialog=d_mc
+  return 1
+ else
+  findid(i_mry_costura).timer=1
+  return 1
+ endif
+endif
+
+[FUNCTION poemedidas]
+//findid(i_mry_costura).timer=1
+if (<tag.tai_make>==01f03) || (<tag.tai_make>==01f01) || (<tag.tai_make>==01eff) || (<tag.tai_make>==01fa1) || (<tag.tai_make>==01f9f) || (<tag.tai_make>==01517) || (<tag.tai_make>==01efd) || (<tag.tai_make>==01f7b)
+ act.more2=<tag.tai_mp>
+ return 1
+elif (<tag.tai_make>==0152e) || (<tag.tai_make>==01539) || (<tag.tai_make>==01516) || (<tag.tai_make>==01537)
+ act.more2=<tag.tai_mc>
+ return 1
+else
+ return 1
+endif
+
+[FUNCTION inicia_trico]
+newitem=i_mry_trico
+act.color=<tag.trico_c>
+act.more1=1060+(-<tailoring>)
+act.equip
+act.use
+
+  //////////////////////////////////////////////////////////////////////////////////
+ /////////                            GUMPS & MENUS                       /////////
+//////////////////////////////////////////////////////////////////////////////////
+
+
+[DIALOG d_mp]
+325, 225
+noclose
+nomove
+PAGE 0
+resizepic 0 0 3500 165 136
+text 34 23 1152 0
+button 26 53 4014 4015 1 0 1
+button 105 53 4005 4006 1 0 2
+text 74 54 152 1
+button 14 88 249 248 1 0 3
+button 84 88 243 241 1 0 4
+
+[DIALOG d_mp TEXT]
+Medida do peito
+<eval <src.tag.tai_mp>>
+
+
+[DIALOG d_mp BUTTON]
+on=1
+src.tag.tai_mp=(0<src.tag.tai_mp>+(-1))
+src.dialog=d_mp
+on=2
+src.tag.tai_mp=(0<src.tag.tai_mp>+1)
+src.dialog=d_mp
+on=3
+//continuar a fazer a roupa
+findid(i_mry_costura).timer=1
+findid(i_mry_trico).timer=1
+return 1
+on=4
+//para tudo
+findid(i_mry_costura).remove
+findid(i_mry_trico).remove
+unfreeze
+return 1
+
+[DIALOG d_mc]
+325, 225
+noclose
+nomove
+PAGE 0
+resizepic 0 0 3500 165 136
+text 27 25 1152 0
+button 26 53 4014 4015 1 0 1
+button 105 53 4005 4006 1 0 2
+text 74 54 152 1
+button 14 88 249 248 1 0 3
+button 84 88 243 241 1 0 4
+
+[DIALOG d_mc TEXT]
+Medida da cintura
+<eval <src.tag.tai_mc>>
+
+
+[DIALOG d_mc BUTTON]
+on=1
+src.tag.tai_mc=(0<src.tag.tai_mc>+(-1))
+src.dialog=d_mc
+on=2
+src.tag.tai_mc=(0<src.tag.tai_mc>+1)
+src.dialog=d_mc
+on=3
+//continuar a fazer a roupa
+findid(i_mry_costura).timer=1
+findid(i_mry_trico).timer=1
+return 1
+on=4
+//para tudo
+findid(i_mry_costura).remove
+findid(i_mry_trico).remove
+return 1
+
+
+[SKILLMENU sm_tesoura]
+O que deseja fazer?
+on=01f04 robes/vestidos
+src.skillmenu sm_tai_robes
+return 1
+on=01efe camisas
+src.skillmenu sm_tai_camisas
+return 1
+on=01539 calcas
+src.skillmenu sm_tai_calsas
+return 1
+on=01538 saias/kilts
+src.skillmenu sm_tai_saias
+return 1
+on=01718 chapeis
+TESTIF=(<tailoring> > 550)
+src.skillmenu sm_tai_chapeis
+return 1
+on=0153d acessorios
+src.skillmenu sm_tai_acessorios
+return 1
+
+on=i_bandage bandagens
+  src.consume 1 i_cloth
+  src.act=0
+  src.newitem i_bandage
+  src.new.amount={3 5}
+  src.new.bounce
+  sfx 0248
+  return 1
+
+[SKILLMENU sm_tai_robes]
+O que deseja fazer?
+on=01f03 robe
+src.tag.tai_make=01f03
+src.tag.tai_maken=robe
+src.tag.tai_makel=2
+src.tai_make 1
+return 1
+on=01fa1 tunica
+TESTIF=(<tailoring> > 550)
+src.tag.tai_make=01fa1
+src.tag.tai_maken=tunica
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+on=01f01 vestido
+src.tag.tai_make=01f01
+src.tag.tai_maken=vestido
+src.tag.tai_consume=i_cloth
+src.tag.tai_makel=2
+src.tai_make 1
+return 1
+on=01eff vestido enfeitado
+TESTIF=(<tailoring> > 800)
+src.tag.tai_make=01eff
+src.tag.tai_maken=vestido enfeitado
+src.tag.tai_makel=3
+src.tai_make 2
+return 1
+on=01f9f tunica xadrez
+TESTIF=(<tailoring> > 600)
+src.tag.tai_make=01f9f
+src.tag.tai_maken=tunica xadrez
+src.tag.tai_makel=2
+src.tai_make 2
+return 1
+
+[SKILLMENU sm_tai_camisas]
+O que deseja fazer?
+on=01517 camisa sem mangas
+src.tag.tai_make=01517
+src.tag.tai_maken=camisa sem mangas
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+on=01efd camisa com mangas
+TESTIF=(<tailoring> > 520)
+src.tag.tai_make=01efd
+src.tag.tai_maken=camisa com mangas
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+on=01f7b camiseta
+src.tag.tai_make=01f7b
+src.tag.tai_maken=camiseta
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+
+[SKILLMENU sm_tai_calsas]
+O que deseja fazer?
+on=0152e calcas curtas
+src.tag.tai_make=0152e
+src.tag.tai_maken=calcas curtas
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+on=01539 calcas longas
+src.tag.tai_make=01539
+src.tag.tai_maken=calcas longas
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+
+[SKILLMENU sm_tai_saias]
+O que deseja fazer?
+on=01516 saia
+src.tag.tai_make=01516
+src.tag.tai_maken=saia
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+on=01537 kilt
+TESTIF=(<tailoring> > 560)
+src.tag.tai_make=01537
+src.tag.tai_maken=kilt
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+
+[SKILLMENU sm_tai_chapeis]
+O que deseja fazer?
+on=01713 .
+
+src.tag.tai_make=01713
+src.tag.tai_maken=chapeu
+src.tag.tai_makel=1
+src.tai_make 2
+return 1
+on=01714 .
+
+src.tag.tai_make=01714
+src.tag.tai_maken=chapeu
+src.tag.tai_makel=1
+src.tai_make 2
+return 1
+on=01715 .
+TESTIF=(<tailoring> > 560)
+src.tag.tai_make=01715
+src.tag.tai_maken=chapeu
+src.tag.tai_makel=1
+src.tai_make 2
+return 1
+on=01716 .
+TESTIF=(<tailoring> > 570)
+src.tag.tai_make=01716
+src.tag.tai_maken=chapeu
+src.tag.tai_makel=1
+src.tai_make 2
+return 1
+on=01717 .
+TESTIF=(<tailoring> > 580)
+src.tag.tai_make=01717
+src.tag.tai_maken=chapeu
+src.tag.tai_makel=1
+src.tai_make 2
+return 1
+on=01718 .
+TESTIF=(<tailoring> > 590)
+src.tag.tai_make=01718
+src.tag.tai_maken=chapeu
+src.tag.tai_makel=1
+src.tai_make 2
+return 1
+
+on=01719 .
+src.tag.tai_make=01719
+src.tag.tai_maken=chapeu
+src.tag.tai_makel=1
+src.tai_make 2
+return 1
+on=0171a .
+
+TESTIF=(<tailoring> > 600)
+src.tag.tai_make=0171a
+src.tag.tai_maken=chapeu
+src.tag.tai_makel=1
+src.tai_make 2
+return 1
+
+on=0171b .
+TESTIF=(<tailoring> > 610)
+src.tag.tai_make=0171b
+src.tag.tai_maken=chapeu
+src.tag.tai_makel=1
+src.tai_make 2
+return 1
+on=0171c .
+TESTIF=(<tailoring> > 620)
+src.tag.tai_make=0171c
+src.tag.tai_maken=chapeu
+src.tag.tai_makel=1
+src.tai_make 2
+return 1
+
+[SKILLMENU sm_tai_acessorios]
+O que deseja fazer?
+on=01515 capa
+TESTIF=(<tailoring> > 550)
+src.tag.tai_make=01515
+src.tag.tai_maken=capa
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+on=0153b meio-avental
+src.tag.tai_make=0153b
+src.tag.tai_maken=meio-avental
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+on=0153d avental
+src.tag.tai_make=0153d
+src.tag.tai_maken=avental
+src.tag.tai_makel=2
+src.tai_make 1
+return 1
+on=0153f bandana
+src.tag.tai_make=0153f
+src.tag.tai_maken=bandana
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+on=01544 bandana
+src.tag.tai_make=01544
+src.tag.tai_maken=bandana
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+on=01541 faixa
+src.tag.tai_make=01541
+src.tag.tai_maken=faixa
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+on=i_estofamento estofamento
+src.tag.tai_make=i_estofamento
+src.tag.tai_maken=estofamento
+src.tag.tai_makel=1
+src.tai_make 1
+return 1
+
+[SKILLMENU sm_trico]
+O que deseja fazer?
+on=i_camisa_la camisa de la //3
+TESTIF=(<restest 1 i_yarn_ball>)
+tag.trico_make=i_camisa_la
+tag.trico_maken=camisa de la
+inicia_trico
+return 1
+on=i_camisa_longa_la camisa com mangas de la //4
+TESTIF=(<restest 1 i_yarn_ball>)
+tag.trico_make=i_camisa_longa_la
+tag.trico_maken=camisa com mangas de la
+inicia_trico
+return 1
+on=i_calsas_curtas_la calcas curtas de la //5
+TESTIF=(<restest 1 i_yarn_ball>)
+tag.trico_make=i_calsas_curtas_la 
+tag.trico_maken=calcas curtas de la
+inicia_trico
+return 1
+on=i_calsas_longas_la calsas longas de la //6
+TESTIF=(<restest 1 i_yarn_ball>)
+tag.trico_make=i_calsas_longas_la 
+tag.trico_maken=calsas longas de la 
+inicia_trico
+return 1
+on=i_robe_la robe de la //7
+TESTIF=(<restest 1 i_yarn_ball>) && (<tailoring> > 650)
+tag.trico_make=i_robe_la
+tag.trico_maken=robe de la
+inicia_trico
+return 1
+on=i_vestido_la vestido de la //8
+TESTIF=(<restest 1 i_yarn_ball>) && (<tailoring> > 620)
+tag.trico_make=i_vestido_la 
+tag.trico_maken=vestido de la
+inicia_trico
+return 1
+
+[SKILLMENU sm_tai_couro]
+O que deseja fazer?
+on=0e76 utilidades
+src.skillmenu sm_tai_couro_util
+return 1
+on=01711 calcados
+src.skillmenu sm_tai_couro_clac
+return 1
+on=013cc armaduras
+src.skillmenu sm_tai_couro_arma
+return 1
+
+[SKILLMENU sm_tai_couro_util]
+O que deseja fazer?
+on=0e76 algibeira
+src.tag.tai_make=0e76
+src.tag.tai_maken=algibeira
+src.tag.tai_makel=1
+src.tai_make 3
+return 1
+on=0e75 mochila
+src.tag.tai_make=0e75
+src.tag.tai_maken=mochila
+src.tag.tai_makel=2
+src.tai_make 3
+return 1
+
+[SKILLMENU sm_tai_couro_clac]
+O que deseja fazer?
+on=0170b botas
+src.tag.tai_make=0170b
+src.tag.tai_maken=botas
+src.tag.tai_makel=2
+src.tai_make 3
+return 1
+on=0170d sandalias
+src.tag.tai_make=0170d
+src.tag.tai_maken=sandalias
+src.tag.tai_makel=1
+src.tai_make 3
+return 1
+
+on=0170f sapatos
+src.tag.tai_make=0170f
+src.tag.tai_maken=sapatos
+src.tag.tai_makel=2
+src.tai_make 3
+return 1
+
+on=01711 botas altas
+src.tag.tai_make=01711
+src.tag.tai_maken=botas altas
+src.tag.tai_makel=2
+src.tai_make 3
+return 1
+
+[SKILLMENU sm_tai_couro_arma]
+O que deseja fazer?
+
+on=013cc tunica
+src.tag.tai_make=i_peito_couro
+src.tag.tai_maken=tunica de couro
+src.tag.tai_makel=4
+src.tai_make 3
+return 1
+
+on=013cb calcas
+src.tag.tai_make=i_perna_couro
+src.tag.tai_maken=calcas de couro
+src.tag.tai_makel=4
+src.tai_make 3
+return 1
+
+on=013c5 mangas
+src.tag.tai_make=i_braco_couro
+src.tag.tai_maken=mangas de couro
+src.tag.tai_makel=3
+src.tai_make 3
+return 1
+
+on=013c6 luvas
+src.tag.tai_make=i_luva_couro
+src.tag.tai_maken=luvas de couro
+src.tag.tai_makel=3
+src.tai_make 3
+return 1
+
+on=013c7 pesoceira
+src.tag.tai_make=i_pescoco_couro
+src.tag.tai_maken=pesoceira de couro
+src.tag.tai_makel=3
+src.tai_make 3
+return 1
+
+on=01db9 capacete
+src.tag.tai_make=i_cabeca_couro
+src.tag.tai_maken=capacete de couro
+src.tag.tai_makel=3
+src.tai_make 3
+return 1
+
+[MENU m_trico_new]
+Isso vai cancelar seu ultimo trico. Continuar?
+on=0 Sim
+src.tag.trico_make=
+src.tag.trico_maken=
+src.consume 10 i_trico
+src.consume 10 i_mry_trico
+src.newitem i_yarn_ball
+src.act.color=<src.tag.trico_c>
+src.act.bounce
+src.sysmessage Desfez o trico.
+return 1
+on=0 Nao
+return 1
+
+
+  //////////////////////////////////////////////////////////////////////////////////
+ /////////                                EVENTS                          /////////
+//////////////////////////////////////////////////////////////////////////////////
+[EVENTS e_tricotando]
+on=@itemdclick
+findid(i_mry_trico).morep=0,0,0,0
+events -e_tricotando
+return 1
+
+[PLEVEL 1]
+trico
+
+[FUNCTION trico]
+findid(i_mry_trico).timer=1
+return 1
+
+[EOF]

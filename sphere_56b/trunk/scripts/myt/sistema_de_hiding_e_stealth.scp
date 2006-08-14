@@ -1,0 +1,106 @@
+[events e_hiding_new]
+on=@skillstart
+if ( (<Src.action>|0d2000000) == Skill_hiding )
+ src.action=
+  if (<src.findlayer(layer_hand1).type> == t_light_lit) || (<src.findlayer(layer_hand2).type> == t_light_lit)
+   src.sysmessage Apague tochas e lampioes...
+   src.findid.i_hiding.remove
+   src.invis 0
+   return 1
+  endif
+
+  if (<src.flags>&statf_onhorse)
+   src.sysmessage Voce nao pode se esconder com um cavalo...
+   src.findid.i_hiding.remove
+   src.invis 0
+   return 1
+  endif
+
+  if (<src.hiding> < 90.0) && (<src.sector.light> < 3)
+   src.sysmessage Voce nao possui habilidade para se esconder com esta luminosidade...
+   src.findid.i_hiding.remove
+   src.invis 0
+   return 1
+  endif
+  if (<src.hiding> < 80.0) && (<src.sector.light> < 6)
+   src.sysmessage Voce nao possui habilidade para se esconder com esta luminosidade...
+   src.findid.i_hiding.remove
+   src.invis 0
+   return 1
+  endif
+  if (<src.hiding> < 70.0) && (<src.sector.light> < 9)
+   src.sysmessage Voce nao possui habilidade para se esconder com esta luminosidade...
+   src.findid.i_hiding.remove
+   src.invis 0
+   return 1
+  endif
+  
+  if (<src.findid.i_hiding> == 1)
+   return 1
+  endif
+
+if ({1 <eval (<src.hiding>)/(100)>} == 1)
+ src.message Voce nao conseguiu se esconder
+ return 1
+endif
+ 
+ src.message Consegiu se esconder
+ src.invis 1
+ src.findid.i_hiding.remove
+ src.newitem i_hiding
+ src.act.link <src.uid>
+ src.act.cont <src.uid>
+ src.act.timer 1
+ f_hiding_tentarsubir
+
+return 1
+endif
+
+if ( (<Src.action>|0d2000000) == Skill_stealth )
+ src.action=
+return 1
+endif
+
+[itemdef i_hiding]
+id=i_deed
+name=Hiding Skill
+type=t_eq_Script
+layer=30
+
+on=@create
+attr=attr_decay
+
+on=@timer
+ if (0<link.tag.hiding_lastpx> != <link.p.x>) || (0<link.tag.hiding_lastpx> != <link.p.x>)
+  if ({1 <eval (<link.stealth>)/(100)>} == 1)
+   link.message Voce esta visivel
+   link.invis 0
+   remove
+   return 1
+  endif
+  f_stealth_tentarsubir
+ endif
+link.tag.hiding_lastpx=<link.p.x>
+link.tag.hiding_lastpy=<link.p.x>
+ if ({1 <eval (<link.hiding>)/(10)>} == 1)
+  link.message Voce nao conseguiu permanecer escondido
+  link.invis 0
+  remove
+  return 1
+ endif
+timer=1 
+return 1
+
+[function f_stealth_tentarsubir]
+if (<link.stealth> < 100.0)
+ if ({1 <eval (<link.stealth>)/ (10)>} == 1)
+  link.stealth=<link.stealth>+(0.1)
+ endif
+endif
+
+[function f_hiding_tentarsubir]
+if (<src.hiding> < 100.0)
+ if ({1 <eval (<src.hiding>)/ (10)>} == 1)
+  src.hiding=<src.hiding>+(0.1)
+ endif
+endif

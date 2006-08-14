@@ -1,0 +1,302 @@
+////////////////////////////////////
+//Sistema de furniture e movelaria//
+//   MyT - Mystical Tales Shard   //
+//     Por: Galthar, o Errante    //
+//              V 0.5             //
+////////////////////////////////////
+
+
+  //////////////////////////////////////////////////////
+ //               Sistema de Furniture               //
+//////////////////////////////////////////////////////
+
+
+[PLEVEL 1]
+moveis
+furniture
+
+[FUNCTION moveis]
+src.furniture
+
+[FUNCTION furniture]
+newitem i_mry_furniture
+src.act.equip
+src.act.timer 15
+src.act.attr=02
+src.act.use
+src.startfurn
+src.sysmessageyellow Voce tem <eval 0<src.tag.furniact>-1> movel(is). Seu limite e de <eval 0<src.tag.furnimax>-1> moveis.
+return 1
+
+[PLEVEL 1]
+furniture
+
+[FUNCTION startfurn]
+if (<eval 0<src.tag.furnimax>>==0)
+ src.tag.furnimax=4
+ src.tag.furniact=1
+ if (strmatch(<src.tag.classe>,artesao))||(strmatch(<src.tag.classe>,lenhador))||(strmatch(<src.tag.classe>,ferreiro))
+  src.tag.furnimax=11
+ endif
+endif
+return 1
+
+[FUNCTION TryAddFurn]
+if (<eval 0<tag.furniact>> >= <eval 0<tag.furnimax>>)
+ sysmessagered Voce nao pode ter mais moveis. (<eval 0<tag.furniact>-1>/<eval 0<tag.furnimax>-1>)
+ return 0
+else
+ return 1
+endif
+
+[FUNCTION AddFurn]
+if (<src.TryAddFurn>==1)
+ src.tag.furniact=(<src.tag.furniact> +1)
+ src.sysmessageyellow Voce tem <eval 0<src.tag.furniact>-1)> movel(is). Seu limite e de <eval 0<src.tag.furnimax>-1)> moveis.
+ return 1
+endif
+return 1
+
+
+[FUNCTION SubFurn]
+if (<eval 0<src.tag.furniact>>!=0)
+ src.tag.furniact=(<src.tag.furniact> +(-1))
+ src.sysmessageyellow Voce tem <eval 0<tag.furniact>-1> movel(is).Seu  limite e de <eval 0<tag.furnimax>-1> moveis.
+ return 1
+endif
+return 1
+
+
+
+[ITEMDEF i_mry_furniture]
+id=i_memory
+name=sistema de furniture
+type=t_eq_script
+layer=30
+
+on=@dclick
+if (<more1>==0)
+ TARGET Selecione o seu movel:
+ return 1
+elif (<more1>==1)
+ TARGET Entregar o movel para quem?
+ return 1
+endif
+
+on=@targon_ground
+cont.sysmessage Alvo invalido.
+remove
+return 1
+
+on=@targon_char
+if (<more1>==1) && (<cont.targ.brain>==0)
+ cont.targ.startfurn
+ if (<eval 0<cont.targ.tag.furniact>> >= <eval 0<cont.targ.tag.furnimax>>)
+  cont.sysmessage O jogador selecionado nao opde ter mais moveis.
+  remove
+  return 1
+ endif
+ link.tag.dono=<cont.targ.uid>
+ try cont.targ.tag.furniact=(<eval 0<cont.targ.tag.furniact>> +1)
+ cont.subfurn
+ cont.targ.sysmessage <link.name> agora pertence a voce.
+ cont.sysmessage <link.name> nao pertence mais a voce.
+ remove
+ return 1
+endif
+cont.sysmessage Alvo invalido.
+remove
+return 1
+
+on=@targon_item
+if (<cont.targ.tag.dono>!=<cont.uid>)
+ src.sysmessage Este movel nao lhe pertence.
+ remove
+ return 1
+endif
+link=<cont.targ.uid>
+cont.menu m_furniture
+return 1
+
+on=@timer
+cont.consume 30 i_mry_furniture
+remove
+return 1
+
+[MENU m_furniture]
+(MyT) O que deseja fazer? (MyT)
+on=0 Fixar o movel no chao.
+src.findid(i_mry_furniture).link.attr=(<src.findid(i_mry_furniture).link.attr>|08010)
+src.findid(i_mry_furniture).link.attr=(<src.findid(i_mry_furniture).link.attr>&~02)
+src.findid(i_mry_furniture).link.update
+src.findid(i_mry_furniture).link.timer=-1
+src.update
+src.sysmessageyellow Seu movel esta fixo.
+src.sysmessageyellow Nunca sera apagado.
+src.findid(i_mry_furniture).remove
+return 1
+
+on=0 Soltar o movel do chao.
+src.findid(i_mry_furniture).link.attr=(<src.findid(i_mry_furniture).link.attr>&~08010)
+src.findid(i_mry_furniture).link.update
+src.update
+src.sysmessageyellow Seu movel NAO esta fixo.
+src.sysmessageyellow Ele PODERA ser apagado quando o servidor salvar.
+src.findid(i_mry_furniture).remove
+return 1
+
+on=0 Mudar a posicao do movel.
+src.findid(i_mry_furniture).link.flip
+src.sysmessage Seu movel foi virado.
+src.findid(i_mry_furniture).remove
+return 1
+
+on=0 Doar o movel.
+src.findid(i_mry_furniture).more1=1
+src.findid(i_mry_furniture).use
+//src.findid(i_mry_furniture).remove
+return 1
+
+on=0 DESTRUIR O MOVEL.
+if 0(<src.findid(i_mry_furniture).link.link.type>==t_multi)
+ src.findid(i_mry_furniture).link.link.remove
+else
+ src.findid(i_mry_furniture).link.remove
+endif
+src.findid(i_mry_furniture).remove
+src.subfurn
+src.sysmessagered Seu movel foi apagado.
+return 1
+
+
+[MENU m_furniture_own]
+(MyT) deseja ser proprietario deste movel? (MyT)
+on=0 Sim
+if (<TryAddFurn>==1)
+tag.furniact=(<eval 0<tag.furniact>>+1)
+try uid.<tag.furnuid>.tag.dono=<uid>
+try uid.<tag.furnuid>.tag.makefurn=
+try sysmessageyellow <uid.<tag.furnuid>.name> agora pertende a voce.
+endif
+tag.furnuid=
+return 1
+
+on=0 Nao
+tag.furnuid=
+Return 1
+
+  //////////////////////////////////////////////////////
+ //                      MÓVEIS                      //
+//////////////////////////////////////////////////////
+
+  ///////////////////
+ //  ENCAIXOTADOS //
+///////////////////
+
+
+[ITEMDEF i_bancada_encaixotada]
+ID=0e3c
+NAME=bancada (desmontada)
+type=t_script
+
+on=@dclick
+if (<type>!=t_deed)
+ src.tag.uidtemp=<UID>
+ src.menu m_bancada
+ return 1
+endif
+
+[MENU m_bancada]
+(MyT) Colocar movel (MyT)
+on=0 Colocar voltada para o norte ( \ )
+SRC.FINDID(i_bancada_encaixotada).type=t_deed
+SRC.FINDID(i_bancada_encaixotada).MORE=i_bancada_n
+SRC.FINDID(i_bancada_encaixotada).USE
+return 1
+
+on=0 Colocar voltada para o oeste ( / )
+SRC.FINDID(i_bancada_encaixotada).type=t_deed
+SRC.FINDID(i_bancada_encaixotada).MORE=i_bancada_w
+SRC.FINDID(i_bancada_encaixotada).USE
+return 1
+
+
+  ///////////////////
+ //     GERAL     //
+///////////////////
+
+
+[ITEMDEF i_escrivaninha]
+ID=0b49
+NAME=escrivaninha
+type=t_normal
+
+
+  ///////////////////
+ //  MULTI ITENS  //
+///////////////////
+
+[TYPEDEF t_bancada]
+on=@dclick
+src.sysmessage Objeto nao funcional.
+return 1
+
+[ITEMDEF 019f1]
+Name=bancada
+type=t_bancada
+
+[ITEMDEF 019f2]
+Name=bancada
+type=t_bancada
+
+[ITEMDEF 019f3]
+Name=bancada
+type=t_bancada
+
+[ITEMDEF 019f5]
+Name=bancada
+type=t_bancada
+
+[ITEMDEF 019f6]
+Name=bancada
+type=t_bancada
+
+[ITEMDEF 019f7]
+Name=bancada
+type=t_bancada
+
+[ITEMDEF i_bancada_w]
+name=bancada
+ID=0eed
+type=t_multi
+MULTIREGION 0,0,0,0
+
+COMPONENT=6641 0,1,0,0
+COMPONENT=6642 0,0,0,0
+COMPONENT=6643 0,-1,0,0
+
+[ITEMDEF i_bancada_n]
+name=bancada
+ID=0eed
+type=t_multi
+MULTIREGION 0,0,0,0
+
+COMPONENT=6645 1,0,0,0
+COMPONENT=6646 0,0,0,0
+COMPONENT=6647 -1,0,0,0
+
+
+
+
+  ///////////////////
+ //     TESTES    //
+///////////////////
+
+[FUNCTION Putfmax]
+try src.tag.furnimax=<argn>
+return 1
+
+[FUNCTION Putfact]
+try src.tag.furniact=<argn>
+return 1
+

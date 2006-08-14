@@ -1,0 +1,210 @@
+[events e_evaluatingintel_new]
+on=@skillstart
+if ( (<src.action>|0d2000000) == Skill_EvalInt)
+src.action=
+
+ if (<src.findid.i_EvaluatingIntel_int> == 1) || (<src.findid.i_EvaluatingIntel_mana> == 1)
+  src.sysmessage Aguarde um pouco...
+  return 1
+ endif
+
+
+ // ###############
+ // Verificar alvos
+ if (<src.targ.uid> == <src.uid>)
+  src.sysmessage Voce nao pode usar EvaluatingIntel em si mesmo...
+  return 1
+ endif
+ if (<src.targ.flags>&statf_dead)
+  src.sysmessage Voce nao pode usar EvaluatingIntel em mortos...
+  return 1
+ endif
+ if (<src.targ.canseelos> == 0)
+  src.sysmessage Seu alvo esta fora da linha de visao...
+  return 1
+ endif
+ 
+ // ###############
+ // Gravando o alvo
+ src.tag.EvaluatingIntelalvo=<src.targ.uid>
+
+ // ###############
+ // Removendo possiveis memorys
+ src.findid.i_EvaluatingIntel_int.remove
+ src.findid.i_EvaluatingIntel_mana.remove
+
+
+ // ###############
+ // Abrindo menu de opcoes
+ if (<src.EvaluatingIntel> < 76.0)
+  src.menu m_EvaluatingIntel_normal
+ elif (<src.EvaluatingIntel> >= 76.0)
+  src.menu m_EvaluatingIntel_advanced
+ endif
+
+return 1
+endif
+
+// ################
+//     Menus 
+
+[menu m_EvaluatingIntel_normal]
+Que informacao deseja obter da criatura alvo?
+
+on=0 Inteligencia
+ f_EvaluatingIntel_int
+
+[menu m_EvaluatingIntel_advanced]
+Que informacao deseja obter da criatura alvo?
+
+on=0 Inteligencia
+ f_EvaluatingIntel_int
+
+on=0 Mana
+ f_EvaluatingIntel_mana
+
+
+// ################
+//     Funcoes
+
+[function f_EvaluatingIntel_int]
+ src.say * Observando *
+ src.newitem i_EvaluatingIntel_int
+ src.act.more=<eval (((<src.EvaluatingIntel>)/(100)) + (- 11)) * (- 1)>
+ src.act.link=<src.tag.EvaluatingIntelalvo>
+ src.act.equip
+ src.act.timer=1
+
+[function f_EvaluatingIntel_mana]
+ src.say * Observando *
+ src.newitem i_EvaluatingIntel_mana
+ src.act.more=<eval (((<src.EvaluatingIntel>)/(100)) + (- 11)) * (- 1)>
+ src.act.link=<src.tag.EvaluatingIntelalvo>
+ src.act.equip
+ src.act.timer=1
+
+// ################
+//   Memory Items
+
+[itemdef i_EvaluatingIntel_int]
+id=i_deed
+name=EvaluatingIntel Memory
+type=t_Eq_script
+layer=30
+
+on=@create
+attr=attr_decay
+
+
+on=@timer
+ // ###############
+ // Checar Canseelos
+ timercsl_EvaluatingIntel
+ if (<cont.tag.timercsl_EvaluatingIntel> == 0)
+  cont.sysmessage Seu alvo esta fora da linha de visao...
+  remove
+  return 1
+ endif
+
+ // ###############
+ if (<more> > 1)
+  more=<more>+(-1)
+  timer=1
+  return 1
+ elif !(<more> > 1)
+   f_EvaluatingIntel_tentarsubir
+   if (<link.int> <= 9)
+    link.message Parece mais espero que uma pedra, porem menos que uma madeira
+   elif (<link.int> <= 19)
+    link.message Parece um pouco mais inteligente que uma pedra
+   elif (<link.int> <= 29)
+    link.message Parece um imbecil
+   elif (<link.int> <= 39)
+    link.message Nao parece uma pessoa brilhante
+   elif (<link.int> <= 49)
+    link.message Parece ter uma media inteligencia
+   elif (<link.int> <= 59)
+    link.message Parece ser muito inteligente
+   elif (<link.int> <= 69)
+    link.message Parece extremamente inteligente
+   elif (<link.int> <= 79)
+    link.message Parece extraordinariamente inteligente
+   elif (<link.int> <= 89)
+    link.message Parece possuir um intelecto perfeito
+   elif (<link.int> <= 99)
+    link.message Parece definitivamente um genio
+   elif (<link.int> >= 100)
+    link.message Possui uma inteligencia sobrenatural
+   endif
+  remove
+ endif
+return 1
+
+
+[itemdef i_EvaluatingIntel_mana]
+id=i_deed
+name=EvaluatingIntel Memory
+type=t_Eq_script
+layer=30
+
+on=@create
+attr=attr_decay
+
+
+on=@timer
+ // ###############
+ // Checar Canseelos
+ cont.tag.timercsl_EvaluatingIntel=1
+ timercsl_EvaluatingIntel
+ if (<cont.tag.timercsl_EvaluatingIntel> == 0)
+  cont.sysmessage Seu alvo esta fora da linha de visao...
+  remove
+  return 1
+ endif
+
+ // ###############
+ if (<more> > 1)
+  more=<more>+(-1)
+  timer=1
+  return 1
+ elif !(<more> > 1)
+   f_EvaluatingIntel_tentarsubir
+   link.message Esta com <eval (<link.mana>*100)/<link.int>>% de sua forca mental
+  remove
+ endif
+return 1
+
+// ###############################
+// Function de Canseelos no @timer
+
+[function timercsl_EvaluatingIntel]
+ cont.findid.i_bit_EvaluatingIntel.remove
+ cont.newitem i_bit_EvaluatingIntel
+ cont.act.link <link.uid>
+ cont.act.p <cont.p>
+ cont.act.timer=2
+
+[itemdef i_bit_EvaluatingIntel]
+id=i_nodraw
+name=CanSeeLos Tester
+layer=0
+type=t_eq_script
+
+on=@create
+attr=attr_decay
+
+on=@step
+ src.tag.timercsl_EvaluatingIntel <link.canseelos>
+ remove
+return 1
+
+on=@timer
+remove
+return 1
+
+// ######################
+// Chance de subir
+[function f_EvaluatingIntel_tentarsubir]
+if ({1 <eval (<cont.EvaluatingIntel>)/(10)>} == 1)
+ cont.EvaluatingIntel=<cont.EvaluatingIntel>+(0.1)
+endif

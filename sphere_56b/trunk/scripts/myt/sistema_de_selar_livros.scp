@@ -1,0 +1,344 @@
+/ Script downloaded from Emulator Resource
+// Website - celeron.twilightmanor.net
+// Contact - celeron@twilightmanor.net
+// Author - Rudenid
+//Book Copying script
+//V2.0
+//By Rudenid.
+//Use Pen and Ink to copy a blank book.
+//Use paper seals to seal a not-so-blank book.
+//I put the seals on scribe NPCs myself, but feel free to distribute them however you'd like
+//EDITADO POR MIM. :D Silver huahauaha
+
+[DIALOG d_sealbook]
+0,0
+page 0
+gumppic 150 130 2202
+gumppic 0 0 2204
+text 205 175 0 1
+text 215 270 0 2
+text 355 180 0 3
+text 390 210 0 4
+text 390 235 0 5
+text 405 305 0 6
+button 355 205 2474 2473 1 0 1
+button 355 230 2474 2473 1 0 2
+
+[DIALOG d_sealbook TEXT]
+Nothing
+<NAME>
+<AUTHOR>
+Selar este livro?
+Sim
+Nao
+<PAGES> Pages
+
+[DIALOG d_sealbook BUTTON]
+
+ONBUTTON=1
+
+IF !(<TYPE> == t_book)
+SRC.SYSMESSAGE Isso nao e um livro.
+RETURN 1
+ENDIF
+
+IF (<MORE1> & 080000000)
+SRC.SYSMESSAGE Esse livro ja esta selado.
+RETURN 1
+ENDIF
+
+IF (<ATTR> & attr_move_never)
+SRC.SYSMESSAGE Voce nao pode selar isto.
+RETURN 1
+ENDIF
+
+IF (<SRC.UID> != <TOPOBJ.UID>)
+SRC.SYSMESSAGE O livro deve estar em sua mochila para ser selado.
+RETURN 1
+ENDIF
+
+IF (<SRC.RESCOUNT i_seal_paper> < <PAGES>)
+SRC.SYSMESSAGE Esse livro tem <PAGES> paginas, e no entanto voce apenas tem <SRC.RESCOUNT i_seal_paper> selos. Voce precisa de um por pagina.
+RETURN 1
+ENDIF
+
+VAR.REQINSCRIPTION=<eval <PAGES> * 10.0>
+IF (<eval <VAR.REQINSCRIPTION>> > 100.0)
+VAR.REQINSCRIPTION=100.0
+ENDIF
+VAR.ALWAYSSCRIBE=<eval <VAR.REQINSCRIPTION> * 4>
+VAR.ALWAYSSCRIPT=<eval <VAR.ALWAYSSCRIBE> / <SRC.INSCRIPTION>>
+VAR.CHANCESCRIBE=rand(<eval <VAR.ALWAYSSCRIBE>>)
+
+IF (<eval <VAR.REQINSCRIPTION>> > <SRC.INSCRIPTION>)
+SRC.SYSMESSAGE Voce nao tem conhecimento para selar um livro de <PAGES> paginas.
+RETURN 1
+ENDIF
+
+IF (<eval <VAR.CHANCESCRIBE>> > <SRC.INSCRIPTION>)
+SRC.SYSMESSAGE Voce falhou em selar o livro.
+ELSE
+SRC.SFX 79
+SRC.CONSUME <PAGES> i_seal_paper
+SRC.SYSMESSAGE Voce sela o livro.
+MORE1=080000000
+ENDIF
+
+VAR.CHANCESCRIBE=
+VAR.ALWAYSSCRIBE=
+VAR.REQINSCRIPTION=
+
+[ITEMDEF 0fbf]
+//pen and ink
+DEFNAME=i_pen_and_ink
+RESOURCES=1 i_FEATHER, 1 i_INK_POT
+WEIGHT=2
+CATEGORY=Items by Professions
+SUBSECTION=Artists
+DESCRIPTION=Pen & Ink (W)
+DUPELIST=0fc0
+
+ON=@DCLICK
+TARGET Escolha um livro de onde copiar.
+RETURN 1
+
+ON=@TARGON_ITEM
+IF <LINK.SERIAL>==0
+IF !(<SRC.TARG.TYPE>==t_book)
+SRC.SYSMESSAGE Isso nao e um livro.
+RETURN 1
+ENDIF
+//IF (<SRC.TARG.ATTR>&010)
+//SRC.SYSMESSAGE ///////
+//RETURN 1
+//ENDIF
+LINK=<SRC.TARG.SERIAL>
+TARGET Escolha um livro de onde copiar.
+RETURN 1
+ELSE
+IF !(<SRC.TARG.TYPE>==t_book)
+SRC.SYSMESSAGE Isto nao e um livro.
+LINK=0
+RETURN 1
+ENDIF
+IF (<SRC.TARG.ATTR>&010)
+SRC.SYSMESSAGE Voce nao pode mover isto.
+LINK=0
+RETURN 1
+ENDIF
+IF (<SRC.TARG.MORE1>&080000000)
+SRC.SYSMESSAGE Esse livro esta selado e nada pode ser escrito nele.
+LINK=0
+RETURN 1
+ENDIF
+IF !(<SRC.TARG.CONT>==<SRC.FINDLAYER(21).SERIAL>)
+SRC.SYSMESSAGE Este livro deve estar em sua mochila.
+LINK=0
+RETURN 1
+ENDIF
+IF (<SRC.TARG.PAGES> > 0)
+SRC.SYSMESSAGE Esse livro ja foi escrito.
+LINK=0
+RETURN 1
+ENDIF
+
+IF (rand(110.0) < <SRC.INSCRIPTION>)
+SRC.NEWITEM <SRC.TARG.ID>
+SRC.ACT.ATTR=0
+SRC.ACT.MORE1=0
+SRC.ACT.NAME=<LINK.NAME>
+SRC.ACT.AUTHOR=<LINK.AUTHOR>
+SRC.ACT.LINK=<LINK.UID>
+SRC.ACT.MOREX=0
+SRC.COPYBOOK
+SRC.ACT.LINK=
+SRC.ACT.DISPID=<SRC.TARG.DISPID>
+SRC.ACT.COLOR=<SRC.TARG.COLOR>
+SRC.SFX 0247
+SRC.SYSMESSAGE Voce copiou o livro com sucesso.
+SRC.ACT.BOUNCE
+SRC.TARG.REMOVE
+LINK=0
+ELSE
+SRC.SYSMESSAGE Voce falhou em copiar o livro.
+LINK=0
+ENDIF
+
+IF (<SRC.INSCRIPTION> < 100.0)
+
+IF (<SRC.INSCRIPTION> < 30.0)
+IF (rand(3)=1)
+SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
+ENDIF
+ELSEIF (<SRC.INSCRIPTION> < 50.0)
+IF (rand(75)=1)
+SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
+ENDIF
+ELSEIF (<SRC.INSCRIPTION> < 80.0)
+IF (rand(100)=1)
+SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
+ENDIF
+ELSE
+IF (rand(200)=1)
+SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
+ENDIF
+ENDIF
+
+ENDIF
+
+IF (<SRC.INSCRIPTION> > 100.0)
+SRC.INSCRIPTION=100.0
+ENDIF
+
+RETURN 1
+
+[FUNCTION copybook]
+IF <ACT.MOREX> > <ACT.LINK.PAGES>
+ACT.MOREX=0
+RETURN 1
+ENDIF
+TRYP 0 ACT.BODY<ACT.MOREX>=<ACT.LINK.BODY<ACT.MOREX>>
+ACT.MOREX=<ACT.MOREX>+1
+COPYBOOK
+
+[ITEMDEF 0fc0]
+//pen and ink
+DUPEITEM=0fbf
+CATEGORY=Items by Professions
+SUBSECTION=Artists
+DESCRIPTION=Pen & Ink (N)
+
+ON=@DCLICK
+TARGET Escolha um livro de onde copiar.
+RETURN 1
+
+ON=@TARGON_ITEM
+IF <LINK.SERIAL>==0
+IF !(<SRC.TARG.TYPE>==t_book)
+SRC.SYSMESSAGE Isso nao e um livro.
+RETURN 1
+ENDIF
+//IF (<SRC.TARG.ATTR>&010)
+//SRC.SYSMESSAGE You cannot copy a locked down book
+//RETURN 1
+//ENDIF
+LINK=<SRC.TARG.SERIAL>
+TARGET EScolha um livro para copiar.
+RETURN 1
+ELSE
+IF !(<SRC.TARG.TYPE>==t_book)
+SRC.SYSMESSAGE Isso nao e um livro.
+LINK=0
+RETURN 1
+ENDIF
+IF (<SRC.TARG.ATTR>&010)
+SRC.SYSMESSAGE Voce nao pode mover isto.
+LINK=0
+RETURN 1
+ENDIF
+IF (<SRC.TARG.MORE1>&080000000)
+SRC.SYSMESSAGE Esse livro esta selado e nao pode ser escrito.
+LINK=0
+RETURN 1
+ENDIF
+IF !(<SRC.TARG.CONT>==<SRC.FINDLAYER(21).SERIAL>)
+SRC.SYSMESSAGE O livro deve estar em sua mochila.
+LINK=0
+RETURN 1
+ENDIF
+IF (<SRC.TARG.PAGES> > 0)
+SRC.SYSMESSAGE Esse livro ja foi escrito.
+LINK=0
+RETURN 1
+ENDIF
+
+IF (rand(110.0) < <SRC.INSCRIPTION>)
+SRC.NEWITEM <SRC.TARG.ID>
+SRC.ACT.ATTR=0
+SRC.ACT.MORE1=0
+SRC.ACT.NAME=<LINK.NAME>
+SRC.ACT.AUTHOR=<LINK.AUTHOR>
+SRC.ACT.LINK=<LINK.UID>
+SRC.ACT.MOREX=0
+SRC.COPYBOOK
+SRC.ACT.LINK=
+SRC.ACT.DISPID=<SRC.TARG.DISPID>
+SRC.ACT.COLOR=<SRC.TARG.COLOR>
+SRC.SFX 0247
+SRC.SYSMESSAGE Voce copiou o livro com sucesso.
+SRC.ACT.BOUNCE
+SRC.TARG.REMOVE
+LINK=0
+ELSE
+SRC.SYSMESSAGE Voce falhou em copiar o livro.
+LINK=0
+ENDIF
+
+IF (<SRC.INSCRIPTION> < 100.0)
+
+IF (<SRC.INSCRIPTION> < 30.0)
+IF (rand(3)=1)
+SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
+ENDIF
+ELSEIF (<SRC.INSCRIPTION> < 50.0)
+IF (rand(75)=1)
+SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
+ENDIF
+ELSEIF (<SRC.INSCRIPTION> < 80.0)
+IF (rand(100)=1)
+SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
+ENDIF
+ELSE
+IF (rand(200)=1)
+SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
+ENDIF
+ENDIF
+
+ENDIF
+
+IF (<SRC.INSCRIPTION> > 100.0)
+SRC.INSCRIPTION=100.0
+ENDIF
+
+RETURN 1
+
+[ITEMDEF i_seal_paper]
+ID=i_bedroll_open
+TYPE=t_normal
+NAME=paper seal
+RESOURCES=2 i_hides_cut
+SKILLMAKE=TAILORING 70.0, t_sewing_kit
+
+ON=@DClick
+TARGET Escolha o livro a ser selado.
+RETURN 1
+
+ON=@Targon_Item
+IF !(<SRC.TARG.TYPE> == t_book)
+SRC.SYSMESSAGE Isso nao é um livro.
+RETURN 1
+ENDIF
+
+IF (<SRC.TARG.MORE1> & 080000000)
+SRC.SYSMESSAGE Esse livro ja esta selado.
+RETURN 1
+ENDIF
+
+IF (<SRC.TARG.ATTR> & attr_move_never)
+SRC.SYSMESSAGE Voce nao pode selar isso.
+RETURN 1
+ENDIF
+
+IF (<SRC.UID> != <SRC.TARG.TOPOBJ.UID>)
+SRC.SYSMESSAGE O livro deve estar em sua mochila para ser selado.
+RETURN 1
+ENDIF
+
+IF (<SRC.RESCOUNT i_seal_paper> < <SRC.TARG.PAGES>)
+SRC.SYSMESSAGE Esse livro tem <SRC.TARG.PAGES> paginas, ae voce apenas tem<SRC.RESCOUNT i_seal_paper> selos. Voce precisa de um por pagina.
+RETURN 1
+ENDIF
+
+SRC.TARG.DIALOG d_sealbook
+
+RETURN 1
