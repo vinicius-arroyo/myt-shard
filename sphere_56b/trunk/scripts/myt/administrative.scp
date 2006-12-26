@@ -1,13 +1,133 @@
-[function f_acc_update]
+[DEFNAME administrative_constants]
+SM_RED=028
+SM_GREEN=044
+SM_BLUE=04
+SM_YELLOW=036
+SM_ORANGE=02C
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCOES
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// f_acc_update( )
+//*****************************************************************************
+//[function f_acc_update]
+//if ( <DB.connected> )
+//if ( 0 )
+//    DB.QUERY "SELECT * FROM accounts WHERE status='0'"
+//    if (<DB.ROW.NUMROWS> > 0)
+//        for R 0 <eval <DB.ROW.NUMROWS>-1>
+//            serv.account add <DB.ROW.<eval <LOCAL.R>>.login> <eval <DB.ROW.<eval <LOCAL.R>>.password>>
+//            DB.EXECUTE "UPDATE accounts SET status='1' WHERE login='<DB.ROW.<eval <LOCAL.R>>.login>'"
+//            serv.log MySQL Debug: #<eval <LOCAL.R>> Account <DB.ROW.<eval <LOCAL.R>>.login> has been created!
+//        end
+//    endif
+//endif
+
+
+//*****************************************************************************
+// f_connectDB( )
+//*****************************************************************************
+[FUNCTION f_connectDB]
+DB.CONNECT
+if (<DB.CONNECTED>)
+	SERV.log MySQL debug: MySQL successfully connected!
+else
+	SERV.log MySQL debug: MySQL not connected!
+endif
+
+
+
+//*****************************************************************************
+// f_sendMessage( uidPlayer, message, msgColor )
+//*****************************************************************************
+//envia mensagem para um player online. se estiver offline a mensagem é armazenada no banco
+//e entregue no proximo login.
+//
+// ARGV[0] --> UID destino
+// ARGV[1] --> mensagem
+// ARGV[2] --> cor
+[FUNCTION f_sendMessage]
+	OBJ=<argv[0]>
+	if ( <OBJ.isonline> )
+		OBJ.sysmessage @<argv[2]> <argv[1]>
+	else
+		if ( <DB.connected> )
+			DB.EXECUTE "INSERT INTO messageBox SET timestamp=NOW(), message='<argv[1]>', status='Pending', triggerUid=<eval <SRC.uid>>, toUid=<eval <argv[0]>>, color=<eval <argv[2]>>"
+		endif
+	endif
+	
+	
+	
+//*****************************************************************************
+// f_deliverPendingMessages( )
+//*****************************************************************************
+//chame essa funcao no login para enviar as mensagens pendentes ao player.	
+//SRC é o player fazendo login
+[FUNCTION f_deliverPendingMessages]
 if ( <DB.connected> )
-    DB.QUERY "SELECT * FROM accounts WHERE status='0'"
+    DB.QUERY "SELECT message,color FROM messageBox WHERE status='Pending' AND toUid=<eval <SRC.uid>>"
     if (<DB.ROW.NUMROWS> > 0)
         for R 0 <eval <DB.ROW.NUMROWS>-1>
-            serv.account add <DB.ROW.<eval <LOCAL.R>>.login> <eval <DB.ROW.<eval <LOCAL.R>>.password>>
-            DB.EXECUTE "UPDATE accounts SET status='1' WHERE login='<DB.ROW.<eval <LOCAL.R>>.login>'"
-            serv.log MySQL Debug: #<eval <LOCAL.R>> Account <DB.ROW.<eval <LOCAL.R>>.login> has been created!
+			SRC.sysmessage @<DB.ROW.<eval <LOCAL.R>>.color> <DB.ROW.<eval <LOCAL.R>>.message>
         end
+        DB.EXECUTE "UPDATE messageBox SET status='Sent' WHERE toUid=<eval <SRC.uid>>"
     endif
 endif
+	
+
+
+//*****************************************************************************
+// f_isWeapon( item )
+//*****************************************************************************
+//retorna 1 se o argumento for uma arma
+[FUNCTION f_isWeapon]
+	LOCAL.type = <uid.<argn>.type>
+	if ( <LOCAL.type>==t_weapon_axe )
+		return 1
+	elif ( <LOCAL.type>==t_weapon_mace_smith )
+		return 1
+	elif ( <LOCAL.type>==t_weapon_mace_sharp )
+		return 1
+	elif ( <LOCAL.type>==t_weapon_sword )
+		return 1
+	elif ( <LOCAL.type>==t_weapon_fence )
+		return 1
+	elif ( <LOCAL.type>==t_weapon_bow )
+		return 1
+	elif ( <LOCAL.type>==t_weapon_mace_staff )
+		return 1
+	elif ( <LOCAL.type>==t_weapon_mace_crook )
+		return 1
+	elif ( <LOCAL.type>==t_weapon_mace_pick )
+		return 1
+	elif ( <LOCAL.type>==t_weapon_arrow )
+		return 1
+	elif ( <LOCAL.type>==t_weapon_bolt )
+		return 1
+	elif ( <LOCAL.type>==t_weapon_xbow )
+		return 1
+	else
+		return 0
+	endif
+
+//*****************************************************************************
+// f_isArmor( item )
+//*****************************************************************************
+//retorna 1 se o argumento for uma armadura (ou escudo)
+[FUNCTION f_isArmor]
+	LOCAL.type = <uid.<argn>.type>
+	if ( <LOCAL.type>==t_armor )
+		return 1
+	elif ( <LOCAL.type>==t_armor_leather )
+		return 1
+	elif ( <LOCAL.type>==t_shield )
+		return 1
+	else
+		return 0
+	endif
 
 [EOF]
