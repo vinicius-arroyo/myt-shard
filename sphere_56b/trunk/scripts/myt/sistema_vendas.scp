@@ -7,9 +7,15 @@
 // 	=>f_sendMessage - para enviar alertas aos players mesmo offline.
 //	=>f_isWeapon - define se o item eh uma arma
 //	=>f_isArmor - define se o item eh uma armadura
+//	=>f_isRegsOrMagic
+//	=>f_isFood
+//	=>f_isMisc
+//	=>f_isWearable
+//	=>f_isRaw
 //
 // Para usar:
-// Coloque o NPC vendedo ( C_VENDOR?? )
+// Execute .vendor_addNpc para abrir o menu com as opções de NPC
+// A compra e venda é feita por comandos de fala. ex: "quero comprar"
 // 
 //*****************************************************************************
 //*****************************************************************************
@@ -25,6 +31,8 @@
 //src.ctag.vendor_selectedItem	//item selecionada para compra/venda
 //src.ctag.vendor_selectedPrice	//preco do item selecionada para compra/venda
 //src.ctag.vendor_selectedOwner	//dono do item selecionada para compra/venda
+//src.ctag.vendor_newNpcType	//tipo do npc sendo criado
+//npc.tag.vendor_type		//tipo do npc
 
 //*****************************************************************************
 //*****************************************************************************
@@ -33,7 +41,16 @@
 //*****************************************************************************
 
 [DEFNAME vendor_constants]
-vendor_itemsPerPage=15
+vendor_itemsPerPage=15		//items mostrados na tela do vendedor por pag.
+
+vendor_type_weapons=1		//lista dos tipos de vendedores
+vendor_type_armor=2
+vendor_type_magic=3
+vendor_type_food=4
+vendor_type_misc=5
+vendor_type_clothes=6
+vendor_type_raw=7
+
 
 //*****************************************************************************
 //*****************************************************************************
@@ -48,18 +65,53 @@ vendor_itemsPerPage=15
 //pode vender
 //
 //SRC é o player
+//DEFAULT é o vendedor
 [FUNCTION vendor_createPlayerList]
 SRC.CTAG.vendor_page=1
 SRC.CTAG.vendor_numItems=0
 SRC.CTAG.vendor_op=1	//NPC pega para vender ('compra')
 
 //varre a bag
+LOCAL.type=<TAG.vendor_type>
 forcont <SRC.findlayer.layer_pack.uid> 0
-	if ( <f_isWeapon <uid>> )
+	LOCAL.match=0
+	
+	if ( <LOCAL.type>==vendor_type_weapons)
+		if ( <f_isWeapon <uid>> )
+			LOCAL.match=1
+		endif
+	elif ( <LOCAL.type>==vendor_type_armor )
+		if ( <f_isArmor <uid>> )
+			LOCAL.match=1
+		endif
+	elif ( <LOCAL.type>==vendor_type_magic )
+		if ( <f_isRegsOrMagic <uid>> )
+			LOCAL.match=1
+		endif
+	elif ( <LOCAL.type>==vendor_type_food )
+		if ( <f_isFood <uid>> )
+			LOCAL.match=1
+		endif
+	elif ( <LOCAL.type>==vendor_type_misc )
+		if ( <f_isMisc <uid>> )
+			LOCAL.match=1
+		endif
+	elif ( <LOCAL.type>==vendor_type_clothes )
+		if ( <f_isWearable <uid>> )
+			LOCAL.match=1
+		endif
+	elif ( <LOCAL.type>==vendor_type_raw )
+		if ( <f_isRaw <uid>> )
+			LOCAL.match=1
+		endif
+	endif
+
+	if ( <LOCAL.match>==1 )
 		SRC.CTAG.vendor_numItems += 1
 		TRYP 0 SRC.CTAG.vendor_items<eval (<SRC.CTAG.vendor_numItems>)>=<uid>
 	endif
 endfor
+
 SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPerPage) + 1)> 
 return 1
 
@@ -70,6 +122,7 @@ return 1
 //verifica os itens do vendor no banco e cria a lista de venda do npc
 //
 //SRC é o player
+//DEFAULT é o vendedor
 [FUNCTION vendor_createVendorList]
 SRC.CTAG.vendor_page=1
 SRC.CTAG.vendor_numItems=0
@@ -77,7 +130,7 @@ SRC.CTAG.vendor_op=2	//NPC vende
 
 //varre o banco
 if ( <DB.connected> )
-    DB.QUERY "SELECT * FROM vendorItems WHERE itemType='Weapon' AND idVendor=<eval <uid>>"
+	DB.QUERY "SELECT * FROM vendorItems WHERE itemType=<eval <TAG.vendor_type>> AND idVendor=<eval <uid>>"
     if (<DB.ROW.NUMROWS> > 0)
         for R 0 <eval <DB.ROW.NUMROWS>-1>
 		SRC.CTAG.vendor_numItems += 1
@@ -105,7 +158,7 @@ if !(<DB.connected>)
 endif
 
 //insert item into DB
-DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <SRC.uid>>,idItem=<eval <OBJ>>,quantity=<eval <argv[2]>>,price=<eval <argv[1]>>,playerName='<SRC.TAG.name>',itemType='Weapon'"
+DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <SRC.uid>>,idItem=<eval <OBJ>>,quantity=<eval <argv[2]>>,price=<eval <argv[1]>>,playerName='<SRC.TAG.name>',itemType=<eval <TAG.vendor_type>>"
 
 //remove from players bag
 OBJ.cont=<findlayer.layer_bankbox.uid>
@@ -113,7 +166,7 @@ OBJ.removefromview
 
 SRC.UPDATE
 
-message Obrigado. Seu produto esta a venda.
+SAY Obrigado. Seu produto esta a venda.
 
 return 1
 
@@ -145,7 +198,7 @@ LOCAL.totalPrice=<eval <argv[1]>*<argv[2]>>
 if ( <SRC.restest <LOCAL.totalPrice> i_gold> )
 	SRC.consume <LOCAL.totalPrice> i_gold
 else
-	message Esta achando que vivo de caridade? Volte quando tiver dinheiro suficiente para a compra.
+	SAY Esta achando que vivo de caridade? Volte quando tiver dinheiro suficiente para a compra.
 	return 1
 endif
 
@@ -182,10 +235,142 @@ endif
 return <LOCAL.quality>
 
 //*****************************************************************************
+// vendor_addNpc( itemType, npcId )
+//*****************************************************************************
+//use sem parametros para abrir o menu de configuracao
+[FUNCTION vendor_addNpc]
+if (<eval <argv[0]>> == 0) || (<eval <argv[1]>> == 0)
+	menu m_vendor_npcType
+	return 1
+else
+	SRC.targetfg vendor_placeNpc <argv[0]>,<argv[1]>
+	SRC.sysmessage Onde deseja colocar o vendedor?
+endif
+return 1
+
+//*****************************************************************************
+// vendor_placeNpc( itemType, npcId )
+//*****************************************************************************
+//argo = target
+//argv[0] = itemType
+[FUNCTION vendor_placeNpc]
+SRC.NEWNPC=<argv[1]>
+SRC.NEW.FLAGS 04
+SRC.NEW.P=<TARGP>
+SRC.NEW.FIX
+SRC.NEW.TAG.vendor_type=<argv[0]>
+
+if ( <argv[0]>==vendor_type_weapons )
+	SRC.NEW.TITLE = Vendedor de Armas
+elif ( <argv[0]>==vendor_type_armor )
+	SRC.NEW.TITLE = Vendedor de Armaduras
+elif ( <argv[0]>==vendor_type_magic )
+	SRC.NEW.TITLE = Vendedor de Pocoes e Reags
+elif ( <argv[0]>==vendor_type_food )
+	SRC.NEW.TITLE = Vendedor de Alimentos
+elif ( <argv[0]>==vendor_type_misc )
+	SRC.NEW.TITLE = Vendedor
+elif ( <argv[0]>==vendor_type_clothes )
+	SRC.NEW.TITLE = Vendedor de Roupas e Joias
+elif ( <argv[0]>==vendor_type_raw )
+	SRC.NEW.TITLE = Vendedor de Materia Prima
+endif
+return 1
+
+//*****************************************************************************
+// vendor_removeVendor( npcId )
+//*****************************************************************************
+//remove dados do vendedor do banco
+[FUNCTION vendor_removeVendor]
+if ( <DB.connected> )
+	DB.EXECUTE "DELETE FROM tradeItems WHERE idVendor=<eval <argv[0]>>"
+endif
+return 1
+
+//*****************************************************************************
 //*****************************************************************************
 // DIALOGOS E MENUS
 //*****************************************************************************
 //*****************************************************************************
+
+//*****************************************************************************
+// m_vendor_npcType
+//*****************************************************************************
+//menu de criacao do NPC vendedor. escolhao tipo
+[MENU m_vendor_npcType]
+                -=Criacao de Vendedor=-
+on=0 Vendedor de Armas
+	SRC.CTAG.vendor_newNpcType = <eval vendor_type_weapons> //t_weapon_axe,t_weapon_mace_smith,t_weapon_mace_sharp,t_weapon_sword,t_weapon_fence,t_weapon_bow,t_weapon_mace_staff,t_weapon_mace_crook,t_weapon_mace_pick,t_weapon_arrow,t_weapon_bolt,t_weapon_xbow
+	menu m_vendor_npcGender
+ 	return 1
+
+on=0 Vendedor de Armaduras
+	SRC.CTAG.vendor_newNpcType = <eval vendor_type_armor>	//t_armor,t_armor_leather,t_shield
+	menu m_vendor_npcGender
+ 	return 1
+
+on=0 Vendedor de Reagentes e Itens Magicos	
+	SRC.CTAG.vendor_newNpcType = <eval vendor_type_magic> 	//t_wand, t_potion, t_reagent, t_reagent_raw, t_potion_empty
+	menu m_vendor_npcGender
+ 	return 1
+
+on=0 Vendedor de Alimentos
+	SRC.CTAG.vendor_newNpcType = <eval vendor_type_food>	//t_food, t_food_raw, t_fish, t_drink, t_fruit, t_meat_raw, t_pitcher
+	menu m_vendor_npcGender
+ 	return 1
+
+on=0 Vendedor de Marcenaria e Tinker
+	SRC.CTAG.vendor_newNpcType = <eval vendor_type_misc>	//t_clock, t_musical, t_carpentry, t_chair,t_sextant, t_table, t_scissors, t_fish_pole, t_shaft, t_sewing_kit, t_tinker_tools, t_mortar
+	menu m_vendor_npcGender
+ 	return 1
+
+on=0 Vendedor de Roupas e Joias
+	SRC.CTAG.vendor_newNpcType = <eval vendor_type_clothes> //t_clothing, t_cloth, t_jewelry
+	menu m_vendor_npcGender
+	return 1
+
+on=0 Vendedor de Materia Prima
+	SRC.CTAG.vendor_newNpcType = <eval vendor_type_raw>	//t_log, t_ore, t_ingot, t_seed, t_leather, t_loom, t_feather, t_wool,t_fur, t_thread, t_yarn, t_cotton
+	menu m_vendor_npcGender
+	return 1
+
+//*****************************************************************************
+// m_vendor_npcGender
+//*****************************************************************************
+//menu de criacao do NPC vendedor. escolha a raca e sexo
+[MENU m_vendor_npcGender]
+                -=Criacao de Vendedor=-
+on=0 Humano
+	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
+ 	return 1
+
+//on=0 Mulher - Humano
+//	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
+// 	return 1
+
+on=0 Orc
+	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_O_VENDOR_M
+ 	return 1
+
+//on=0 Femea - Orc
+//	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
+// 	return 1
+
+//on=0 Bambi - Elfo
+//	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
+// 	return 1
+
+on=0 Elfo
+	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_E_VENDOR_F
+ 	return 1
+
+on=0 Anao
+	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_D_VENDOR_M
+ 	return 1
+
+//on=0 Barbuda - Anao
+//	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
+// 	return 1
 
 //*****************************************************************************
 // d_vendor_items
@@ -376,17 +561,17 @@ endif
 //*****************************************************************************
 
 //*****************************************************************************
-// c_vendedor
+// c_h_vendor_m
 //*****************************************************************************
-[CHARDEF c_vendedor]
+[CHARDEF c_h_vendor_m]
 ID c_man
-DEFNAME=C_VENDEDOR
-NAME=Vendedor Ambulante
+DEFNAME=C_H_VENDOR_M
+NAME=#NAMES_HUMANMALE
 ID=C_MAN
 DESIRES=i_gold,e_notoriety
 AVERSIONS=t_TRAP,t_eerie_stuff
 
-TSPEECH=jobvendedor
+TSPEECH=jobVENDOR
 
 ON=@Create
 COLOR=03eb
@@ -420,13 +605,167 @@ COLOR=colors_neutral
 ITEM=random_coin_purse
 
 CATEGORY=MyT (Trades)
-SUBSECTION=Banco
+SUBSECTION=Vendedor
 DESCRIPTION=Vendedor (Humano)
 
+ON=@DESTROY
+vendor_removeVendor <uid>
+reuturn 0
+
+//on=@death
+//newloot=i_axe
+//forcont <uid> 0
+//	serv.b  B <name>
+//endfor
+//serv.b  B <name> <str>
+
 //*****************************************************************************
-// jobVENDEDOR
+// c_o_vendor_m
 //*****************************************************************************
-[SPEECH jobVENDEDOR]
+[CHARDEF c_o_vendor_m]
+ID c_man
+DEFNAME=c_o_vendor_m
+NAME=#NAMES_HUMANMALE
+ID=C_MAN
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+
+
+TSPEECH=jobVENDOR
+
+ON=@Create
+COLOR=0597
+STR={71 85}
+DEX={66 80}
+INT={66 80}
+
+tag.raca Orc
+
+SWORDSMANSHIP={15.0 38.0}
+ITEMID={50.0 70.0}
+TACTICS={15.0 38.0}
+
+NPC=BRAIN_BANKER
+NEED=i_gold
+
+ITEMNEWBIE=i_head_orc
+
+ON=@NPCRestock
+ITEM=RANDOM_LIGHT
+ITEM=i_shirt_fancy
+COLOR=colors_green
+ITEM=i_pants_long
+COLOR=colors_yellow
+ITEM=random_coin_purse
+
+CATEGORY=MyT (Trades)
+SUBSECTION=Vendedor
+DESCRIPTION=Vendedor (Orc)
+
+ON=@DESTROY
+vendor_removeVendor <uid>
+reuturn 0
+
+//*****************************************************************************
+// c_e_vendor_f
+//*****************************************************************************
+[CHARDEF c_e_vendor_f]
+ID c_woman
+DEFNAME=c_e_vendor_f
+NAME=#NAMES_HUMANFEMALE
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+
+
+TSPEECH=jobVENDOR
+
+ON=@Create
+COLOR=0412
+STR={71 85}
+DEX={66 80}
+INT={66 80}
+
+tag.raca Elfo
+
+SWORDSMANSHIP={15.0 38.0}
+ITEMID={50.0 70.0}
+TACTICS={15.0 38.0}
+
+NPC=BRAIN_BANKER
+NEED=i_gold
+
+
+ON=@NPCRestock
+ITEM=i_hair_long
+COLOR=035
+ITEM=i_shirt_fancy
+COLOR=colors_green
+ITEM=i_skirt_long
+COLOR=colors_yellow
+ITEM=random_coin_purse
+
+CATEGORY=MyT (Trades)
+SUBSECTION=Vendedor
+DESCRIPTION=Vendedor (Elfa)
+
+ON=@DESTROY
+vendor_removeVendor <uid>
+reuturn 0
+
+//*****************************************************************************
+// c_d_vendor_m
+//*****************************************************************************
+[CHARDEF c_d_vendor_m]
+ID c_man
+DEFNAME=c_d_vendor_m
+NAME=#NAMES_HUMANMALE
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+
+
+TSPEECH=jobVENDOR
+
+ON=@Create
+COLOR=0412
+STR={71 85}
+DEX={66 80}
+INT={66 80}
+
+tag.raca Anao
+
+SWORDSMANSHIP={15.0 38.0}
+ITEMID={50.0 70.0}
+TACTICS={15.0 38.0}
+
+NPC=BRAIN_BANKER
+NEED=i_gold
+
+
+ON=@NPCRestock
+ITEM=i_hair_long
+COLOR=0
+ITEM=i_beard_long
+COLOR=0
+ITEM=i_shirt_fancy
+COLOR=colors_green
+ITEM=i_pants_long
+COLOR=colors_yellow
+ITEM=random_coin_purse
+ITEM=random_shoes
+COLOR=colors_neutral
+
+CATEGORY=MyT (Trades)
+SUBSECTION=Vendedor
+DESCRIPTION=Vendedor (Anao)
+
+ON=@DESTROY
+vendor_removeVendor <uid>
+reuturn 0
+
+//*****************************************************************************
+// jobVENDOR
+//*****************************************************************************
+[SPEECH jobVENDOR]
 ON=*gostaria*vender*
 ON=*quero*vender*
 	dialogclose d_vendor_items
@@ -457,16 +796,4 @@ ON=*quero*comprar*
 	
 return 1
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+[EOF]
