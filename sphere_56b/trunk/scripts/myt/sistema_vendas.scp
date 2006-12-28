@@ -19,6 +19,9 @@
 // 
 //*****************************************************************************
 //*****************************************************************************
+//TODO:
+//-Fazer escape de strings corretamente nas queries
+//-Definir 'qualidade' para todos os tipos de items
 
 //TAGS usadas:
 //src.ctag.vendor_op		//1 para colocar o item a venda, 2 para comprar
@@ -155,14 +158,37 @@ OBJ=<argv[0]>
 
 if !(<DB.connected>)
 	src.sysmessage Erro. O item nao foi colocado a venda.
+	return 1
 endif
 
-//insert item into DB
-DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <SRC.uid>>,idItem=<eval <OBJ>>,quantity=<eval <argv[2]>>,price=<eval <argv[1]>>,playerName='<SRC.TAG.name>',itemType=<eval <TAG.vendor_type>>"
+//acerta quantidade desejada
+if ( <argv[2]> > <OBJ.amount> )
+	LOCAL.amount = <OBJ.amount>
+else
+	LOCAL.amount = <argv[2]>
+endif
 
-//remove from players bag
-OBJ.cont=<findlayer.layer_bankbox.uid>
+//se quantidade diferente do disponivel...
+if ( <LOCAL.amount> != <OBJ.amount> )
+	//duplica item, arruma a quantidade com o resto e coloca na bag
+	SERV.NEWDUPE <OBJ>
+	NEW.amount = <eval <OBJ.amount> - <LOCAL.amount>>
+	NEW.bounce
+
+	//acerta quantidade que sera vendida	
+	OBJ.amount = <LOCAL.amount>
+endif
+
+//remove from players bag and place it inside a new bag in the vendor bankbox
+//this prevents stacking items
+SERV.NEWITEM i_bag
+NEW.cont=<findlayer.layer_bankbox.uid>
+NEW.name=<OBJ.name>
+OBJ.cont=<NEW>
 OBJ.removefromview
+
+//insert item into DB
+DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <SRC.uid>>,idItem=<eval <OBJ>>,quantity=<eval <OBJ.amount>>,price=<eval <argv[1]>>,playerName='<SRC.TAG.name>',itemType=<eval <TAG.vendor_type>>"
 
 SRC.UPDATE
 
@@ -181,6 +207,7 @@ OBJ=<argv[0]>
 
 if !(<DB.connected>)
 	SRC.sysmessage Erro. O item nao foi comprado.
+	return 1
 endif
 
 //pega detalhes do item
@@ -192,9 +219,15 @@ LOCAL.idPlayer	= <DB.ROW.idPlayer>
 LOCAL.itemType 	= <DB.ROW.itemType>
 LOCAL.playerName = <DB.ROW.playerName>
 
+//acerta quantidade desejada
+if ( <argv[2]> > <OBJ.amount> )
+	LOCAL.amount = <OBJ.amount>
+else
+	LOCAL.amount = <argv[2]>
+endif
 
 //verifica se comprador tem dinheiro suficiente e recolhe
-LOCAL.totalPrice=<eval <argv[1]>*<argv[2]>>
+LOCAL.totalPrice=<eval <argv[1]>*<LOCAL.amount>>
 if ( <SRC.restest <LOCAL.totalPrice> i_gold> )
 	SRC.consume <LOCAL.totalPrice> i_gold
 else
@@ -202,23 +235,45 @@ else
 	return 1
 endif
 
+//se quantidade diferente do disponivel...
+if ( <LOCAL.amount> != <OBJ.amount> )
+
+	//duplica item, arruma a quantidade com o resto e coloca na bag
+	SERV.NEWDUPE <OBJ>
+	NEW.amount = <eval <OBJ.amount> - <LOCAL.amount>>
+
+	//acerta quantidade que sera comprada
+	OBJ.amount = <LOCAL.amount>
+
+	//atualiza lista de vendas
+	DB.EXECUTE "UPDATE vendorItems SET idItem=<eval <NEW>>, quantity=<eval <NEW.amount>> WHERE id=<eval <LOCAL.id>>"
+
+else
+
+	//remove item da lista de vendas (e duplicatas caso haja... nunca se sabe)
+	DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>> OR idItem=<eval <OBJ>>"
+
+	//remove bag de 'protecao'
+	OBJ=<OBJ.cont>
+	OBJ.remove
+	
+	OBJ=<argv[0]>
+endif
+
 //entrega item ao player comprador
-OBJ.cont=<SRC.findlayer.layer_pack.uid>
+OBJ.bounce
 
 //transfere o dinheiro para o banco do player vendedor
 SERV.newitem i_gold
 NEW.amount <LOCAL.totalPrice>
 NEW.cont=<uid.<LOCAL.idPlayer>.findlayer.layer_bankbox.uid>
 
-message Obrigado pela compra e volte sempre!
+SAY Obrigado pela compra e volte sempre!
 
-f_sendMessage <LOCAL.idPlayer>,Voce vendeu <eval <argv[2]>> <OBJ.name> por <eval <LOCAL.totalPrice>>. O dinheiro esta no banco.,SM_GREEN
-
-//remove item da lista de vendas (e duplicatas caso haja... nunca se sabe)
-DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>> OR idItem=<eval <OBJ>>"
+f_sendMessage <LOCAL.idPlayer>,Voce vendeu <eval <LOCAL.amount>> <OBJ.name> por <eval <LOCAL.totalPrice>>. O dinheiro esta no banco.,SM_GREEN
 
 //insere na lista de trocas
-DB.EXECUTE "INSERT INTO tradeItems SET postDate='<LOCAL.timestamp>',sellDate=NOW(),idVendor=<eval <LOCAL.idVendor>>,idPlayerVendor=<eval <LOCAL.idPlayer>>,idPlayerBuyer=<eval <SRC.uid>>,playerVendorName='<LOCAL.playerName>',playerBuyerName='<SRC.TAG.name>',idItem=<eval <OBJ>>,quantity=<eval <argv[2]>>,price=<eval <argv[1]>>,itemType='<LOCAL.itemType>'"
+DB.EXECUTE "INSERT INTO tradeItems SET postDate='<LOCAL.timestamp>',sellDate=NOW(),idVendor=<eval <LOCAL.idVendor>>,idPlayerVendor=<eval <LOCAL.idPlayer>>,idPlayerBuyer=<eval <SRC.uid>>,playerVendorName='<LOCAL.playerName>',playerBuyerName='<SRC.TAG.name>',idItem=<eval <OBJ>>,quantity=<eval <LOCAL.amount>>,price=<eval <argv[1]>>,itemType='<LOCAL.itemType>', itemName='<OBJ.name>'"
 
 return 1
 
@@ -254,27 +309,33 @@ return 1
 //argo = target
 //argv[0] = itemType
 [FUNCTION vendor_placeNpc]
-SRC.NEWNPC=<argv[1]>
-SRC.NEW.FLAGS 04
-SRC.NEW.P=<TARGP>
-SRC.NEW.FIX
-SRC.NEW.TAG.vendor_type=<argv[0]>
+SERV.NEWNPC=<argv[1]>
+NEW.FLAGS 04
+NEW.P=<TARGP>
+NEW.FIX
+NEW.TAG.vendor_type=<argv[0]>
 
 if ( <argv[0]>==vendor_type_weapons )
-	SRC.NEW.TITLE = Vendedor de Armas
+	NEW.TITLE = Vendedor de Armas
 elif ( <argv[0]>==vendor_type_armor )
-	SRC.NEW.TITLE = Vendedor de Armaduras
+	NEW.TITLE = Vendedor de Armaduras
 elif ( <argv[0]>==vendor_type_magic )
-	SRC.NEW.TITLE = Vendedor de Pocoes e Reags
+	NEW.TITLE = Vendedor de Pocoes e Reags
 elif ( <argv[0]>==vendor_type_food )
-	SRC.NEW.TITLE = Vendedor de Alimentos
+	NEW.TITLE = Vendedor de Alimentos
 elif ( <argv[0]>==vendor_type_misc )
-	SRC.NEW.TITLE = Vendedor
+	NEW.TITLE = Vendedor
 elif ( <argv[0]>==vendor_type_clothes )
-	SRC.NEW.TITLE = Vendedor de Roupas e Joias
+	NEW.TITLE = Vendedor de Roupas e Joias
 elif ( <argv[0]>==vendor_type_raw )
-	SRC.NEW.TITLE = Vendedor de Materia Prima
+	NEW.TITLE = Vendedor de Materia Prima
 endif
+
+//forca criacao de uma bankbox no NPC para armazenar os itens de venda
+OBJ=<NEW>
+OBJ.NEWITEM i_bankbox
+NEW.cont=<OBJ>
+
 return 1
 
 //*****************************************************************************
@@ -283,7 +344,7 @@ return 1
 //remove dados do vendedor do banco
 [FUNCTION vendor_removeVendor]
 if ( <DB.connected> )
-	DB.EXECUTE "DELETE FROM tradeItems WHERE idVendor=<eval <argv[0]>>"
+	DB.EXECUTE "DELETE FROM vendorItems WHERE idVendor=<eval <argv[0]>>"
 endif
 return 1
 
@@ -402,8 +463,8 @@ dorigin 20 80
 dtext *0 *0 0  
 dtext +25 - 014D Quant.
 dtext +70 - 014D Nome
-dtext +220 - 014D Preco
-dtext +270 - 014D Vendedor
+dtext +220 - 014D Preco Unit.
+dtext +290 - 014D Vendedor
 dtext +400 - 014D Qualidade
 
 //botao sort by
@@ -428,7 +489,7 @@ for x  <LOCAL.startItem> <LOCAL.endItem>
 	dtext +25 -3 0 <OBJ.amount>
 	dtext +70 -3 0 <OBJ.name>
 	dtext +220 -3 0 <eval <LOCAL.price>>
-	dtext +270 -3 0 <LOCAL.vendor>
+	dtext +290 -3 0 <LOCAL.vendor>
 	dtext +400 -3 0 <eval <f_getItemQuality <OBJ>>>
 endfor
 
@@ -491,7 +552,7 @@ tilepic 20 90 <OBJ.id> <OBJ.color>
 
 dorigin 20 60
 dtext *60 - 0 Item: <OBJ.name>
-dtext - *20 0 Preco de venda:
+dtext - *20 0 Preco de venda (1):
 if ( <SRC.CTAG0.vendor_op>==1 )
 	resizepic +120 - 3000 130 20
 	dtextentry +122 - 130 25 0 1 1
@@ -502,7 +563,7 @@ endif
 
 dtext - *20 0 Quantidade:
 resizepic +120 - 3000 60 20
-dtextentry +122 - 60 25 0 2 1
+dtextentry +122 - 60 25 0 2 <OBJ.amount>
 dtext +180 - 0 max: <OBJ.amount>
 
 dtext - *20 0 Vendedor:
@@ -564,7 +625,6 @@ endif
 // c_h_vendor_m
 //*****************************************************************************
 [CHARDEF c_h_vendor_m]
-ID c_man
 DEFNAME=C_H_VENDOR_M
 NAME=#NAMES_HUMANMALE
 ID=C_MAN
@@ -610,7 +670,7 @@ DESCRIPTION=Vendedor (Humano)
 
 ON=@DESTROY
 vendor_removeVendor <uid>
-reuturn 0
+return 0
 
 //on=@death
 //newloot=i_axe
@@ -623,7 +683,6 @@ reuturn 0
 // c_o_vendor_m
 //*****************************************************************************
 [CHARDEF c_o_vendor_m]
-ID c_man
 DEFNAME=c_o_vendor_m
 NAME=#NAMES_HUMANMALE
 ID=C_MAN
@@ -664,13 +723,13 @@ DESCRIPTION=Vendedor (Orc)
 
 ON=@DESTROY
 vendor_removeVendor <uid>
-reuturn 0
+return 0
 
 //*****************************************************************************
 // c_e_vendor_f
 //*****************************************************************************
 [CHARDEF c_e_vendor_f]
-ID c_woman
+ID=c_woman
 DEFNAME=c_e_vendor_f
 NAME=#NAMES_HUMANFEMALE
 DESIRES=i_gold,e_notoriety
@@ -710,13 +769,13 @@ DESCRIPTION=Vendedor (Elfa)
 
 ON=@DESTROY
 vendor_removeVendor <uid>
-reuturn 0
+return 0
 
 //*****************************************************************************
 // c_d_vendor_m
 //*****************************************************************************
 [CHARDEF c_d_vendor_m]
-ID c_man
+ID=c_man
 DEFNAME=c_d_vendor_m
 NAME=#NAMES_HUMANMALE
 DESIRES=i_gold,e_notoriety
@@ -760,7 +819,7 @@ DESCRIPTION=Vendedor (Anao)
 
 ON=@DESTROY
 vendor_removeVendor <uid>
-reuturn 0
+return 0
 
 //*****************************************************************************
 // jobVENDOR
@@ -794,6 +853,20 @@ ON=*quero*comprar*
 		dialog d_vendor_items
 	endif
 	
-return 1
+ON=limpeza
+	if ( <SRC.isGM> )
+
+		//remove bankbox.and create a new one
+		OBJ=<findlayer.layer_bankbox.uid>
+		OBJ.remove
+
+		NEWITEM i_bankbox
+		NEW.cont=<uid>
+		
+		//clear database
+		vendor_removeVendor <uid>
+		
+		SRC.sysmessage <name> resetado!!
+	endif
 
 [EOF]
