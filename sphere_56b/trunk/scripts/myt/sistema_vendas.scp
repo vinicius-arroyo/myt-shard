@@ -21,10 +21,13 @@
 //*****************************************************************************
 //TODO:
 //-Fazer escape de strings corretamente nas queries
+//-Limitar as strings que vao nos dialogs
 //-Definir 'qualidade' para todos os tipos de items
+//-Definir taxas de utilizacao do vendedor
+//-Ajuste de dialogs em outros clients
 
 //TAGS usadas:
-//src.ctag.vendor_op		//1 para colocar o item a venda, 2 para comprar
+//src.ctag.vendor_op		//1 para colocar o item a venda, 2 para comprar,3 para pegar de volta
 //src.ctag.vendor_numPages	//numero de paginas do dialog do vendedor
 //src.ctag.vendor_page		//pagina atual
 //src.ctag.vendor_numItems	//numero total de itens disponiveis para compra/venda
@@ -60,6 +63,34 @@ vendor_type_raw=7
 // FUNCOES
 //*****************************************************************************
 //*****************************************************************************
+
+//*****************************************************************************
+// vendor_createTakebackList
+//*****************************************************************************
+//verifica os itens do vendor no banco e cria a lista de itens do player
+//
+//SRC é o player
+//DEFAULT é o vendedor
+[FUNCTION vendor_createTakebackList]
+SRC.CTAG.vendor_page=1
+SRC.CTAG.vendor_numItems=0
+SRC.CTAG.vendor_op=3	//devolucao
+
+//varre o banco
+if ( <DB.connected> )
+	DB.QUERY "SELECT * FROM vendorItems WHERE idPlayer=<eval <SRC>>"
+    if (<DB.ROW.NUMROWS> > 0)
+        for R 0 <eval <DB.ROW.NUMROWS>-1>
+		SRC.CTAG.vendor_numItems += 1
+		TRYP 0 SRC.CTAG.vendor_items<eval  (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idItem>
+		TRYP 0 SRC.CTAG.vendor_owners<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+		TRYP 0 SRC.CTAG.vendor_prices<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.price>
+        end
+    endif
+endif
+
+SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPerPage) + 1)> 
+return 1
 
 //*****************************************************************************
 // vendor_createPlayerList
@@ -278,6 +309,45 @@ DB.EXECUTE "INSERT INTO tradeItems SET postDate='<LOCAL.timestamp>',sellDate=NOW
 return 1
 
 //*****************************************************************************
+// vendor_takebackItem( item )
+//*****************************************************************************
+//SRC deve ser o player comprador
+//DEFAULT deve ser o NPC vendor
+
+[FUNCTION vendor_takebackItem]
+OBJ=<argv[0]>
+
+if !(<DB.connected>)
+	SRC.sysmessage Erro. O item nao foi retornado.
+	return 1
+endif
+
+//pega detalhes do item
+DB.QUERY "SELECT id, timestamp, idVendor, idPlayer, playerName, itemType FROM vendorItems WHERE idItem=<eval <OBJ>>"
+LOCAL.id	= <DB.ROW.id>
+LOCAL.timestamp	= <DB.ROW.timestamp>
+LOCAL.idVendor	= <DB.ROW.idVendor>
+LOCAL.idPlayer	= <DB.ROW.idPlayer>
+LOCAL.itemType 	= <DB.ROW.itemType>
+LOCAL.playerName = <DB.ROW.playerName>
+
+//remove item da lista de vendas (e duplicatas caso haja... nunca se sabe)
+DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>> OR idItem=<eval <OBJ>>"
+
+//remove bag de 'protecao'
+OBJ=<OBJ.cont>
+OBJ.remove
+
+OBJ=<argv[0]>
+
+//entrega item ao player 
+OBJ.bounce
+
+SAY Aqui esta, volte sempre.
+
+return 1
+
+//*****************************************************************************
 // f_getItemQuality( item )
 //*****************************************************************************
 //retorna um inteiro com a qualidade do item
@@ -456,9 +526,12 @@ resizepic 0 0 3500 500 <LOCAL.pageLen>
 
 if (<SRC.CTAG0.vendor_op>==1)
 	dtext 20 30 0 Selecione o item que deseja vender
-else
+elif (<SRC.CTAG0.vendor_op>==2)
 	dtext 20 30 0 Selecione o item que deseja comprar
+else
+	dtext 20 30 0 Selecione o item que deseja de volta
 endif
+
 dorigin 20 80
 dtext *0 *0 0  
 dtext +25 - 014D Quant.
@@ -527,7 +600,12 @@ on=1001,65535 //itens buttons
 SRC.CTAG.vendor_selectedItem=<SRC.CTAG0.vendor_items<eval <argn> - 1000>>
 SRC.CTAG.vendor_selectedPrice=<SRC.CTAG0.vendor_prices<eval <argn> - 1000>>
 SRC.CTAG.vendor_selectedOwner=<SRC.CTAG0.vendor_owners<eval <argn> - 1000>>
-dialog d_vendor_item_detail
+
+if (<SRC.CTAG0.vendor_op>==3)
+	vendor_takebackItem <SRC.CTAG.vendor_selectedItem>
+else
+	dialog d_vendor_item_detail
+endif
 
 
 
@@ -853,6 +931,24 @@ ON=*quero*comprar*
 		dialog d_vendor_items
 	endif
 	
+return 1
+
+ON=*gostaria*pegar*
+ON=*devolver*
+ON=*retirar*
+	dialogclose d_vendor_items
+	dialogclose d_vendor_item_detail
+
+	vendor_createTakebackList
+	if ( <SRC.CTAG0.vendor_numItems> < 1 )
+		message Nao tenho nada seu para devolver
+	else
+		message	O que deseja retirar?
+		dialog d_vendor_items
+	endif
+
+return 1
+
 ON=limpeza
 	if ( <SRC.isGM> )
 
@@ -868,5 +964,7 @@ ON=limpeza
 		
 		SRC.sysmessage <name> resetado!!
 	endif
+
+return 1
 
 [EOF]
