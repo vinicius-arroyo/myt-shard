@@ -23,7 +23,6 @@
 //-Fazer escape de strings corretamente nas queries
 //-Limitar as strings que vao nos dialogs
 //-Definir 'qualidade' para todos os tipos de items
-//-Definir taxas de utilizacao do vendedor
 //-Ajuste de dialogs em outros clients
 
 //TAGS usadas:
@@ -47,6 +46,9 @@
 //*****************************************************************************
 
 [DEFNAME vendor_constants]
+vendor_fee=5				//% de taxa do total que sera retirado pelo NPC na compra.
+vendor_minFeePrice=5		//valor minimo da compra que faz com que o NPC cobre taxa
+
 vendor_itemsPerPage=15		//items mostrados na tela do vendedor por pag.
 
 vendor_type_weapons=1		//lista dos tipos de vendedores
@@ -294,14 +296,24 @@ endif
 //entrega item ao player comprador
 OBJ.bounce
 
+if ( <LOCAL.totalPrice> >= vendor_minFeePrice )
+	LOCAL.fee=<eval (<LOCAL.totalPrice>*vendor_fee)/100>
+	if ( <LOCAL.fee>==0 )
+		LOCAL.fee=1
+	endif
+	LOCAL.paycheck=<eval <LOCAL.totalPrice>-<LOCAL.fee>>
+else
+	LOCAL.paycheck=<LOCAL.totalPrice>
+endif
+
 //transfere o dinheiro para o banco do player vendedor
 SERV.newitem i_gold
-NEW.amount <LOCAL.totalPrice>
+NEW.amount=<LOCAL.paycheck>
 NEW.cont=<uid.<LOCAL.idPlayer>.findlayer.layer_bankbox.uid>
 
 SAY Obrigado pela compra e volte sempre!
 
-f_sendMessage <LOCAL.idPlayer>,Voce vendeu <eval <LOCAL.amount>> <OBJ.name> por <eval <LOCAL.totalPrice>>. O dinheiro esta no banco.,SM_GREEN
+f_sendMessage <LOCAL.idPlayer>,Voce vendeu <eval <LOCAL.amount>> <OBJ.name> por <eval <LOCAL.totalPrice>>. <eval <LOCAL.paycheck>> esta no banco.,SM_GREEN
 
 //insere na lista de trocas
 DB.EXECUTE "INSERT INTO tradeItems SET postDate='<LOCAL.timestamp>',sellDate=NOW(),idVendor=<eval <LOCAL.idVendor>>,idPlayerVendor=<eval <LOCAL.idPlayer>>,idPlayerBuyer=<eval <SRC.uid>>,playerVendorName='<LOCAL.playerName>',playerBuyerName='<SRC.TAG.name>',idItem=<eval <OBJ>>,quantity=<eval <LOCAL.amount>>,price=<eval <argv[1]>>,itemType='<LOCAL.itemType>', itemName='<OBJ.name>'"
@@ -574,6 +586,7 @@ if (<SRC.CTAG0.vendor_page> < <SRC.CTAG0.vendor_numPages>)
 	// Forward button
 	button 450 <eval <LOCAL.pageLen>-30> 4005 4006 1 0 2
 endif
+dtext 50 <eval <LOCAL.pageLen>-30> 0 Taxa: <eval vendor_fee>%
 dtext 210 <eval <LOCAL.pageLen>-30> 0c1 Pag <eval <SRC.CTAG0.vendor_page>> / <eval <SRC.CTAG0.vendor_numPages>>
 
 
