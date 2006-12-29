@@ -360,15 +360,40 @@ SAY Aqui esta, volte sempre.
 return 1
 
 //*****************************************************************************
-// f_getItemQuality( item )
+// f_getItemQuality( item, type )
 //*****************************************************************************
 //retorna um inteiro com a qualidade do item
 [FUNCTION f_getItemQuality]
-if ( <f_isWeapon <argn>> )
-	LOCAL.quality=<eval <uid.<argn>.hitpoints> + <uid.<argn>.dam> >
-else //if ( <f_isArmor <argn>> )
-	LOCAL.quality=<eval <uid.<argn>.hitpoints> + <uid.<argn>.armor> >
+
+LOCAL.obj=<OBJ>
+OBJ=<argv[0]>
+
+if ( <argv[1]>==vendor_type_weapons )
+	LOCAL.quality=<eval <OBJ.hitpoints> + <OBJ.dam> >
+elif ( <argv[1]>==vendor_type_armor )
+	LOCAL.quality=<eval <OBJ.hitpoints> + <OBJ.armor> >
+elif ( <argv[1]>==vendor_type_magic )
+	if ( <OBJ.type>==t_potion )
+		LOCAL.quality=<OBJ.more2>
+	elif ( <OBJ.type>==t_wand )
+		LOCAL.quality=<eval <OBJ.hitpoints> + <OBJ.MORE2> > //hits+charges
+	else
+		LOCAL.quality=0
+	endif
+elif ( <argv[1]>==vendor_type_food )
+	LOCAL.quality=<OBJ.MORE2> //colocar nos itens t_food a quantidade no MORE2
+elif ( <argv[1]>==vendor_type_misc )
+//	LOCAL.quality=<OBJ.MORE2> //colocar nos itens crafted o skill do fabricante no MORE2
+	LOCAL.quality=0
+elif ( <argv[1]>==vendor_type_clothes )
+//	LOCAL.quality=<OBJ.MORE2> //colocar nos itens tailored o skill do fabricante no MORE2
+	LOCAL.quality=0
+elif ( <argv[1]>==vendor_type_raw )
+	LOCAL.quality=0
 endif
+
+OBJ=<LOCAL.obj>
+
 return <LOCAL.quality>
 
 //*****************************************************************************
@@ -575,7 +600,7 @@ for x  <LOCAL.startItem> <LOCAL.endItem>
 	dtext +70 -3 0 <OBJ.name>
 	dtext +220 -3 0 <eval <LOCAL.price>>
 	dtext +290 -3 0 <LOCAL.vendor>
-	dtext +400 -3 0 <eval <f_getItemQuality <OBJ>>>
+	dtext +400 -3 0 <eval <f_getItemQuality <OBJ>,<TAG0.vendor_type>>>
 endfor
 
 if (<SRC.CTAG0.vendor_page> > 1)
