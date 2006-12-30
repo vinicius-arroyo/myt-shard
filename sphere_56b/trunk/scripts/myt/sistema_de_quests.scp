@@ -1,0 +1,139 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE QUESTS por UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
+
+
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+
+[DEFNAME quests_constants]
+
+//quest types
+quest_type_kill_mob=1
+quest_type_get_mob_item=2
+quest_type_get_item=3
+quest_type_craft_item=4
+quest_type_find_item=5
+quest_type_escort=6
+quest_type_delivery=7
+quest_type_text=8
+
+//*****************************************************************************
+//*****************************************************************************
+// EVENTs
+//*****************************************************************************
+//*****************************************************************************
+
+[EVENTS e_quest]
+
+//ON=@itemDclick
+ON=@KILL
+
+//remove evento se nao tiver quest ativa
+//if ( !<SRC.findid.i_quest_system> )
+//	EVENTS -e_quest
+//	SRC.SYSMESSAGE EVENTO REMOVIDO
+//	return 0
+//endif	
+
+forcont <SRC> 0
+	if ( <baseid>==i_quest_system )
+//		SRC.SYSMESSAGE LOOP <morex> <SRC.ACT.baseid> <more1>
+		if ( <morex> == quest_type_kill_mob ) 
+			if ( <SRC.ACT.baseid>==<more1> )
+				f_updateKillMobQuest <uid>
+			endif
+		elif ( <morex> == quest_type_get_mob_item )
+			if ( <SRC.ACT.baseid>==<more1> )
+				f_updateGetMobItemQuest <uid>
+			endif
+		endif
+	endif
+endfor
+return 0
+
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFSs
+//*****************************************************************************
+//*****************************************************************************
+
+[ITEMDEF i_quest_system]
+ID=i_deed
+NAME=Quest
+TYPE=t_eq_script
+LAYER=layer_special
+WEIGHT=0
+
+//MORE1 - Quest Parameter 1
+//MORE2 - Quest Parameter 2
+//MOREX	- Quest Type
+//MOREY - Quest ID
+//MOREZ - Quest Step
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// f_updateKillMobQuest ( questMemory )
+//*****************************************************************************
+[FUNCTION f_updateKillMobQuest]
+OBJ=<argv[0]>
+
+//verifica se o step nao foi completado
+if ( <OBJ.amount> > 0 )
+	OBJ.amount=<OBJ.amount>-1
+	if ( <OBJ.amount> == 0 )	//acabou de completar o step
+		SRC.sysmessage Voce finalizou um objetivo da quest.
+	else						//ainda nao completou
+		SRC.sysmessage Voce matou um(a) <SRC.ACT.name>. Falta(m) <OBJ.amount>!!
+	endif
+endif
+return 1
+
+//*****************************************************************************
+// f_updateGetMobItemQuest ( questMemory )
+//*****************************************************************************
+[FUNCTION f_updateGetMobItemQuest]
+OBJ=<argv[0]>
+
+//verifica se o step nao foi completado
+if ( <OBJ.amount> > 0 )
+	OBJ.amount=<OBJ.amount>-1
+
+	SRC.NEWITEM <more2>
+	NEW.cont=<SRC.findlayer.layer_pack.uid>
+
+	if ( <OBJ.amount> == 0 )	//acabou de completar o step
+		SRC.sysmessage Voce finalizou um objetivo da quest.
+	else						//ainda nao completou
+		SRC.sysmessage Voce pegou um <NEW.name>. Falta(m) <OBJ.amount>!!
+	endif
+endif
+return 1
+
+
+[FUNCTION eq]
+SERV.NEWITEM i_quest_system
+NEW.equip
+return 1
+
+[FUNCTION tst]
+SYSMESSAGE <eval c_skeleton>
+return 1
+
+[EOF]
