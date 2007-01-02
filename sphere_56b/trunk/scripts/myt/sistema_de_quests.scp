@@ -7,8 +7,30 @@
 //*****************************************************************************
 //TODO:
 
-//TAGS usadas:
+//Tipos de eventos e parametros:
+//*****************************************************************************
+//* TIPO ********** PARAM1 ******************* PARAM 2 ************************
+//*****************************************************************************
+//* kill mob     * mob defname              * N/A                             *
+//* get mob item * mob defname              * item defname                    *
+//* get item     * NPC uid                  * item defname                    *
+//* craft item   * item defname             * N/A                             *
+//* find item    * item defname             * N/A                             *
+//* escort       * x,y,z,m                  * N/A                             *
+//* delivery     * NPC uid                  * item defname                    *
+//* text         * timeout (s)              *                                 *
+//* talk to      * NPC uid / N/A=NPC QUEST  * item defname (1)                *
+//* reward       * item defname             * N/A                             *
+//*****************************************************************************
+//(1) player must have this item so this step can be completed
 
+//TAGS usadas:
+//src.ctag.quest_numPages	//numero de paginas do dialog do vendedor
+//src.ctag.quest_page		//pagina atual
+//src.ctag.quest_numQuests	//numero total de itens disponiveis para compra/venda
+//src.ctag.quest_names		//array com itens disponiveis para compra/venda
+//src.ctag.quest_ids	//array com os donos dos itens a venda
+//src.ctag.quest_selectedQuest	//item selecionada para compra/venda
 
 //*****************************************************************************
 //*****************************************************************************
@@ -17,6 +39,7 @@
 //*****************************************************************************
 
 [DEFNAME quests_constants]
+quest_itemsPerPage=15
 
 //quest types
 quest_type_kill_mob=1
@@ -27,6 +50,8 @@ quest_type_find_item=5
 quest_type_escort=6
 quest_type_delivery=7
 quest_type_text=8
+quest_type_talkto=9
+quest_type_reward=10
 
 //*****************************************************************************
 //*****************************************************************************
@@ -51,15 +76,18 @@ forcont <SRC> 0
 //		SRC.SYSMESSAGE LOOP <morex> <SRC.ACT.baseid> <more1>
 		if ( <morex> == quest_type_kill_mob ) 
 			if ( <SRC.ACT.baseid>==<more1> )
-				f_updateKillMobQuest <uid>
+				quest_updateKillMobQuest <uid>
 			endif
 		elif ( <morex> == quest_type_get_mob_item )
 			if ( <SRC.ACT.baseid>==<more1> )
-				f_updateGetMobItemQuest <uid>
+				quest_updateGetMobItemQuest <uid>
 			endif
 		endif
 	endif
 endfor
+return 0
+
+ON=@ITEMDCLICK
 return 0
 
 
@@ -81,6 +109,11 @@ WEIGHT=0
 //MOREX	- Quest Type
 //MOREY - Quest ID
 //MOREZ - Quest Step
+//LINK - NPC quest
+
+ON=@timer 
+quest_nextStep <uid>
+return 1
 
 //*****************************************************************************
 //*****************************************************************************
@@ -89,9 +122,9 @@ WEIGHT=0
 //*****************************************************************************
 
 //*****************************************************************************
-// f_updateKillMobQuest ( questMemory )
+// quest_updateKillMobQuest ( questMemory )
 //*****************************************************************************
-[FUNCTION f_updateKillMobQuest]
+[FUNCTION quest_updateKillMobQuest]
 OBJ=<argv[0]>
 
 //verifica se o step nao foi completado
@@ -99,6 +132,8 @@ if ( <OBJ.amount> > 0 )
 	OBJ.amount=<OBJ.amount>-1
 	if ( <OBJ.amount> == 0 )	//acabou de completar o step
 		SRC.sysmessage Voce finalizou um objetivo da quest.
+		quest_nextStep <OBJ>
+		
 	else						//ainda nao completou
 		SRC.sysmessage Voce matou um(a) <SRC.ACT.name>. Falta(m) <OBJ.amount>!!
 	endif
@@ -106,9 +141,9 @@ endif
 return 1
 
 //*****************************************************************************
-// f_updateGetMobItemQuest ( questMemory )
+// quest_updateGetMobItemQuest ( questMemory )
 //*****************************************************************************
-[FUNCTION f_updateGetMobItemQuest]
+[FUNCTION quest_updateGetMobItemQuest]
 OBJ=<argv[0]>
 
 //verifica se o step nao foi completado
@@ -120,20 +155,495 @@ if ( <OBJ.amount> > 0 )
 
 	if ( <OBJ.amount> == 0 )	//acabou de completar o step
 		SRC.sysmessage Voce finalizou um objetivo da quest.
+		quest_nextStep <OBJ>
 	else						//ainda nao completou
 		SRC.sysmessage Voce pegou um <NEW.name>. Falta(m) <OBJ.amount>!!
 	endif
 endif
 return 1
 
+//*****************************************************************************
+// quest_updateTalktoQuest ( questMemory )
+//*****************************************************************************
+[FUNCTION quest_updateTalktoQuest]
 
-[FUNCTION eq]
-SERV.NEWITEM i_quest_system
-NEW.equip
+OBJ=<argv[0]>
+
+if ( <OBJ.cont.restest <OBJ.amount> <OBJ.more2>>)
+	OBJ.cont.consume <OBJ.amount> <OBJ.more2>
+	OBJ.cont.sysmessage Voce finalizou um objetivo da quest.
+	quest_nextStep <OBJ>
+else
+	TRYP 0 uid.<OBJ.more1>.message Voce nao tem o que preciso. Volte quando tiver.
+endif
 return 1
 
-[FUNCTION tst]
-SYSMESSAGE <eval c_skeleton>
+//*****************************************************************************
+// quest_createQuestList
+//*****************************************************************************
+//cria lista com as quests
+//
+//SRC é o player
+//DEFAULT é o NPC
+[FUNCTION quest_createQuestList]
+SRC.CTAG.quest_page=1
+SRC.CTAG.quest_numQuests=0
+
+//varre o banco
+if ( <DB.connected> )
+	DB.QUERY "SELECT idQuest, name FROM quests WHERE idNpc=<eval <uid>> AND idQuest NOT IN (SELECT idQuest FROM questState WHERE idPlayer=<eval <SRC>>)"
+    if (<DB.ROW.NUMROWS> > 0)
+        for R 0 <eval <DB.ROW.NUMROWS>-1>
+		SRC.CTAG.quest_numQuests += 1
+		TRYP 0 SRC.CTAG.quest_names<eval  (<SRC.CTAG.quest_numQuests>)>=<DB.ROW.<eval <LOCAL.R>>.name>
+		TRYP 0 SRC.CTAG.quest_ids<eval (<SRC.CTAG.quest_numQuests>)>=<DB.ROW.<eval <LOCAL.R>>.idQuest>
+        end
+    endif
+endif
+
+SRC.CTAG.quest_numPages=<eval (((<SRC.CTAG.quest_numQuests>-1) / quest_itemsPerPage) + 1)> 
 return 1
+
+
+//*****************************************************************************
+// quest_startSelectedQuest
+//*****************************************************************************
+//inicia a quest selecionada em SRC.CTAG.quest_selectedQuest
+//
+//SRC é o player
+//DEFAULT é o NPC
+[FUNCTION quest_startSelectedQuest]
+
+if ( <DB.connected> )
+	DB.EXECUTE "INSERT INTO questState SET idQuest=<eval <SRC.CTAG.quest_selectedQuest>>, idPlayer=<eval <SRC>>, dateStarted=NOW(), idStep=0"
+
+	SERV.NEWITEM i_quest_system
+	NEW.cont = <SRC> //player
+	NEW.link = <uid> //npc
+	NEW.morey = <SRC.CTAG.quest_selectedQuest>	
+	
+	quest_nextStep <NEW>
+endif
+return 1
+
+
+//*****************************************************************************
+// quest_nextStep( idMryQuest )
+//*****************************************************************************
+//executa o proximo passo da quest selecionada
+//
+//SRC é o player
+//DEFAULT é o NPC?
+[FUNCTION quest_nextStep]
+
+if !( <DB.connected> ) || !<argv[0]>
+	return 1
+endif
+
+OBJ=<ARGV[0]>
+LOCAL.nextStep=<OBJ.morez>+1
+OBJ.cont.sysmessage INDO STEP <LOCAL.nextStep>
+
+DB.QUERY "SELECT idQuest, idStep, type+0 AS type, quantity, param1, param2, description FROM questSteps WHERE idQuest=<eval <OBJ.morey>> AND idStep=<eval <LOCAL.nextStep>> LIMIT  1"
+if ( <DB.ROW.NUMROWS> <= 0 )
+	DB.EXECUTE "UPDATE questState SET dateCompleted=NOW() WHERE idQuest=<eval <OBJ.morey>> AND idPlayer=<eval <OBJ.cont>>"
+	OBJ.cont.sysmessage Missao Cumprida.
+	OBJ.remove
+	return 1
+endif
+
+if ( <DB.ROW.quantity> > 0 )
+	OBJ.amount = <DB.ROW.quantity>
+else
+	OBJ.amount = 1
+endif
+OBJ.more1 = <DB.ROW.param1>
+OBJ.more2 = <DB.ROW.param2>
+OBJ.morex = <DB.ROW.type>
+OBJ.morez = <DB.ROW.idStep>
+OBJ.timer = -1
+
+OBJ.cont.EVENTS +e_quest
+
+if ( <OBJ.morex> == quest_type_text )
+	OBJ.link.message <DB.ROW.description>
+	if ( <OBJ.more1> > 0 )
+		OBJ.timer = <OBJ.more1>
+	else
+		OBJ.timer = 1
+	endif
+elif ( <DB.ROW.type> == quest_type_talkto )
+	//set default NPC to the MAIN QUEST NPC
+	if ( !<OBJ.more1> )
+		OBJ.more1=<OBJ.link>
+	endif
+	
+	OBJ.cont.sysmessage Fale com <uid.<OBJ.more1>.name>
+elif ( <DB.ROW.type> == quest_type_reward )
+	SERV.NEWITEM <OBJ.more1>
+	NEW.amount=<OBJ.amount>
+	NEW.cont=<OBJ.cont.findlayer.layer_pack.uid>
+
+	OBJ.link.message <DB.ROW.description>
+	OBJ.timer = 1
+
+//else	//unsupported
+//	return 1
+endif   
+
+DB.EXECUTE "UPDATE questState SET idStep=<eval <OBJ.morez>> WHERE idQuest=<eval <OBJ.morey>> AND idPlayer=<eval <OBJ.cont>>"
+
+//elif ( <DB.ROW.type> == quest_type_kill_mob )
+//elif ( <DB.ROW.type> == quest_type_get_mob_item )
+//elif ( <DB.ROW.type> == quest_type_get_item )
+//elif ( <DB.ROW.type> == quest_type_craft_item )
+//elif ( <DB.ROW.type> == quest_type_find_item )
+//elif ( <DB.ROW.type> == quest_type_escort )
+//elif ( <DB.ROW.type> == quest_type_delivery )
+
+
+[FUNCTION cu]
+forcont <SRC> 0
+	if ( <baseid>==i_quest_system )
+		remove
+	endif
+endfor
+
+[FUNCTION ae]
+add c_skeleton
+
+
+
+//*****************************************************************************
+//*****************************************************************************
+// DIALOGOS E MENUS
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// d_quest_list
+//*****************************************************************************
+
+[DIALOG d_quest_list]
+100, 100
+PAGE 0
+
+LOCAL.startQuest=<eval ((<SRC.CTAG0.quest_page> - 1) * quest_itemsPerPage ) + 1>
+LOCAL.endQuest=<eval (<SRC.CTAG0.quest_page> * quest_itemsPerPage)>
+
+if ( <LOCAL.endQuest> > <SRC.CTAG0.quest_numQuests> )
+	LOCAL.endQuest = <SRC.CTAG0.quest_numQuests>
+endif 
+
+LOCAL.pageLen=<eval 165+(<LOCAL.endQuest>-<LOCAL.startQuest>)*20>
+
+resizepic 0 0 3500 500 <LOCAL.pageLen>
+
+dtext 20 30 0 Selecione a missao que deseja fazer:
+
+dorigin 20 60
+dtext *0 *0 0  
+dtext +25 - 014D Missao
+
+for x  <LOCAL.startQuest> <LOCAL.endQuest> 
+
+	//cria entrada no dialog
+	button - *20 5224 5003 1 0 <eval (1000 + <SRC.CTAG0.quest_ids<eval <LOCAL.x>>>)>
+	dtext +25 -3 0 <SRC.CTAG0.quest_names<eval <LOCAL.x>>>
+
+endfor
+
+if (<SRC.CTAG0.quest_page> > 1)
+	// Back button
+	button 20 <eval <LOCAL.pageLen>-30> 4014 4015 1 0 1
+endif
+if (<SRC.CTAG0.quest_page> < <SRC.CTAG0.quest_numPages>)
+	// Forward button
+	button 450 <eval <LOCAL.pageLen>-30> 4005 4006 1 0 2
+endif
+dtext 210 <eval <LOCAL.pageLen>-30> 0c1 Pag <eval <SRC.CTAG0.quest_page>> / <eval <SRC.CTAG0.quest_numPages>>
+
+
+
+[DIALOG d_quest_list BUTTON]
+on=0
+return 1
+
+on=1 // Back button
+SRC.CTAG0.quest_page -= 1
+if (<SRC.CTAG.quest_page> < 1)
+	SRC.CTAG.quest_page=1
+endif
+dialog d_quest_list
+
+on=2 // Forward button
+src.CTAG0.quest_page += 1
+if (<SRC.CTAG.quest_page> > <SRC.CTAG0.quest_numPages>)
+	SRC.CTAG.quest_page=<SRC.CTAG0.quest_numPages>
+endif
+dialog d_quest_list
+
+on=1001,65535 //itens buttons
+SRC.CTAG.quest_selectedQuest=<argn> - 1000
+
+dialog d_quest_info
+
+
+//*****************************************************************************
+// d_quest_info
+//*****************************************************************************
+[DIALOG d_quest_info]
+100, 100
+PAGE 0
+
+if !( <DB.connected> )
+	return 1
+endif
+
+DB.QUERY "SELECT name, description FROM quests WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>>"
+if (<DB.ROW.NUMROWS> <= 0)
+	return 1
+endif
+
+
+resizepic 0 0 3500 350 220
+dtext 20 30 0 Missao: <DB.ROW.name>
+
+dorigin 20 60
+dhtmlgump *0 *0 300 110 0 1 <DB.ROW.description>
+button 20 185 12015 12016 1 0 1		// Back button
+button 250 185 12002 12001 1 0 2	// Ok button
+
+[DIALOG d_quest_info BUTTON]
+on=0
+return 1
+
+on=1 // Back button
+dialog d_quest_list
+return 1
+
+on=2 // Ok button
+quest_startSelectedQuest
+return 1
+
+
+//*****************************************************************************
+//*****************************************************************************
+// NPCs E SPEECHes
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// c_h_quest_m
+//*****************************************************************************
+[CHARDEF c_h_quest_m]
+DEFNAME=C_H_QUEST_M
+NAME=#NAMES_HUMANMALE
+ID=C_MAN
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+
+TSPEECH=jobQUEST_SYSTEM
+
+ON=@Create
+COLOR=03eb
+STR={71 85}
+DEX={66 80}
+INT={66 80}
+
+tag.raca Humano
+
+SWORDSMANSHIP={15.0 38.0}
+ITEMID={50.0 70.0}
+TACTICS={15.0 38.0}
+
+NPC=BRAIN_BANKER
+NEED=i_gold
+
+ITEMNEWBIE=i_hair_ponytail
+COLOR=0456
+ITEMNEWBIE=i_beard_vandyke
+COLOR=match_hair
+
+
+ON=@NPCRestock
+ITEM=RANDOM_LIGHT
+ITEM=i_shirt_fancy
+COLOR=colors_green
+ITEM=i_pants_long
+COLOR=colors_yellow
+ITEM=random_shoes
+COLOR=colors_neutral
+ITEM=random_coin_purse
+
+CATEGORY=MyT
+SUBSECTION=Quests
+DESCRIPTION=Quest (Humano)
+
+//*****************************************************************************
+// c_o_quest_m
+//*****************************************************************************
+[CHARDEF c_o_quest_m]
+DEFNAME=c_o_quest_m
+NAME=#NAMES_HUMANMALE
+ID=C_MAN
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+
+
+TSPEECH=jobQUEST_SYSTEM
+
+ON=@Create
+COLOR=0597
+STR={71 85}
+DEX={66 80}
+INT={66 80}
+
+tag.raca Orc
+
+SWORDSMANSHIP={15.0 38.0}
+ITEMID={50.0 70.0}
+TACTICS={15.0 38.0}
+
+NPC=BRAIN_BANKER
+NEED=i_gold
+
+ITEMNEWBIE=i_head_orc
+
+ON=@NPCRestock
+ITEM=RANDOM_LIGHT
+ITEM=i_shirt_fancy
+COLOR=colors_green
+ITEM=i_pants_long
+COLOR=colors_yellow
+ITEM=random_coin_purse
+
+CATEGORY=MyT
+SUBSECTION=Quests
+DESCRIPTION=Quest (Orc)
+
+
+//*****************************************************************************
+// c_e_vendor_f
+//*****************************************************************************
+[CHARDEF c_e_quest_f]
+ID=c_woman
+DEFNAME=c_e_quest_f
+NAME=#NAMES_HUMANFEMALE
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+
+
+TSPEECH=jobQUEST_SYSTEM
+
+ON=@Create
+COLOR=0412
+STR={71 85}
+DEX={66 80}
+INT={66 80}
+
+tag.raca Elfo
+
+SWORDSMANSHIP={15.0 38.0}
+ITEMID={50.0 70.0}
+TACTICS={15.0 38.0}
+
+NPC=BRAIN_BANKER
+NEED=i_gold
+
+
+ON=@NPCRestock
+ITEM=i_hair_long
+COLOR=035
+ITEM=i_shirt_fancy
+COLOR=colors_green
+ITEM=i_skirt_long
+COLOR=colors_yellow
+ITEM=random_coin_purse
+
+CATEGORY=MyT
+SUBSECTION=Quests
+DESCRIPTION=Quest (Elfa)
+
+//*****************************************************************************
+// c_d_quest_m
+//*****************************************************************************
+[CHARDEF c_d_quest_m]
+ID=c_man
+DEFNAME=c_d_quest_m
+NAME=#NAMES_HUMANMALE
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+
+
+TSPEECH=jobQUEST_SYSTEM
+
+ON=@Create
+COLOR=0412
+STR={71 85}
+DEX={66 80}
+INT={66 80}
+
+tag.raca Anao
+
+SWORDSMANSHIP={15.0 38.0}
+ITEMID={50.0 70.0}
+TACTICS={15.0 38.0}
+
+NPC=BRAIN_BANKER
+NEED=i_gold
+
+
+ON=@NPCRestock
+ITEM=i_hair_long
+COLOR=0
+ITEM=i_beard_long
+COLOR=0
+ITEM=i_shirt_fancy
+COLOR=colors_green
+ITEM=i_pants_long
+COLOR=colors_yellow
+ITEM=random_coin_purse
+ITEM=random_shoes
+COLOR=colors_neutral
+
+CATEGORY=MyT
+SUBSECTION=Quests
+DESCRIPTION=Quest (Anao)
+
+//*****************************************************************************
+// jobQUEST_SYSTEM
+//*****************************************************************************
+[SPEECH jobQUEST_SYSTEM]
+ON=*oi*
+ON=*ola*
+ON=*bom dia*
+ON=*boa tarde*
+ON=*boa noite*
+
+	dialogclose d_quest_list
+	dialogclose d_quest_info
+
+	quest_createQuestList
+	if ( <SRC.CTAG0.quest_numQuests> < 1 )
+		message Nao tenho nenhuma missao para voce no momento.
+	else
+		message	O que deseja fazer?
+	
+		dialog d_quest_list
+	endif
+return 1
+ON=*
+LOCAL.uid=<uid>
+forcont <SRC> 0
+	if ( <baseid>==i_quest_system )
+//		SRC.SYSMESSAGE LOOP <morex> <LOCAL.uid> <link>
+		if ( <morex> == quest_type_talkto ) 
+			if ( <LOCAL.uid>==<link> )
+				quest_updateTalktoQuest <uid>
+			endif
+		endif
+	endif
+endfor
 
 [EOF]
