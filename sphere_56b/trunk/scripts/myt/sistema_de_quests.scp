@@ -31,7 +31,9 @@
 //src.ctag.quest_names		//array com itens disponiveis para compra/venda
 //src.ctag.quest_ids	//array com os donos dos itens a venda
 //src.ctag.quest_selectedQuest	//item selecionada para compra/venda
-
+//LINK.TAG0.quest_destination
+//LINK.TAG0.quest_home
+//LINK.TAG0.quest_npcMoving
 //*****************************************************************************
 //*****************************************************************************
 // DEFNAMEs
@@ -44,11 +46,11 @@ quest_itemsPerPage=15
 //quest types
 quest_type_kill_mob=1
 quest_type_get_mob_item=2
-quest_type_get_item=3
-quest_type_craft_item=4
-quest_type_find_item=5
-quest_type_escort=6
-quest_type_delivery=7
+quest_type_get_item=3		//*
+quest_type_craft_item=4		//*
+quest_type_find_item=5		//*
+quest_type_escort=6			//*
+quest_type_delivery=7		//*
 quest_type_text=8
 quest_type_talkto=9
 quest_type_reward=10
@@ -112,7 +114,34 @@ WEIGHT=0
 //LINK - NPC quest
 
 ON=@timer 
-quest_nextStep <uid>
+
+if ( <morex> == quest_type_escort )
+	quest_updateEscortQuest <uid>
+else
+	quest_nextStep <uid>
+endif
+
+return 1
+
+[ITEMDEF i_quest_sendNpcBack]
+ID=i_deed
+NAME=QuestNpc
+TYPE=t_eq_script
+LAYER=layer_special
+WEIGHT=0
+
+//LINK - NPC quest
+
+ON=@timer 
+//so transporta o NPC se o player estiver longe
+if ( <LINK.DISTANCE <CONT>> > 20 )
+	LINK.home <LINK.TAG0.quest_home>
+	LINK.go <LINK.TAG0.quest_home>
+	remove
+//senao tenta denovo mais tarde
+else
+	timer=10
+endif
 return 1
 
 //*****************************************************************************
@@ -131,9 +160,8 @@ OBJ=<argv[0]>
 if ( <OBJ.amount> > 0 )
 	OBJ.amount=<OBJ.amount>-1
 	if ( <OBJ.amount> == 0 )	//acabou de completar o step
-		SRC.sysmessage Voce finalizou um objetivo da quest.
+		OBJ.cont.sysmessage Voce finalizou um objetivo da quest.
 		quest_nextStep <OBJ>
-		
 	else						//ainda nao completou
 		SRC.sysmessage Voce matou um(a) <SRC.ACT.name>. Falta(m) <OBJ.amount>!!
 	endif
@@ -154,7 +182,7 @@ if ( <OBJ.amount> > 0 )
 	NEW.cont=<SRC.findlayer.layer_pack.uid>
 
 	if ( <OBJ.amount> == 0 )	//acabou de completar o step
-		SRC.sysmessage Voce finalizou um objetivo da quest.
+		OBJ.cont.sysmessage Voce finalizou um objetivo da quest.
 		quest_nextStep <OBJ>
 	else						//ainda nao completou
 		SRC.sysmessage Voce pegou um <NEW.name>. Falta(m) <OBJ.amount>!!
@@ -171,13 +199,110 @@ OBJ=<argv[0]>
 
 if ( <OBJ.cont.restest <OBJ.amount> <OBJ.more2>>)
 	OBJ.cont.consume <OBJ.amount> <OBJ.more2>
-	OBJ.cont.sysmessage Voce finalizou um objetivo da quest.
+	OBJ.cont.sysmessage Voce finalizou um objetivo da quest.	
 	quest_nextStep <OBJ>
 else
 	TRYP 0 uid.<OBJ.more1>.message Voce nao tem o que preciso. Volte quando tiver.
 endif
 return 1
 
+//*****************************************************************************
+// quest_updateEscortQuest ( questMemory )
+//*****************************************************************************
+//DEFAULT deve ser a questMemory para melhorar eficiencia
+[FUNCTION quest_updateEscortQuest]
+
+timer=1
+
+//so anda se puder
+if ( !<LINK.TAG0.quest_npcMoving> )
+	return 1
+endif
+
+//calcula distancia do player
+LOCAL.dist = <LINK.DISTANCE <CONT>>
+
+//para se a distancia for muito grande
+if ( <LOCAL.dist> > 60 )
+	LINK.TAG0.quest_npcMoving=0
+//pede para esperar se a distancia for media
+	CONT.sysmessage longe
+	return 1
+endif
+
+if ( <LOCAL.dist> > 30 )
+	DORAND 8
+		CONT.sysmessage Me espere!!!
+	ENDDO
+	CONT.sysmessage medio
+endif
+
+//corre atras se a distancia for pequena
+if ( <LOCAL.dist> > 7 )
+
+	LOCAL.xa=<STRARG <CONT.p>>
+	LOCAL.ya=<STREAT <CONT.p>>
+
+	LOCAL.xb=<STRARG <LINK.p>>
+	LOCAL.yb=<STREAT <LINK.p>>
+
+	LOCAL.dx = <eval <LOCAL.xa>>-<eval <LOCAL.xb>>
+	LOCAL.dy = <eval <LOCAL.ya>>-<eval <LOCAL.yb>>
+
+	LOCAL.run=0
+	if ( <LOCAL.dx> > 0 )
+		if ( <LOCAL.dy> > 0 )
+			LOCAL.run=SE
+		elif ( <LOCAL.dy> < 0 )
+			LOCAL.run=NE
+		else
+			LOCAL.run=E
+		endif
+	elif ( <LOCAL.dx> < 0 )
+		if ( <LOCAL.dy> > 0 )
+			LOCAL.run=SW
+		elif ( <LOCAL.dy> < 0 )
+			LOCAL.run=NW
+		else
+			LOCAL.run=W
+		endif
+	else
+		if ( <LOCAL.dy> > 0 )
+			LOCAL.run=S
+		elif ( <LOCAL.dy> < 0 )
+			LOCAL.run=N
+		endif
+	endif
+
+	if !( 0<LOCAL.run>==0 )
+		LINK.run <LOCAL.run>
+		LINK.run <LOCAL.run>
+		LINK.run <LOCAL.run>
+		LINK.run <LOCAL.run>
+		LINK.home <LINK.p>
+	endif
+//	message seguindo... <CONT.p> <eval <LOCAL.dx>> <eval <LOCAL.dy>>
+
+//se a distancia for pequena, para e anda por perto
+else
+	LINK.home <CONT.p>
+endif
+
+//verifica se esta proximo do destino
+if ( <LINK.DISTANCE <LINK.TAG0.quest_destination>> <= 7 )
+	SERV.NEWITEM i_quest_sendNpcBack
+	NEW.cont = <CONT> //player
+	NEW.link = <LINK> //npc
+	NEW.timer = 5	  //check after 5 secs
+
+
+	OBJ.cont.sysmessage Voce finalizou um objetivo da quest.
+	timer=-1
+	quest_nextStep <uid>
+else
+		
+endif
+return 1
 //*****************************************************************************
 // quest_createQuestList
 //*****************************************************************************
@@ -279,6 +404,10 @@ elif ( <DB.ROW.type> == quest_type_talkto )
 	endif
 	
 	OBJ.cont.sysmessage Fale com <uid.<OBJ.more1>.name>
+elif ( <DB.ROW.type> == quest_type_escort )
+	OBJ.LINK.TAG.quest_destination=<DB.ROW.param1>
+	OBJ.LINK.TAG.quest_home=<OBJ.LINK.home>
+	OBJ.timer = 1
 elif ( <DB.ROW.type> == quest_type_reward )
 	SERV.NEWITEM <OBJ.more1>
 	NEW.amount=<OBJ.amount>
@@ -446,6 +575,7 @@ AVERSIONS=t_TRAP,t_eerie_stuff
 TSPEECH=jobQUEST_SYSTEM
 
 ON=@Create
+HOMEDIST=5
 COLOR=03eb
 STR={71 85}
 DEX={66 80}
@@ -490,10 +620,10 @@ ID=C_MAN
 DESIRES=i_gold,e_notoriety
 AVERSIONS=t_TRAP,t_eerie_stuff
 
-
 TSPEECH=jobQUEST_SYSTEM
 
 ON=@Create
+HOMEDIST=5
 COLOR=0597
 STR={71 85}
 DEX={66 80}
@@ -533,10 +663,10 @@ NAME=#NAMES_HUMANFEMALE
 DESIRES=i_gold,e_notoriety
 AVERSIONS=t_TRAP,t_eerie_stuff
 
-
 TSPEECH=jobQUEST_SYSTEM
 
 ON=@Create
+HOMEDIST=5
 COLOR=0412
 STR={71 85}
 DEX={66 80}
@@ -575,10 +705,10 @@ NAME=#NAMES_HUMANMALE
 DESIRES=i_gold,e_notoriety
 AVERSIONS=t_TRAP,t_eerie_stuff
 
-
 TSPEECH=jobQUEST_SYSTEM
 
 ON=@Create
+HOMEDIST=5
 COLOR=0412
 STR={71 85}
 DEX={66 80}
@@ -633,11 +763,39 @@ ON=*boa noite*
 		dialog d_quest_list
 	endif
 return 1
+
+ON=*venha*
+ON=*ande*
+LOCAL.uid=<uid>
+forcont <SRC> 0
+	if ( <baseid>==i_quest_system )
+		if ( <morex> == quest_type_escort ) 
+			if ( <LOCAL.uid>==<link> )
+				LINK.SAY Ok, estou indo!!
+				LINK.TAG.quest_npcMoving=1
+			endif
+		endif
+	endif
+endfor
+
+ON=*pare*
+ON=*espere*
+LOCAL.uid=<uid>
+forcont <SRC> 0
+	if ( <baseid>==i_quest_system )
+		if ( <morex> == quest_type_escort ) 
+			if ( <LOCAL.uid>==<link> )
+				LINK.SAY Ok, esperarei aqui!!
+				LINK.TAG.quest_npcMoving=0
+			endif
+		endif
+	endif
+endfor
+
 ON=*
 LOCAL.uid=<uid>
 forcont <SRC> 0
 	if ( <baseid>==i_quest_system )
-//		SRC.SYSMESSAGE LOOP <morex> <LOCAL.uid> <link>
 		if ( <morex> == quest_type_talkto ) 
 			if ( <LOCAL.uid>==<link> )
 				quest_updateTalktoQuest <uid>
@@ -645,5 +803,7 @@ forcont <SRC> 0
 		endif
 	endif
 endfor
+
+
 
 [EOF]
