@@ -34,6 +34,8 @@
 //LINK.TAG0.quest_destination
 //LINK.TAG0.quest_home
 //LINK.TAG0.quest_npcMoving
+//LINK.TAG0.quest_npcInQuest
+//LINK.TAG.quest_npcFollow
 //*****************************************************************************
 //*****************************************************************************
 // DEFNAMEs
@@ -49,7 +51,7 @@ quest_type_get_mob_item=2
 quest_type_get_item=3		//*
 quest_type_craft_item=4		//*
 quest_type_find_item=5		//*
-quest_type_escort=6			//*
+quest_type_escort=6			
 quest_type_delivery=7		//*
 quest_type_text=8
 quest_type_talkto=9
@@ -296,7 +298,9 @@ if ( <LINK.DISTANCE <LINK.TAG0.quest_destination>> <= 7 )
 	NEW.timer = 5	  //check after 5 secs
 
 
-	OBJ.cont.sysmessage Voce finalizou um objetivo da quest.
+	CONT.sysmessage Voce finalizou um objetivo da quest.
+	LINK.TAG.quest_npcInQuest=0
+	LINK.TAG.quest_npcFollow=0
 	timer=-1
 	quest_nextStep <uid>
 else
@@ -407,6 +411,8 @@ elif ( <DB.ROW.type> == quest_type_talkto )
 elif ( <DB.ROW.type> == quest_type_escort )
 	OBJ.LINK.TAG.quest_destination=<DB.ROW.param1>
 	OBJ.LINK.TAG.quest_home=<OBJ.LINK.home>
+	OBJ.LINK.TAG.quest_npcInQuest=1
+	OBJ.LINK.TAG.quest_npcFollow=<OBJ.CONT>
 	OBJ.timer = 1
 elif ( <DB.ROW.type> == quest_type_reward )
 	SERV.NEWITEM <OBJ.more1>
@@ -751,6 +757,13 @@ ON=*bom dia*
 ON=*boa tarde*
 ON=*boa noite*
 
+	if ( <TAG0.quest_npcInQuest> > 0 )
+		if !( <TAG0.quest_npcFollow> == <SRC> )
+			message Estou ocupado no momento. Me procure outra hora.
+		endif
+		return 1
+	endif
+	
 	dialogclose d_quest_list
 	dialogclose d_quest_info
 
@@ -764,46 +777,66 @@ ON=*boa noite*
 	endif
 return 1
 
+//SOMENTE EM QUEST "ESCORT". FAZ NPC SEGUIR
 ON=*venha*
 ON=*ande*
-LOCAL.uid=<uid>
-forcont <SRC> 0
-	if ( <baseid>==i_quest_system )
-		if ( <morex> == quest_type_escort ) 
-			if ( <LOCAL.uid>==<link> )
-				LINK.SAY Ok, estou indo!!
-				LINK.TAG.quest_npcMoving=1
+
+	if ( <TAG0.quest_npcInQuest> == 0 )
+		return 1
+	endif
+
+	LOCAL.uid=<uid>
+	forcont <SRC> 0
+		if ( <baseid>==i_quest_system )
+			if ( <morex> == quest_type_escort ) 
+				if ( <LOCAL.uid>==<link> )
+					LINK.SAY Ok, estou indo!!
+					LINK.TAG.quest_npcMoving=1
+				endif
 			endif
 		endif
-	endif
-endfor
+	endfor
+return 1
 
+//SOMENTE EM QUEST "ESCORT". FAZ NPC PARAR
 ON=*pare*
 ON=*espere*
-LOCAL.uid=<uid>
-forcont <SRC> 0
-	if ( <baseid>==i_quest_system )
-		if ( <morex> == quest_type_escort ) 
-			if ( <LOCAL.uid>==<link> )
-				LINK.SAY Ok, esperarei aqui!!
-				LINK.TAG.quest_npcMoving=0
+
+	if ( <TAG0.quest_npcInQuest> == 0 )
+		return 1
+	endif
+
+	LOCAL.uid=<uid>
+	forcont <SRC> 0
+		if ( <baseid>==i_quest_system )
+			if ( <morex> == quest_type_escort ) 
+				if ( <LOCAL.uid>==<link> )
+					LINK.SAY Ok, esperarei aqui!!
+					LINK.TAG.quest_npcMoving=0
+				endif
 			endif
 		endif
-	endif
-endfor
+	endfor
+return 1
 
+//FINALIZA QUESTS TIPO "TALK TO"
 ON=*
-LOCAL.uid=<uid>
-forcont <SRC> 0
-	if ( <baseid>==i_quest_system )
-		if ( <morex> == quest_type_talkto ) 
-			if ( <LOCAL.uid>==<link> )
-				quest_updateTalktoQuest <uid>
+
+	if ( <TAG0.quest_npcInQuest> > 0 )
+		return 1
+	endif
+
+	LOCAL.uid=<uid>
+	forcont <SRC> 0
+		if ( <baseid>==i_quest_system )
+			if ( <morex> == quest_type_talkto ) 
+				if ( <LOCAL.uid>==<link> )
+					quest_updateTalktoQuest <uid>
+				endif
 			endif
 		endif
-	endif
-endfor
-
+	endfor
+return 1
 
 
 [EOF]
