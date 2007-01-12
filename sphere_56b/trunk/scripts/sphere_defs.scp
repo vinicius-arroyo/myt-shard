@@ -1,12 +1,15 @@
 //****************************************************************************
-// SPHERE by : Menasoft 1997-2005 www.sphereserver.com
+//SPHERE by : Menasoft ©1997-2006
+//www.sphereserver.net
 // All SPHERE script files and formats are copyright Menasoft & Partners.
 // This file may be freely edited for personal use, but may not be distributed
 // in whole or in part, in any format without express written permission from
 // Menasoft & Partners.  All donations and contributions
 // become the property of Menasoft & Partners.
 //****************************************************************************
-// FILE LAST UPDATED: 9-Sep-2005
+// FILE LAST UPDATED: 16-Dec-2006
+
+VERSION=0.56b
 
 [DEFNAME HARDCODED]
 defaultitem	i_gold	// if we cannot create the item. make it this.
@@ -15,7 +18,7 @@ guards		{ c_h_guard 1 c_h_guard_f 1 }
 deffood		{ i_ham 1 i_cake 1 i_bread_loaf 1 }
 
 [DEFNAME mount_items]
-// This contain the list of the moutn/mountid the format is:
+// This contain the list of the mount/mountid the format is:
 // mount_0x<dispid hex> <mount item id hex>
 // ---------------------------------------------------------
 // PreT2A
@@ -51,12 +54,12 @@ mount_0x31a	03ebd	// swamp dragon 1
 mount_0x31f	03ebe	// swamp dragon 2
 // AOS
 // SE
-mount_0x84	03ead
-mount_0xf3	03e94
+mount_0xf3	03e94	// hiryu
 // ML
-mount_0x11c	03e92   //Armored Steed (Modains Steed)
-mount_0x115	03e91   //Cu Sidhe
-mount_0x114	03e90   //Reptalon
+mount_0x11c	03e92   // Armored Steed (Mondains Steed)
+mount_0x115	03e91   // Cu Sidhe
+mount_0x114	03e90   // Reptalon
+mount_0xd5	03ec5	// Polar Bear (veteran's award)
 
 [defname hues]	// these are hues from hues.mul.
 color_none		0
@@ -588,6 +591,7 @@ spellflag_targ_noself	000800		// cannot target spell to self
 spellflag_disabled		008000		// spell is disabled
 spellflag_scripted		010000		// spell is scripted
 spellflag_playeronly	020000		// spell is not casted by npc ai
+spellflag_nounparalyze	040000		// do not unparalyze the victim
 
 [defname mem_flags]
 memory_sawcrime	00001	// i saw them commit a crime or i was attacked criminally. i can call the guards on them.
@@ -661,18 +665,20 @@ attr_static		08000	// worldforge merge marker. (not used)
 
 [defname can_flags]
 // monster "can" type flags.
-mt_nonmover		0
-mt_ghost			01
-mt_swim			02
-mt_walk			04
-mt_fly			010
-mt_fire_immune		020
-mt_equip			00100
-mt_usehands		00200
-mt_male			0
-mt_female			00800
-mt_nonhum			01000
-mt_run			02000
+mt_male		00000
+mt_nonmover	00000
+mt_ghost	00001 // Moves through doors
+mt_swim		00002 // Moves on water
+mt_walk		00004 // Can walk on land
+mt_passwalls	00008 // Walk through walls
+mt_fly		00010
+mt_fire_immune	00020
+mt_indoors	00040 // Can go under roof
+mt_equip	00100
+mt_usehands	00200
+mt_female	00800
+mt_nonhum	01000 // Body type for combat messages
+mt_run		02000
 
 [defname alignments]
 // ranges of karma ?
@@ -1046,6 +1052,7 @@ dam_cold_new		01000     //cold-based damage
 dam_cold		01200     //cold-based damage (matches both old and new cold damage flag)
 dam_energy		02000     //energy-based damage
 dam_noreveal		04000     //damage that does not reveal the attacker.
+dam_nounparalyze	08000	  //victim won't be unparalyzed
 
 [DEFNAME can_i_flags]
 CAN_I_DOOR		00001	// Is a door UFLAG4_DOOR
@@ -1105,8 +1112,8 @@ B		<B>
 BE		</B>
 BIG		<BIG>
 BIGE		</BIG>
-SMALL	<SMALL>
-SMALLE	</SMALL>
+SMALL		<SMALL>
+SMALLE		</SMALL>
 EM		<EM>
 EME		</EM>
 U		<U>
@@ -1126,13 +1133,13 @@ H6E		</H6>
 A		<a
 AE		</a>
 
-DIV_RIGHT		<div align="right">
-DIV_LEFT		<div align="left">
+DIV_RIGHT	<div align="right">
+DIV_LEFT	<div align="left">
 DIV_END		</DIV> 
 CENTER		<CENTER>
 CENTERE		</CENTER>
-BR			<BR>
-BRE			</BR>
+BR		<BR>
+BRE		</BR>
 
 BFONT_SIZE3	<basefont SIZE="3">
 BFONT_SIZE4	<basefont SIZE="4">
@@ -1144,7 +1151,7 @@ BFONT_GRAY	<basefont color="#888888">
 BFONT_DGRAY	<basefont color="#444444">
 BFONT_BLACK	<basefont color="#000011">
 BFONT_LRED	<basefont color="#ff0000">
-BFONT_RED		<basefont color="#880000">
+BFONT_RED	<basefont color="#880000">
 Bfont_DRED	<basefont color="#440000">
 BFONT_LGREEN	<basefont color="#00ff00">
 BFONT_GREEN	<basefont color="#008800">
@@ -1166,48 +1173,387 @@ BFONTE		</BASEFONT>
 
 // ARGN2 in f_oncreate_char
 [DEFNAME profession_ids]
-prof_unknown		0
-prof_warrior		1
-prof_magician		2
-prof_blacksmith	3
+prof_unknown			0
+prof_warrior			1
+prof_magician			2
+prof_blacksmith		3
 prof_necromancer	4
-prof_paladin		5
-prof_samurai		6
-prof_ninja		7
+prof_paladin			5
+prof_samurai			6
+prof_ninja				7
 
 // RESDISP
 [DEFNAME resdisp_version]
 RDS_PRET2A	0
-RDS_T2A		1
-RDS_LBR		2
-RDS_AOS		3
-RDS_SE		4
-RDS_ML		5
+RDS_T2A			1
+RDS_LBR			2
+RDS_AOS			3
+RDS_SE			4
+RDS_ML			5
 
 // When client or server send a speech packet these have a type
 // You can use them to send a packet or to check ARGN1 in the global speech hook
 [DEFNAME talkmode_type]
-talkmode_system	0	// Normal system message. ( server -> client && client -> server )
-talkmode_prompt	1	// Display as system prompt. ( server -> client )
+talkmode_system		0	// Normal system message. ( server -> client && client -> server )
+talkmode_prompt		1	// Display as system prompt. ( server -> client )
 talkmode_emote		2	// *smiles* at object. ( client -> server )
-talkmode_say		3	// A chacter speaking. ( server -> client )
-talkmode_obj		4	// At Object ( server -> client )
+talkmode_say			3	// A chacter speaking. ( server -> client )
+talkmode_obj			4	// At Object ( server -> client )
 talkmode_nothing	5	// Does not display ( server -> client )
-talkmode_item		6	// Text labeling an item. Preceeded by "You see" ( server -> client )
+talkmode_item			6	// Text labeling an item. Preceeded by "You see" ( server -> client )
 talkmode_noscroll	7	// As a status msg. Does not scroll ( server -> client )
 talkmode_whisper	8	// ;	only those close can here. ( client -> server )
-talkmode_yell		9	// ! can be heard 2 screens away. ( client -> server )
+talkmode_yell			9	// ! can be heard 2 screens away. ( client -> server )
 talkmode_spell		10	// Used by spells ( server -> client )
 talkmode_guild		13	// \ guild speech ( client -> server )
 talkmode_alliance	14	// alliance speech ( client -> server )
 
-[defname skill_flags]
+[DEFNAME skill_flags]
 SKF_SCRIPTED		0001	// fully scripted, no hardcoded behaviour
-SKF_FIGHT		0002	// considered a fight skill, maintains fight active
-SKF_MAGIC		0004
+SKF_FIGHT				0002	// considered a fight skill, maintains fight active
+SKF_MAGIC				0004
 SKF_IMMOBILE		0010
-SKF_SELECTABLE		0020
+SKF_SELECTABLE	0020
 SKF_NOMINDIST		0040	// you can mine, fish, chop, hack on the same point you are standing on
 
+[DEFNAME trigger_argtype]
+TAT_AS_ARGN	1		// Treat the arguments as ARGN1/2/3
+TAT_AS_ARGS	2		// Treat the arguments as ARGS (with ARGV[x] enabled)
+TAT_AS_ARGO	3		// Treat the arguments as ARGO
+
+[DEFNAME misc_own]
+empty_cliloc		1042971
+
+[DEFNAME los_flags]
+los_nb_local_terrain	00001	// Terrain inside a region I am standing in does not block LOS
+los_nb_local_static		00002	// Static items inside a region I am standing in do not block LOS
+los_nb_local_dynamic	00004	// Dynamic items inside a region I am standing in do not block LOS
+los_nb_local_multi		00008	// Multi items inside a region I am standing in do not block LOS
+los_nb_terrain				00010	// Terrain does not block LOS at all
+los_nb_static					00020	// Static items do not block LOS at all
+los_nb_dynamic				00040	// Dynamic items do not block LOS at all
+los_nb_multi					00080	// Multi items do not block LOS at all
+los_nb_windows				00100	// Windows do not block LOS (e.g. Archery + Magery)
+los_no_other_region		00200	// Do not allow LOS path checking to go out of your region
+los_nc_multi					00400	// Do not allow LOS path checking to go through (no cross) a multi region (except the one you are standing in)
+los_fishing						00800	// Do not allow LOS path checking to go through objects or terrain which do not represent water
+
+[DEFNAME buff_icons]
+bufficon_dismountprevention 	1001
+bufficon_norearm 							1002
+bufficon_nightsight 					1005
+bufficon_deathstrike 					1006
+bufficon_evilomen 						1007
+bufficon_healingthrottle 			1008
+bufficon_staminathrottle 			1009
+bufficon_divinefury 					1010
+bufficon_enemyofone 					1011
+bufficon_hidingandorstealth 	1012
+bufficon_activemeditation 		1013
+bufficon_bloodoathcaster 			1014
+bufficon_bloodoathcurse 			1015
+bufficon_corpseskin 					1016
+bufficon_mindrot 							1017
+bufficon_painspike 						1018
+bufficon_strangle 						1019
+bufficon_giftofrenewal 				1020
+bufficon_attuneweapon 				1021
+bufficon_thunderstorm 				1022
+bufficon_essenceofwind 				1023
+bufficon_etherealvoyage 			1024
+bufficon_giftoflife 					1025
+bufficon_arcaneempowerment 		1026
+bufficon_mortalstrike 				1027
+bufficon_reactivearmor 				1028
+bufficon_protection 					1029
+bufficon_archprotection 			1030
+bufficon_magicreflection 			1031
+bufficon_incognito 						1032
+bufficon_disguised 						1033
+bufficon_animalform 					1034
+bufficon_polymorph 						1035
+bufficon_invisibility 				1036
+bufficon_paralyze 						1037
+bufficon_poison 							1038
+bufficon_bleed 								1039
+bufficon_clumsy 							1040
+bufficon_feeblemind 					1041
+bufficon_weaken 							1042
+bufficon_curse 								1043
+bufficon_masscurse 						1044
+bufficon_agility 							1045
+bufficon_cunning 							1046
+bufficon_strength 						1047
+bufficon_bless 								1048
+
+[DEFNAME buff_clilocs]
+buffcliloc_empty 1070722
+buffcliloc_curse_1 1075835
+buffcliloc_curse_2 1075840
+buffcliloc_masscurse_1 1075839
+buffcliloc_masscurse_2 1075840
+buffcliloc_weaken_1 1075837
+buffcliloc_weaken_2 1075838
+buffcliloc_masscurse_1 1075839
+buffcliloc_masscurse_2 1075840
+buffcliloc_agility_1 1075841
+buffcliloc_agility_2 1075842
+buffcliloc_cunning_1 1075843
+buffcliloc_cunning_2 1075844
+buffcliloc_strength_1 1075845
+buffcliloc_strength_2 1075846
+buffcliloc_bless_1 1075847
+buffcliloc_bless_2 1075848
+buffcliloc_reactivearmor_1 1075812
+buffcliloc_reactivearmor_2 1070722 //empty
+buffcliloc_protection_1 1075814
+buffcliloc_protection_2 1070722 //empty
+buffcliloc_archprotection 1075816
+buffcliloc_archprotection 1070722 //empty
+buffcliloc_invisibility_1 1075825
+buffcliloc_invisibility_2 1075826
+buffcliloc_paralyze_1 1075827
+buffcliloc_paralyze_2 1075828
+buffcliloc_magicreflection_1 1075817
+buffcliloc_magicreflection_1 1070722 //empty
+buffcliloc_clumsy_1 1075831
+buffcliloc_clumsy_2 1075832
+buffcliloc_feeblemind_1 1075833
+buffcliloc_feeblemind_1 1075834
+buffcliloc_incognito_1 1075819
+buffcliloc_incognito_2 1075820
+buffcliloc_polymorph_1 1075824
+buffcliloc_polymorph_2 1070722 //empty
+buffcliloc_poison_1 1017383
+buffcliloc_poison_2 1070722
+buffcliloc_nightsight_1 1075643
+buffcliloc_nightsight_2 1075644
+buffcliloc_hidden_1 1075655
+buffcliloc_hidden_2 1075656
+
+[DEFNAME charheight] 
+height_0ae	35	//DEFNAME=c_abyss_lord
+height_0138	35	//DEFNAME=c_abyssmal_horror
+height_0CA	8	//DEFNAME=c_alligator
+height_031e	45	//DEFNAME=c_ancient_wyrm
+height_0313	15	//DEFNAME=c_ant_lion
+height_0310	35	//DEFNAME=c_arcane_daemon
+height_031f	15	//DEFNAME=c_armored_swamp_dragon
+height_0f6	10	//DEFNAME=c_Bake_Kitsune
+height_0D3	9	//DEFNAME=c_bear_brown
+height_0D4	11	//DEFNAME=c_bear_grizzly
+height_0D5	14	//DEFNAME=c_bear_polar
+height_06	2	//DEFNAME=c_bird
+height_011b	3	//DEFNAME=c_black_crow
+height_0300	22	//DEFNAME=c_Blackthorn_Juggernaught
+height_023e	16	//DEFNAME=c_blade_spirit
+height_030c	30	//DEFNAME=c_bog_thing
+height_030b	16	//DEFNAME=c_bogling
+height_0134	30	//DEFNAME=c_bone_daemon
+height_0e9	10	//DEFNAME=c_bull_brown_dk
+height_0e8	10	//DEFNAME=c_bull_brown_lt
+height_051	5	//DEFNAME=c_bullfrog
+height_0c9	3	//DEFNAME=c_cat
+height_065	19	//DEFNAME=c_centaur
+height_0108	18	//DEFNAME=c_Changeling
+height_0318	30	//DEFNAME=c_chaos_daemon
+height_0D0	3	//DEFNAME=c_chicken
+height_0100	35	//DEFNAME=c_chief_paroxysmus
+height_01a6	8	//DEFNAME=c_child_fb
+height_01a7	8	//DEFNAME=c_child_fd
+height_01a4	8	//DEFNAME=c_child_mb
+height_01a5	8	//DEFNAME=c_child_md
+height_08	25	//DEFNAME=c_corpser
+height_0e7	9	//DEFNAME=c_cow_brown
+height_0d8	9	//DEFNAME=c_cow_bw
+height_0fe	5	//DEFNAME=c_Crane
+height_012c	15	//DEFNAME=c_crystal_elemental
+height_0115	12	//DEFNAME=c_cu_sidhe
+height_04c	40	//DEFNAME=c_cyclops
+height_09	35	//DEFNAME=c_daemon
+height_0A	35	//DEFNAME=c_daemon_w_sword
+height_0f2	9	//DEFNAME=c_deathwatch_beetle
+height_02f3	30	//DEFNAME=c_destroyer_gargoyle
+height_012f	25	//DEFNAME=c_devourer_souls
+height_0ED	8	//DEFNAME=c_doe
+height_0D9	5	//DEFNAME=c_dog
+height_097	4	//DEFNAME=c_dolphin
+height_0309	16	//DEFNAME=c_Doppelganger
+height_0c	35	//DEFNAME=c_dragon_green
+height_03b	35	//DEFNAME=c_dragon_red
+height_03c	30	//DEFNAME=c_dragon_small_black
+height_03d	30	//DEFNAME=c_dragon_small_red
+height_0101	16	//DEFNAME=c_dread_horn
+height_0b	10	//DEFNAME=c_dread_spider
+height_010a	14	//DEFNAME=c_Dryad
+height_05	6	//DEFNAME=c_eagle
+height_0d	20	//DEFNAME=c_elem_air
+height_0e	20	//DEFNAME=c_elem_earth
+height_0f	23	//DEFNAME=c_elem_fire
+height_010	23	//DEFNAME=c_elem_water
+height_025e	16	//DEFNAME=c_elf_female
+height_025f	16	//DEFNAME=c_elf_ghost_man
+height_0260	16	//DEFNAME=c_elf_ghost_woman
+height_025d	16	//DEFNAME=c_elf_male
+height_0af	36	//DEFNAME=c_Ethereal_Warrior
+height_02	32	//DEFNAME=c_ettin
+height_012	32	//DEFNAME=c_ettin_w_axe
+height_066	35	//DEFNAME=c_exodus
+height_02f5	30	//DEFNAME=c_exodus_minion
+height_02fb	40	//DEFNAME=c_exodus_minionlord
+height_02f4	16	//DEFNAME=c_exodus_overseer
+height_0f7	12	//DEFNAME=c_Fan_Dancer
+height_0117	3	//DEFNAME=c_ferret
+height_0111	28	//DEFNAME=c_Fetid_Essence
+height_030f	22	//DEFNAME=c_fire_ant_queen
+height_030e	22	//DEFNAME=c_fire_ant_warrior
+height_030d	18	//DEFNAME=c_fire_ant_worker
+height_082	22	//DEFNAME=c_fire_gargoyle
+height_0130	20	//DEFNAME=c_flesh_golem
+height_0b0	30	//DEFNAME=c_forest_queen
+height_0f8	18	//DEFNAME=c_gaman
+height_04	25	//DEFNAME=c_gargoyle
+height_016	23	//DEFNAME=c_gazer
+height_0192	16	//DEFNAME=c_ghost_man
+height_0193	16	//DEFNAME=c_ghost_woman
+height_0317 	12	//DEFNAME=c_giant_beetle 
+height_0ad	20	//DEFNAME=c_Giant_Black_Widow
+height_0133	16	//DEFNAME=c_gibberling
+height_0d1	8	//DEFNAME=c_goat
+height_0131	14	//DEFNAME=c_Gore_Fiend
+height_01d	12	//DEFNAME=c_gorilla
+height_03ca	18	//DEFNAME=c_grim_reaper
+height_01e	18	//DEFNAME=c_harpy
+height_01f	16	//DEFNAME=c_headless
+height_031c	40	//DEFNAME=c_Horde_Daemon_Large
+height_031b	20	//DEFNAME=c_Horde_Daemon_Medium
+height_0308	10	//DEFNAME=c_horde_minion
+height_0CC	16	//DEFNAME=c_horse_brown_dk
+height_0E4	16	//DEFNAME=c_horse_brown_lt
+height_0E2	16	//DEFNAME=c_horse_gray
+height_0123	15	//DEFNAME=c_horse_pack
+height_0C8	16	//DEFNAME=c_horse_tan
+height_0109	25	//DEFNAME=c_Hydra
+height_062	6	//DEFNAME=c_ice_hound
+height_02f0	30	//DEFNAME=c_iron_golem
+height_0f0	16	//DEFNAME=c_kappa
+height_0c6	18	//DEFNAME=c_kaze_kemono
+height_084 	15	//DEFNAME=c_kirin 
+height_04d	16	//DEFNAME=c_kraken
+height_0102	19	//DEFNAME=c_lady_m
+height_0fc	14	//DEFNAME=c_lady_of_snow
+height_018	20	//DEFNAME=c_liche
+height_021	20	//DEFNAME=c_lizardman
+height_024	20	//DEFNAME=c_lizardman_mace
+height_023	20	//DEFNAME=c_lizardman_spear
+height_0dc	10	//DEFNAME=c_llama
+height_0124	10	//DEFNAME=c_llama_pack
+height_011c	16	//DEFNAME=c_m_armor_steed
+height_0f3 	15	//DEFNAME=c_m_hiryu 
+height_0114	18	//DEFNAME=c_m_reptalon
+height_07a 	16	//DEFNAME=c_m_unicorn 
+height_0190	16	//DEFNAME=c_man
+height_03db	16	//DEFNAME=c_man_gm
+height_01a8	2	//DEFNAME=c_man_invisible
+height_0305	19	//DEFNAME=c_meer_captain
+height_0304	20	//DEFNAME=c_meer_eternal
+height_0302	19	//DEFNAME=c_meer_mage
+height_0303	20	//DEFNAME=c_Meer_Warrior
+height_0107	30	//DEFNAME=c_Minotaur
+height_0118	30	//DEFNAME=c_minotaur_captain
+height_0119	30	//DEFNAME=c_minotaur_scout
+height_0311	30	//DEFNAME=c_Moloch
+height_027	10	//DEFNAME=c_mongbat
+height_0103	25	//DEFNAME=c_monstrous_interred_grizzle
+height_013f	8	//DEFNAME=c_mound_maggots
+height_03e7	40	//DEFNAME=c_multicolored_horde_minion
+height_09a	19	//DEFNAME=c_mummy
+height_01	28	//DEFNAME=c_ogre
+height_0f1	18	//DEFNAME=c_oni
+height_055	18	//DEFNAME=c_ophidian_mage
+height_057	20	//DEFNAME=c_ophidian_queen
+height_056	18	//DEFNAME=c_ophidian_warrior
+height_011	15	//DEFNAME=c_orc
+height_0bd	45	//DEFNAME=c_orc_brute
+height_07	15	//DEFNAME=c_orc_lord
+height_029	15	//DEFNAME=c_orc_w_club
+height_0d2	18	//DEFNAME=c_ostard_desert
+height_0db	18	//DEFNAME=c_ostard_forest
+height_0da	18	//DEFNAME=c_ostard_zostrich
+height_0d6	8	//DEFNAME=c_panther
+height_011a	4	//DEFNAME=c_parrot
+height_0135	20	//DEFNAME=c_patchwork_skeleton
+height_0CB	7	//DEFNAME=c_pig
+height_0122	7	//DEFNAME=c_pig_big
+height_080	25	//DEFNAME=c_pixie
+height_0307	10	//DEFNAME=c_plague_beast
+height_0315	15	//DEFNAME=c_quagmire
+height_0CD	5	//DEFNAME=c_rabbit
+height_0c9	23	//DEFNAME=c_rai_ju
+height_0ee	3	//DEFNAME=c_rat
+height_0D7	6	//DEFNAME=c_rat_giant
+height_02a	18	//DEFNAME=c_ratman
+height_02c	18	//DEFNAME=c_ratman_w_mace
+height_02d	18	//DEFNAME=c_ratman_w_sword
+height_013a	25	//DEFNAME=c_ravager
+height_02f	40	//DEFNAME=c_reaper
+height_011d	30	//DEFNAME=c_reaper_redux
+height_031d	45	//DEFNAME=c_reptile_lord
+height_0fb	15	//DEFNAME=c_revenant_lion
+height_0bb 	21	//DEFNAME=c_ridgeback 
+height_0f4	20	//DEFNAME=c_rune_beetle
+height_010f	18	//DEFNAME=c_Satyr
+height_0bc 	21	//DEFNAME=c_savage_ridgeback 
+height_030	10	//DEFNAME=c_scorpion_giant
+height_05f	8	//DEFNAME=c_sea_monster
+height_096	8	//DEFNAME=c_sea_serpent
+height_067	30	//DEFNAME=c_serpentine_dragon
+height_0df	5	//DEFNAME=c_sheep_shorn
+height_0CF	5	//DEFNAME=c_sheep_woolly
+height_0105	28	//DEFNAME=c_Shimmering_Effusion
+height_068	30	//DEFNAME=c_skeletal_dragon
+height_0319	16	//DEFNAME=c_skeletal_mount
+height_032	16	//DEFNAME=c_skeleton
+height_038	16	//DEFNAME=c_skeleton_w_axe
+height_039	16	//DEFNAME=c_skeleton_w_sword
+height_012e	8	//DEFNAME=c_skittering_hopper
+height_033	3	//DEFNAME=c_slime
+height_034	3	//DEFNAME=c_snake
+height_015	6	//DEFNAME=c_snake_giant
+height_01a	18	//DEFNAME=c_spectre
+height_0314	18	//DEFNAME=c_Sphynx
+height_01c	10	//DEFNAME=c_spider_giant
+height_0116	2	//DEFNAME=c_squirrel
+height_0EA	10	//DEFNAME=c_stag
+height_095	16	//DEFNAME=c_Succubus
+height_031a 	15	//DEFNAME=c_swamp_dragon 
+height_030a	23	//DEFNAME=c_swarm
+height_098	18	//DEFNAME=c_terathan_avenger
+height_047	15	//DEFNAME=c_terathan_drone
+height_048	18	//DEFNAME=c_terathan_matriarch
+height_046	16	//DEFNAME=c_terathan_warrior
+height_04b	28	//DEFNAME=c_titan
+height_050	15	//DEFNAME=c_toad_giant
+height_0106	25	//DEFNAME=c_Tormented_Minotaur
+height_012d	26	//DEFNAME=c_treefellow
+height_010b	15	//DEFNAME=c_Troglodyte
+height_036	23	//DEFNAME=c_troll
+height_035	23	//DEFNAME=c_troll_w_axe
+height_037	23	//DEFNAME=c_troll_w_mace
+height_0fa	25	//DEFNAME=c_tsuki_wolf
+height_013d	14	//DEFNAME=c_vampire_bat
+height_023d	18	//DEFNAME=c_vortex
+height_0136	19	//DEFNAME=c_Wailing_Banshee
+height_0dd	11	//DEFNAME=c_walrus
+height_013c	30	//DEFNAME=c_wanderer_void
+height_03a	15	//DEFNAME=c_wisp
+height_0e1	10	//DEFNAME=c_wolf
+height_0191	16	//DEFNAME=c_woman
+height_03e	18	//DEFNAME=c_wyvern_mutant
+height_0f9	23	//DEFNAME=c_yamandon
+height_0ff	18	//DEFNAME=c_Yomotsu_Elder
+height_0fd	18	//DEFNAME=c_Yomotsu_Priest
+height_0f5	18	//DEFNAME=c_Yomotsu_Warrior
+height_03	16	//DEFNAME=c_zombie
 
 [EOF]
