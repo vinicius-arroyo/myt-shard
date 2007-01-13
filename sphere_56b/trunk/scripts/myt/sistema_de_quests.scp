@@ -6,6 +6,7 @@
 //*****************************************************************************
 //*****************************************************************************
 //TODO:
+//fazer Reward de stats
 
 //Tipos de eventos e parametros:
 //*****************************************************************************
@@ -17,10 +18,10 @@
 //* craft item   * item defname             * N/A                             *
 //* find item    * item defname             * N/A                             *
 //* escort       * x,y,z,m                  * N/A                             *
-//* delivery     * NPC uid                  * item defname                    *
+//* delivery     * item defname (1)         * NPC uid / N/A=NPC QUEST         *
 //* text         * timeout (s)              *                                 *
-//* talk to      * NPC uid / N/A=NPC QUEST  * item defname (1)                *
-//* reward       * item defname             * N/A                             *
+//* talk to      * item defname (1)         * NPC uid / N/A=NPC QUEST         *
+//* reward       * item defname             * NPC uid / N/A=NPC QUEST         *
 //*****************************************************************************
 //(1) player must have this item so this step can be completed
 
@@ -52,7 +53,7 @@ quest_type_get_item=3		//*
 quest_type_craft_item=4		//*
 quest_type_find_item=5		//*
 quest_type_escort=6			
-quest_type_delivery=7		//*
+quest_type_delivery=7
 quest_type_text=8
 quest_type_talkto=9
 quest_type_reward=10
@@ -199,13 +200,18 @@ return 1
 
 OBJ=<argv[0]>
 
-if ( <OBJ.cont.restest <OBJ.amount> <OBJ.more2>>)
-	OBJ.cont.consume <OBJ.amount> <OBJ.more2>
-	OBJ.cont.sysmessage Voce finalizou um objetivo da quest.	
-	quest_nextStep <OBJ>
+if ( <OBJ.amount> > 0 )
+	if ( <OBJ.cont.restest <OBJ.amount> <OBJ.more1>>)
+		OBJ.cont.consume <OBJ.amount> <OBJ.more1>
+		OBJ.cont.sysmessage Voce finalizou um objetivo da quest.	
+		quest_nextStep <OBJ>
+	else
+		TRYSRV uid.<OBJ.more2>.message Voce nao tem o que preciso. Volte quando tiver.
+	endif
 else
-	TRYP 0 uid.<OBJ.more1>.message Voce nao tem o que preciso. Volte quando tiver.
+	quest_nextStep <OBJ>
 endif
+
 return 1
 
 //*****************************************************************************
@@ -307,6 +313,24 @@ else
 		
 endif
 return 1
+
+
+//*****************************************************************************
+// quest_updateDeliveryQuest ( questMemory )
+//*****************************************************************************
+[FUNCTION quest_updateDeliveryQuest]
+
+OBJ=<argv[0]>
+
+if ( <OBJ.cont.restest <OBJ.amount> <OBJ.more1>>)
+	OBJ.cont.consume <OBJ.amount> <OBJ.more1>
+	OBJ.cont.sysmessage Voce finalizou um objetivo da quest.	
+	quest_nextStep <OBJ>
+else
+	TRYSRV uid.<OBJ.more2>.message Voce nao tem o que preciso. Volte quando tiver.
+endif
+return 1
+
 //*****************************************************************************
 // quest_createQuestList
 //*****************************************************************************
@@ -403,8 +427,8 @@ if ( <OBJ.morex> == quest_type_text )
 	endif
 elif ( <DB.ROW.type> == quest_type_talkto )
 	//set default NPC to the MAIN QUEST NPC
-	if ( !<OBJ.more1> )
-		OBJ.more1=<OBJ.link>
+	if ( !<OBJ.more2> )
+		OBJ.more2=<OBJ.link>
 	endif
 	
 	OBJ.cont.sysmessage Fale com <uid.<OBJ.more1>.name>
@@ -414,16 +438,27 @@ elif ( <DB.ROW.type> == quest_type_escort )
 	OBJ.LINK.TAG.quest_npcInQuest=1
 	OBJ.LINK.TAG.quest_npcFollow=<OBJ.CONT>
 	OBJ.timer = 1
+elif ( <DB.ROW.type> == quest_type_delivery )
+	SERV.NEWITEM <OBJ.more1>
+	NEW.amount=<OBJ.amount>
+	NEW.cont=<OBJ.cont.findlayer.layer_pack.uid>
+
+	//set default NPC to the MAIN QUEST NPC
+	if ( !<OBJ.more2> )
+		OBJ.more2=<OBJ.link>
+	endif
+
 elif ( <DB.ROW.type> == quest_type_reward )
 	SERV.NEWITEM <OBJ.more1>
 	NEW.amount=<OBJ.amount>
 	NEW.cont=<OBJ.cont.findlayer.layer_pack.uid>
 
-	OBJ.link.message <DB.ROW.description>
+	if ( <OBJ.more2> )
+		TRYSRV uid.<OBJ.more2>.message <DB.ROW.description>
+	else
+		OBJ.link.message <DB.ROW.description>
+	endif
 	OBJ.timer = 1
-
-//else	//unsupported
-//	return 1
 endif   
 
 DB.EXECUTE "UPDATE questState SET idStep=<eval <OBJ.morez>> WHERE idQuest=<eval <OBJ.morey>> AND idPlayer=<eval <OBJ.cont>>"
@@ -830,8 +865,12 @@ ON=*
 	forcont <SRC> 0
 		if ( <baseid>==i_quest_system )
 			if ( <morex> == quest_type_talkto ) 
-				if ( <LOCAL.uid>==<link> )
+				if ( <LOCAL.uid>==<more2> )
 					quest_updateTalktoQuest <uid>
+				endif
+			elif ( <morex> == quest_type_delivery ) 
+				if ( <LOCAL.uid>==<more2> )
+					quest_updateDeliveryQuest <uid>
 				endif
 			endif
 		endif
