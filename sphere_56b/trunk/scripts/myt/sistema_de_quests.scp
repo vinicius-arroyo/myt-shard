@@ -7,6 +7,7 @@
 //*****************************************************************************
 //TODO:
 //fazer Reward de stats
+//limitar numero de quests ativas
 
 //Tipos de eventos e parametros:
 //*****************************************************************************
@@ -30,7 +31,7 @@
 //src.ctag.quest_page		//pagina atual
 //src.ctag.quest_numQuests	//numero total de itens disponiveis para compra/venda
 //src.ctag.quest_names		//array com itens disponiveis para compra/venda
-//src.ctag.quest_ids	//array com os donos dos itens a venda
+//src.ctag.quest_ids		//array com os donos dos itens a venda
 //src.ctag.quest_selectedQuest	//item selecionada para compra/venda
 //LINK.TAG0.quest_destination
 //LINK.TAG0.quest_home
@@ -70,11 +71,11 @@ quest_type_reward=10
 ON=@KILL
 
 //remove evento se nao tiver quest ativa
-//if ( !<SRC.findid.i_quest_system> )
-//	EVENTS -e_quest
-//	SRC.SYSMESSAGE EVENTO REMOVIDO
-//	return 0
-//endif	
+if ( !<SRC.findid.i_quest_system> )
+	EVENTS -e_quest
+	SRC.SYSMESSAGE EVENTO REMOVIDO
+	return 0
+endif	
 
 forcont <SRC> 0
 	if ( <baseid>==i_quest_system )
@@ -92,9 +93,11 @@ forcont <SRC> 0
 endfor
 return 0
 
-ON=@ITEMDCLICK
-return 0
 
+[EVENTS e_quest_npc]
+
+ON=@DEATH
+return 1
 
 //*****************************************************************************
 //*****************************************************************************
@@ -188,7 +191,7 @@ if ( <OBJ.amount> > 0 )
 		OBJ.cont.sysmessage Voce finalizou um objetivo da quest.
 		quest_nextStep <OBJ>
 	else						//ainda nao completou
-		SRC.sysmessage Voce pegou um <NEW.name>. Falta(m) <OBJ.amount>!!
+		SRC.sysmessage Voce pegou um(a) <NEW.name>. Falta(m) <OBJ.amount>!!
 	endif
 endif
 return 1
@@ -332,13 +335,13 @@ endif
 return 1
 
 //*****************************************************************************
-// quest_createQuestList
+// quest_createNpcQuestList
 //*****************************************************************************
 //cria lista com as quests
 //
 //SRC é o player
 //DEFAULT é o NPC
-[FUNCTION quest_createQuestList]
+[FUNCTION quest_createNpcQuestList]
 SRC.CTAG.quest_page=1
 SRC.CTAG.quest_numQuests=0
 
@@ -355,6 +358,32 @@ if ( <DB.connected> )
 endif
 
 SRC.CTAG.quest_numPages=<eval (((<SRC.CTAG.quest_numQuests>-1) / quest_itemsPerPage) + 1)> 
+return 1
+
+//*****************************************************************************
+// quest_createPlayerQuestList
+//*****************************************************************************
+//cria lista com as quests
+//
+//SRC é ?
+//DEFAULT é o player
+[FUNCTION quest_createPlayerQuestList]
+CTAG.quest_page=1
+CTAG.quest_numQuests=0
+
+//varre o banco
+if ( <DB.connected> )
+	DB.QUERY "SELECT idQuest, name FROM quests LEFT JOIN questState USING (idQuest) WHERE idPlayer=<eval <uid>>"
+    if (<DB.ROW.NUMROWS> > 0)
+        for R 0 <eval <DB.ROW.NUMROWS>-1>
+		CTAG.quest_numQuests += 1
+		TRYSRV CTAG.quest_names<eval  (<CTAG.quest_numQuests>)>=<DB.ROW.<eval <LOCAL.R>>.name>
+		TRYSRV CTAG.quest_ids<eval (<CTAG.quest_numQuests>)>=<DB.ROW.<eval <LOCAL.R>>.idQuest>
+        end
+    endif
+endif
+
+CTAG.quest_numPages=<eval (((<CTAG.quest_numQuests>-1) / quest_itemsPerPage) + 1)> 
 return 1
 
 
@@ -471,6 +500,45 @@ DB.EXECUTE "UPDATE questState SET idStep=<eval <OBJ.morez>> WHERE idQuest=<eval 
 //elif ( <DB.ROW.type> == quest_type_escort )
 //elif ( <DB.ROW.type> == quest_type_delivery )
 
+//*****************************************************************************
+// quest_drawGumps
+//*****************************************************************************
+[FUNCTION quest_drawGumps]
+PAGE 0
+resizepic 50 20 9260 450 452
+gumppictiled 50 20 450 18 10250		//T BRICK
+gumppictiled 50 460 450 18 10101	//B BRICK
+gumppictiled 65 40 30 420 10460		//L BRICK
+gumppictiled 455 40 30 420 10460	//R BRICK
+gumppic 50 460 10306 0				//LB BRICK
+gumppic 482 460 10304 0				//RB BRICK
+gumppic 0 0 10440 0					//L SNAKE
+gumppic 470 0 10441 0				//R SNAKE
+gumppictiled 95 38 359 423 5124		//DARK BACK
+
+gumppic 110 50 9005 0				//SELO
+gumppictiled 150 80 200 1 9101		//UNDERLINE
+//button 240 435 12012 12013 1 0 1	//OK button
+return 1
+
+//*****************************************************************************
+// quest_closeDialogs
+//*****************************************************************************
+[FUNCTION quest_closeDialogs]
+dialogclose d_quest_list
+dialogclose d_quest_info
+dialogclose d_quest_active
+return 1
+
+//*****************************************************************************
+// quest_userQuests
+//*****************************************************************************
+//esta funcao eh chamada qndo o player aperta o botao "quest" do paperdoll
+[FUNCTION quest_userQuests]
+quest_closeDialogs
+quest_createPlayerQuestList
+dialog d_quest_list
+return 1
 
 [FUNCTION cu]
 forcont <SRC> 0
@@ -496,7 +564,8 @@ add c_skeleton
 
 [DIALOG d_quest_list]
 100, 100
-PAGE 0
+quest_drawGumps
+dtext 150 60 1152 Quests
 
 LOCAL.startQuest=<eval ((<SRC.CTAG0.quest_page> - 1) * quest_itemsPerPage ) + 1>
 LOCAL.endQuest=<eval (<SRC.CTAG0.quest_page> * quest_itemsPerPage)>
@@ -505,48 +574,39 @@ if ( <LOCAL.endQuest> > <SRC.CTAG0.quest_numQuests> )
 	LOCAL.endQuest = <SRC.CTAG0.quest_numQuests>
 endif 
 
-LOCAL.pageLen=<eval 165+(<LOCAL.endQuest>-<LOCAL.startQuest>)*20>
-
-resizepic 0 0 3500 500 <LOCAL.pageLen>
-
-dtext 20 30 0 Selecione a missao que deseja fazer:
-
-dorigin 20 60
-dtext *0 *0 0  
-dtext +25 - 014D Missao
-
+dorigin 110 110
 for x  <LOCAL.startQuest> <LOCAL.endQuest> 
-
-	//cria entrada no dialog
-	button - *20 5224 5003 1 0 <eval (1000 + <SRC.CTAG0.quest_ids<eval <LOCAL.x>>>)>
-	dtext +25 -3 0 <SRC.CTAG0.quest_names<eval <LOCAL.x>>>
-
+	button *0 *20 9702 9703 1 0 <eval 1000 + <SRC.CTAG0.quest_ids<eval <LOCAL.x>>>>
+	dtext +25 -3 1152 <SRC.CTAG0.quest_names<eval <LOCAL.x>>>
 endfor
 
 if (<SRC.CTAG0.quest_page> > 1)
 	// Back button
-	button 20 <eval <LOCAL.pageLen>-30> 4014 4015 1 0 1
+	button 102 435 12015 12016 1 0 2 //4014
 endif
 if (<SRC.CTAG0.quest_page> < <SRC.CTAG0.quest_numPages>)
 	// Forward button
-	button 450 <eval <LOCAL.pageLen>-30> 4005 4006 1 0 2
+	button 372 435 12009 12010 1 0 3 //4005
 endif
-dtext 210 <eval <LOCAL.pageLen>-30> 0c1 Pag <eval <SRC.CTAG0.quest_page>> / <eval <SRC.CTAG0.quest_numPages>>
 
-
+button 282 435 12012 12013 1 0 1	//OK button
+//button 192 435 12006 12007 1 0 1	//Close button
 
 [DIALOG d_quest_list BUTTON]
 on=0
 return 1
 
-on=1 // Back button
+on=1 // Ok button
+return 1
+
+on=2 // Previous Button
 SRC.CTAG0.quest_page -= 1
 if (<SRC.CTAG.quest_page> < 1)
 	SRC.CTAG.quest_page=1
 endif
 dialog d_quest_list
 
-on=2 // Forward button
+on=3 // Continue button
 src.CTAG0.quest_page += 1
 if (<SRC.CTAG.quest_page> > <SRC.CTAG0.quest_numPages>)
 	SRC.CTAG.quest_page=<SRC.CTAG0.quest_numPages>
@@ -564,38 +624,47 @@ dialog d_quest_info
 //*****************************************************************************
 [DIALOG d_quest_info]
 100, 100
-PAGE 0
-
-if !( <DB.connected> )
-	return 1
-endif
+quest_drawGumps
 
 DB.QUERY "SELECT name, description FROM quests WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>>"
 if (<DB.ROW.NUMROWS> <= 0)
 	return 1
 endif
 
+dtext 150 60 1152 Quest: <DB.ROW.name>
 
-resizepic 0 0 3500 350 220
-dtext 20 30 0 Missao: <DB.ROW.name>
+dorigin 110 120
+dtext *0 *0 1152 Objetivo:
+dhtmlgump *0 +20 340 100 0 1 <DB.ROW.description>
 
-dorigin 20 60
-dhtmlgump *0 *0 300 110 0 1 <DB.ROW.description>
-button 20 185 12015 12016 1 0 1		// Back button
-button 250 185 12002 12001 1 0 2	// Ok button
+dorigin 110 220
+DB.QUERY "SELECT description, type+0 FROM questSteps AS steps LEFT JOIN questState AS state USING (idQuest) WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idPlayer=<eval <SRC>> AND steps.idStep <= state.idStep AND type+0 IN (1,2,3,4,5,6,7,9) ORDER BY idStep"
+if ( <DB.ROW.NUMROWS> > 0 )
+	for x 0 <eval <DB.ROW.NUMROWS>-1>
+		gumppic - *20 9702 0
+		dtext +25 -3 1152 <DB.ROW.<eval <LOCAL.x>>.description>
+	endfor
+	button 192 435 12015 12016 1 0 1	// Previous button
+else
+	button 282 435 12000 12001 1 0 2	//Accept button
+	button 192 435 12018 12019 1 0 3	//Refuse button
+endif
 
 [DIALOG d_quest_info BUTTON]
 on=0
 return 1
 
-on=1 // Back button
+on=1 // Previous button
 dialog d_quest_list
 return 1
 
-on=2 // Ok button
+on=2 // Accept button
 quest_startSelectedQuest
 return 1
 
+on=3 // Refuse button
+dialog d_quest_list
+return 1
 
 //*****************************************************************************
 //*****************************************************************************
@@ -621,6 +690,7 @@ COLOR=03eb
 STR={71 85}
 DEX={66 80}
 INT={66 80}
+EVENTS=+e_quest_npc
 
 tag.raca Humano
 
@@ -669,6 +739,7 @@ COLOR=0597
 STR={71 85}
 DEX={66 80}
 INT={66 80}
+EVENTS=+e_quest_npc
 
 tag.raca Orc
 
@@ -712,6 +783,7 @@ COLOR=0412
 STR={71 85}
 DEX={66 80}
 INT={66 80}
+EVENTS=+e_quest_npc
 
 tag.raca Elfo
 
@@ -754,7 +826,7 @@ COLOR=0412
 STR={71 85}
 DEX={66 80}
 INT={66 80}
-
+EVENTS=+e_quest_npc
 tag.raca Anao
 
 SWORDSMANSHIP={15.0 38.0}
@@ -793,16 +865,17 @@ ON=*boa tarde*
 ON=*boa noite*
 
 	if ( <TAG0.quest_npcInQuest> > 0 )
-		if !( <TAG0.quest_npcFollow> == <SRC> )
+		if ( <TAG0.quest_npcFollow> == <SRC> )
+			message Ola!	
+		else
 			message Estou ocupado no momento. Me procure outra hora.
 		endif
 		return 1
 	endif
 	
-	dialogclose d_quest_list
-	dialogclose d_quest_info
-
-	quest_createQuestList
+	quest_closeDialogs
+	
+	quest_createNpcQuestList
 	if ( <SRC.CTAG0.quest_numQuests> < 1 )
 		message Nao tenho nenhuma missao para voce no momento.
 	else
