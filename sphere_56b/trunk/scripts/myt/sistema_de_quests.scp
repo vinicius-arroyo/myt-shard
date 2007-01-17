@@ -347,7 +347,7 @@ SRC.CTAG.quest_numQuests=0
 
 //varre o banco
 if ( <DB.connected> )
-	DB.QUERY "SELECT idQuest, name FROM quests WHERE idNpc=<eval <uid>> AND idQuest NOT IN (SELECT idQuest FROM questState WHERE idPlayer=<eval <SRC>>)"
+	DB.QUERY "SELECT idQuest, name FROM quests WHERE idNpc=<eval <uid>> AND idQuest NOT IN (SELECT idQuest FROM questState WHERE idPlayer=<eval <SRC>>) ORDER BY name"
     if (<DB.ROW.NUMROWS> > 0)
         for R 0 <eval <DB.ROW.NUMROWS>-1>
 		SRC.CTAG.quest_numQuests += 1
@@ -365,7 +365,6 @@ return 1
 //*****************************************************************************
 //cria lista com as quests
 //
-//SRC é ?
 //DEFAULT é o player
 [FUNCTION quest_createPlayerQuestList]
 CTAG.quest_page=1
@@ -373,7 +372,7 @@ CTAG.quest_numQuests=0
 
 //varre o banco
 if ( <DB.connected> )
-	DB.QUERY "SELECT idQuest, name FROM quests LEFT JOIN questState USING (idQuest) WHERE idPlayer=<eval <uid>>"
+	DB.QUERY "SELECT idQuest, name FROM quests LEFT JOIN questState USING (idQuest) WHERE idPlayer=<eval <uid>> AND dateCompleted='0000-00-00 00:00:00' ORDER BY name"
     if (<DB.ROW.NUMROWS> > 0)
         for R 0 <eval <DB.ROW.NUMROWS>-1>
 		CTAG.quest_numQuests += 1
@@ -386,6 +385,30 @@ endif
 CTAG.quest_numPages=<eval (((<CTAG.quest_numQuests>-1) / quest_itemsPerPage) + 1)> 
 return 1
 
+//*****************************************************************************
+// quest_createPlayerDoneList
+//*****************************************************************************
+//cria lista com as quests
+//
+//DEFAULT é o player
+[FUNCTION quest_createPlayerDoneList]
+CTAG.quest_page=1
+CTAG.quest_numQuests=0
+
+//varre o banco
+if ( <DB.connected> )
+	DB.QUERY "SELECT idQuest, name FROM quests LEFT JOIN questState USING (idQuest) WHERE idPlayer=<eval <uid>> AND dateCompleted!='0000-00-00 00:00:00' ORDER BY name"
+    if (<DB.ROW.NUMROWS> > 0)
+        for R 0 <eval <DB.ROW.NUMROWS>-1>
+		CTAG.quest_numQuests += 1
+		TRYSRV CTAG.quest_names<eval  (<CTAG.quest_numQuests>)>=<DB.ROW.<eval <LOCAL.R>>.name>
+		TRYSRV CTAG.quest_ids<eval (<CTAG.quest_numQuests>)>=<DB.ROW.<eval <LOCAL.R>>.idQuest>
+        end
+    endif
+endif
+
+CTAG.quest_numPages=<eval (((<CTAG.quest_numQuests>-1) / quest_itemsPerPage) + 1)> 
+return 1
 
 //*****************************************************************************
 // quest_startSelectedQuest
@@ -535,9 +558,7 @@ return 1
 //*****************************************************************************
 //esta funcao eh chamada qndo o player aperta o botao "quest" do paperdoll
 [FUNCTION quest_userQuests]
-quest_closeDialogs
-quest_createPlayerQuestList
-dialog d_quest_list
+menu m_quest_button
 return 1
 
 [FUNCTION cu]
@@ -557,6 +578,22 @@ add c_skeleton
 // DIALOGOS E MENUS
 //*****************************************************************************
 //*****************************************************************************
+//*****************************************************************************
+// m_quest_button
+//*****************************************************************************
+[MENU m_quest_button]
+
+O que deseja ver?
+
+ON=0 Quests em andamento
+	quest_closeDialogs
+	quest_createPlayerQuestList
+	dialog d_quest_list	
+
+ON=0 Quests terminadas
+	quest_closeDialogs
+	quest_createPlayerDoneList
+	dialog d_quest_list	
 
 //*****************************************************************************
 // d_quest_list
@@ -575,18 +612,22 @@ if ( <LOCAL.endQuest> > <SRC.CTAG0.quest_numQuests> )
 endif 
 
 dorigin 110 110
-for x  <LOCAL.startQuest> <LOCAL.endQuest> 
-	button *0 *20 9702 9703 1 0 <eval 1000 + <SRC.CTAG0.quest_ids<eval <LOCAL.x>>>>
-	dtext +25 -3 1152 <SRC.CTAG0.quest_names<eval <LOCAL.x>>>
-endfor
+if ( <SRC.CTAG0.quest_numQuests> > 0 )
+	for x  <LOCAL.startQuest> <LOCAL.endQuest> 
+		button *0 *20 9702 9703 1 0 <eval 1000 + <SRC.CTAG0.quest_ids<eval <LOCAL.x>>>>
+		dtext +25 -3 1152 <SRC.CTAG0.quest_names<eval <LOCAL.x>>>
+	endfor
 
-if (<SRC.CTAG0.quest_page> > 1)
-	// Back button
-	button 102 435 12015 12016 1 0 2 //4014
-endif
-if (<SRC.CTAG0.quest_page> < <SRC.CTAG0.quest_numPages>)
-	// Forward button
-	button 372 435 12009 12010 1 0 3 //4005
+	if (<SRC.CTAG0.quest_page> > 1)
+		// Back button
+		button 102 435 12015 12016 1 0 2 //4014
+	endif
+	if (<SRC.CTAG0.quest_page> < <SRC.CTAG0.quest_numPages>)
+		// Forward button
+		button 372 435 12009 12010 1 0 3 //4005
+	endif
+else
+	dtext *0 *0 1152 Nao ha quests disponiveis.
 endif
 
 button 282 435 12012 12013 1 0 1	//OK button
