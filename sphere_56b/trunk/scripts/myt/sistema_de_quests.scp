@@ -37,7 +37,7 @@
 //LINK.TAG0.quest_home
 //LINK.TAG0.quest_npcMoving
 //LINK.TAG0.quest_npcInQuest
-//LINK.TAG.quest_npcFollow
+//LINK.TAG0.quest_npcQuestMry
 //*****************************************************************************
 //*****************************************************************************
 // DEFNAMEs
@@ -73,7 +73,7 @@ ON=@KILL
 //remove evento se nao tiver quest ativa
 if ( !<SRC.findid.i_quest_system> )
 	EVENTS -e_quest
-	SRC.SYSMESSAGE EVENTO REMOVIDO
+//	SRC.SYSMESSAGE EVENTO REMOVIDO
 	return 0
 endif	
 
@@ -101,6 +101,14 @@ ON=@DEATH
 	if ( <TAG0.quest_npcInQuest> != 0 )
 		TAG0.quest_npcInQuest = 0
 		home = <TAG0.quest_home>
+		
+		OBJ=<TAG0.quest_npcQuestMry>
+		if ( <DB.connected> )
+			DB.EXECUTE "DELETE FROM questState WHERE idQuest=<eval <OBJ.morey>> AND idPlayer=<eval <OBJ.cont>>"
+		endif
+		OBJ.remove
+		
+		sysmessage Um objetivo da missão falhou.
 	endif
 
 	p=<home>
@@ -246,7 +254,7 @@ LOCAL.dist = <LINK.DISTANCE <CONT>>
 if ( <LOCAL.dist> > 60 )
 	LINK.TAG0.quest_npcMoving=0
 //pede para esperar se a distancia for media
-	CONT.sysmessage longe
+//	CONT.sysmessage longe
 	return 1
 endif
 
@@ -254,7 +262,7 @@ if ( <LOCAL.dist> > 30 )
 	DORAND 8
 		CONT.sysmessage Me espere!!!
 	ENDDO
-	CONT.sysmessage medio
+//	CONT.sysmessage medio
 endif
 
 //corre atras se a distancia for pequena
@@ -318,7 +326,7 @@ if ( <LINK.DISTANCE <LINK.TAG0.quest_destination>> <= 7 )
 
 	CONT.sysmessage Voce finalizou um objetivo da quest.
 	LINK.TAG.quest_npcInQuest=0
-	LINK.TAG.quest_npcFollow=0
+	LINK.TAG.quest_npcQuestMry=0
 	timer=-1
 	quest_nextStep <uid>
 else
@@ -428,6 +436,11 @@ return 1
 //DEFAULT é o NPC
 [FUNCTION quest_startSelectedQuest]
 
+if ( <TAG0.quest_npcInQuest> )
+	say Estou ocupado no momento, me procure outra hora.
+	return 1
+endif
+
 if ( <DB.connected> )
 	DB.EXECUTE "INSERT INTO questState SET idQuest=<eval <SRC.CTAG.quest_selectedQuest>>, idPlayer=<eval <SRC>>, dateStarted=NOW(), idStep=0"
 
@@ -456,7 +469,7 @@ endif
 
 OBJ=<ARGV[0]>
 LOCAL.nextStep=<OBJ.morez>+1
-OBJ.cont.sysmessage INDO STEP <LOCAL.nextStep>
+//OBJ.cont.sysmessage INDO STEP <LOCAL.nextStep>
 
 DB.QUERY "SELECT idQuest, idStep, type+0 AS type, quantity, param1, param2, description FROM questSteps WHERE idQuest=<eval <OBJ.morey>> AND idStep=<eval <LOCAL.nextStep>> LIMIT  1"
 if ( <DB.ROW.NUMROWS> <= 0 )
@@ -494,10 +507,10 @@ elif ( <DB.ROW.type> == quest_type_talkto )
 	
 	OBJ.cont.sysmessage Fale com <uid.<OBJ.more1>.name>
 elif ( <DB.ROW.type> == quest_type_escort )
+	OBJ.LINK.TAG.quest_npcInQuest=1
 	OBJ.LINK.TAG.quest_destination=<DB.ROW.param1>
 	OBJ.LINK.TAG.quest_home=<OBJ.LINK.home>
-	OBJ.LINK.TAG.quest_npcInQuest=1
-	OBJ.LINK.TAG.quest_npcFollow=<OBJ.CONT>
+	OBJ.LINK.TAG.quest_npcQuestMry=<OBJ>
 	OBJ.timer = 1
 elif ( <DB.ROW.type> == quest_type_delivery )
 	SERV.NEWITEM <OBJ.more1>
@@ -982,7 +995,7 @@ ON=*boa tarde*
 ON=*boa noite*
 
 	if ( <TAG0.quest_npcInQuest> > 0 )
-		if ( <TAG0.quest_npcFollow> == <SRC> )
+		if ( <uid.<TAG0.quest_npcQuestMry>.cont> == <SRC> )
 			message Ola!	
 		else
 			message Estou ocupado no momento. Me procure outra hora.
