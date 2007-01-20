@@ -23,9 +23,8 @@
 //-Fazer escape de strings corretamente nas queries
 //-Limitar as strings que vao nos dialogs (clip)
 //-Definir 'qualidade' para todos os tipos de items
-//-Ajuste de dialogs em outros clients (<= 3.0)
 //-Fazer teste de limite de itens q o vendor aceita no seu banco.
-//-Fazer sistema aceitar moedas de cobre e prata
+//-Migrar tipos de items para o banco
 
 //TAGS usadas:
 //src.ctag.vendor_op		//1 para colocar o item a venda, 2 para comprar,3 para pegar de volta
@@ -185,6 +184,8 @@ return 1
 //*****************************************************************************
 // vendor_sellItem( item, preco, quantidade )
 //*****************************************************************************
+//preco deve ser na menor moeda de menor valor, neste caso o cobre.
+//
 //SRC deve ser o player vendedor
 //DEFAULT deve ser o NPC vendor
 
@@ -234,6 +235,8 @@ return 1
 //*****************************************************************************
 // vendor_buyItem( item, preco, quantidade )
 //*****************************************************************************
+//preco deve ser na menor moeda de menor valor, neste caso o cobre.
+//
 //SRC deve ser o player comprador
 //DEFAULT deve ser o NPC vendor
 
@@ -263,9 +266,8 @@ endif
 
 //verifica se comprador tem dinheiro suficiente e recolhe
 LOCAL.totalPrice=<eval <argv[1]>*<LOCAL.amount>>
-if ( <SRC.restest <LOCAL.totalPrice> i_gold> )
-	SRC.consume <LOCAL.totalPrice> i_gold
-else
+
+if !( <vendor_getCash <LOCAL.totalPrice>> )
 	SAY Esta achando que vivo de caridade? Volte quando tiver dinheiro suficiente para a compra.
 	return 1
 endif
@@ -309,7 +311,7 @@ else
 endif
 
 //transfere o dinheiro para o banco do player vendedor
-SERV.newitem i_gold
+SERV.newitem i_coin_copper
 NEW.amount=<LOCAL.paycheck>
 NEW.cont=<uid.<LOCAL.idPlayer>.findlayer.layer_bankbox.uid>
 
@@ -458,6 +460,106 @@ endif
 return 1
 
 //*****************************************************************************
+// vendor_getCash( amount )
+//*****************************************************************************
+//amount of cash (in copper)
+//SRC is the player
+[FUNCTION vendor_getCash]
+
+LOCAL.copper=<SRC.rescount i_coin_copper>
+LOCAL.silver=<SRC.rescount i_coin_silver>
+LOCAL.gold=<SRC.rescount i_gold>
+LOCAL.cash=<LOCAL.copper>+<LOCAL.silver>*10+<LOCAL.gold>*100
+
+//sysmessage Total Cash: <eval <LOCAL.cash>>
+
+if ( <LOCAL.cash> > <argv[0]> )
+	LOCAL.cash=<argv[0]>
+//	sysmessage *********************
+	
+	if ( <LOCAL.cash> > <LOCAL.copper> )
+		SRC.consume <LOCAL.copper> i_coin_copper
+		LOCAL.cash=<LOCAL.cash>-<LOCAL.copper>
+//		sysmessage Pago em cobre <eval <LOCAL.copper>>. Sobra <eval <LOCAL.cash>>.
+	else
+		SRC.consume <LOCAL.cash> i_coin_copper
+//		sysmessage Pago em cobre <eval <LOCAL.cash>>
+		return 1	
+	endif
+
+	LOCAL.v=<LOCAL.silver>*10
+	if ( <LOCAL.cash> > <LOCAL.v> )
+		SRC.consume <LOCAL.silver> i_coin_silver
+		LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
+//		sysmessage Pago em prata <eval <LOCAL.silver>>. Sobra <eval <LOCAL.cash>>.
+	else
+		LOCAL.amt=((<LOCAL.cash>-1)/10)+1
+		SRC.consume <LOCAL.amt> i_coin_silver
+		LOCAL.pb=(<LOCAL.amt>*10)-<LOCAL.cash>
+		SRC.NEWITEM i_coin_copper
+		NEW.amount=<LOCAL.pb>
+		NEW.bounce
+//		sysmessage Pago em prata <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+		return 1	
+	endif
+	
+	LOCAL.v=<LOCAL.gold>*100
+	LOCAL.amt=((<LOCAL.cash>-1)/100)+1
+	SRC.consume <LOCAL.amt> i_gold
+	LOCAL.pb=(<LOCAL.amt>*100)-<LOCAL.cash>
+	SRC.NEWITEM i_coin_copper
+	NEW.amount=<LOCAL.pb>
+	NEW.bounce
+//	sysmessage Pago em ouro <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+	return 1	
+
+else
+//	sysmessage cant buy
+	return 0
+endif
+
+//*****************************************************************************
+// vendor_cashFormat( amount, type )
+//*****************************************************************************
+//amount of cash (decimal)
+//type of cash (1=copper,2=silver,3=gold,4=kgold,5=kkgold)
+[FUNCTION vendor_cashFormat]
+if ( !<argv[0]> || !<argv[1]> )
+	sysmessage Utilize vendor_cashFormat amount,type
+	return 1
+endif
+
+//sysmessage Tentando <argv[0]>/<argv[1]>
+
+if ( <argv[1]> <= 2 )
+	LOCAL.x=<argv[0]>/10
+	LOCAL.y=<LOCAL.x>*10
+else
+	LOCAL.x=<argv[0]>/1000
+	LOCAL.y=<LOCAL.x>*1000
+endif
+
+if ( <eval <LOCAL.y>>!=<argv[0]> ) || ( <argv[1]>==5 )
+//	sysmessage Nao da para reduzir mais que <argv[0]> <LOCAL.y>
+
+	if ( <argv[1]>==1 )
+		return <argv[0]> mc
+	elif ( <argv[1]>==2 )
+		return <argv[0]> mp
+	elif ( <argv[1]>==3 )
+		return <argv[0]> mo
+	elif ( <argv[1]>==4 )
+		return <argv[0]>k mo
+	elif ( <argv[1]>==5 )
+		return <argv[0]>kk mo
+	else
+		return Error!
+	endif
+else
+	return <vendor_cashFormat <eval <LOCAL.x>>,<eval <argv[1]>+1>>
+endif
+
+//*****************************************************************************
 //*****************************************************************************
 // DIALOGOS E MENUS
 //*****************************************************************************
@@ -586,7 +688,7 @@ for x  <LOCAL.startItem> <LOCAL.endItem>
 
 	if (<SRC.CTAG0.vendor_op>==2)
 		OBJ=<SRC.CTAG0.vendor_owners<eval <LOCAL.x>>>
-		LOCAL.price=<SRC.CTAG0.vendor_prices<eval <LOCAL.x>>>
+		LOCAL.price=<vendor_cashFormat <eval <SRC.CTAG0.vendor_prices<eval <LOCAL.x>>>>,1>
 		LOCAL.vendor=<OBJ.TAG.name>
 	else
 		LOCAL.price=0
@@ -600,7 +702,7 @@ for x  <LOCAL.startItem> <LOCAL.endItem>
 	button - *20 5224 5003 1 0 <eval (1000 + <LOCAL.x>)>
 	dtext +25 -3 0 <OBJ.amount>
 	dtext +70 -3 0 <OBJ.name>
-	dtext +220 -3 0 <eval <LOCAL.price>>
+	dtext +220 -3 0 <LOCAL.price>
 	dtext +290 -3 0 <LOCAL.vendor>
 	dtext +400 -3 0 <eval <f_getItemQuality <OBJ>,<TAG0.vendor_type>>>
 endfor
@@ -670,32 +772,36 @@ tilepic 20 90 <OBJ.id> <OBJ.color>
 
 dorigin 20 60
 dtext *60 - 0 Item: <OBJ.name>
-dtext - *20 0 Preco de venda (1):
+dtext - *20 0 Preco Un. (mc|mp|mo):
 if ( <SRC.CTAG0.vendor_op>==1 )
-	resizepic +120 - 3000 130 20
-	dtextentry +122 - 130 25 0 1 1
+	resizepic +130 - 3000 50 20 //130
+	dtextentry +132 - 50 25 0 1 1
+	group 0
+	radio 262 80 210 211 1 1	//copper
+	radio 282 80 210 211 0 2	//silver
+	radio 302 80 210 211 0 3	//gold
 else
-	dtext +122 - 0 <eval <SRC.CTAG.vendor_selectedPrice>>
+	dtext +132 - 0 <vendor_cashFormat <eval <SRC.CTAG.vendor_selectedPrice>>,1>
 endif
 
 
 dtext - *20 0 Quantidade:
-resizepic +120 - 3000 60 20
-dtextentry +122 - 60 25 0 2 <OBJ.amount>
+resizepic +130 - 3000 50 20
+dtextentry +132 - 50 25 0 2 <OBJ.amount>
 dtext +180 - 0 max: <OBJ.amount>
 
 dtext - *20 0 Vendedor:
-dtext +122 - 0 <uid.<SRC.CTAG.vendor_selectedOwner>.tag.name>
+dtext +132 - 0 <uid.<SRC.CTAG.vendor_selectedOwner>.tag.name>
 
 dtext - *20 0 Durabilidade:
-dtext +122 - 0 <OBJ.hitpoints>
+dtext +132 - 0 <OBJ.hitpoints>
 
 if ( <f_isWeapon <OBJ> > )
 	dtext - *20 0 Dano:
-	dtext +122 - 0 <OBJ.dam>
+	dtext +132 - 0 <OBJ.dam>
 else //if ( <f_isArmor <OBJ> > )
 	dtext - *20 0 Protecao:
-	dtext +122 - 0 <OBJ.armor>
+	dtext +132 - 0 <OBJ.armor>
 endif
 
 button 20 180 4014 4015 1 0 1	// Back button
@@ -718,7 +824,14 @@ if (<SRC.CTAG0.vendor_op>==1)
 		return 1
 	endif
 
-	vendor_sellItem <SRC.CTAG.vendor_selectedItem>,<argtxt[1]>,<argtxt[2]>
+	if ( <ARGCHKID>==1 )			//copper
+		LOCAL.price=<argtxt[1]>
+	elif ( <ARGCHKID>==2 )			//silver
+		LOCAL.price=<argtxt[1]>*10	
+	elif ( <ARGCHKID>==3 )			//gold
+		LOCAL.price=<argtxt[1]>*100
+	endif
+	vendor_sellItem <SRC.CTAG.vendor_selectedItem>,<LOCAL.price>,<argtxt[2]>
 else
 	//quantidade deve estar correta
 	if !(<isnum <argtxt[2]>>) || (<argtxt[2]> == 0) || (<argtxt[2]> > <OBJ.amount>)
