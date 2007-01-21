@@ -469,9 +469,9 @@ return 1
 LOCAL.copper=<SRC.rescount i_coin_copper>
 LOCAL.silver=<SRC.rescount i_coin_silver>
 LOCAL.gold=<SRC.rescount i_gold>
-LOCAL.cash=<LOCAL.copper>+<LOCAL.silver>*10+<LOCAL.gold>*100
+LOCAL.cash=<LOCAL.copper>+(<LOCAL.silver>*10)+(<LOCAL.gold>*100)
 
-//sysmessage Total Cash: <eval <LOCAL.cash>>
+//message Total Cash: <eval <LOCAL.cash>> <LOCAL.copper> <LOCAL.silver> <LOCAL.gold>
 
 if ( <LOCAL.cash> > <argv[0]> )
 	LOCAL.cash=<argv[0]>
@@ -557,6 +557,41 @@ if ( <eval <LOCAL.y>>!=<argv[0]> ) || ( <argv[1]>==5 )
 	endif
 else
 	return <vendor_cashFormat <eval <LOCAL.x>>,<eval <argv[1]>+1>>
+endif
+
+//*****************************************************************************
+// vendor_buySellTrigger
+//*****************************************************************************
+//trigger a buy or sell action (choose using SRC.CTAG0.vendor_op)
+[FUNCTION vendor_buySellTrigger]
+
+dialogclose d_vendor_items
+dialogclose d_vendor_item_detail
+
+if ( <SRC.CTAG0.vendor_op>==1 )
+	vendor_createPlayerList
+	if ( <SRC.CTAG0.vendor_numItems> < 1 )
+		message Voce nao tem nada que eu possa vender.
+	else
+		message	O que deseja vender?
+		dialog d_vendor_items
+	endif
+elif ( <SRC.CTAG0.vendor_op>==2 )
+	vendor_createVendorList
+	if ( <SRC.CTAG0.vendor_numItems> < 1 )
+		message Nao tenho nada para vender no momento.
+	else
+		message	O que deseja comprar?
+		dialog d_vendor_items
+	endif
+elif ( <SRC.CTAG0.vendor_op>==3 )
+	vendor_createTakebackList
+	if ( <SRC.CTAG0.vendor_numItems> < 1 )
+		message Nao tenho nada seu para devolver
+	else
+		message	O que deseja retirar?
+		dialog d_vendor_items
+	endif
 endif
 
 //*****************************************************************************
@@ -831,7 +866,10 @@ if (<SRC.CTAG0.vendor_op>==1)
 	elif ( <ARGCHKID>==3 )			//gold
 		LOCAL.price=<argtxt[1]>*100
 	endif
+
 	vendor_sellItem <SRC.CTAG.vendor_selectedItem>,<LOCAL.price>,<argtxt[2]>
+
+	vendor_buySellTrigger
 else
 	//quantidade deve estar correta
 	if !(<isnum <argtxt[2]>>) || (<argtxt[2]> == 0) || (<argtxt[2]> > <OBJ.amount>)
@@ -840,8 +878,9 @@ else
 		return 1
 	endif
 
-
 	vendor_buyItem <SRC.CTAG.vendor_selectedItem>,<SRC.CTAG.vendor_selectedPrice>,<argtxt[2]>
+	
+	vendor_buySellTrigger
 endif
 
 
@@ -1058,49 +1097,27 @@ return 0
 [SPEECH jobVENDOR]
 ON=*gostaria*vender*
 ON=*quero*vender*
-	dialogclose d_vendor_items
-	dialogclose d_vendor_item_detail
 
-	vendor_createPlayerList
-	if ( <SRC.CTAG0.vendor_numItems> < 1 )
-		message Voce nao tem nada que eu possa vender.
-	else
-		message	O que deseja vender?
-		dialog d_vendor_items
-	endif
-	
-return 1
+	SRC.CTAG.vendor_op=1
+	vendor_buySellTrigger
+	return 1
 
 ON=*gostaria*comprar*
 ON=*quero*comprar*
-	dialogclose d_vendor_items
-	dialogclose d_vendor_item_detail
+ON=*gostaria*ver*
+ON=*quero*ver*
 
-	vendor_createVendorList
-	if ( <SRC.CTAG0.vendor_numItems> < 1 )
-		message Nao tenho nada para vender no momento.
-	else
-		message	O que deseja comprar?
-		dialog d_vendor_items
-	endif
-	
-return 1
+	SRC.CTAG.vendor_op=2
+	vendor_buySellTrigger
+	return 1
 
 ON=*gostaria*pegar*
 ON=*devolver*
 ON=*retirar*
-	dialogclose d_vendor_items
-	dialogclose d_vendor_item_detail
 
-	vendor_createTakebackList
-	if ( <SRC.CTAG0.vendor_numItems> < 1 )
-		message Nao tenho nada seu para devolver
-	else
-		message	O que deseja retirar?
-		dialog d_vendor_items
-	endif
-
-return 1
+	SRC.CTAG.vendor_op=3
+	vendor_buySellTrigger
+	return 1
 
 ON=limpeza
 	if ( <SRC.isGM> )
