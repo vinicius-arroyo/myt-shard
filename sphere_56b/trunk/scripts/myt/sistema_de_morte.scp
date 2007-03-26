@@ -1,0 +1,580 @@
+//##################################################################################
+//##                                       FUNCTIONS                              ##
+//##################################################################################
+
+[function ganhar_pontos_de_morte]
+ src.tag.pontosdealma=0<src.tag.pontosdealma>+(<argn>)
+ src.sysmessage Voce ganhou: <argn> ponto(s) de alma
+
+[function perder_pontos_de_morte]
+ src.tag.pontosdealma=0<src.tag.pontosdealma>+(- <argn>)
+ src.sysmessage Voce perdeu: <argn> ponto(s) alma
+
+[function verificartemporess]
+if (0<src.tag.pontosdealma> == 1)
+  src.tag.temporess=(60 * 15)
+ elseif (0<src.tag.pontosdealma> == 2)
+   src.tag.temporess=(60 * 10)
+ elseif (0<src.tag.pontosdealma> == 3)
+   src.tag.temporess=(60 * 5)
+ elseif (0<src.tag.pontosdealma> >= 4)
+   src.tag.temporess=(60 * 2)
+ elseif (0<src.tag.pontosdealma> < 1)
+   src.message Sua alma esta fadada ao descanso eterno.
+   src.message Nunca mais voltara a vida
+   return 1
+ endif
+ src.tag.ressconcluido=<eval <src.tag.horariomorte>> + (<src.tag.temporess>)
+
+
+[FUNCTION arrastar]
+ src.newitem=i_mry_arrastar
+ src.act.equip
+ src.act.dclick
+ return 1
+
+[Function equiplayers]
+//põe a roupa
+ findlayer(21).findtype(t_clothing).equip
+ findlayer(21).findtype(t_clothing).equip
+ findlayer(21).findtype(t_clothing).equip
+ findlayer(21).findtype(t_clothing).equip
+//põe armors
+ findlayer(21).findtype(t_armor).equip
+ findlayer(21).findtype(t_armor).equip
+ findlayer(21).findtype(t_armor).equip
+ findlayer(21).findtype(t_armor).equip
+ findlayer(21).findtype(t_armor).equip
+ findlayer(21).findtype(t_armor).equip
+
+[FUNCTION desmaia]
+ src.newitem=i_mry_desmaio
+ src.act.equip
+ src.act.link=<src.uid>
+ if (<src.tag.desmaios><=1)
+  src.act.timer=60
+  src.DIALOG=d_desmaio1
+ elseif (<src.tag.desmaios>=2)
+  src.act.timer=60*5
+  src.DIALOG=d_desmaio2
+ elseif (<src.tag.desmaios>=3)
+  src.act.timer=60*5
+  src.act.more1=1 
+  src.DIALOG=d_desmaio3
+ elseif (<src.tag.desmaios>=4)
+  src.act.timer=60
+  src.act.more1=1
+  src.DIALOG=d_desmaio4
+ endif
+
+[FUNCTION cortar_garganta]
+/// ***************************** Verifica se tem uma arma de corte **************************
+ if (<src.findlayer(1).type>!=t_weapon_fence)	// Pra testar se tem ferramenta de corte.
+  if (<src.findlayer(1).type>!=t_weapon_axe)	// Tá feio, mas os if (x) || (y) não estavam
+   if (<src.findlayer(1).type>!=t_weapon_sword)	// funcionando.
+    if (<src.findlayer(2).type>!=t_weapon_sword)
+     if (<src.findlayer(2).type>!=t_weapon_axe)
+      if (<src.findlayer(2).type>!=t_weapon_fence)
+       src.sysmessage Equipe uma ferramenta adequada...
+       return 1
+      endif
+     endif
+    endif
+   endif
+  endif
+ endif
+/// ********************************* Aplica o MEMORY de cortar garganta ********************
+ src.newitem=i_mry_cortar_garganta
+ src.act.equip
+ src.act.link=<src.tag.corpse>
+ src.act.dclick
+ return 1
+
+[FUNCTION curar_corpo]
+/// ********************************* Aplica o MEMORY de curar corpo ********************
+ src.newitem i_mry_curar_corpo
+ src.act.equip
+/// ************************* verifica se tem bandage ou healing potion *********************
+ if (<src.restest 3 i_bandage>==1)
+  src.act.more1=1
+ endif
+ if (<src.restest 1 i_bottle_yellow>==1)
+  src.act.more1=1
+ endif
+ if (<src.restest 3 i_bandage>==1) 
+  if (<src.restest 1 i_bottle_yellow>==1)
+   src.act.more1=2
+  endif
+ endif
+ src.act.dclick
+ return 1
+
+
+//##################################################################################
+//##                                 EVENTOS                                      ##
+//##################################################################################
+
+
+[events e_sistema_de_morte]
+on=@death
+ if (<SRC.ACT.BRAIN>==0)
+  src.tag.lastkillname=<src.act.tag.name>
+  src.tag.lastkillUID=<src.act.uid>
+  src.act.tag.fpk=(<src.act.tag.fpk>+1)
+ endif
+ if (0<src.tag.desmaios><5)
+  FLAGS=(<FLAGS>&~02) // tira flag de dead
+  update
+  src.hits=1
+  tag.desmaios=(0<tag.desmaios>+1)
+  equiplayers
+  sleep
+  equiplayers
+  desmaia
+  src.events +e_<src.tag.raca>
+  src.findlayer.21.use 
+  src.update
+  return 1
+ else
+  perder_pontos_de_morte 1
+  src.tag.horariomorte=<time>/(10)
+  src.tag.localmorte=<src.p>
+  tag.desmaios=0
+  return 0
+ endif
+ return 1
+
+ON=@ItemCLICK
+ if (<act.type> == t_corpse) && !(<src.flags>&statf_dead) 
+  if (<src.act.link>!=04fffffff) && (<src.act.link.flags>&statf_dead)
+   src.act.message <src.act.link.name> morto
+   return 1
+  elseif (<src.act.link>!=04fffffff) && !(<src.act.link.flags>&statf_dead)
+   src.act.message <src.act.link.name> inconsciente
+   return 1
+  else
+   return 0
+  endif
+ endif
+
+
+ON=@itemDclick
+ if (<act.type> == t_shrine) && (<src.flags>&statf_dead)
+  if (<src.tag.pontosdealma><=0)
+   src.message Sua alma esta fadada ao descanso eterno.
+   src.message Nunca mais voltara a vida
+   return 1
+  endif  
+  verificartemporess
+  src.tag.horarioclique=<time>/(10)
+  if (<src.tag.ressconcluido> > <eval <src.tag.horarioclique>>)
+   src.message Voce precisa recuperar um pouco suas forcas...
+   return 1
+  else
+   src.go <src.tag.localmorte>		
+   src.equiplayers
+  endif
+ endif
+ if (<act.type> == t_shrine) && !(<src.flags>&statf_dead)
+  src.sysmessage Voce possui <eval <src.tag.pontosdealma>> pontos de alma...
+ endif
+ if (<act.type> == t_corpse) && !(<src.flags>&statf_dead)
+  src.tag.corpse=<src.act.uid>
+  if (<src.act.link>==04fffffff)		
+   return 0					
+  endif					
+  if (<src.act.link>==<src.uid>)		
+   return 0					
+  endif					
+  if (0<src.tag.corpse>==<src.act.uid>) && (0<src.tag.loot_corpse>==1)
+   src.tag.loot_corpse=0
+   return 0
+  elseif (<src.act.link.flags>&statf_dead)
+   src.menu=m_corpse_morto
+   return 1
+  else
+   src.menu=m_corpse
+   return 1
+  endif
+ endif
+
+
+//##################################################################################
+//##                                 MEMORY ITENS                                 ##
+//##################################################################################
+
+
+[itemdef i_mry_arrastar]
+ NAME=arrastar
+ id=i_deed
+ type=t_eq_script
+ layer=30
+
+ on=@create
+ attr=04000
+ weight=300
+
+on=@dclick
+ TARGET Arrastar que corpo?
+ return 1
+
+on=@TARGON_GROUND
+ TARGET Nao pode arrastar isso.
+ return 1
+
+on=@TARGON_CHAR
+ TARGET Este corpo nao parece morto o suficiente.
+ return 1
+
+ON=@TARGON_ITEM
+ if <src.targ.type>==t_corpse
+  link=<src.targ.uid>
+  src.say *arrastando corpo*
+  cont.tag.test_arr= ((<cont.str>*5)+(<cont.Stamina>*3))/8
+  timer=1
+  return 1
+ else
+  TARGET Isso nao e um corpo...
+  return 1
+ endif
+
+ON=@TIMER
+ if (<eval <cont.tag.test_arr>> > <eval RAND(100)>) && !(<cont.flags>&020)
+   link.p=<cont.p>
+   if !(<link.link.flags>&02)
+    link.link.p <cont.p>
+   endif
+   tryp 0 link.link.tag.localmorte=<cont.p>
+   serv.allclients update
+   timer=1
+   return 1
+  else
+   cont.tag.test_arr=
+   cont.say *largou*
+   cont.sysmessage O corpo escapou da sua mao
+   remove
+   return 1
+  endif
+
+[itemdef i_mry_desmaio]
+ id=i_deed
+ name=Desmaio
+ type=t_eq_script
+ layer=30
+ weight=0
+
+on=@create
+ attr=attr_decay
+
+on=@equip
+ src.sysmessage Voce perdeu a consciencia !!!
+ src.flags=<src.flags>|040011 //sleep e paralyze e invul
+ return 1
+
+on=@timer
+ if (<more1>!=1)
+  cont.sysmessage Voce recobrou a consciencia.
+  cont.flags=<cont.flags>&~040001 // tirar sleep e paralyze e invul
+  cont.FLAGS=(<cont.FLAGS>&~02)
+  cont.say *hug!*
+  cont.hits=(<cont.str>/5)
+  cont.findlayer.21.use
+  cont.equiplayers
+  cont.update
+  remove
+  return 1
+ else
+  cont.flags=<cont.flags>&~040001
+  cont.say *morreu*
+  cont.tag.desmaios=5
+  cont.kill
+  cont.findid.i_mry_desmaio.remove
+  return 1
+ endif
+ return 1
+
+[ITEMDEF i_mry_cortar_garganta]
+ id=i_deed
+ name=Cortando garganta
+ type=t_eq_script
+ layer=30
+ weight=0
+
+on=@create
+ attr=attr_decay
+
+ON=@DCLICK
+ link.link.findid.i_mry_desmaio.remove	//O dono do corpo não está mais desmaiado.
+ link.link.say *assasinado* 		// para tirar o .sleep junto com o corpo do dono do corpo.
+ link.link.flags=<link.link.flags>&~040001 	//pra tirara o flag de invul e de paralyze do dono do corpo.
+ link.link.tag.desmaios=5		//Se o dono do corpo desmaiar (.kill) denovo ele morre.
+ link.link.kill				//Mata o dono do corpo.
+ remove					//Não estou mais cortando garganta.
+ return 1
+
+[ITEMDEF i_mry_curar_corpo]
+ id=i_deed
+ name=Curando corpo
+ type=t_eq_script
+ layer=30
+ weight=0
+
+on=@create
+ attr=attr_decay
+ more2=20
+
+ON=@TIMER
+ if (<cont.tag.podecurar> !=1) //1
+  if (<more1>==0)  //2
+   cont.sysmessage Voce nao tem os equipamentos necessarios...
+   remove
+   return 1
+  else  //2
+   cont.tag.podecurar=1
+   cont.flags=(<cont.flags>|000000004)
+   more2=11
+   timer=1
+   return 1
+  endif //2
+ elseif (<cont.tag.podecurar>==1) //1
+  if (<more2> !=1) //2
+   more2=(<more2> + (-1))
+   DORAND 10
+    cont.anim 16
+    sfx 04f
+    cont.anim 19
+    sfx 04f
+    cont.say *aplicando curativos*
+    cont.anim 16
+    sfx 04f
+    cont.sysmessage
+    sfx 04f
+    cont.anim 19
+   ENDDO
+   timer=1
+   return 1
+  else //2
+   cont.consume 3 i_bandage
+   cont.consume 1 i_bottle_yellow
+   if (<more1>==1) // Chance normal de curar //3
+//    cont.say Chance normal
+    if (<cont.healing> >= {0 1150}> //4
+//     cont.say Passou
+     cont.flags=(<cont.flags>&~000000004)
+     cont.tag.podecurar=
+     cont.sysmessagegreen Seu tratamento surtiu efeito...
+     cont.GAIN_SKILL healing
+     link.link.consume i_mry_desmaio
+     link.link.flags=(<link.link.flags>&~040001)
+     link.link.say *ouf!*
+     remove
+     return 1
+    else //4
+     cont.sysmessageorange Seu tratamento nao surtiu efeito...
+     cont.GAIN_SKILL healing
+     cont.unfreeze
+     remove
+     return 1
+    endif //4
+   elseif (<more1>==2) // Chance adicional de curar //4
+//    cont.say Chance adicional
+    if (<cont.healing> >= {0 850}) //5
+//     cont.say Passou
+     cont.flags=(<cont.flags>&~000000004)
+     cont.tag.podecurar=
+     cont.sysmessagegreen Seu tratamento surtiu efeito...
+     cont.GAIN_SKILL healing
+     link.link.consume i_mry_desmaio
+     link.link.flags=(<link.link.flags>&~040001)
+     link.link.say *ouf!*
+     remove
+     return 1
+    else //5
+     cont.sysmessageorange Seu tratamento nao surtiu efeito...
+     cont.GAIN_SKILL healing
+     cont.unfreeze
+     remove
+     return 1
+    endif //5
+   endif //4
+   cont.say !!! Erro! Reporte bug de curar corpo !!!
+   remove
+   return 1
+   endif //2
+  endif
+ endif //1
+
+
+ON=@DCLICK
+ TARGET Curar que corpo?
+ return 1
+
+ON=@TARGON_GROUND
+ cont.sysmessage Este nao e um corpo valido...
+ remove
+ return 1
+
+ON=@TARGON_CHAR
+ cont.sysmessage Nao esta suficientemente morto...
+ remove
+ return 1
+
+ON=@TARGON_ITEM
+ if (<cont.targ.type>==t_corpse)
+  link=<cont.targ.uid>
+  timer=1
+  return 1
+ else
+  cont.sysmessage Este nao e um corpo valido...
+  remove
+ endif
+ return 1
+
+//##################################################################################
+//##                                    GUMPS                                                                                         ##
+//##################################################################################
+
+[MENU m_corpse]
+                -=Corpo Inconsiente=-
+on=0 cortar garganta (perde 2 pontos de alma)
+ src.perder_pontos_de_morte 2
+ src.cortar_garganta
+ return 1
+
+on=0 curar
+ src.curar_corpo
+ return 1
+
+on=0 roubar o corpo (perde 1 ponto de alma)
+ src.perder_pontos_de_morte 1
+ src.tag.loot_corpse=1
+ src.sysmessage Abra o corpo para roubar os itens.
+ return 1
+
+on=0 arrastar o corpo
+ src.arrastar
+ return 1
+
+
+[MENU m_corpse_morto]
+                   -=Corpo Morto=-
+on=0 roubar o corpo (perde 1 ponto de alma)
+ src.perder_pontos_de_morte 1
+ src.tag.loot_corpse=1
+ src.sysmessage Pode abrir o corpo e roubar os itens.
+ return 1
+
+on=0 arrastar o corpo
+ src.arrastar
+ return 1
+
+
+[DIALOG d_desmaio1]
+175, 125
+noclose
+PAGE 0
+gumppic 0 0 2080
+gumppic 17 37 2081
+gumppic 17 107 2082
+gumppic 18 177 2083
+text 73 33 32 0
+text 76 52 32 1
+text 42 80 1152 2
+text 28 99 1152 3
+text 29 118 1152 4
+button 118 145 2311 2312 1 0 0
+text 123 5 152 5
+
+[DIALOG d_desmaio1 TEXT]
+Voce caiu no chao e
+perdeu a consciencia.
+Esta e a primeira vez que isso
+lhe aconteceu. Logo estara acordado
+novamente.
+(MyT)
+
+
+[DIALOG d_desmaio1 BUTTON]
+
+[DIALOG d_desmaio2]
+175, 125
+noclose
+PAGE 0
+gumppic 0 0 2080
+gumppic 17 37 2081
+gumppic 17 107 2082
+gumppic 18 177 2083
+text 73 33 32 0
+text 76 52 32 1
+text 42 80 1152 2
+text 27 99 1152 3
+text 29 118 1152 4
+button 118 145 2311 2312 1 0 0
+text 123 5 152 5
+
+[DIALOG d_desmaio2 TEXT]
+Voce caiu no chao e
+perdeu a consciencia.
+Esta e a segunda vez que isso
+lhe aconteceu. Em algum tempo voce
+podera voltar a andar.
+(MyT)
+
+
+[DIALOG d_desmaio2 BUTTON]
+
+[DIALOG d_desmaio3]
+175, 125
+noclose
+PAGE 0
+gumppic 0 0 2080
+gumppic 17 37 2081
+gumppic 17 107 2082
+gumppic 18 177 2083
+text 73 33 32 0
+text 76 52 32 1
+text 42 80 1152 2
+text 27 99 1152 3
+text 29 118 1152 4
+button 118 145 2311 2312 1 0 0
+text 123 5 152 5
+
+[DIALOG d_desmaio3 TEXT]
+Voce caiu no chao e
+perdeu a consciencia.
+Esta e a terceira vez que isso
+lhe aconteceu. Voce precisa de 
+cuidados medicos ou morrera.
+(MyT)
+
+
+[DIALOG d_desmaio3 BUTTON]
+
+[DIALOG d_desmaio4]
+175, 125
+noclose
+PAGE 0
+gumppic 0 0 2080
+gumppic 17 37 2081
+gumppic 17 107 2082
+gumppic 18 177 2083
+text 73 33 32 0
+text 76 52 32 1
+text 42 80 1152 2
+text 27 99 1152 3
+text 26 118 1152 4
+button 118 145 2311 2312 1 0 0
+text 123 5 152 5
+text 222 117 32 6
+
+[DIALOG d_desmaio4 TEXT]
+Voce caiu no chao e
+perdeu a consciencia.
+Esta e a quarta vez que isso
+lhe aconteceu. Voce precisa de 
+cuidados medicos ou morrera
+(MyT)
+LOGO!
+
+// ##################################################################################
+

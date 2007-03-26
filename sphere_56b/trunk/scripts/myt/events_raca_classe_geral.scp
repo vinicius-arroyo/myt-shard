@@ -1,408 +1,336 @@
-// ##############
-// Events de Raca
-//    v1.9g MYT
-//    by Metus & Galthar
-// ##############
+//*****************************************************************************
+//*****************************************************************************
+//
+// EVENTOS RACIAIS por
+//	Galthar
+//	Metus
+//	UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+//
+//TAGS usadas:
+//src.tag.drowLowLightBonus	//1 with bonus active, 0 otherwise
+//src.tag.resisteaoclima
+//src.tag.str
+//src.tag.dex
+//src.tag.int
+//src.tag.raca
+//src.tag.bank.weight
+//*****************************************************************************
 
-// ############# ELFOS #############
 
-[events e_elfo]
-on=@dclick
-if (<src.color> != 083ea ) && (<src.gm>==0) && (<src.body>!=c_man_gm)
- src.color 083ea
-endif
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+
+[DEFNAME charCreation]
+//regenerates one mana point every n seconds
+ev_elf_mana_timer=3
+//check drow bonuses every n seconds
+ev_drow_check_timer=5
+//regenerates one stam point every n seconds
+ev_dwarf_stam_timer=3
+
+//*****************************************************************************
+//*****************************************************************************
+// EVENTs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// ELFOS
+//*****************************************************************************
+//Elfos possuem visao noturna e mana acelerada
+[EVENTS e_elfo]
 
 on=@login
-// Visao Noturna
 src.nightsight 1
-// Mana Acelerada
 src.findid.i_elfo_mana.remove
 src.newitem=i_elfo_mana
 src.act.link <src.uid>
 src.act.cont <src.uid>
-src.act.use
 
-[itemdef i_elfo_mana]
+[ITEMDEF i_elfo_mana]
 id=i_deed
 name=Elfo - Mana
 type=t_eq_script
-layer=30
+layer=layer_special
 weight=0
 
 on=@create
-attr=attr_decay
-
-on=@dclick
-src.tag.elfomanatimer=3
-timer=<src.tag.elfomanatimer>
+timer=ev_elf_mana_timer
 return 1
 
 on=@timer
 if (<link.mana> < <eval <link.int>-10>)
-link.mana=<link.mana>+1
+  link.mana=<link.mana>+1
 endif
-timer=<link.tag.elfomanatimer>
+timer=ev_elf_mana_timer
 return 1
 
-// ########### DROWS ############
-
-[events e_drow]
-on=@itemDclick
-if (<src.color> != 0455) && (<src.gm>==0) && (<src.body>!=c_man_gm)
- src.color 0455
- src.update
-endif
-if !(<src.flags>&0100)
- src.flags=<src.flags>|0100
-endif
+//*****************************************************************************
+// DROWS
+//*****************************************************************************
+//Drows tem visao noturna preferenciada, ganham bonus no escuro e sofrem danos
+//no claro.
+[EVENTS e_drow]
 
 on=@login
-// Check Drow
-src.consume 10 i_drow_check
+src.nightsight 1
+src.findid.i_drow_check.remove
 src.newitem=i_drow_check
 src.act.link <src.uid>
 src.act.cont <src.uid>
-src.act.use
 
-[itemdef i_drow_check]
+[ITEMDEF i_drow_check]
 id=i_deed
 name=Drow - Check
 type=t_eq_script
-layer=30
+layer=layer_special
 weight=0
 
 on=@create
-attr=attr_decay
-
-on=@dclick
-timer=5
-return 1
+timer=ev_drow_check_timer
 
 on=@timer
-cont.feel_dark
-if (<cont.tag.isdark> == 0)
-link.tag.drowbonus=0
-endif
-if (<cont.tag.isdark> == 1)
-link.tag.drowbonus=1
-endif
 
-if (<link.tag.drowbonus> == 1)
- if (0<link.tag.drowbonuschecked> == 0)
-  link.nightsight 1
-  link.hiding=<link.hiding>+(10.0)
-  link.stealth=<link.stealth>+(5.0)
-  link.magicresistance=<link.magicresistance>+(5.0)
-   if (0<link.tag.drowlosedex> == 1)
+if ( <sector.light> >= 13 )
+  if (<link.tag.drowLowLightBonus> != 1)
+    link.tag.drowLowLightBonus=1
+    link.nightsight 1
+    link.hiding=<link.hiding>+10.0
+    link.stealth=<link.stealth>+5.0
+    link.magicresistance=<link.magicresistance>+5.0
     link.dex=<link.dex>+20
-    link.sysmessage Seu corpo recuperou as forcas...
-    link.tag.drowlosedex=0
-   endif
-  link.tag.drowbonuschecked=1
- endif
-endif
-
-if (<link.tag.drowbonus> == 0)
- if (0<link.tag.drowbonuschecked> == 1)
- link.nightsight 0
- link.hiding=<link.hiding>+(-10.0)
- link.stealth=<link.stealth>+(-5.0)
- link.magicresistance=<link.magicresistance>+(-5.0)
-  if (0<link.tag.drowlosedex> == 0)
-   link.dex=<link.dex>+(-20)
-   link.tag.drowlosedex=1
+    link.sysmessage Voce se sente mais forte no escuro...
   endif
- link.tag.drowbonuschecked=0
- endif
-
- if (<link.hits> > 0)
- link.damage {5 10}
- link.sysmessage A luz esta debilitando seu corpo...
- endif
-
+else
+  if (<link.tag.drowLowLightBonus> != 0)
+    link.tag.drowLowLightBonus=0
+    link.nightsight 0
+    link.hiding=<link.hiding>-10.0
+    link.stealth=<link.stealth>-5.0
+    link.magicresistance=<link.magicresistance>-5.0
+    link.dex=<link.dex>-20
+    link.sysmessage A luz esta debilitando seu corpo...
+  endif
+ 
+  if (<link.hits> > 0)
+    link.damage {5 10}
+  endif
 endif
-timer=5
+
+timer=ev_drow_check_timer
 return 1
 
+//*****************************************************************************
+// ORCS
+//*****************************************************************************
+//Orcs possuem mascara fixa (cara de orc) e não podem usar capacetes. 
+//Quando são atingidos e estão com poucos pontos de vida dão dano no inimigo.
+[EVENTS e_orc]
 
-[FUNCTION feel_dark]
-if (<sector.light> >= 13)
- tag.isdark=1
-else
- tag.isdark=0
-endif
-
-// ########### ORC #############
-
-[events e_orc]
 on=@login
-if (0<src.tag.orcdesvantagemset> == 0) && (<src.isgm>==0)
- src.alchemy=<src.alchemy>+(-10.0)
- src.bowcraft=<src.bowcraft>+(-10.0)
- src.blacksmithing=<src.blacksmithing>+(-10.0)
- src.lumberjacking=<src.lumberjacking>+(-10.0)
- src.carpentry=<src.carpentry>+(-10.0)
- src.magicresistance=<src.magicresistance>+(-10.0)
- src.tag.orcdesvantagemset=1
-endif
-
-on=@itemDclick
-if (<src.findlayer(layer_hair)> == 1) || (<src.findlayer(layer_beard)> == 1)
- src.findlayer(layer_hair).remove
- src.findlayer(layer_beard).remove
-endif
-if (<src.findlayer(layer_helm).baseid> != i_head_orc)
- src.consume 30 i_head_orc
- src.findlayer(layer_helm).remove
- src.act=0
- src.newitem i_head_orc
- src.act.equip
-endif
-if (<src.color> != 0597 ) && (<src.isgm>==0) && (<src.body>!=c_man_gm)
- src.color 0597
- src.update
-endif
-
-if (<src.act.type>==t_meat_raw) || (<src.act.type>==t_fish)
- if (<src.food>>=15)
-   src.sysmessage Voce esta cheio! Nao consegue comer mais nada!
- return 1
- elif (<src.food>>=10)
-   src.anim 022
-   sfx 03b //03a
-   src.say *Comendo carne crua*
-   src.food=(<src.food>+{3 6})
-   src.sysmessage Voce esta cheio! 
-	if (<src.act.amount>>1)
-	  src.act.amount=<src.act.amount>+(-1)
-	  update
-	return 1
-	else
-	  src.act.remove
-	return 1
-	endif
- return 1
- else
-   src.anim 022
-   sfx 03b //03a
-   src.say *Comendo carne crua*
-   src.food=(<src.food>+{3 6})
-   src.sysmessage Voce se sente mais satisfeito ao comer este naco de carne!
-	if (<src.act.amount>>1)
-	  src.act.amount=<src.act.amount>+(-1)
-	  update
-	return 1
-	else
-	  src.act.remove
-	return 1
-	endif
- return 1
- endif
-endif
-return 0
+src.findlayer(layer_hair).remove
+src.findlayer(layer_beard).remove
+src.findlayer(layer_helm).hitpoints 999
+src.update
 
 on=@hit
-if (<hits> < 30)
-say * Em Furia *
-src.damage {5 10}
+if (<hits> < 20)
+  say * Em Furia *
+  src.damage {5 10}
 endif
 
-[itemdef i_head_orc]
+[ITEMDEF i_head_orc]
 id=0141b
 name=Orc
 TYPE=t_armor
 VALUE=0
 WEIGHT=0
 ARMOR=50
-CATEGORY=Provisions - Armor
-SUBSECTION=Head
-DESCRIPTION=Orc
 
 ON=@Create
 COLOR=0597
-HITPOINTS={9990 9999}
-attr=08010
+HITPOINTS=9999
+attr=attr_static|attr_move_never
 
-// ############## ANAO ###############
+//*****************************************************************************
+// ANOES
+//*****************************************************************************
+//Anoes resistem ao clima e tem regeneracao de stamina acelerada
+//-Caem ao subir em cavalos
+//-Se queimao ao tocar itens magicos
+[EVENTS e_anao]
 
-[events e_anao]
+on=@login
+src.tag.resisteaoclima=1
+
+src.findid.i_anao_stam.remove
+src.newitem=i_anao_stam
+src.act.link <src.uid>
+src.act.cont <src.uid>
+
+src.findid.i_no_mounting.remove
+src.newitem=i_no_mounting
+src.act.link <src.uid>
+src.act.cont <src.uid>
+
 on=@itemDclick
 
-if (<src.color> != 03f6 ) && (<src.isgm>==0) && (<src.body>!=c_man_gm)
- src.color 03f6
-endif
-if (0<src.tag.anaomagicresbonus> == 0) && (<src.isgm>==0)
- src.magicresistance=<src.magicresistance>+(5.0)
- src.tag.anaomagicresbonus=1
-endif
-if (<act.attr>&00020) && (<src.isgm>==0)
- src.sysmessage Voce tentou usar algo magico e se queimou...
+if (<act.attr>&attr_magic) && (!<src.isgm>)
  src.say * Se queimou *
  src.damage {10 15}
  act.p=<src.p>
 endif
 
 on=@itemEquip
-if (<act.attr>&00020) && (<src.isgm>==0)
- src.sysmessage Voce tentou usar algo magico e se queimou...
+if (<act.attr>&attr_magic) && (<src.isgm>==0)
  src.say * Se queimou *
  src.damage {10 15}
  act.p=<src.p>
 endif
 
-on=@login
-// Resistir ao Clima
-src.tag.resisteaoclima=1
-// Stamina Acelerada
-src.consume 10 i_anao_stam
-src.newitem=i_anao_stam
-src.act.link <src.uid>
-src.act.cont <src.uid>
-src.act.use
-src.act=0
-src.consume 30 i_no_mounting
-src.newitem=i_no_mounting
-src.act.link <src.uid>
-src.act.cont <src.uid>
-src.act.use
-src.act=0
-src.consume 30 i_anao_food
-src.newitem=i_anao_food
-src.act.link <src.uid>
-src.act.cont <src.uid>
-src.act.use
 
-[itemdef i_anao_stam]
+[ITEMDEF i_anao_stam]
 id=i_deed
 name=Anao - Stam
 type=t_eq_script
-layer=30
+layer=layer_special
 weight=0
 
 on=@create
-attr=attr_decay
-
-on=@dclick
-src.tag.anaostamtimer=<eval <serv.regen2>/(2)>
-timer=<src.tag.anaostamtimer>
+timer=ev_dwarf_stam_timer
 return 1
 
 on=@timer
-if (<link.stam> < <eval <link.dex>-2>)
-link.stam=<link.stam>+1
+if (<link.stam> < <eval <link.dex>-10>)
+  link.stam=<link.stam>+1
 endif
-timer=<link.tag.anaostamtimer>
+timer=ev_dwarf_stam_timer
 return 1
 
-[itemdef i_anao_food]
-id=i_deed
-name=Anao - Food
-type=t_eq_script
-layer=30
-weight=0
 
-on=@create
-attr=attr_decay
-
-on=@dclick
-src.tag.anaofoodtimer=<eval <serv.regen3>/(2)>
-timer=<src.tag.anaofoodtimer>
-return 1
-
-on=@timer
-link.food=<link.food>+(-2)
-if (<link.food> > 1000)
-link.food=0
-endif
-timer=<link.tag.anaofoodtimer>
-return 1
-
-[itemdef i_no_mounting]
+[ITEMDEF i_no_mounting]
 id=i_deed
 name=No - Mounting
 type=t_eq_script
-layer=30
+layer=layer_special
 weight=0
 
 on=@create
-attr=attr_decay
-
-on=@dclick
-timer=1
+timer=2
 return 1
 
 on=@timer
-if (<link.findlayer(layer_horse)> == 1)
+if (<link.findlayer(layer_horse)>)
  link.say * Caiu da montaria *
  link.sleep
  link.sysmessage Suas pernas sao pequenas demais para montar o animal...
 endif
-timer=1
+timer=2
 return 1
 
-
-// ############# HUMANO ###############
-
-[events e_humano]
-on=@itemDclick
-if (<src.color> != 083ea ) && (<src.isgm>==0) && (<src.body>!=c_man_gm)
- src.color 083ea
- src.update
-endif
-
-// ################
-// Events de Classe
-// V1.9g By Galthar
-// ################
+//*****************************************************************************
+// HUMANOS
+//*****************************************************************************
+[EVENTS e_humano]
 
 
-[events e_arqueiro]
+//*****************************************************************************
+// ARQUEIRO
+//*****************************************************************************
+[EVENTS e_arqueiro]
 
-[events e_guerreiro]
+//*****************************************************************************
+// GUERREIRO
+//*****************************************************************************
+[EVENTS e_guerreiro]
 
-[events e_mago]
+//*****************************************************************************
+// MAGO
+//*****************************************************************************
+[EVENTS e_mago]
 
 ON=@ItemDclick
 if (<src.act.type>==t_spellbook)
- if (<src.findlayer(21).findid(i_spellbook).link>==<src.uid>)
-  if (<src.magery> >=0) && (<src.magery> <=599)
-   src.findlayer(21).findid(i_spellbook).More1 = 000020c78
-   src.findlayer(21).findid(i_spellbook).More2 = 000000000
-  elif (<src.magery> >=600) && (<src.magery> <=699)
-   src.findlayer(21).findid(i_spellbook).More1 = 00156cdf8
-   src.findlayer(21).findid(i_spellbook).More2 = 000000000
-  elif (<src.magery> >=700) && (<src.magery> <=799)
-   src.findlayer(21).findid(i_spellbook).More1 = 02557fff8
-   src.findlayer(21).findid(i_spellbook).More2 = 000000012
-  elif (<src.magery> >=800) && (<src.magery> <=699)
-   src.findlayer(21).findid(i_spellbook).More1 = 06757fff8
-   src.findlayer(21).findid(i_spellbook).More2 = 000008b12
-  elif (<src.magery> >=900) && (<src.magery> <=999)
-   src.findlayer(21).findid(i_spellbook).More1 = 06757fff8
-   src.findlayer(21).findid(i_spellbook).More2 = 00000af1a
+ if (<src.findlayer(layer_pack).findid(i_spellbook).link>==<src.uid>)
+  if (<src.magery> <= 599)
+   src.findlayer(layer_pack).findid(i_spellbook).More1 = 000020c78
+   src.findlayer(layer_pack).findid(i_spellbook).More2 = 000000000
+  elif (<src.magery> <= 699)
+   src.findlayer(layer_pack).findid(i_spellbook).More1 = 00156cdf8
+   src.findlayer(layer_pack).findid(i_spellbook).More2 = 000000000
+  elif (<src.magery> <=799)
+   src.findlayer(layer_pack).findid(i_spellbook).More1 = 02557fff8
+   src.findlayer(layer_pack).findid(i_spellbook).More2 = 000000012
+  elif (<src.magery> <=699)
+   src.findlayer(layer_pack).findid(i_spellbook).More1 = 06757fff8
+   src.findlayer(layer_pack).findid(i_spellbook).More2 = 000008b12
+  else
+   src.findlayer(layer_pack).findid(i_spellbook).More1 = 06757fff8
+   src.findlayer(layer_pack).findid(i_spellbook).More2 = 00000af1a
   endif
  endif
 endif 
 
-[events e_bardo]
+//*****************************************************************************
+// BARDO
+//*****************************************************************************
+[EVENTS e_bardo]
 
-[events e_ladrao]
+//*****************************************************************************
+// LADRAO
+//*****************************************************************************
+[EVENTS e_ladrao]
 
-[events e_artesao]
+//*****************************************************************************
+// ARTESAO
+//*****************************************************************************
+[EVENTS e_artesao]
 
-[events e_lenhador]
+//*****************************************************************************
+// LENHADOR
+//*****************************************************************************
+[EVENTS e_lenhador]
 
-[events e_ferreiro]
+//*****************************************************************************
+// FERREIRO
+//*****************************************************************************
+[EVENTS e_ferreiro]
 
-// ################
-// Events Geral MYT
-// ################
+//*****************************************************************************
+// EVENTO GERAL PARA TODOS CHARS
+//*****************************************************************************
+[EVENTS e_mytgeral]
 
-[events e_mytgeral]
+//*************************************
+ON=@LOGIN
+//*************************************
+  src.name=<src.tag.raca>
+  src.PUT_RP
+  src.title " "
+  src.flags=<src.flags>&~statf_freeze
+  src.str=<src.tag.str>
+  src.dex=<src.tag.dex>
+  src.int=<src.tag.int>
 
-on=@USERQUESTBUTTON
-quest_userQuests
-return 1
+//if ( !strmatch(<src.cliver>, 5.0.0))
+//  src.warnAndDisconnect
+//endif
+
+  //entrega mensagens pendentes
+  f_deliverPendingMessages
+
+//*************************************
+ON=@USERQUESTBUTTON
+//*************************************
+  quest_userQuests
+  return 1
 
 //on=@itemClientTooltip
 //SRC.addcliloc 1042971,Race: Goblin
@@ -412,957 +340,76 @@ return 1
 //SRC.addcliloc 1042970,Race: Goblin
 //return 0
 
-on=@skillstart
+//*************************************
+ON=@ITEMDROPON_ITEM
+//*************************************
+  if (<argo.type>==t_eq_bank_box)
+   if (0<src.tag.bank.weight>==0)
+    src.tag.bank.weight=10000
+   endif
+   if (<src.findlayer.layer_bankbox.weight> > <src.tag.bank.weight>) && (<src.isgm>==0)
+    src.sysmessageyellow Sua caixa bancaria esta cheia.
+    return 1
+   endif
+  endif
 
-on=@ItemDropon_Item
-if (<argo.type>==t_eq_bank_box)
- if (0<src.tag.bank.weight>==0)
-  src.tag.bank.weight=10000
- endif
- if (<src.findlayer.layer_bankbox.weight> > <src.tag.bank.weight>) && (<src.isgm>==0)
-  src.sysmessageyellow Sua caixa bancaria esta cheia.
-  return 1
- endif
-endif
-
-
-on=@login
-//src.checkplayers //// desligar se não for BETA TEST!!! Isso é para o Client Linger do limite de 8 players online.
-src.events +e_combat
-src.name=<src.tag.raca>
-src.PUT_RP
-src.title=.
-src.flags=<src.flags>&~04
-
-if (0<src.tag.fixstats>==0)
- src.tag.str=<src.str>
- src.tag.dex=<src.dex>
- src.tag.int=<src.int>
- src.tag.fixstats=1
-elif (0<src.tag.fixstats>==1) && (<src.isgm>==0)
- src.str=<src.tag.str>
- src.dex=<src.tag.dex>
- src.int=<src.tag.int>
-endif
-
-//if (strmatch(<src.cliver>, 3.0.0))
-// sysmessagegreen Versao correta do Client detectada.
-// sysmessagegreen Bem vindo(a), <src.account>.
-//else
-// sysmessagered Voce esta tentando utilizar uma versao nao autorizada do client. Voce esta sendo desconectado por um script automatico. Utilize os clients 3.0.0c ou 3.0.0g
-// src.discon
-//endif
-
-if (<src.restest 1 i_mry_checkskill>==0)
- src.newitem i_mry_checkskill
- src.act.equip
- src.act.timer = 60*30
-endif
-
-//entrega mensagens pendentes
-f_deliverPendingMessages
-
-on=@logout
-src.tag.kills=<src.kills>
-src.name=<src.tag.name>
-src.findid.i_clientlinger.remove
-src.newitem i_clientlinger
-src.act.link <src.uid>
-src.act.cont <Src.uid>
-src.act.use
-
-if (<src.restest 1 i_mry_fazitem>)
- src.findid.i_mry_fazitem.cleartags
-endif
-
-on=@itemdclick
+//*************************************
+ON=@ITEMDCLICK
+//*************************************
  if (<src.act.type> == t_spellbook) && (<src.act.link> != <src.uid>)
-  src.sysmessage Este livro nao lhe pertence...
-  return 1
- endif
- if (<src.act.type>==t_dye_vat)
-  src.tag.vat=<src.act.uid>
-  src.newitem i_mry_tingir
-  src.act.link=0<src.tag.vat>
-  src.act.equip
-  src.act.use
-  src.tag.vat=
-  return 1
- endif
-/// Lã e linha
- if (<src.act.type>==t_cotton)
-  src.tag.cotton=<src.act.uid>
-  src.tag.cottonc=<src.act.color>
-  src.newitem i_mry_cotton
-  src.act.link=0<src.tag.cotton>
-  src.act.color=0<src.tag.cottonc>
-  src.act.equip
-  src.act.use
-  src.tag.cotton=
-  src.tag.cottonc=
-  return 1
- endif
- if (<src.act.type>==t_wool)
-  src.tag.wool=<src.act.uid>
-  src.tag.woolc=<src.act.color>
-  src.newitem i_mry_wool
-  src.act.link=0<src.tag.wool>
-  src.act.color=0<src.tag.woolc>
-  src.act.equip
-  src.act.use
-  src.tag.wool=
-  src.tag.woolc=
-  return 1
- endif
- if (<src.act.type>==t_thread)
-  src.tag.thread=<src.act.uid>
-  src.tag.threadc=<src.act.color>
-  src.newitem i_mry_thread
-  src.act.link=0<src.tag.thread>
-  src.act.color=0<src.tag.threadc>
-  src.act.equip
-  src.act.use
-  src.tag.thread=
-  src.tag.thread=
-  return 1
- endif
-
- if (<src.act.type>==t_normal)
-  src.sysmessage Objeto nao funcional.
-  return 1
- endif
-
- if (0<src.act.tag.makefurn>==1)
-  src.sysmessagered Furniure
-  src.tag.furnuid=<src.act.uid>
-  src.menu m_furniture_own
-  return 1
+   src.sysmessage Este livro nao lhe pertence...
+   return 1
  endif
 
  if (<src.act.type>==t_meat_raw) && !(strmatch(<src.tag.raca>,Orc))
-  src.sysmessagered Isso deve ser cozinhado antes de consumido.
-  return 1
- endif
-
- if (<src.act.type>==t_fruit) && (<src.food> >=8)
-  src.sysmessagered Voce nao aguenta mais comer este tipo de comida.
-  src.sysmessagered Que tal um assado?
-  return 1
- endif
-
- if (<src.act.id>==i_ribs_cooked) && (<src.food> >=8)
-  src.sysmessagered Voce nao aguenta mais comer este tipo de comida.
-  src.sysmessagered Que tal um assado?
-  return 1
- endif
-
-on=@itemclick
-if (<src.act.canseelos>==0) && (<src.gm>==0)
- return 1
-endif
-//testa pra ver se é roupa
-if (<src.act.type>==t_clothing)
-//determinar medida do player
- src.tag.mp=<eval ((<src.str>*6)/10)>
- src.tag.mc=<eval ((<src.str>*5)/10)>
-// aplica mod de raça anã
- if (strmatch(<src.tag.raca>,Anao))
-  src.tag.mp=<eval ((<src.tag.mp>*8)/10)>
-  src.tag.mc=<eval ((<src.tag.mc>*8)/10)>
- endif
-// aplica mod de raça orc
- if (strmatch(<src.tag.raca>,Orc))
-  src.tag.mp=<eval ((<src.tag.mp>*12)/10)>
-  src.tag.mc=<eval ((<src.tag.mc>*12)/10)>
- endif
-// checa tamanho da roupa
- if (<src.act.layer>==5) || (<src.act.layer>==17) || (<src.act.layer>==22)
-  if !(<eval (<src.act.more2>+(-1))> <= <src.tag.mp>)
-   src.act.message <src.act.name> (grande)
+   src.sysmessagered Isso deve ser cozinhado antes de consumido.
    return 1
-  elif !(<eval (<src.act.more2>+4)> >= <src.tag.mp>)
-   src.act.message <src.act.name> (pequena)
+ endif
+
+//*************************************
+ON=@ITEMCLICK
+//*************************************
+  //bloqueia descricao se fora do raio de visao
+  if (!<src.act.canseelos>) && (!<src.gm>)
    return 1
   endif
- endif
- if (<src.act.layer>==4) || (<src.act.layer>==23)
-  if !(<eval (<src.act.more2>+(-1))> <= <src.tag.mc>)
-   src.act.message <src.act.name> (grande)
-   return 1
-  elif !(<eval (<src.act.more2>+4)> >= <src.tag.mc>)
-   src.act.message <src.act.name> (pequena)
-   return 1
-  endif
- endif
-endif
 
-on=@itemequip
-src.title=.
-if (<src.act.type>==t_clothing)
-//determinar medida do player
- src.tag.mp=<eval ((<src.str>*6)/10)>
- src.tag.mc=<eval ((<src.str>*5)/10)>
-// aplica mod de raça anã
- if (strmatch(<src.tag.raca>,Anao))
-  src.tag.mp=<eval ((<src.tag.mp>*8)/10)>
-  src.tag.mc=<eval ((<src.tag.mc>*8)/10)>
- endif
-// aplica mod de raça orc
- if (strmatch(<src.tag.raca>,Orc))
-  src.tag.mp=<eval ((<src.tag.mp>*12)/10)>
-  src.tag.mc=<eval ((<src.tag.mc>*12)/10)>
- endif
- if (<src.act.layer>==5) || (<src.act.layer>==17) || (<src.act.layer>==22)
-  if (<eval (<src.act.more2>+(-1))> <= <src.tag.mp>) && (<eval (<src.act.more2>+4)> >= <src.tag.mp>) || (<src.act.more2>==0)
-   return 0
-  else
-   src.sysmessage Nao e do seu tamanho
-   src.act.bounce
-   return 1
-  endif
- endif
- if (<src.act.layer>==4) || (<src.act.layer>==23)
-  if (<eval (<src.act.more2>+(-1))> <= <src.tag.mc>) && (<eval (<src.act.more2>+4)> >= <src.tag.mc>) || (<src.act.more2>==0)
-   return 0
-  else
-   src.sysmessage Nao e do seu tamanho
-   src.act.bounce
-   return 1
-  endif
- endif
-endif
-
-on=@EnvironChange
-src.karma=00
-src.forgive
-
-[FUNCTION f_start_bs]
-src.dialog = d_menu_bs
-return 1
-
-[itemdef i_clientlinger]
-id=i_deed
-name=Client Linger
-type=t_eq_script
-layer=30
-
-on=@create 
-attr=attr_decay
-
-on=@dclick
-if (<src.kills> < <SERV.MURDERMINCOUNT>)
- if (<src.hits> < <src.str>)
-  timer=60
- elif (<src.hits> >= <src.str>)
-  timer=30
- endif
-elif (<src.kills> >= <SERV.MUDERMINCOUNT>)
- if (<src.hits> < <src.str>)
-  timer=120
- elif (<src.hits> >= <src.str>)
-  timer=60
- endif
-endif
-
-if (0<src.tag.instantlogout> == 1)
- timer=1
-endif
-
-return 1
-
-on=@timer
-link.disconnect
-return 1
-
-on=@login
-src.kills=0<src.kills>
-f_meditacao_passiva
-
-on=@itemDclick
-if (<src.hits> > <src.str>)
-src.hits=<src.str>
-endif
-if (<src.stam> > <src.dex>)
-src.stam=<src.dex>
-endif
-if (<src.mana> > <src.int>)
-src.mana=<src.int>
-endif
-
-if (<src.findlayer(LAYER_SPELL_STATS)> == 0)
- if (<src.tag.str> != <src.str>) || (<src.tag.dex> != <src.dex>) || (<src.tag.int> != <src.int>)
-  src.str <src.tag.str>
-  src.dex <src.tag.dex>
-  src.int <src.tag.int>
- endif
-endif
-
-// ################
-// Checar as Skills
-// ################
-
-
-[ITEMDEF i_mry_checkskill]
-id=i_deed
-name=Skill Checker
-type=t_eq_script
-layer=30
-
-on=@create 
-attr=attr_decay
-
-on=@timer
- if (<more1> >=1) && (<more1> <= 20)
-  more1=(<more1>-1)
-  timer=60*30
- endif
- return 1
-
-
-// ################################################################################################
-// #######################
-// Sistema de Damage Bonus
-//    devido a Anatomy
-//     v1.0 by Metus
-// #######################
-[EVENTS e_anatomy]
-ON = @GetHit
-   if ( 0 )
-   elseif ( <SRC.ANATOMY> <  80.0 )
-      VAR.DAM		= <argn>
-   elseif ( <SRC.ANATOMY> <  90.0 )	// 5% bonus
-      VAR.DAM		= <eval ((<argn> * 105) / 100)>
-   elseif ( <SRC.ANATOMY> < 100.0 )	// 10% bonus
-      VAR.DAM		= <eval ((<argn> * 110) / 100)>
-   else					// 20% bonus
-      VAR.DAM		= <eval ((<argn> * 120) / 100)>
-   endif
-
-   EVENTS -e_anatomy	
-   DAMAGE <VAR.DAM>	
-   EVENTS +e_anatomy	
-   return 1	
-  
-ON = @Hit 
-SRC.EVENTS +e_anatomy
-
-// #################################################################################
-// #################
-// Sistema de Mortes
-//   v1.0 MYT Shard
-//      by Metus
-// #################
-// #################
-// Sistema de Mortes
-//   v1.1 MYT Shard
-//     by Galthar
-// #################
-
-//##################################################################################
-//##                                       FUNCTIONS                              ##
-//##################################################################################
-
-[function ganhar_pontos_de_morte]
- src.tag.pontosdealma=0<src.tag.pontosdealma>+(<argn>)
- src.sysmessage Voce ganhou: <argn> ponto(s) de alma
-
-[function perder_pontos_de_morte]
- src.tag.pontosdealma=0<src.tag.pontosdealma>+(- <argn>)
- src.sysmessage Voce perdeu: <argn> ponto(s) alma
-
-[function verificartemporess]
-if (0<src.tag.pontosdealma> == 1)
-  src.tag.temporess=(60 * 15)
- elseif (0<src.tag.pontosdealma> == 2)
-   src.tag.temporess=(60 * 10)
- elseif (0<src.tag.pontosdealma> == 3)
-   src.tag.temporess=(60 * 5)
- elseif (0<src.tag.pontosdealma> >= 4)
-   src.tag.temporess=(60 * 2)
- elseif (0<src.tag.pontosdealma> < 1)
-   src.message Sua alma esta fadada ao descanso eterno.
-   src.message Nunca mais voltara a vida
-   return 1
- endif
- src.tag.ressconcluido=<eval <src.tag.horariomorte>> + (<src.tag.temporess>)
-
-
-[FUNCTION arrastar]
- src.newitem=i_mry_arrastar
- src.act.equip
- src.act.dclick
- return 1
-
-[Function equiplayers]
-//põe a roupa
- findlayer(21).findtype(t_clothing).equip
- findlayer(21).findtype(t_clothing).equip
- findlayer(21).findtype(t_clothing).equip
- findlayer(21).findtype(t_clothing).equip
-//põe armors
- findlayer(21).findtype(t_armor).equip
- findlayer(21).findtype(t_armor).equip
- findlayer(21).findtype(t_armor).equip
- findlayer(21).findtype(t_armor).equip
- findlayer(21).findtype(t_armor).equip
- findlayer(21).findtype(t_armor).equip
-
-[FUNCTION desmaia]
- src.newitem=i_mry_desmaio
- src.act.equip
- src.act.link=<src.uid>
- if (<src.tag.desmaios><=1)
-  src.act.timer=60
-  src.DIALOG=d_desmaio1
- elseif (<src.tag.desmaios>=2)
-  src.act.timer=60*5
-  src.DIALOG=d_desmaio2
- elseif (<src.tag.desmaios>=3)
-  src.act.timer=60*5
-  src.act.more1=1 
-  src.DIALOG=d_desmaio3
- elseif (<src.tag.desmaios>=4)
-  src.act.timer=60
-  src.act.more1=1
-  src.DIALOG=d_desmaio4
- endif
-
-[FUNCTION cortar_garganta]
-/// ***************************** Verifica se tem uma arma de corte **************************
- if (<src.findlayer(1).type>!=t_weapon_fence)	// Pra testar se tem ferramenta de corte.
-  if (<src.findlayer(1).type>!=t_weapon_axe)	// Tá feio, mas os if (x) || (y) não estavam
-   if (<src.findlayer(1).type>!=t_weapon_sword)	// funcionando.
-    if (<src.findlayer(2).type>!=t_weapon_sword)
-     if (<src.findlayer(2).type>!=t_weapon_axe)
-      if (<src.findlayer(2).type>!=t_weapon_fence)
-       src.sysmessage Equipe uma ferramenta adequada...
-       return 1
-      endif
-     endif
+  //testa pra ver se é roupa e checa tamanho da roupa
+  if (<src.act.type>==t_clothing)
+    src.ctag.csize = <clothes_checkSize <SRC>,<SRC.ACT>>
+    if ( <src.ctag.csize> == 1 )
+      src.act.message <src.act.name> (pequena)
+      return 1
+    elif ( <src.ctag.csize> == 3 )
+      src.act.message <src.act.name> (grande)
+      return 1
+    else
+      return 0
     endif
+  endif
+
+//*************************************
+ON=@ITEMEQUIP
+//*************************************
+ //testa pra ver se é roupa e checa tamanho da roupa
+ if (<src.act.type>==t_clothing)
+   src.ctag.csize = <clothes_checkSize <SRC>,<SRC.ACT>>
+   if ( <src.ctag.csize> == 2 )
+      return 0
+   else
+     src.sysmessage Nao serve...
+     src.act.bounce
+     return 1
    endif
-  endif
  endif
-/// ********************************* Aplica o MEMORY de cortar garganta ********************
- src.newitem=i_mry_cortar_garganta
- src.act.equip
- src.act.link=<src.tag.corpse>
- src.act.dclick
- return 1
-
-[FUNCTION curar_corpo]
-/// ********************************* Aplica o MEMORY de curar corpo ********************
- src.newitem i_mry_curar_corpo
- src.act.equip
-/// ************************* verifica se tem bandage ou healing potion *********************
- if (<src.restest 3 i_bandage>==1)
-  src.act.more1=1
- endif
- if (<src.restest 1 i_bottle_yellow>==1)
-  src.act.more1=1
- endif
- if (<src.restest 3 i_bandage>==1) 
-  if (<src.restest 1 i_bottle_yellow>==1)
-   src.act.more1=2
-  endif
- endif
- src.act.dclick
- return 1
-
-
-//##################################################################################
-//##                                 EVENTOS                                      ##
-//##################################################################################
-
-
-[events e_sistema_de_morte]
-on=@death
- if (<SRC.ACT.BRAIN>==0)
-  src.tag.lastkillname=<src.act.tag.name>
-  src.tag.lastkillUID=<src.act.uid>
-  src.act.tag.fpk=(<src.act.tag.fpk>+1)
- endif
- if (0<src.tag.desmaios><5)
-  FLAGS=(<FLAGS>&~02) // tira flag de dead
-  update
-  src.hits=1
-  tag.desmaios=(0<tag.desmaios>+1)
-  equiplayers
-  sleep
-  equiplayers
-  desmaia
-  src.events +e_<src.tag.raca>
-  src.findlayer.21.use 
-  src.update
-  return 1
- else
-  perder_pontos_de_morte 1
-  src.tag.horariomorte=<time>/(10)
-  src.tag.localmorte=<src.p>
-  tag.desmaios=0
-  return 0
- endif
- return 1
-
-ON=@ItemCLICK
- if (<act.type> == t_corpse) && !(<src.flags>&statf_dead) 
-  if (<src.act.link>!=04fffffff) && (<src.act.link.flags>&statf_dead)
-   src.act.message <src.act.link.name> morto
-   return 1
-  elseif (<src.act.link>!=04fffffff) && !(<src.act.link.flags>&statf_dead)
-   src.act.message <src.act.link.name> inconsciente
-   return 1
-  else
-   return 0
-  endif
- endif
-
-
-ON=@itemDclick
- if (<act.type> == t_shrine) && (<src.flags>&statf_dead)
-  if (<src.tag.pontosdealma><=0)
-   src.message Sua alma esta fadada ao descanso eterno.
-   src.message Nunca mais voltara a vida
-   return 1
-  endif  
-  verificartemporess
-  src.tag.horarioclique=<time>/(10)
-  if (<src.tag.ressconcluido> > <eval <src.tag.horarioclique>>)
-   src.message Voce precisa recuperar um pouco suas forcas...
-   return 1
-  else
-   src.go <src.tag.localmorte>		
-   src.equiplayers
-  endif
- endif
- if (<act.type> == t_shrine) && !(<src.flags>&statf_dead)
-  src.sysmessage Voce possui <eval <src.tag.pontosdealma>> pontos de alma...
- endif
- if (<act.type> == t_corpse) && !(<src.flags>&statf_dead)
-  src.tag.corpse=<src.act.uid>
-  if (<src.act.link>==04fffffff)		
-   return 0					
-  endif					
-  if (<src.act.link>==<src.uid>)		
-   return 0					
-  endif					
-  if (0<src.tag.corpse>==<src.act.uid>) && (0<src.tag.loot_corpse>==1)
-   src.tag.loot_corpse=0
-   return 0
-  elseif (<src.act.link.flags>&statf_dead)
-   src.menu=m_corpse_morto
-   return 1
-  else
-   src.menu=m_corpse
-   return 1
-  endif
- endif
-
-
-//##################################################################################
-//##                                 MEMORY ITENS                                 ##
-//##################################################################################
-
-
-[itemdef i_mry_arrastar]
- NAME=arrastar
- id=i_deed
- type=t_eq_script
- layer=30
-
- on=@create
- attr=04000
- weight=300
-
-on=@dclick
- TARGET Arrastar que corpo?
- return 1
-
-on=@TARGON_GROUND
- TARGET Nao pode arrastar isso.
- return 1
-
-on=@TARGON_CHAR
- TARGET Este corpo nao parece morto o suficiente.
- return 1
-
-ON=@TARGON_ITEM
- if <src.targ.type>==t_corpse
-  link=<src.targ.uid>
-  src.say *arrastando corpo*
-  cont.tag.test_arr= ((<cont.str>*5)+(<cont.Stamina>*3))/8
-  timer=1
-  return 1
- else
-  TARGET Isso nao e um corpo...
-  return 1
- endif
-
-ON=@TIMER
- if (<eval <cont.tag.test_arr>> > <eval RAND(100)>) && !(<cont.flags>&020)
-   link.p=<cont.p>
-   if !(<link.link.flags>&02)
-    link.link.p <cont.p>
-   endif
-   tryp 0 link.link.tag.localmorte=<cont.p>
-   serv.allclients update
-   timer=1
-   return 1
-  else
-   cont.tag.test_arr=
-   cont.say *largou*
-   cont.sysmessage O corpo escapou da sua mao
-   remove
-   return 1
+ 
+//*************************************
+ON=@SKILLSTART
+//*************************************
+  sysmessage testando skill <src.action>
+  if ( <src.action> == Skill_Anatomy)
+    sk_anatomy
+    return 1
   endif
 
-[itemdef i_mry_desmaio]
- id=i_deed
- name=Desmaio
- type=t_eq_script
- layer=30
- weight=0
-
-on=@create
- attr=attr_decay
-
-on=@equip
- src.sysmessage Voce perdeu a consciencia !!!
- src.flags=<src.flags>|040011 //sleep e paralyze e invul
- return 1
-
-on=@timer
- if (<more1>!=1)
-  cont.sysmessage Voce recobrou a consciencia.
-  cont.flags=<cont.flags>&~040001 // tirar sleep e paralyze e invul
-  cont.FLAGS=(<cont.FLAGS>&~02)
-  cont.say *hug!*
-  cont.hits=(<cont.str>/5)
-  cont.findlayer.21.use
-  cont.equiplayers
-  cont.update
-  remove
-  return 1
- else
-  cont.flags=<cont.flags>&~040001
-  cont.say *morreu*
-  cont.tag.desmaios=5
-  cont.kill
-  cont.findid.i_mry_desmaio.remove
-  return 1
- endif
- return 1
-
-[ITEMDEF i_mry_cortar_garganta]
- id=i_deed
- name=Cortando garganta
- type=t_eq_script
- layer=30
- weight=0
-
-on=@create
- attr=attr_decay
-
-ON=@DCLICK
- link.link.findid.i_mry_desmaio.remove	//O dono do corpo não está mais desmaiado.
- link.link.say *assasinado* 		// para tirar o .sleep junto com o corpo do dono do corpo.
- link.link.flags=<link.link.flags>&~040001 	//pra tirara o flag de invul e de paralyze do dono do corpo.
- link.link.tag.desmaios=5		//Se o dono do corpo desmaiar (.kill) denovo ele morre.
- link.link.kill				//Mata o dono do corpo.
- remove					//Não estou mais cortando garganta.
- return 1
-
-[ITEMDEF i_mry_curar_corpo]
- id=i_deed
- name=Curando corpo
- type=t_eq_script
- layer=30
- weight=0
-
-on=@create
- attr=attr_decay
- more2=20
-
-ON=@TIMER
- if (<cont.tag.podecurar> !=1) //1
-  if (<more1>==0)  //2
-   cont.sysmessage Voce nao tem os equipamentos necessarios...
-   remove
-   return 1
-  else  //2
-   cont.tag.podecurar=1
-   cont.flags=(<cont.flags>|000000004)
-   more2=11
-   timer=1
-   return 1
-  endif //2
- elseif (<cont.tag.podecurar>==1) //1
-  if (<more2> !=1) //2
-   more2=(<more2> + (-1))
-   DORAND 10
-    cont.anim 16
-    sfx 04f
-    cont.anim 19
-    sfx 04f
-    cont.say *aplicando curativos*
-    cont.anim 16
-    sfx 04f
-    cont.sysmessage
-    sfx 04f
-    cont.anim 19
-   ENDDO
-   timer=1
-   return 1
-  else //2
-   cont.consume 3 i_bandage
-   cont.consume 1 i_bottle_yellow
-   if (<more1>==1) // Chance normal de curar //3
-//    cont.say Chance normal
-    if (<cont.healing> >= {0 1150}> //4
-//     cont.say Passou
-     cont.flags=(<cont.flags>&~000000004)
-     cont.tag.podecurar=
-     cont.sysmessagegreen Seu tratamento surtiu efeito...
-     cont.GAIN_SKILL healing
-     link.link.consume i_mry_desmaio
-     link.link.flags=(<link.link.flags>&~040001)
-     link.link.say *ouf!*
-     remove
-     return 1
-    else //4
-     cont.sysmessageorange Seu tratamento nao surtiu efeito...
-     cont.GAIN_SKILL healing
-     cont.unfreeze
-     remove
-     return 1
-    endif //4
-   elseif (<more1>==2) // Chance adicional de curar //4
-//    cont.say Chance adicional
-    if (<cont.healing> >= {0 850}) //5
-//     cont.say Passou
-     cont.flags=(<cont.flags>&~000000004)
-     cont.tag.podecurar=
-     cont.sysmessagegreen Seu tratamento surtiu efeito...
-     cont.GAIN_SKILL healing
-     link.link.consume i_mry_desmaio
-     link.link.flags=(<link.link.flags>&~040001)
-     link.link.say *ouf!*
-     remove
-     return 1
-    else //5
-     cont.sysmessageorange Seu tratamento nao surtiu efeito...
-     cont.GAIN_SKILL healing
-     cont.unfreeze
-     remove
-     return 1
-    endif //5
-   endif //4
-   cont.say !!! Erro! Reporte bug de curar corpo !!!
-   remove
-   return 1
-   endif //2
-  endif
- endif //1
-
-
-ON=@DCLICK
- TARGET Curar que corpo?
- return 1
-
-ON=@TARGON_GROUND
- cont.sysmessage Este nao e um corpo valido...
- remove
- return 1
-
-ON=@TARGON_CHAR
- cont.sysmessage Nao esta suficientemente morto...
- remove
- return 1
-
-ON=@TARGON_ITEM
- if (<cont.targ.type>==t_corpse)
-  link=<cont.targ.uid>
-  timer=1
-  return 1
- else
-  cont.sysmessage Este nao e um corpo valido...
-  remove
- endif
- return 1
-
-//##################################################################################
-//##                                    GUMPS                                                                                         ##
-//##################################################################################
-
-[MENU m_corpse]
-                -=Corpo Inconsiente=-
-on=0 cortar garganta (perde 2 pontos de alma)
- src.perder_pontos_de_morte 2
- src.cortar_garganta
- return 1
-
-on=0 curar
- src.curar_corpo
- return 1
-
-on=0 roubar o corpo (perde 1 ponto de alma)
- src.perder_pontos_de_morte 1
- src.tag.loot_corpse=1
- src.sysmessage Abra o corpo para roubar os itens.
- return 1
-
-on=0 arrastar o corpo
- src.arrastar
- return 1
-
-
-[MENU m_corpse_morto]
-                   -=Corpo Morto=-
-on=0 roubar o corpo (perde 1 ponto de alma)
- src.perder_pontos_de_morte 1
- src.tag.loot_corpse=1
- src.sysmessage Pode abrir o corpo e roubar os itens.
- return 1
-
-on=0 arrastar o corpo
- src.arrastar
- return 1
-
-
-[DIALOG d_desmaio1]
-175, 125
-noclose
-PAGE 0
-gumppic 0 0 2080
-gumppic 17 37 2081
-gumppic 17 107 2082
-gumppic 18 177 2083
-text 73 33 32 0
-text 76 52 32 1
-text 42 80 1152 2
-text 28 99 1152 3
-text 29 118 1152 4
-button 118 145 2311 2312 1 0 0
-text 123 5 152 5
-
-[DIALOG d_desmaio1 TEXT]
-Voce caiu no chao e
-perdeu a consciencia.
-Esta e a primeira vez que isso
-lhe aconteceu. Logo estara acordado
-novamente.
-(MyT)
-
-
-[DIALOG d_desmaio1 BUTTON]
-
-[DIALOG d_desmaio2]
-175, 125
-noclose
-PAGE 0
-gumppic 0 0 2080
-gumppic 17 37 2081
-gumppic 17 107 2082
-gumppic 18 177 2083
-text 73 33 32 0
-text 76 52 32 1
-text 42 80 1152 2
-text 27 99 1152 3
-text 29 118 1152 4
-button 118 145 2311 2312 1 0 0
-text 123 5 152 5
-
-[DIALOG d_desmaio2 TEXT]
-Voce caiu no chao e
-perdeu a consciencia.
-Esta e a segunda vez que isso
-lhe aconteceu. Em algum tempo voce
-podera voltar a andar.
-(MyT)
-
-
-[DIALOG d_desmaio2 BUTTON]
-
-[DIALOG d_desmaio3]
-175, 125
-noclose
-PAGE 0
-gumppic 0 0 2080
-gumppic 17 37 2081
-gumppic 17 107 2082
-gumppic 18 177 2083
-text 73 33 32 0
-text 76 52 32 1
-text 42 80 1152 2
-text 27 99 1152 3
-text 29 118 1152 4
-button 118 145 2311 2312 1 0 0
-text 123 5 152 5
-
-[DIALOG d_desmaio3 TEXT]
-Voce caiu no chao e
-perdeu a consciencia.
-Esta e a terceira vez que isso
-lhe aconteceu. Voce precisa de 
-cuidados medicos ou morrera.
-(MyT)
-
-
-[DIALOG d_desmaio3 BUTTON]
-
-[DIALOG d_desmaio4]
-175, 125
-noclose
-PAGE 0
-gumppic 0 0 2080
-gumppic 17 37 2081
-gumppic 17 107 2082
-gumppic 18 177 2083
-text 73 33 32 0
-text 76 52 32 1
-text 42 80 1152 2
-text 27 99 1152 3
-text 26 118 1152 4
-button 118 145 2311 2312 1 0 0
-text 123 5 152 5
-text 222 117 32 6
-
-[DIALOG d_desmaio4 TEXT]
-Voce caiu no chao e
-perdeu a consciencia.
-Esta e a quarta vez que isso
-lhe aconteceu. Voce precisa de 
-cuidados medicos ou morrera
-(MyT)
-LOGO!
-//********************* INÍCIO e_sistema_de_morte original INÍCIO ***************
-
-//[events e_sistema_de_morte]
-//on=@death
-// perder_pontos_de_morte 1
-// src.tag.horariomorte=<time>/(10)
-
-//ON=@Dclick
-// if (<src.act.type> == t_shrine) && (<src.flags>&statf_dead)
-//  verificartemporess
-//  src.tag.horarioclique=<time>/(10)
-//  if (<src.tag.ressconcluido> > <eval <src.tag.horarioclique>>)
-//   src.message Voce precisa recuperar um pouco suas forcas
-//   return 1
-//  endif
-// endif
-// if (<src.act.type> == t_shrine) && !(<src.flags>&statf_dead)
-// src.sysmessage Voce possui <eval <src.tag.pontosdealma>> pontos de alma...
-// endif
-//********************* FIM e_sistema_de_morte original FIM ***************
-
-
-
-
-// ##################################################################################
-
-[function fixskillchecker]
-findid.i_mry_checkskill.timer=60*15
-
-[function cocos]
-src.say <src.skill.44>
+[EOF]
