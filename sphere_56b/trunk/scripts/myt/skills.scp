@@ -5,6 +5,24 @@
 //
 //*****************************************************************************
 //*****************************************************************************
+// Esse sistema computa o ganho de skills cada vez que a funcao skill_gain() 
+//é chamada.
+//
+//O 'rate' ou dificuldade de subir um skill é calculado da seguinte forma:
+//
+//Cada ação gera um ganho mínimo (bonusIncrease) mais um valor
+//randômico entre zero e um valor X predeterminado que depende da somatórioa 
+//dos skills. Para somatória zero X vale 100 e para o máximo vale 0. Dessa
+//forma tem-se uma dificuldade exponencial que é dividida entre todas as skills
+//conforme o total da soma for aumentando.
+//
+//Cada incremento corresponde a 0.001%.
+//
+//O sistema também conta com uma proteção para que o player não atinja o máx
+//de uma skill muito rapidamente. Inicialmente ele consegue chegar até 55% 
+//em qualquer skill, mas para passar disso ele deve jogar 1 hora para cada % 
+//adicional. Após 45h o limite é removido.
+
 //TODO:
 
 //TAGS usadas:
@@ -87,16 +105,30 @@ SKILL_SPELLWEAVING	=54
 [FUNCTION skill_gain]
 OBJ=<argv[0]>
 
-LOCAL.inc=<eval {0 <OBJ.TAG.skill_maxIncrease> }>
+LOCAL.amnt=<OBJ.<DEF.<argv[1]>>>
+if ( <LOCAL.amnt> > <OBJ.CTAG.skill_maxSkillValue> )
+//  OBJ.sysmessage Habilidade bloqueada
+  return 1
+endif
+
+LOCAL.inc=<eval {0 <OBJ.CTAG.skill_maxIncrease> }>
 LOCAL.inc=<DEF.bonusIncrease>+<LOCAL.inc>+<OBJ.TAG0.<argv[1]>>
 if ( <LOCAL.inc> > 100 )
   LOCAL.inc=<LOCAL.inc>-100
-  TRYP 0 OBJ.<DEF.<argv[1]>> <EVAL <OBJ.<DEF.<argv[1]>>> + 0.1>
+  TRYP 0 OBJ.<DEF.<argv[1]>> <EVAL <LOCAL.amnt> + 0.1>
 endif
 TRYP 0 OBJ.TAG0.<argv[1]>=<LOCAL.inc>
 
 
 [FUNCTION skill_init]
-SRC.TAG.skill_maxIncrease=<eval ((<skillclass.skillsum>-<skilltotal>)*100)/<skillclass.skillsum>>
+SRC.CTAG.skill_maxIncrease=<eval ((<skillclass.skillsum>-<skilltotal>)*100)/<skillclass.skillsum>>
+if ( <SRC.CTAG.skill_maxIncrease> < 0 )
+  SRC.CTAG.skill_maxIncrease=<eval -<SRC.CTAG.skill_maxIncrease>>
+endif
+
+SRC.CTAG.skill_maxSkillValue=<eval (<OBJ.account.TOTALCONNECTTIME>/6)+550>
+if ( <SRC.CTAG.skill_maxSkillValue> > 1000 )
+  SRC.CTAG.skill_maxSkillValue=1000
+endif
 
 [EOF]
