@@ -22,33 +22,8 @@
 //*****************************************************************************
 //*****************************************************************************
 [EVENTS e_combat] 
-on=@HitTry
-say hittry
-IF (<action> == Skill_Archery)
- return 0
-endif
-if ( <src.flags>&(statf_invul|statf_dead|statf_invisible|statf_insubstantial|statf_stone|statf_hidden)) || (<src.restest 1 i_mry_desmaio>)
- flags=<flags>&~statf_war
- update
- return 1
-endif
-//ACTDIFF=1000
-return 0
 
-
-on=@hitmiss //sempre acerta.
-IF (<action> == Skill_Archery)
- return 0
-endif
-if ( <src.flags>&(statf_invul|statf_dead|statf_invisible|statf_insubstantial|statf_stone|statf_hidden)) || (<src.restest 1 i_mry_desmaio>)
- flags=<flags>&~statf_war
- update
- return 1
-endif
-ACTDIFF=1000
-return 0
-
-ON=@Hit
+ON=@HIT
 IF (<action> == Skill_Archery)
  return 0
 endif
@@ -61,20 +36,25 @@ ACTDIFF=1000
 
 LOCAL.cbt.uid=<src.uid>
 
+//MORE1H = maxItemHits
+//MORE1L = itemHits
+
 ///////////////////////////////////////////////
 ////////////Tentar aparar com escudo///////////
 ///////////////////////////////////////////////
 
 if (<src.findlayer.layer_hand2.type>==t_shield)
- LOCAL.cbt.escudo=<eval <src.parrying>/2>
- if ({1 1000} <= <eval <LOCAL.cbt.escudo>>) && (RAND(<eval <src.tag0.agr>>)==0)
-  if (<NPC>==0) // se não for NPC...
+ LOCAL.escudo=<src.parrying>/2
+ if ({1 1000} <= <LOCAL.escudo>) && (RAND(<src.tag0.agr>)==0)
+   if (<NPC>==0) // se não for NPC...
    sysmessageyellow <src.name> apara seu golpe com o escudo!
   endif
   if (<src.NPC>==0) // Se o defensor não for NPC...
    src.sysmessageyellow Voce apara o golpe de <name> com o escudo!
   endif
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
+
+  //danifica escudo
+  IF (<action> == Skill_Wrestling)
    src.findlayer.layer_hand2.more1l=<src.findlayer.layer_hand2.more1l>-{1 2}
   ELIF (<action> == Skill_Swordsmanship) || (<action> == Skill_Fencing) 
    src.findlayer.layer_hand2.more1l=<src.findlayer.layer_hand2.more1l>-{1 2}
@@ -83,7 +63,9 @@ if (<src.findlayer.layer_hand2.type>==t_shield)
   ELIF (<action> == Skill_Archery)
    src.findlayer.layer_hand2.more1l=<src.findlayer.layer_hand2.more1l>-1
   endif
-  if (0<src.findlayer.layer_hand2.more1l> > 0<src.findlayer.layer_hand2.more1h>) && !(<src.findlayer.layer_hand2.attr> & 04)
+
+  //caso escudo destruido
+  if (0<src.findlayer.layer_hand2.more1l> > 0<src.findlayer.layer_hand2.more1h>) && !(<src.findlayer.layer_hand2.attr> & attr_newbie)
    if (<NPC>==0) // se não for NPC...
     sysmessageorange O escudo de <src.name> foi totalmente arruinado!
    endif
@@ -98,9 +80,9 @@ if (<src.findlayer.layer_hand2.type>==t_shield)
    sfx 023c
    sfx 023b
   enddo
- IF ({0 1000} >= <parrying>) && (RAND(5)=2)
-  Parrying=<Parrying>+(1)
- endif
+ //IF ({0 1000} >= <parrying>) && (RAND(5)=2)
+ // Parrying=<Parrying>+(1)
+ //endif
   return 1
  endif
 endif
@@ -108,17 +90,23 @@ endif
 ///////////////////////////////////////////////
 //Tentar usar Poison///////////////////////////
 ///////////////////////////////////////////////
-if (<poisoning> >= 300) && (<NPC>!=0) && (<src.restest 1 i_veneno>==0)// Se eu for um animal venenoso e a minha presa não está envenenada...
- if ({1 1000} < <poisoning>) && (RAND(4)==0) && (0<tag.veneno>==0)
-  LOCAL.poisoning=<eval <poisoning>/10>
-  src.veneno <LOCAL.poisoning>
+
+// Se eu for um animal venenoso e a minha presa não está envenenada...
+if (<poisoning> >= 300) && (<NPC>!=0) && (<src.restest 1 i_veneno>==0)
+ if ({1 1000} < <poisoning>) && (RAND(4)==0) && (<tag0.veneno>==0)
+  src.veneno <eval <poisoning>/10>
   tag.veneno={20 30}
   emotered morde profundamente
- elif (0<tag.veneno>!=0)
+ elif (<tag0.veneno>!=0)
   tag.veneno <tag.veneno>-1
  endif
 endif
 
+//ARMAS ENVENENADAS
+//MORE2=020
+//MOREX=carga de veneno
+
+//Se a arma na HAND1 estiver envenenada
 if (<findlayer.layer_hand1.more2>==20) && (<src.npc>!=12)
  if (<swordsmanship> <= {1 2000}) || (<fencing> <= {1 2000}) || (<poisoning> <= {1 1300})
   if (<src.restest 1 i_veneno>==0)
@@ -130,6 +118,8 @@ if (<findlayer.layer_hand1.more2>==20) && (<src.npc>!=12)
    findlayer.layer_hand1.name <findlayer.layer_hand1.tag.name>
   endif
  endif
+ 
+//Se a arma na HAND2 estiver envenenada 
 elif (<findlayer.layer_hand2.more2>==20) && (<src.npc>!=12)
  if (<swordsmanship> <= {1 2000}) || (<fencing> <= {1 2000}) || (<poisoning> <= {1 1300})
   if (<src.restest 1 i_veneno>==0)
@@ -143,6 +133,7 @@ elif (<findlayer.layer_hand2.more2>==20) && (<src.npc>!=12)
  endif
 endif
 
+//Se a arma na HAND1 estiver??
 if (<findlayer.layer_hand1.more2>==15)
  src.effect 2 i_fire_column 0 32 0
  src.damage {3 6} 010 <uid>
@@ -155,108 +146,83 @@ endif
 ///////////////////////////////////////////////
 ////////////Tentar esquivar o golpe////////////
 ///////////////////////////////////////////////
-LOCAL.cbt.esquiva=0
-LOCAL.cbt.esquiva=<eval <src.tactics>/10>
-LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>*4>
-LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva> + <eval <src.dex>*6>>
+LOCAL.esquiva=<eval (((<src.tactics>/15)*2)+(<src.dex>*2))>
 
-LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>/3>
-
-if (0<src.tag.agr>==0) && (<src.npc>==0)
- LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>+500>
-elif (0<src.tag.agr>==1)
- LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>+400>
-elif (0<src.tag.agr>==2)
- LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>+300>
-elif (0<src.tag.agr>==3)
- LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>+200>
-elif (0<src.tag.agr>==4)
- LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>+100>
-elif (0<src.tag.agr>==5)
-// LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>+000>
-elif (0<src.tag.agr>==6)
- LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>-50>
-elif (0<src.tag.agr>==7)
- LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>-100>
-elif (0<src.tag.agr>==8)
- LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>-150>
-elif (0<src.tag.agr>==9)
- LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>-200>
-elif (0<src.tag.agr>==10)
- LOCAL.cbt.esquiva=<eval <LOCAL.cbt.esquiva>-250>
+if (<src.tag0.agr>==0) && (<src.npc>==0)
+ LOCAL.esquiva=<eval <LOCAL.esquiva>+500>
+elif (<src.tag0.agr>==1)
+ LOCAL.esquiva=<eval <LOCAL.esquiva>+400>
+elif (<src.tag0.agr>==2)
+ LOCAL.esquiva=<eval <LOCAL.esquiva>+300>
+elif (<src.tag0.agr>==3)
+ LOCAL.esquiva=<eval <LOCAL.esquiva>+200>
+elif (<src.tag0.agr>==4)
+ LOCAL.esquiva=<eval <LOCAL.esquiva>+100>
+elif (<src.tag0.agr>==5)
+// LOCAL.esquiva=<eval <LOCAL.esquiva>+000>
+elif (<src.tag0.agr>==6)
+ LOCAL.esquiva=<eval <LOCAL.esquiva>-50>
+elif (<src.tag0.agr>==7)
+ LOCAL.esquiva=<eval <LOCAL.esquiva>-100>
+elif (<src.tag0.agr>==8)
+ LOCAL.esquiva=<eval <LOCAL.esquiva>-150>
+elif (<src.tag0.agr>==9)
+ LOCAL.esquiva=<eval <LOCAL.esquiva>-200>
+elif (<src.tag0.agr>==10)
+ LOCAL.esquiva=<eval <LOCAL.esquiva>-250>
 endif
 
-
-//src.say deu <eval <LOCAL.cbt.esquiva>>
-
-//quando o atacado for um player
-if (({1 1200} <= <eval <LOCAL.cbt.esquiva>>) && (<src.ac> <= 26) && (<src.NPC>==0)) && (RAND(1)==1)
- if (<NPC>==0) // se não for NPC...
-  sysmessageyellow <src.name> esquiva-se de seu golpe!
+//quando o atacado for um player ou npc
+if (({1 2400} <= <eval <LOCAL.esquiva>>)
+ if ( (<src.ac> <= 26) && (<src.NPC>==0) ) || ( (RAND(6)==1) && (<src.NPC>!=0) )
+  if (<NPC>==0) // se não for NPC...
+   sysmessageyellow <src.name> esquiva-se de seu golpe!
+  endif
+  if (<src.NPC>==0) // Se o defensor não for NPC...
+   src.sysmessageyellow Voce consegue se esquivar do golpe!
+  endif
+  dorand 5
+   sfx 0239
+   sfx 023a
+   sfx 0233
+   sfx 0238
+   sfx 0232
+  enddo 
  endif
- if (<src.NPC>==0) // Se o defensor não for NPC...
-  src.sysmessageyellow Voce consegue se esquivar do golpe!
- endif
- dorand 5
-  sfx 0239
-  sfx 023a
-  sfx 0233
-  sfx 0238
-  sfx 0232
- enddo 
  return 1
 endif
 
-
-//quando o atacado for um NPC.
-if {1 1200} <= <eval <LOCAL.cbt.esquiva>>) && (RAND(6)==1) && (<src.NPC>!=0)
- if (<NPC>==0) // se não for NPC...
-  sysmessageyellow <src.name> esquiva-se de seu golpe!
- endif
- if (<src.NPC>==0) // Se o defensor não for NPC...
-  src.sysmessageyellow Voce consegue se esquivar do golpe!
- endif
- dorand 5
-  sfx 0239
-  sfx 023a
-  sfx 0233
-  sfx 0238
-  sfx 0232
- enddo 
- return 1
-endif
-
-
-tag.cbt.dano=0
 ///////////////////////////////////////////////
 //Aplicando correção de dano por STR///////////
 ///////////////////////////////////////////////
-if (<str> >= 95) && (<NPC>==0)
- tag.cbt.dano=<tag.cbt.dano>+3
-elif (<str> >= 90) && (<NPC>==0)
- tag.cbt.dano=<tag.cbt.dano>+2
-elif (<str> >= 85) && (<NPC>==0)
- tag.cbt.dano=<tag.cbt.dano>+1
+if (<str> >= 95)
+ LOCAL.dano=<LOCAL.dano>+3
+elif (<str> >= 90)
+ LOCAL.dano=<LOCAL.dano>+2
+elif (<str> >= 85)
+ LOCAL.dano=<LOCAL.dano>+1
+else
+ LOCAL.dano=0
 endif
 
 ///////////////////////////////////////////////
 //Aplicando correção de dano por ANATOMY///////
 ///////////////////////////////////////////////
 if (<anatomy> >= 950)
- tag.cbt.dano=<tag.cbt.dano>+3
+ LOCAL.dano=<LOCAL.dano>+3
 elif (<anatomy> >= 750)
- tag.cbt.dano=<tag.cbt.dano>+2
+ LOCAL.dano=<LOCAL.dano>+2
 elif (<anatomy> >= 500)
- tag.cbt.dano=<tag.cbt.dano>+1
+ LOCAL.dano=<LOCAL.dano>+1
 endif
 
 ///////////////////////////////////////////////
 //Aplicando correção de dano por POISON////////
 ///////////////////////////////////////////////
 if (<restest 1 i_veneno>) && (RAND(3)==0)
- tag.cbt.dano=<eval <tag.cbt.dano>-(<eval <findid.i_veneno.more2>/15>)>
- if (0<tag.cbt.dano> <= 2)
-  tag.cbt.dano {2 5}
+ LOCAL.dano=<eval <LOCAL.dano>-(<eval <findid.i_veneno.more2>/15>)>
+ if (<tag0.dano> <= 2)
+  LOCAL.dano {2 5}
  endif
  sysmessagegreen O veneno esta te enfraquecendo. Seus golpes estao fracos!
 endif
@@ -265,74 +231,75 @@ endif
 //Aplicando correção de dano por STAM//////////
 ///////////////////////////////////////////////
 if (<stam>==<dex>)
- tag.cbt.dano=<tag.cbt.dano>+1
+ LOCAL.dano=<LOCAL.dano>+1
 elif (<stam> <= 5)
- tag.cbt.dano=<tag.cbt.dano>-2
+ LOCAL.dano=<LOCAL.dano>-2
 elif (<stam> <= 15)
- tag.cbt.dano=<tag.cbt.dano>-1
+ LOCAL.dano=<LOCAL.dano>-1
 endif
 
 ///////////////////////////////////////////////
 //Aplicando correção de dano por PESO//////////
 ///////////////////////////////////////////////
 if (<weight> >= 1500)
- tag.cbt.dano=<tag.cbt.dano>-3
+ LOCAL.dano=<LOCAL.dano>-3
 elif (<weight> >= 1000)
- tag.cbt.dano=<tag.cbt.dano>-2
+ LOCAL.dano=<LOCAL.dano>-2
 elif (<weight> >= 750)
- tag.cbt.dano=<tag.cbt.dano>-1
+ LOCAL.dano=<LOCAL.dano>-1
 endif
 
 ///////////////////////////////////////////////
 //Aplicando correção de dano .COMBATE//////////
 ///////////////////////////////////////////////
-if (<eval 0<tag.agr>> == 10)
- tag.cbt.dano=<tag.cbt.dano>+2
-elif (<eval 0<tag.agr>> >= 8)
- tag.cbt.dano=<tag.cbt.dano>+1
-elif (<eval 0<tag.agr>> == 0)
- tag.cbt.dano=<tag.cbt.dano>-10
-elif (<eval 0<tag.agr>> <= 3)
- tag.cbt.dano=<tag.cbt.dano>-5
-elif (<eval 0<tag.agr>> <= 4)
- tag.cbt.dano=<tag.cbt.dano>-1
+if (<eval <tag0.agr>> == 10)
+ LOCAL.dano=<LOCAL.dano>+2
+elif (<eval <tag0.agr>> > 7)
+ LOCAL.dano=<LOCAL.dano>+1
+elif (<eval <tag0.agr>> > 4)
+ LOCAL.dano=<LOCAL.dano>
+elif (<eval <tag0.agr>> > 3)
+ LOCAL.dano=<LOCAL.dano>-1
+elif (<eval <tag0.agr>> > 0) 
+ LOCAL.dano=<LOCAL.dano>-5
+else 
+ LOCAL.dano=<LOCAL.dano>-10
 endif
-
 
 ///////////////////////////////////////////////
 //Aplicando correção de dano por AR////////////
 ///////////////////////////////////////////////
 
-LOCAL.cbt.AR_LO=<eval <src.ac>/6>
-LOCAL.cbt.AR_HI=<eval <src.ac>/3>
-
-tag.cbt.dano=<tag.cbt.dano>-{<eval <LOCAL.cbt.AR_LO>> <eval <LOCAL.cbt.AR_HI>>}
-
+LOCAL.AR_LO=<src.ac>/6
+LOCAL.AR_HI=<src.ac>/3
+LOCAL.dano=<LOCAL.dano>-{<eval <LOCAL.AR_LO>> <eval <LOCAL.AR_HI>>}
 
 //////////////////////////////////////////////////////////////
-//Aplicando correção de dano ela qualidade da arma////////////
+//Aplicando correção de dano pela qualidade da arma///////////
 //////////////////////////////////////////////////////////////
+//MORE1H=qualidade total
+//MOTE1L=qualidade atual
 
 if (<findlayer.layer_hand1.type>==t_weapon_axe) || (<findlayer.layer_hand1.type>==t_weapon_fence) || (<findlayer.layer_hand1.type>==t_weapon_sword) || (<findlayer.layer_hand1.type>==t_weapon_mace_crook) || (<findlayer.layer_hand1.type>==t_weapon_mace_pick) || (<findlayer.layer_hand1.type>==t_weapon_mace_staff) || (<findlayer.layer_hand1.type>==t_weapon_mace_smith) || (<findlayer.layer_hand1.type>==t_weapon_mace_sharp)
- LOCAL.cbt.wpc=<eval <findlayer.layer_hand1.more1l>*100>
- LOCAL.cbt.wpc=<eval <LOCAL.cbt.wpc>/<findlayer.layer_hand1.more1h>+1>
-// say Tenho <eval <LOCAL.cbt.wpc>>
+ LOCAL.wpc=<eval <findlayer.layer_hand1.more1l>*100>
+ LOCAL.wpc=<eval <LOCAL.wpc>/<findlayer.layer_hand1.more1h>+1>
+// say Tenho <eval <LOCAL.wpc>>
 elif (<findlayer.layer_hand2.type>==t_weapon_axe) || (<findlayer.layer_hand2.type>==t_weapon_fence) || (<findlayer.layer_hand2.type>==t_weapon_sword) || (<findlayer.layer_hand2.type>==t_weapon_mace_crook) || (<findlayer.layer_hand2.type>==t_weapon_mace_pick) || (<findlayer.layer_hand2.type>==t_weapon_mace_staff) || (<findlayer.layer_hand2.type>==t_weapon_mace_smith) || (<findlayer.layer_hand2.type>==t_weapon_mace_sharp)
- LOCAL.cbt.wpc=<eval <findlayer.layer_hand2.more1l>*100>
- LOCAL.cbt.wpc=<eval <LOCAL.cbt.wpc>/<findlayer.layer_hand2.more1h>>
-// say Tenho <eval <LOCAL.cbt.wpc>>
+ LOCAL.wpc=<eval <findlayer.layer_hand2.more1l>*100>
+ LOCAL.wpc=<eval <LOCAL.wpc>/<findlayer.layer_hand2.more1h>>
+// say Tenho <eval <LOCAL.wpc>>
 endif
 
-if (0<LOCAL.cbt.wpc> >= 90)
-// tag.cbt.dano=<tag.cbt.dano>-0
-elif (0<LOCAL.cbt.wpc> >= 80)
- tag.cbt.dano=<tag.cbt.dano>-1
-elif (0<LOCAL.cbt.wpc> >= 60)
- tag.cbt.dano=<tag.cbt.dano>-2
-elif (0<LOCAL.cbt.wpc> >= 30)
- tag.cbt.dano=<tag.cbt.dano>-3
-elif (0<LOCAL.cbt.wpc> < 30)
- tag.cbt.dano=<tag.cbt.dano>-4
+if (0<LOCAL.wpc> >= 90)
+// LOCAL.dano=<LOCAL.dano>-0
+elif (0<LOCAL.wpc> >= 80)
+ LOCAL.dano=<LOCAL.dano>-1
+elif (0<LOCAL.wpc> >= 60)
+ LOCAL.dano=<LOCAL.dano>-2
+elif (0<LOCAL.wpc> >= 30)
+ LOCAL.dano=<LOCAL.dano>-3
+elif (0<LOCAL.wpc> < 30)
+ LOCAL.dano=<LOCAL.dano>-4
 endif
 
 
@@ -418,377 +385,197 @@ endif
 //Determinar região do golpe///////////////////
 ///////////////////////////////////////////////
 
-IF (<action> == Skill_Wrestling)
-  dorand (<eval <wrestling>/100>)
-   LOCAL.cbt.loc=na mao
-   LOCAL.cbt.loc=no braco
-   LOCAL.cbt.loc=no braco
-   LOCAL.cbt.loc=na perna
-   LOCAL.cbt.loc=na perna
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no cabeca
-   LOCAL.cbt.loc=no pescoco
-  enddo
-ELIF (<action> == Skill_fencing)
-  dorand (<eval <fencing>/100>)
-   LOCAL.cbt.loc=na mao
-   LOCAL.cbt.loc=na mao
-   LOCAL.cbt.loc=no braco
-   LOCAL.cbt.loc=no braco
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no pescoco
-   LOCAL.cbt.loc=no pescoco
-   LOCAL.cbt.loc=na cabeca
-  enddo
-elIF (<action> == Skill_Macefighting)
-  dorand (<eval <macefighting>/100>)
-   LOCAL.cbt.loc=na mao
-   LOCAL.cbt.loc=no braco
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no braco
-   LOCAL.cbt.loc=no braco
-   LOCAL.cbt.loc=na perna
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no cabeca
-  enddo
-elif (<action> == Skill_Swordsmanship)
-  dorand (<eval <swordsmanship>/100>)
-   LOCAL.cbt.loc=na mao
-   LOCAL.cbt.loc=no braco
-   LOCAL.cbt.loc=no braco
-   LOCAL.cbt.loc=na perna
-   LOCAL.cbt.loc=na perna
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no cabeca
-   LOCAL.cbt.loc=no pescoco
-  enddo
-elif (<action> == Skill_Archery)
-  dorand (<eval <archery>/100>)
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=na mao
-   LOCAL.cbt.loc=no braco
-   LOCAL.cbt.loc=na perna
-   LOCAL.cbt.loc=na perna
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no torax
-   LOCAL.cbt.loc=no cabeca
-   LOCAL.cbt.loc=no pescoco
-  enddo
-endif
+//IF (<action> == Skill_Wrestling)
+//  dorand (<eval <wrestling>/100>)
+//   LOCAL.loc=na mao
+//   LOCAL.loc=no braco
+//   LOCAL.loc=no braco
+//   LOCAL.loc=na perna
+//   LOCAL.loc=na perna
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no cabeca
+//   LOCAL.loc=no pescoco
+//  enddo
+//ELIF (<action> == Skill_fencing)
+//  dorand (<eval <fencing>/100>)
+//   LOCAL.loc=na mao
+//   LOCAL.loc=na mao
+//   LOCAL.loc=no braco
+//   LOCAL.loc=no braco
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no pescoco
+//   LOCAL.loc=no pescoco
+//   LOCAL.loc=na cabeca
+//  enddo
+//elIF (<action> == Skill_Macefighting)
+//  dorand (<eval <macefighting>/100>)
+//   LOCAL.loc=na mao
+//   LOCAL.loc=no braco
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no braco
+//   LOCAL.loc=no braco
+//   LOCAL.loc=na perna
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no cabeca
+//  enddo
+//elif (<action> == Skill_Swordsmanship)
+//  dorand (<eval <swordsmanship>/100>)
+//   LOCAL.loc=na mao
+//   LOCAL.loc=no braco
+//   LOCAL.loc=no braco
+//   LOCAL.loc=na perna
+//   LOCAL.loc=na perna
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no cabeca
+//   LOCAL.loc=no pescoco
+//  enddo
+//elif (<action> == Skill_Archery)
+//  dorand (<eval <archery>/100>)
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no torax
+//   LOCAL.loc=na mao
+//   LOCAL.loc=no braco
+//   LOCAL.loc=na perna
+//   LOCAL.loc=na perna
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no torax
+//   LOCAL.loc=no cabeca
+//   LOCAL.loc=no pescoco
+//  enddo
+//endif
 
 ///////Trocando nomes engraçados.
-if (<src.body>==c_snake_giant) || (<src.body>==c_snake)
- dorand 2
-  LOCAL.cbt.loc=no corpo
-  LOCAL.cbt.loc=na cabeca
- enddo
-endif
-if (<src.body>==c_headless) && (strmatch(<LOCAL.cbt.loc>, na cabeca))
- LOCAL.cbt.loc=entre os ombros
-endif
-if (<src.body>==c_headless) && (strmatch(<LOCAL.cbt.loc>, no pescoco))
- LOCAL.cbt.loc=entre os ombros
-endif
+//if (<src.body>==c_snake_giant) || (<src.body>==c_snake)
+// dorand 2
+//  LOCAL.loc=no corpo
+//  LOCAL.loc=na cabeca
+// enddo
+//endif
+//if (<src.body>==c_headless) && (strmatch(<LOCAL.loc>, na cabeca))
+// LOCAL.loc=entre os ombros
+//endif
+//if (<src.body>==c_headless) && (strmatch(<LOCAL.loc>, no pescoco))
+// LOCAL.loc=entre os ombros
+//endif
 
 ///////////////////////////////////////////////
 //Determinar força do golpe////////////////////
 ///////////////////////////////////////////////
 
-if (<eval <argn1>+<tag.cbt.dano>> >= 30)
- LOCAL.cbt.for=monstruoso
-elif (<eval <argn1>+<tag.cbt.dano>> >= 25)
- LOCAL.cbt.for=destruidor
-elif (<eval <argn1>+<tag.cbt.dano>> >= 20)
- LOCAL.cbt.for=potente
-elif (<eval <argn1>+<tag.cbt.dano>> >= 15)
- LOCAL.cbt.for=muito forte
-elif (<eval <argn1>+<tag.cbt.dano>> >= 10)
- LOCAL.cbt.for=forte
-elif (<eval <argn1>+<tag.cbt.dano>> >= 5)
- LOCAL.cbt.for=fraco
-else
- LOCAL.cbt.for=patetico
-endif
-
-
+//if (<eval <argn1>+<LOCAL.dano>> >= 30)
+// LOCAL.cbt.for=monstruoso
+//elif (<eval <argn1>+<LOCAL.dano>> >= 25)
+// LOCAL.cbt.for=destruidor
+//elif (<eval <argn1>+<LOCAL.dano>> >= 20)
+// LOCAL.cbt.for=potente
+//elif (<eval <argn1>+<LOCAL.dano>> >= 15)
+// LOCAL.cbt.for=muito forte
+//elif (<eval <argn1>+<LOCAL.dano>> >= 10)
+// LOCAL.cbt.for=forte
+//elif (<eval <argn1>+<LOCAL.dano>> >= 5)
+// LOCAL.cbt.for=fraco
+//else
+// LOCAL.cbt.for=patetico
+//endif
 
 ///////////////////////////////////////////////
-//Danificar armaduras e diminuir o dano////////
+//Danifica armaduras 
 ///////////////////////////////////////////////
 
-if (strmatch(<LOCAL.cbt.loc>,na cabeca)) && (<src.findlayer.layer_helm.layer>==6) //cabeça
- if (<src.findlayer.layer_helm.DispID>==i_bone_helmet) || (<src.findlayer.layer_helm.DispID>==i_helm_orc) //osso
-  src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-5
- elif (<src.findlayer.layer_helm.DispID>==i_leather_cap) //couro
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-{2 4}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-1
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-{1 3}
+dorand (<eval (<tactics>+<anatomy>)/200>)
+ LOCAL.loc=1	//torax
+ LOCAL.loc=1	//torax
+ LOCAL.loc=2	//mao
+ LOCAL.loc=3	//braco
+ LOCAL.loc=4	//perna
+ LOCAL.loc=4	//perna
+ LOCAL.loc=1	//torax
+ LOCAL.loc=1	//torax
+ LOCAL.loc=5	//pescoco
+ LOCAL.loc=6	//cabeca
+enddo
+
+if ( <LOCAL.loc>==1 )
+ src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 4} 	//torax
+ if (0<src.findlayer.layer_chest.more1l> > 5000)
+  if (<NPC>==0) // se não for NPC...
+   sysmessageorange A protecao do peito <src.name> foi totalmente arruinada!
   endif
- elif (<src.findlayer.layer_helm.DispID>==i_helm_closed) || (<src.findlayer.layer_helm.DispID>==i_helm_open) || (<src.findlayer.layer_helm.DispID>==i_bascinet) || (<src.findlayer.layer_helm.DispID>==i_helm_nose) || (<src.findlayer.layer_helm.DispID>==i_platemail_helm) //plate
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-1
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-{3 4}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-{2 4}
+  if (<src.NPC>==0) // Se o defensor não for NPC...
+   src.sysmessageorange Sua protecao do peito foi totalmente arruinada!
   endif
- elif (<src.findlayer.layer_helm.DispID>==i_chainmail_coif) //ring
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-{1 3}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-{1 2}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-{1 2}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-{1 2}
-  endif
+  src.findlayer.layer_chest.remove
  endif
 
-elif (strmatch(<LOCAL.cbt.loc>,no pescoco)) && (<src.findlayer.layer_collar.layer>==10) //percoço
- if (<src.findlayer.layer_collar.DispID>==i_leather_gorget) //couro
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_collar.more1l=<src.findlayer.layer_collar.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_collar.more1l=<src.findlayer.layer_collar.more1l>-{2 4}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_collar.more1l=<src.findlayer.layer_collar.more1l>-1
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_collar.more1l=<src.findlayer.layer_collar.more1l>-{1 3}
+elif ( <LOCAL.loc>==2 )
+ src.findlayer.layer_gloves.more1l=<src.findlayer.layer_gloves.more1l>-{1 4} 	//mao
+ if (0<src.findlayer.layer_gloves.more1l> > 5000)
+  if (<NPC>==0) // se não for NPC...
+   sysmessageorange A protecao das maos <src.name> foi totalmente arruinada!
   endif
- elif (<src.findlayer.layer_collar.DispID>==i_platemail_gorget) //plate
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_collar.more1l=<src.findlayer.layer_collar.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_collar.more1l=<src.findlayer.layer_collar.more1l>-1
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_collar.more1l=<src.findlayer.layer_collar.more1l>-{3 4}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_collar.more1l=<src.findlayer.layer_collar.more1l>-{2 4}
+  if (<src.NPC>==0) // Se o defensor não for NPC...
+   src.sysmessageorange Sua protecao das maos foi totalmente arruinada!
   endif
+  src.findlayer.layer_pants.remove
+ endif
+ 
+elif ( <LOCAL.loc>==3 ) 
+ src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 4}	//braços
+ if (0<src.findlayer.layer_arms.more1l> > 5000)
+  if (<NPC>==0) // se não for NPC...
+   sysmessageorange A armadura dos bracos de <src.name> foi totalmente arruinada!
+  endif
+  if (<src.NPC>==0) // Se o defensor não for NPC...
+   src.sysmessageorange Sua armadura dos bracos foi totalmente arruinada!
+  endif
+  src.findlayer.layer_arms.remove
  endif
 
-elif (strmatch(<LOCAL.cbt.loc>,no braco)) && (<src.findlayer.layer_arms.layer>==19) //braços
- if (<src.findlayer.layer_arms.DispID>==i_bone_arms) //osso
-  src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-5
- elif (<src.findlayer.layer_arms.DispID>==i_leather_sleeves) //couro normal
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{2 4}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-1
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 3}
+elif ( <LOCAL.loc>==4 )
+ src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 4}	//perna
+ if (0<src.findlayer.layer_pants.more1l> > 5000)
+  if (<NPC>==0) // se não for NPC...
+   sysmessageorange A protecao das pernas <src.name> foi totalmente arruinada!
   endif
- elif (<src.findlayer.layer_arms.DispID>==i_studded_sleeves) || (<src.findlayer.layer_arms.DispID>==i_studded_sleeves_decoration) //couro melhorado
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 3}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 2}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 2}
+  if (<src.NPC>==0) // Se o defensor não for NPC...
+   src.sysmessageorange Sua protecao das pernas foi totalmente arruinada!
   endif
- elif (<src.findlayer.layer_arms.DispID>==i_platemail_arms) //plate
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-1
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{3 4}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{2 4}
+  src.findlayer.layer_pants.remove
+ endif
+ 
+elif ( <LOCAL.loc>==5 )
+ src.findlayer.layer_collar.more1l=<src.findlayer.layer_collar.more1l>-{1 4} 	//percoço
+ if (0<src.findlayer.layer_collar.more1l> > 5000)
+  if (<NPC>==0) // se não for NPC...
+   sysmessageorange A protecao do pescoco <src.name> foi totalmente arruinada!
   endif
- elif (<src.findlayer.layer_arms.DispID>==i_ringmail_sleeves) //chain
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 3}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 2}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 2}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 2}
+  if (<src.NPC>==0) // Se o defensor não for NPC...
+   src.sysmessageorange Sua protecao do pescoco foi totalmente arruinada!
   endif
+  src.findlayer.layer_collar.remove
  endif
 
-elif (strmatch(<LOCAL.cbt.loc>,no torax)) && (<src.findlayer.layer_chest.layer>==13) //torax
- if (<src.findlayer.layer_chest.DispID>==i_bone_chest) //osso
-  src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-5
- elif (<src.findlayer.layer_chest.DispID>==i_leather_tunic) //couro normal
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{2 4}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-1
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 3}
+elif ( <LOCAL.loc>==6 )
+ src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-{1 4} 	//cabeça
+ if (0<src.findlayer.layer_helm.more1l> > 5000)
+  if (<NPC>==0) // se não for NPC...
+   sysmessageorange O elmo de <src.name> foi totalmente arruinado!
   endif
- elif (<src.findlayer.layer_chest.DispID>==i_studded_tunic) //couro melhorado
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 3}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 2}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 2}
+  if (<src.NPC>==0) // Se o defensor não for NPC...
+   src.sysmessageorange Seu elmo foi totalmente arruinado!
   endif
- elif (<src.findlayer.layer_chest.DispID>==i_platemail_chest) //plate
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-1
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{3 4}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{2 4}
-  endif
- elif (<src.findlayer.layer_chest.DispID>==i_ringmail_tunic) //ring
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 3}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 2}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 2}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 2}
-  endif
- elif (<src.findlayer.layer_chest.DispID>==i_chainmail_tunic)//chain
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 3}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 3}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 3}
-  endif
- endif
-
-elif (strmatch(<LOCAL.cbt.loc>,na perna)) && (<src.findlayer.layer_pants.layer>==4) //perna
- if (<src.findlayer.layer_pants.DispID>==i_bone_leggings) //osso
-  src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-5
- elif (<src.findlayer.layer_pants.DispID>==i_leather_leggings) //couro normal
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{2 4}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-1
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 3}
-  endif
- elif (<src.findlayer.layer_pants.DispID>==i_studded_leggings) //couro melhorado
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 3}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 2}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 2}
-  endif
- elif (<src.findlayer.layer_pants.DispID>==i_platemail_leggings) || (<src.findlayer.layer_pants.DispID>==0141a) //plate
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-1
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{3 4}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{2 4}
-  endif
- elif (<src.findlayer.layer_pants.DispID>==i_ringmail_leggings) //ring
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 3}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 2}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 2}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 2}
-  endif
- elif (<src.findlayer.layer_pants.DispID>==i_chainmail_leggings) //chain
-  IF (<action> == Skill_Wrestling) && (<NPC>!=0)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 4}
-  elif  (<action> == Skill_fencing) ||  (<action> == Skill_Swordsmanship)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 3}
-  elIF (<action> == Skill_Macefighting)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 3}
-  elif  (<action> == Skill_archery)
-   src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 3}
-  endif
+  src.findlayer.layer_helm.remove
  endif
 endif
-
-if (0<src.findlayer.layer_helm.more1l> > 5000)
- if (<NPC>==0) // se não for NPC...
-  sysmessageorange O elmo de <src.name> foi totalmente arruinado!
- endif
- if (<src.NPC>==0) // Se o defensor não for NPC...
-  src.sysmessageorange Seu elmo foi totalmente arruinado!
- endif
- src.findlayer.layer_helm.remove
-endif
-
-if (0<src.findlayer.layer_arms.more1l> > 5000)
- if (<NPC>==0) // se não for NPC...
-  sysmessageorange A armadura dos brasos de <src.name> foi totalmente arruinada!
- endif
- if (<src.NPC>==0) // Se o defensor não for NPC...
-  src.sysmessageorange Sua armadura dos bracos foi totalmente arruinada!
- endif
- src.findlayer.layer_arms.remove
-endif
-
-if (0<src.findlayer.layer_collar.more1l> > 5000)
- if (<NPC>==0) // se não for NPC...
-  sysmessageorange A protecao do pescoco <src.name> foi totalmente arruinada!
- endif
- if (<src.NPC>==0) // Se o defensor não for NPC...
-  src.sysmessageorange Sua protecao do pescoco foi totalmente arruinada!
- endif
- src.findlayer.layer_collar.remove
-endif
-
-if (0<src.findlayer.layer_chest.more1l> > 5000)
- if (<NPC>==0) // se não for NPC...
-  sysmessageorange A protecao do peito <src.name> foi totalmente arruinada!
- endif
- if (<src.NPC>==0) // Se o defensor não for NPC...
-  src.sysmessageorange Sua protecao do peito foi totalmente arruinada!
- endif
- src.findlayer.layer_chest.remove
-endif
-
-if (0<src.findlayer.layer_pants.more1l> > 5000)
- if (<NPC>==0) // se não for NPC...
-  sysmessageorange A protecao das pernas <src.name> foi totalmente arruinada!
- endif
- if (<src.NPC>==0) // Se o defensor não for NPC...
-  src.sysmessageorange Sua protecao das pernas foi totalmente arruinada!
- endif
- src.findlayer.layer_pants.remove
-endif
-
+ 
 ///////////////////////////////////////////////
 //Danificar armas /////////////////////////////
 ///////////////////////////////////////////////
@@ -824,54 +611,53 @@ if (<findlayer.layer_hand2.type>==t_weapon_axe) || (<findlayer.layer_hand2.type>
 endif
 
 
-
 ///////////////////////////////////////////////
 /////////////Ganho de SKills///////////////////
 ///////////////////////////////////////////////
 
-IF (<NPC>==0) && (<eval 0<tag.fRP>> >= (-2))
- IF <Archery>>1001
-  Archery=(1000)
- ELIF (<action> == Skill_Archery) && ({0 1000} >= <archery>) && (RAND(10)=2)
-  ARCHERY=<ARCHERY>+(1)
- ELIF (<action> == Skill_Archery) && ({0 1000} >= <tactics>) && (RAND(14)=1)
-  tactics=<tactics>+(1)
- ELIF <Fencing>>1001
-  Fencing=(1000)
- ELIF (<action> == Skill_Fencing) && ({0 1000} >= <fencing>) && (RAND(14)=1)
-  FENCING=<FENCING>+(1)
- ELIF (<action> == Skill_Fencing) && ({0 1000} >= <tactics>) && (RAND(20)=1)
-  tactics=<tactics>+(1)
- ELIF <Macefighting>>1001
-  Macefighting=(1000)
- ELIF (<action> == Skill_Macefighting) && ({0 1000} >= <macefighting>) && (RAND(14)=2)
-  MACEFIGHTING=<MACEFIGHTING>+(1)
- ELIF (<action> == Skill_macefighting) && ({0 1000} >= <tactics>) && (RAND(20)=1)
-  tactics=<tactics>+(1)
- ELIF <Parrying>>1001
-  Parrying=(1000)
- ELIF (<action> == Skill_Parrying) && ({0 1000} >= <parrying>) && (RAND(14)=2)
-  Parrying=<Parrying>+(1)
- ELIF <swordsmanship>>1001
-  swordsmanship=(1000)
- ELIF (<action> == Skill_Swordsmanship) && ({0 1000} >= <swordsmanship>) && (RAND(14)=2)
-  swordsmanship=<swordsmanship>+(1)
- ELIF (<action> == Skill_swordsmanship) && ({0 1000} >= <tactics>) && (RAND(20)=1)
-  tactics=<tactics>+(1)
- ELIF <wrestling>>1001
-  Wrestling=(1000)
- ELIF (<action> == Skill_Wrestling) && ({0 1000} >= <wrestling>) && (RAND(14)=2)
-  Wrestling=<Wrestling>+(1)
- ELIF (<action> == Skill_wrestling) && ({0 1000} >= <tactics>) && (RAND(14)=1)
-  tactics=<tactics>+(1)
- ENDIF
-ENDIF
+//IF (<NPC>==0) && (<eval <tag0.fRP>> >= (-2))
+// IF <Archery>>1001
+//  Archery=(1000)
+// ELIF (<action> == Skill_Archery) && ({0 1000} >= <archery>) && (RAND(10)=2)
+//  ARCHERY=<ARCHERY>+(1)
+// ELIF (<action> == Skill_Archery) && ({0 1000} >= <tactics>) && (RAND(14)=1)
+//  tactics=<tactics>+(1)
+// ELIF <Fencing>>1001
+//  Fencing=(1000)
+// ELIF (<action> == Skill_Fencing) && ({0 1000} >= <fencing>) && (RAND(14)=1)
+//  FENCING=<FENCING>+(1)
+// ELIF (<action> == Skill_Fencing) && ({0 1000} >= <tactics>) && (RAND(20)=1)
+//  tactics=<tactics>+(1)
+// ELIF <Macefighting>>1001
+//  Macefighting=(1000)
+// ELIF (<action> == Skill_Macefighting) && ({0 1000} >= <macefighting>) && (RAND(14)=2)
+//  MACEFIGHTING=<MACEFIGHTING>+(1)
+// ELIF (<action> == Skill_macefighting) && ({0 1000} >= <tactics>) && (RAND(20)=1)
+//  tactics=<tactics>+(1)
+// ELIF <Parrying>>1001
+//  Parrying=(1000)
+// ELIF (<action> == Skill_Parrying) && ({0 1000} >= <parrying>) && (RAND(14)=2)
+//  Parrying=<Parrying>+(1)
+// ELIF <swordsmanship>>1001
+//  swordsmanship=(1000)
+// ELIF (<action> == Skill_Swordsmanship) && ({0 1000} >= <swordsmanship>) && (RAND(14)=2)
+//  swordsmanship=<swordsmanship>+(1)
+// ELIF (<action> == Skill_swordsmanship) && ({0 1000} >= <tactics>) && (RAND(20)=1)
+//  tactics=<tactics>+(1)
+// ELIF <wrestling>>1001
+//  Wrestling=(1000)
+// ELIF (<action> == Skill_Wrestling) && ({0 1000} >= <wrestling>) && (RAND(14)=2)
+//  Wrestling=<Wrestling>+(1)
+// ELIF (<action> == Skill_wrestling) && ({0 1000} >= <tactics>) && (RAND(14)=1)
+//  tactics=<tactics>+(1)
+// ENDIF
+//ENDIF
 
-if (<eval 0<tag.fRP>> < (-2)) && (<npc>==0)
-DORAND 6
- sysmessageorange Seus pontos de RP estao baixos. Ganho de skill negado.
-ENDDO
-endif
+//if (<eval <tag0.fRP>> < (-2)) && (<npc>==0)
+//DORAND 6
+// sysmessageorange Seus pontos de RP estao baixos. Ganho de skill negado.
+//ENDDO
+//endif
 
 
 ///////////////////////////////////////////////
@@ -879,20 +665,20 @@ endif
 ///////////////////////////////////////////////
 
 ///// Falas bonitinhas
-if (<NPC>==0) //Se for um jogador e não um NPC...
- dorand 3
-  sysmessageblue Um <LOCAL.cbt.for> golpe acerta <src.name> <LOCAL.cbt.loc>.
-  sysmessageblue Voce desfere um <LOCAL.cbt.for> golpe <LOCAL.cbt.loc> de <src.name>.
-  sysmessageblue Seu <LOCAL.cbt.for> golpe pega em cheio <LOCAL.cbt.loc> de <src.name>.
- enddo
-endif
-if (<src.NPC>==0) //Se o alvo for um jogador...
- dorand 3
-  src.sysmessagered <name> acerta um <LOCAL.cbt.for> golpe em voce <LOCAL.cbt.loc>.
-  src.sysmessagered O <LOCAL.cbt.for> golpe de <name> te acerta <LOCAL.cbt.loc>.
-  src.sysmessagered Um golpe <LOCAL.cbt.for> de <name> te pega desprevinido <LOCAL.cbt.loc>
- enddo
-endif
+//if (<NPC>==0) //Se for um jogador e não um NPC...
+// dorand 3
+//  sysmessageblue Um <LOCAL.cbt.for> golpe acerta <src.name> <LOCAL.loc>.
+//  sysmessageblue Voce desfere um <LOCAL.cbt.for> golpe <LOCAL.loc> de <src.name>.
+//  sysmessageblue Seu <LOCAL.cbt.for> golpe pega em cheio <LOCAL.loc> de <src.name>.
+// enddo
+//endif
+//if (<src.NPC>==0) //Se o alvo for um jogador...
+// dorand 3
+//  src.sysmessagered <name> acerta um <LOCAL.cbt.for> golpe em voce <LOCAL.loc>.
+//  src.sysmessagered O <LOCAL.cbt.for> golpe de <name> te acerta <LOCAL.loc>.
+//  src.sysmessagered Um golpe <LOCAL.cbt.for> de <name> te pega desprevinido <LOCAL.loc>
+// enddo
+//endif
 
 /////Produzir sons
 IF (<action> == Skill_wrestling)
@@ -922,11 +708,10 @@ ELIF (<action> == Skill_Macefighting)
 endif
 
 ///// Modificadores de dano
-argn1=<eval <argn1>+<tag.cbt.dano>>
-if (<argn1> <= 3)
- argn1={1 3}
-endif
-
+argn1=<eval <argn1>+<LOCAL.dano>>
+if (<argn1> <= 0)
+ argn1=1
+ 
 /////cansar atacante
 if (<stam> >= <eval <dex>/3>)
  stam=<stam>-{1 2}
@@ -935,126 +720,23 @@ elif (<stam> <= <eval <dex>/3>) && (<stam> >= <eval <dex>/5>)
 endif
 
 /////desconcentrar vítima
-if (<src.magery> >= 500)
- if (<src.mana> >= 6)
-  dorand 4
-   src.mana=<src.mana>-1
-   src.mana=<src.mana>-2
-  enddo
- endif
+if (<src.mana> >= 6)
+ dorand 4
+  src.mana=<src.mana>-1
+  src.mana=<src.mana>-2
+ enddo
 endif
 
 ///// Transfere e aplica dano
-src.tag.dano=<argn1>
-src.events +e_dano_transfer
-src.damage 1 02 <uid>
-
-///// Salvar nomes para .ficha
-IF (<src.npc>==0) && (<npc>==0)
- IF (<src.tag.lastagr1uid> != <uid>)
-  src.tag.lastagr2uid=<src.tag.lastagr1uid>
-  src.tag.lastagr2name=<src.tag.lastagr1name>
-  src.tag.lastagr1uid=<uid>
-  src.tag.lastagr1name=<tag.name>
- endif
-endif
-
-///// Perpetuar a agreção
-if !(<src.flags>&020)
- src.flags <src.flags>|020
-endif
-if (<NPC>==0)
- src.attack <UID>
-endif
-
-return 1
-
-on=@death
-
-on=@SpellEffect
-if (<argn1>==11) && (<restest 1 i_veneno>)
- if (<argn2>==1000)
-  findid.i_veneno.more2=0
-  flags=<flags>&~080
- endif
- LOCAL.poisoning=<argn2>
- if (<LOCAL.poisoning> >= 0640) && (<LOCAL.poisoning> <= 0999)
-  LOCAL.poisoning 0640
- endif
- LOCAL.poisoning=<eval <LOCAL.poisoning>/3>
- LOCAL.poisoning=<eval <LOCAL.poisoning>*2>
- LOCAL.poisoning=<eval <LOCAL.poisoning>/15>
- if (<eval <LOCAL.poisoning>> >= <findid.i_veneno.more2>)
-  findid.i_veneno.more2=00
-  sysmessageblue O veneno foi removido do seu corpo!
-  flags=<flags>&~080
-  return 0
- endif
- findid.i_veneno.more2=<eval <findid.i_veneno.more2>-<LOCAL.poisoning>>
- if (<argn2>==1000) || (<eval <findid.i_veneno.more2>> >= 4000)
-  findid.i_veneno.more2=00
-  sysmessageblue O veneno foi removido do seu corpo!
-  flags=<flags>&~080
-  return 0
- endif
- sysmessageblue Voce se sente um tanto melhor. 
-endif
-
-if (<argn1>==11) && (<restest 1 i_mry_peste>)
- if (<argn2> < 1001)
-  sysmessagered A cura foi muito fraca para amenizar a peste.
- else
-  src.findid.i_mry_peste.more2=(<src.findid.i_mry_peste.more2>/3)
-  sysmessageblue Voce se sente um pouco melhor.
- endif
-endif
-
-if (<argn1>==20) && (<restest 1 i_veneno>==0)
- LOCAL.poison <argn2>
- LOCAL.poison <eval <LOCAL.poison>/20>
- newitem i_veneno
- act.more2 <LOCAL.poison>
- act.timer 5
- act.cont <uid>
- flags=<flags>|080
- effect 2 i_fx_curse 0 30 0
- return 1
-elif (<argn1>==11)
- effect 2 i_fx_curse 0 30 0
- sfx 00fd
- return 1
-endif
-return 0
-
-on=@itemdclick
-if (<act.Baseid>==i_bottle_green) && (<act.more1>==s_poison)
- if (<poisoning> <= 10)
-  sysmessage Skil negada...
-  return 1
- endif
- LOCAL.actuid=<act.uid>
- act=0
- newitem i_mry_usepoison
- act.link <LOCAL.actuid>
- act.equip
- act.use
- return 1
-endif
-
-
-[EVENTS e_dano_transfer]
-on=@GetHit
-events -e_dano_transfer
-
-if (<tag0.dano> >= <hits>)
- hits=0
- if (<SRC.ACT.NPC>==0)
-  src.act.tag.lastkillname=<src.tag.name>
-  src.act.tag.lastkillUID=<src.uid>
-  src.tag.fpk=(<src.tag.fpk>+1)
+if (<argn1> >= <src.hits>)
+ src.hits=0
+ if (<NPC>==0)
+  tag.lastkillname=<src.tag.name>
+  tag.lastkillUID=<src.uid>
+  tag.fpk=(<tag0.fpk>+1)
  endif
 else
- hits=<hits>-<tag.dano>
+ src.hits=<src.hits>-<argn1>
  bark
  if (<ID>==c_man) || (<ID>==c_man_gm)
   dorand 5
@@ -1072,7 +754,97 @@ else
    sfx 014f
   enddo
 endif
+
+//src.tag.dano=<argn1>
+//src.events +e_dano_transfer
+//src.damage 1 dam_physical <uid>
+
+///// Salvar nomes para .ficha
+IF (<src.npc>==0) && (<npc>==0)
+ IF (<src.tag.lastagr1uid> != <uid>)
+  src.tag.lastagr2uid=<src.tag.lastagr1uid>
+  src.tag.lastagr2name=<src.tag.lastagr1name>
+  src.tag.lastagr1uid=<uid>
+  src.tag.lastagr1name=<tag.name>
+ endif
+endif
+
+///// Perpetuar a agreção
+if !(<src.flags>&statf_war)
+ src.flags <src.flags>|statf_war
+endif
+
+if (<NPC>==0)
+ src.attack <UID>
+endif
+
 return 1
+
+
+
+
+
+
+
+ON=@SPELLEFFECT
+//argn1=spell
+//argn2=magery skill
+
+//cura?
+if (<argn1>==11) && (<restest 1 i_veneno>)
+ LOCAL.poisoning=<argn2>
+ LOCAL.poisoning=<eval <LOCAL.poisoning>/30>
+ findid.i_veneno.more2=<eval <findid.i_veneno.more2>-<LOCAL.poisoning>>
+ if (<eval <findid.i_veneno.more2>> >= 4000)
+  findid.i_veneno.more2=00
+  sysmessageblue O veneno foi removido do seu corpo!
+  flags=<flags>&~statf_poisoned
+ endif
+ sysmessageblue Voce se sente um tanto melhor. 
+ return 1
+endif
+
+//cura??
+if (<argn1>==11) && (<restest 1 i_mry_peste>)
+ if (<argn2> < 1001)
+  sysmessagered A cura foi muito fraca para amenizar a peste.
+ else
+  src.findid.i_mry_peste.more2=(<src.findid.i_mry_peste.more2>/3)
+  sysmessageblue Voce se sente um pouco melhor.
+ endif
+ return 1
+endif
+
+//poison?
+if (<argn1>==20) && (<restest 1 i_veneno>==0)
+ LOCAL.poison <argn2>
+ LOCAL.poison <eval <LOCAL.poison>/20>
+ newitem i_veneno
+ act.more2 <LOCAL.poison>
+ act.timer 5
+ act.cont <uid>
+ flags=<flags>|statf_poisoned
+ effect 2 i_fx_curse 0 30 0
+ return 1
+//elif (<argn1>==11)
+// effect 2 i_fx_curse 0 30 0
+// sfx 00fd
+// return 1
+endif
+
+on=@itemdclick
+if (<act.Baseid>==i_bottle_green) && (<act.more1>==s_poison)
+// if (<poisoning> <= 10)
+//  sysmessage Skil negada...
+//  return 1
+// endif
+ LOCAL.actuid=<act.uid>
+ newitem i_mry_usepoison
+ new.link <LOCAL.actuid>
+ new.equip
+ new.use
+ return 1
+endif
 
 
 //*****************************************************************************
@@ -1142,7 +914,7 @@ return 1
 
 on=@targon_item
 if (<src.targ.BaseID>==i_arrow)
- if (<src.targ.cont.uid> != <src.findlayer.layer_hand21.uid>)
+ if (<src.targ.cont.uid> != <src.findlayer.layer_pack.uid>)
   cont.sysmessage As flechas precisam estar em suas maos.
   remove
   return 1
@@ -1153,7 +925,7 @@ if (<src.targ.BaseID>==i_arrow)
   src.newitem i_bottle_empty
   src.act.bounce  
   if (<src.targ.amount> >=5 )
-   src.targ.cont <src.findlayer.layer_hand21.uid>
+   src.targ.cont <src.findlayer.layer_pack.uid>
    src.consume 5 <src.targ.baseid>
    src.act=0
    src.newitem i_poison_arrow
@@ -1164,7 +936,7 @@ if (<src.targ.BaseID>==i_arrow)
    src.newitem i_poison_arrow
    src.act.amount <src.targ.amount>
    src.act.bounce
-   src.targ.cont <src.findlayer.layer_hand21.uid>
+   src.targ.cont <src.findlayer.layer_pack.uid>
    src.consume <src.targ.amount> <src.targ.baseid>
    src.sysmessage Voce envenenou as flechas.
   endif
@@ -1175,7 +947,7 @@ if (<src.targ.BaseID>==i_arrow)
   src.act.bounce
  endif
 elif (<src.targ.type>==t_weapon_sword) || (<src.targ.type>==t_weapon_fence)
- if (<src.targ.cont.uid> != <src.findlayer.layer_hand21.uid>) && (<src.targ.uid> != <src.findlayer.layer_hand1.uid>) && (<src.targ.uid> != <src.findlayer.layer_hand2.uid>)
+ if (<src.targ.cont.uid> != <src.findlayer.layer_pack.uid>) && (<src.targ.uid> != <src.findlayer.layer_hand1.uid>) && (<src.targ.uid> != <src.findlayer.layer_hand2.uid>)
   cont.sysmessage A arma precisam estar em suas maos.
   remove
   return 1
@@ -1186,8 +958,7 @@ elif (<src.targ.type>==t_weapon_sword) || (<src.targ.type>==t_weapon_fence)
    remove
    return 1
   else
-   LOCAL.poisoning <eval <link.more2>/69)
-   src.targ.morex=<eval <src.targ.morex>+<LOCAL.poisoning>>
+   src.targ.morex=<eval <src.targ.morex>+(<link.more2>/69)>
   endif
  elif (<src.targ.more2> != 0)
   cont.sysmessage Esta arma ja tem um tratamento diferenciado.
