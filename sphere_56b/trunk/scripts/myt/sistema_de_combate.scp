@@ -10,10 +10,154 @@
 //*****************************************************************************
 //*****************************************************************************
 //TODO:
+
+//@HIT
 //
+//Verifica Parrying - (50%*skill)[%]*(1-agressividade_defensor)[%]
+//  Danifica Escudo
+//  Fim
+//Tenta esquivar - ( 130% tactics + 200% dex + (-250 a 500)[agressividade] )*35%
+//  Esquiva
+//  Fim
+//Tenta envenenar - (atacante é animal venenoso && poisoning > 30% && nao envenenado)
+//  Envenena com 10% poisoning e duração de 20 a 30 ataques.
+//Tenta envenenar - (armas envenenadas && ( 50% swords || 50% fencing || 76% poison ) )
+//  Envenena com spell poison, 30% de skill.
+//Tenta queimar - (armas com fogo)
+//  Queima (fire collumn) - 3 a 6 de dano
+//Ajusta dano
+//  STR 
+//    >= 95% +3
+//    >= 90% +2
+//    >= 85% +1
+//  ANATOMY
+//    >= 95% +3
+//    >= 75% +2
+//    >= 50% +1
+//  ATACANTE ENVENENADO - 25% chance 
+//    - (more2/15)
+//  STAMINA
+//    MAX   +1
+//    <= 5  -2
+//    <= 15 -1
+//  PESO
+//    >= 1500 -3
+//    >= 1000 -2
+//    >= 750  -1
+//  AGRESSIVIDADE
+//    9,10  +2
+//    7,8   +1
+//    4,5,6  0
+//    2,3   -1
+//    1     -5
+//    0    -10
+//  ARMADURA ALVO
+//    - { AR/6 AR/3 }
+//  QUALIDADE DA ARMA DE ATAQUE
+//    >= 90%  0
+//    >= 80% -1
+//    >= 60% -2
+//    >= 30% -3
+//    else   -4 
+//  SKILL DE ATAQUE (afeta dano original: argn1)
+//    WRESTLING
+//      < 30%  70% + 1
+//      < 40%  80% + 1
+//      < 50%  90% + 1
+//      < 60% 100% + 1
+//      < 70% 110% + 1
+//      < 80% 120% + 1
+//    FENCING
+//      < 20%   60% + 1
+//      < 30%   65% + 1
+//      < 40%   80% + 1
+//      < 50%   90% + 1
+//      < 60%  100% + 1
+//      < 70%  110% + 1
+//      < 80%  120% + 1
+//      < 90%  135% + 1
+//      < 100% 150% + 1
+//      = 100% 170% + 1
+//    SWORDSMANSHIP
+//      < 10%   30% + 1
+//      < 20%   45% + 1
+//      < 30%   60% + 1
+//      < 40%   75% + 1
+//      < 50%   90% + 1
+//      < 60%  100% + 1
+//      < 70%  110% + 1
+//      < 80%  120% + 1
+//      < 90%  130% + 1
+//      < 100% 140% + 1
+//      = 100% 155% + 1
+//    MACEFIGHTING
+//      < 10%   60% + 1
+//      < 20%   60% + 1
+//      < 30%   70% + 1
+//      < 40%   80% + 1
+//      < 50%   90% + 1
+//      < 60%  100% + 1
+//      < 70%  110% + 1
+//      < 80%  120% + 1
+//      < 90%  120% + 1
+//      < 100% 130% + 1
+//      = 100% 130% + 1
+//    ARCHERY
+//      < 10%   50% + 1
+//      < 20%   70% + 1
+//      < 30%   90% + 1
+//      < 40%  100% + 1
+//      < 50%  100% + 1
+//      < 60%  100% + 1
+//      < 70%  100% + 1
+//      < 80%  110% + 1
+//      < 90%  115% + 1
+//      < 100% 120% + 1
+//      = 100% 125% + 1
+//
+//Define local do ataque ( rand 0 a 10% tactics )
+//  torax
+//  torax
+//  mao
+//  braco
+//  perna
+//  perna
+//  torax
+//  torax
+//  pescoco
+//  cabeca
+//  cabeca
+//
+//Danifica armadura protegendo local do ataque - 1 a 4
+//Danifica armas utilizadas - 0 a 1
+//Emite sons
+//Cansa atacante: - 0 a 2 de stamina
+//Desconcentra vitima: - 0 a 2 de mana
+//Aplica dano
+
+
+// POISON por magia: i_veneno.MORE2 = 50% magery repeticoes e 7% magery dano
+// HEAL POISON por magia: i_veneno.MORE2 -= 33% magery
+// POISON por pocao: pocao.MORE2 = (890,1000,1500,2000) (fraca,normal,concentrada,forte)
+//   flecha envenenada: dano constante: i_poison_arrow
+//   arma envenenada: 4,5% more2 e 1,5% na recarga (recargas de dano constante:2)
+//   alvo envenenado: 5% more2 repeticoes e 0.71% more2 dano
+//   chao envenenado: 2,5% more2 repeticoes e 0.36% more2 dano
+// POISON NPC: i_veneno.MORE2 = ( 10% poisoning ) repeticoes e 1 a ( 10% poisoning * 14%) 
+
 //TAGS usadas:
-//tag.agr
-//tag.roll
+//tag.agr	nível de agressividade do combate (0 a 10)
+
+//tag.fRP	pontos de rp
+//tag.lastkillname nome da ultima vitima fatal
+//tag.lastkillUID  uid da ultima vitima fatal
+//tag.fpk	contador de vitimas fatais
+//tag.lastagr2uid  uid do penultimo agressor
+//tag.lastagr2name nome do penultimo agressor
+//tag.lastagr1uid  uid do ultimo agressor
+//tag.lastagr1name nome do ultimo agressor
+
+//item.tag.name nome original do item antes de ser envenenado
 //*****************************************************************************
 
 //*****************************************************************************
@@ -23,18 +167,21 @@
 //*****************************************************************************
 [EVENTS e_combat] 
 
-ON=@HIT
-IF (<action> == Skill_Archery)
- return 0
-endif
+//*************************************
+// @HITTRY
+//*************************************
+ON=@HITTRY
+//sai do modo batalha se alvo invul, morto, desmaiado, escondido, etc
 if ( <src.flags>&(statf_invul|statf_dead|statf_invisible|statf_insubstantial|statf_stone|statf_hidden)) || (<src.restest 1 i_mry_desmaio>)
  flags=<flags>&~statf_war
  update
  return 1
 endif
-ACTDIFF=1000
 
-LOCAL.cbt.uid=<src.uid>
+//*************************************
+// @HIT
+//*************************************
+ON=@HIT
 
 //MORE1H = maxItemHits
 //MORE1L = itemHits
@@ -87,68 +234,14 @@ if (<src.findlayer.layer_hand2.type>==t_shield)
  endif
 endif
 
-///////////////////////////////////////////////
-//Tentar usar Poison///////////////////////////
-///////////////////////////////////////////////
-
-// Se eu for um animal venenoso e a minha presa não está envenenada...
-if (<poisoning> >= 300) && (<NPC>!=0) && (<src.restest 1 i_veneno>==0)
- if ({1 1000} < <poisoning>) && (RAND(4)==0) && (<tag0.veneno>==0)
-  src.veneno <eval <poisoning>/10>
-  tag.veneno={20 30}
-  emotered morde profundamente
- elif (<tag0.veneno>!=0)
-  tag.veneno <tag.veneno>-1
- endif
-endif
-
-//ARMAS ENVENENADAS
-//MORE2=020
-//MOREX=carga de veneno
-
-//Se a arma na HAND1 estiver envenenada
-if (<findlayer.layer_hand1.more2>==20) && (<src.npc>!=12)
- if (<swordsmanship> <= {1 2000}) || (<fencing> <= {1 2000}) || (<poisoning> <= {1 1300})
-  if (<src.restest 1 i_veneno>==0)
-   src.spelleffect s_poison, 300
-  endif
-  findlayer.layer_hand1.morex=<findlayer.layer_hand1.morex>-1
-  if (<findlayer.layer_hand1.morex> == 0) || (<findlayer.layer_hand1.morex> >= 1000)
-   findlayer.layer_hand1.more2=0
-   findlayer.layer_hand1.name <findlayer.layer_hand1.tag.name>
-  endif
- endif
- 
-//Se a arma na HAND2 estiver envenenada 
-elif (<findlayer.layer_hand2.more2>==20) && (<src.npc>!=12)
- if (<swordsmanship> <= {1 2000}) || (<fencing> <= {1 2000}) || (<poisoning> <= {1 1300})
-  if (<src.restest 1 i_veneno>==0)
-   src.spelleffect s_poison, 300
-  endif
-  findlayer.layer_hand2.morex=<findlayer.layer_hand2.morex>-1
-  if (<findlayer.layer_hand2.morex> == 0) || (<findlayer.layer_hand2.morex> >= 1000)
-   findlayer.layer_hand2.more2=0
-   findlayer.layer_hand2.name <findlayer.layer_hand2.tag.name>
-  endif
- endif
-endif
-
-//Se a arma na HAND1 estiver??
-if (<findlayer.layer_hand1.more2>==15)
- src.effect 2 i_fire_column 0 32 0
- src.damage {3 6} 010 <uid>
- findlayer.layer_hand1.morex=<findlayer.layer_hand1.morex>-1
- if (<findlayer.layer_hand1.morex>==0)
-  findlayer.layer_hand1.more2=0
- endif
-endif
 
 ///////////////////////////////////////////////
 ////////////Tentar esquivar o golpe////////////
 ///////////////////////////////////////////////
 LOCAL.esquiva=<eval (((<src.tactics>/15)*2)+(<src.dex>*2))>
 
-if (<src.tag0.agr>==0) && (<src.npc>==0)
+//&& (<src.npc>==0)
+if (<src.tag0.agr>==0) 
  LOCAL.esquiva=<eval <LOCAL.esquiva>+500>
 elif (<src.tag0.agr>==1)
  LOCAL.esquiva=<eval <LOCAL.esquiva>+400>
@@ -174,33 +267,87 @@ endif
 
 //quando o atacado for um player ou npc
 if (({1 2400} <= <eval <LOCAL.esquiva>>)
- if ( (<src.ac> <= 26) && (<src.NPC>==0) ) || ( (RAND(6)==1) && (<src.NPC>!=0) )
-  if (<NPC>==0) // se não for NPC...
-   sysmessageyellow <src.name> esquiva-se de seu golpe!
-  endif
-  if (<src.NPC>==0) // Se o defensor não for NPC...
-   src.sysmessageyellow Voce consegue se esquivar do golpe!
-  endif
-  dorand 5
-   sfx 0239
-   sfx 023a
-   sfx 0233
-   sfx 0238
-   sfx 0232
-  enddo 
+ if (<NPC>==0) // se não for NPC...
+  sysmessageyellow <src.name> esquiva-se de seu golpe!
  endif
+ if (<src.NPC>==0) // Se o defensor não for NPC...
+  src.sysmessageyellow Voce consegue se esquivar do golpe!
+ endif
+ dorand 5
+  sfx 0239
+  sfx 023a
+  sfx 0233
+  sfx 0238
+  sfx 0232
+ enddo 
  return 1
+endif
+
+///////////////////////////////////////////////
+//Tentar usar Poison///////////////////////////
+///////////////////////////////////////////////
+
+// Se eu for um animal venenoso e a minha presa não está envenenada...
+if (<poisoning> >= 300) && (<NPC>!=0) && (<src.restest 1 i_veneno>==0)
+ if ({1 1000} < <poisoning>) && (RAND(4)==0) && (<ctag0.veneno>==0)
+  src.veneno <eval <poisoning>/10>
+  ctag.veneno={20 30}
+  emotered morde profundamente
+ elif (<ctag0.veneno>!=0)
+  ctag.veneno <ctag.veneno>-1
+ endif
+endif
+
+//ARMAS ENVENENADAS
+//MORE2=020
+//MOREX=carga de veneno
+
+//Se a arma na HAND1 estiver envenenada // && (<src.npc>!=12)
+if (<findlayer.layer_hand1.more2>==20)
+ if (<swordsmanship> <= {1 2000}) || (<fencing> <= {1 2000}) || (<poisoning> <= {1 1300})
+  if (<src.restest 1 i_veneno>==0)
+   src.spelleffect s_poison, 300
+  endif
+  findlayer.layer_hand1.morex=<findlayer.layer_hand1.morex>-1
+  if (<findlayer.layer_hand1.morex> == 0) || (<findlayer.layer_hand1.morex> >= 1000)
+   findlayer.layer_hand1.more2=0
+   findlayer.layer_hand1.name <findlayer.layer_hand1.tag.name>
+  endif
+ endif
+ 
+//Se a arma na HAND2 estiver envenenada // && (<src.npc>!=12)
+elif (<findlayer.layer_hand2.more2>==20) 
+ if (<swordsmanship> <= {1 2000}) || (<fencing> <= {1 2000}) || (<poisoning> <= {1 1300})
+  if (<src.restest 1 i_veneno>==0)
+   src.spelleffect s_poison, 300
+  endif
+  findlayer.layer_hand2.morex=<findlayer.layer_hand2.morex>-1
+  if (<findlayer.layer_hand2.morex> == 0) || (<findlayer.layer_hand2.morex> >= 1000)
+   findlayer.layer_hand2.more2=0
+   findlayer.layer_hand2.name <findlayer.layer_hand2.tag.name>
+  endif
+ endif
+endif
+
+//Se a arma na HAND1 estiver??
+if (<findlayer.layer_hand1.more2>==15)
+ src.effect 2 i_fire_column 0 32 0
+ src.damage {3 6} dam_fire <uid>
+ findlayer.layer_hand1.morex=<findlayer.layer_hand1.morex>-1
+ if (<findlayer.layer_hand1.morex>==0)
+  findlayer.layer_hand1.more2=0
+ endif
 endif
 
 ///////////////////////////////////////////////
 //Aplicando correção de dano por STR///////////
 ///////////////////////////////////////////////
 if (<str> >= 95)
- LOCAL.dano=<LOCAL.dano>+3
+ LOCAL.dano=3
 elif (<str> >= 90)
- LOCAL.dano=<LOCAL.dano>+2
+ LOCAL.dano=2
 elif (<str> >= 85)
- LOCAL.dano=<LOCAL.dano>+1
+ LOCAL.dano=1
 else
  LOCAL.dano=0
 endif
@@ -221,9 +368,6 @@ endif
 ///////////////////////////////////////////////
 if (<restest 1 i_veneno>) && (RAND(3)==0)
  LOCAL.dano=<eval <LOCAL.dano>-(<eval <findid.i_veneno.more2>/15>)>
- if (<tag0.dano> <= 2)
-  LOCAL.dano {2 5}
- endif
  sysmessagegreen O veneno esta te enfraquecendo. Seus golpes estao fracos!
 endif
 
@@ -252,15 +396,15 @@ endif
 ///////////////////////////////////////////////
 //Aplicando correção de dano .COMBATE//////////
 ///////////////////////////////////////////////
-if (<eval <tag0.agr>> == 10)
+if (<eval <tag0.agr>> >= 9)
  LOCAL.dano=<LOCAL.dano>+2
-elif (<eval <tag0.agr>> > 7)
+elif (<eval <tag0.agr>> >= 7)
  LOCAL.dano=<LOCAL.dano>+1
-elif (<eval <tag0.agr>> > 4)
+elif (<eval <tag0.agr>> >= 4)
  LOCAL.dano=<LOCAL.dano>
-elif (<eval <tag0.agr>> > 3)
+elif (<eval <tag0.agr>> >= 2)
  LOCAL.dano=<LOCAL.dano>-1
-elif (<eval <tag0.agr>> > 0) 
+elif (<eval <tag0.agr>> >= 1) 
  LOCAL.dano=<LOCAL.dano>-5
 else 
  LOCAL.dano=<LOCAL.dano>-10
@@ -298,10 +442,9 @@ elif (0<LOCAL.wpc> >= 60)
  LOCAL.dano=<LOCAL.dano>-2
 elif (0<LOCAL.wpc> >= 30)
  LOCAL.dano=<LOCAL.dano>-3
-elif (0<LOCAL.wpc> < 30)
+else 
  LOCAL.dano=<LOCAL.dano>-4
 endif
-
 
 //////////////////////////////////////////////////////////////
 //Aplicando correção de dano pela skill de luta////////////
@@ -351,7 +494,7 @@ elif (<action> == Skill_Swordsmanship)
    argn1=(<argn1>*155)/100)+1
   enddo
 elIF (<action> == Skill_Macefighting)
-  doswitch (<eval <wrestling>/100>)
+  doswitch (<eval <macefighting>/100>)
    argn1=(<argn1>*60)/100)+1
    argn1=(<argn1>*60)/100)+1
    argn1=(<argn1>*70)/100)+1
@@ -365,7 +508,7 @@ elIF (<action> == Skill_Macefighting)
    argn1=(<argn1>*130)/100)+1
   enddo
 elif  (<action> == Skill_archery)
-  doswitch (<eval <wrestling>/100>)
+  doswitch (<eval <archery>/100>)
    argn1=(<argn1>*50)/100)+1
    argn1=(<argn1>*70)/100)+1
    argn1=(<argn1>*90)/100)+1
@@ -490,7 +633,7 @@ endif
 //Danifica armaduras 
 ///////////////////////////////////////////////
 
-dorand (<eval (<tactics>+<anatomy>)/200>)
+dorand (<eval (<tactics>)/100>)
  LOCAL.loc=1	//torax
  LOCAL.loc=1	//torax
  LOCAL.loc=2	//mao
@@ -500,6 +643,7 @@ dorand (<eval (<tactics>+<anatomy>)/200>)
  LOCAL.loc=1	//torax
  LOCAL.loc=1	//torax
  LOCAL.loc=5	//pescoco
+ LOCAL.loc=6	//cabeca
  LOCAL.loc=6	//cabeca
 enddo
 
@@ -610,7 +754,6 @@ if (<findlayer.layer_hand2.type>==t_weapon_axe) || (<findlayer.layer_hand2.type>
  endif
 endif
 
-
 ///////////////////////////////////////////////
 /////////////Ganho de SKills///////////////////
 ///////////////////////////////////////////////
@@ -711,53 +854,29 @@ endif
 argn1=<eval <argn1>+<LOCAL.dano>>
 if (<argn1> <= 0)
  argn1=1
+endif
  
 /////cansar atacante
-if (<stam> >= <eval <dex>/3>)
- stam=<stam>-{1 2}
-elif (<stam> <= <eval <dex>/3>) && (<stam> >= <eval <dex>/5>)
- stam=<stam>-{0 1}
+if (<stam> >= 6)
+ stam=<stam>-{0 2}
 endif
 
 /////desconcentrar vítima
 if (<src.mana> >= 6)
- dorand 4
-  src.mana=<src.mana>-1
-  src.mana=<src.mana>-2
- enddo
+ src.mana=<src.mana>-{0 2}
 endif
 
 ///// Transfere e aplica dano
+src.damage <argn1> dam_physical <uid>
+
+///// Marca assassino
 if (<argn1> >= <src.hits>)
- src.hits=0
  if (<NPC>==0)
   tag.lastkillname=<src.tag.name>
   tag.lastkillUID=<src.uid>
   tag.fpk=(<tag0.fpk>+1)
  endif
-else
- src.hits=<src.hits>-<argn1>
- bark
- if (<ID>==c_man) || (<ID>==c_man_gm)
-  dorand 5
-   sfx 0154
-   sfx 0155
-   sfx 0156
-   sfx 0158
-   sfx 0159
-  enddo
- elif (<ID>==c_woman)
-  dorand 4
-   sfx 014b
-   sfx 014c
-   sfx 014d
-   sfx 014f
-  enddo
 endif
-
-//src.tag.dano=<argn1>
-//src.events +e_dano_transfer
-//src.damage 1 dam_physical <uid>
 
 ///// Salvar nomes para .ficha
 IF (<src.npc>==0) && (<npc>==0)
@@ -780,12 +899,9 @@ endif
 
 return 1
 
-
-
-
-
-
-
+//*************************************
+// @SPELLEFFECT
+//*************************************
 ON=@SPELLEFFECT
 //argn1=spell
 //argn2=magery skill
@@ -826,18 +942,15 @@ if (<argn1>==20) && (<restest 1 i_veneno>==0)
  flags=<flags>|statf_poisoned
  effect 2 i_fx_curse 0 30 0
  return 1
-//elif (<argn1>==11)
-// effect 2 i_fx_curse 0 30 0
-// sfx 00fd
-// return 1
 endif
 
-on=@itemdclick
+
+
+//*************************************
+// @ITEMDCLICK
+//*************************************
+ON=@ITEMDCLICK
 if (<act.Baseid>==i_bottle_green) && (<act.more1>==s_poison)
-// if (<poisoning> <= 10)
-//  sysmessage Skil negada...
-//  return 1
-// endif
  LOCAL.actuid=<act.uid>
  newitem i_mry_usepoison
  new.link <LOCAL.actuid>
@@ -873,14 +986,14 @@ name=usando veneno
 type=t_eq_script
 layer=layer_special
 
-on=@dclick
+ON=@DCLICK
 timer=30
 attr=attr_decay
 targetg Onde deseja utilizar o veneno?
 return 1
 
-on=@targon_char
-if (<link.more2> < 01001)
+ON=@TARGON_CHAR
+if (<link.more2> <= 1000 )
  cont.sysmessage Este veneno e muito fraco para ser jogado deste forma.
  remove
  return 1
@@ -912,7 +1025,7 @@ if (<src.targ.restest 1 i_veneno>==0)
 endif
 return 1
 
-on=@targon_item
+ON=@TARGON_ITEM
 if (<src.targ.BaseID>==i_arrow)
  if (<src.targ.cont.uid> != <src.findlayer.layer_pack.uid>)
   cont.sysmessage As flechas precisam estar em suas maos.
@@ -988,8 +1101,8 @@ remove
 return 1
 
 
-on=@targon_ground
-if (<link.more2> < 01001)
+ON=@TARGON_GROUND
+if (<link.more2> <=1000)
  cont.sysmessage Este veneno e muito fraco para ser jogado deste forma.
  remove
  return 1
@@ -1034,16 +1147,10 @@ else
  endif
  more2=<more2>-1
  LOCAL.dano=<eval {1 <eval <more2>/7>}>
- LOCAL.dano=<LOCAL.dano>+1
  if (<LOCAL.dano> > 15)
   LOCAL.dano=15
  endif
- if (<LOCAL.dano> >= <cont.hits>)
-  LOCAL.dano =<cont.hits>
- endif
- cont.hits=<cont.hits>-<eval <LOCAL.dano>>
- cont.flags=<cont.flags>|statf_poisoned
- cont.update
+ cont.damage <LOCAL.dano> dam_poison
  if (<more2> <= 20) && ({0 15}==1)
   cont.emotegreen regurgita
   cont.newitem 0122a
@@ -1052,22 +1159,6 @@ else
   cont.act.timer {5 10}
   cont.act.attr attr_decay|attr_move_never
   cont.act.color 02a
-  if (<cont.ID>==c_man) || (<cont.ID>==c_man_gm)
-   dorand 5
-    sfx 0154
-    sfx 0155
-    sfx 0156
-    sfx 0158
-    sfx 0159
-   enddo
-  elif (<cont.ID>==c_woman)
-   dorand 4
-    sfx 014b
-    sfx 014c
-    sfx 014d
-    sfx 014f
-   enddo
-  endif
  elif (<more2> >= 30) && ({0 20}==1)
   cont.stun {3 7}
  elif (<more2> > 40)
@@ -1076,7 +1167,7 @@ else
  elif (<more2> > 15)
   cont.emotegreen doente
     more2=<more2>-{0 3}
- elif (<more2> <= 15)
+ else
   cont.emotegreen um pouco doente
  endif
  timer {3 7}
@@ -1151,7 +1242,7 @@ gumppic 136 41 2445
 text 153 41 1101 0
 text 65 69 455 1
 text 263 69 455 2
-button <eval <tag.roll>> 94 2117 2118 0 0 0
+button <eval <ctag0.roll>> 94 2117 2118 0 0 0
 button 45 95 2223 2223 1 0 1
 button 328 95 2224 2224 1 0 2
 button 137 118 2117 2118 1 0 3
@@ -1178,7 +1269,7 @@ if (<tag0.agr><=0)
  return 1
 endif
 tag.agr=<eval (<tag0.agr>-1)>
-tag.roll=<eval (<tag0.agr>*24)+70>
+ctag.roll=<eval (<tag0.agr>*24)+70>
 DIALOG d_estrategia
 return 1
 
@@ -1189,25 +1280,25 @@ if (<tag0.agr>>=10)
  return 1
 endif
 tag.agr=<eval (<tag0.agr>+1)>
-tag.roll=<eval (<tag0.agr>*24)+70>
+ctag.roll=<eval (<tag0.agr>*24)+70>
 DIALOG d_estrategia
 return 1
 
 on=3
 tag.agr=10
-tag.roll=(<tag.agr>*24)+70
+ctag.roll=(<tag.agr>*24)+70
 DIALOG d_estrategia
 return 1
 
 on=4
 tag.agr=0
-tag.roll=(<tag.agr>*24)+70
+ctag.roll=(<tag.agr>*24)+70
 DIALOG d_estrategia
 return 1
 
 on=5
 tag.agr=5
-tag.roll=(<tag.agr>*24)+70
+ctag.roll=(<tag.agr>*24)+70
 DIALOG d_estrategia
 return 1
 
