@@ -8,6 +8,23 @@
 //*****************************************************************************
 //*****************************************************************************
 //TODO:
+//-indicar tempo restante de desmaiio ao player
+//-permitir que ele escolha morrer ao invez de esperar.
+
+//A cada <max_desmaios> o player morre imediatamente, senao ele fica em estado
+//de coma. O tempo de coma depende do numero de desmaios (x 1 min). Se o nume-
+//ro de desmaios for menor que <max_desmaios/2>, o player volta a vida sozinho
+//apos o tempo, caso contrario ele morre se não for atendido.
+
+//Apos morto pode-se ressucitar em qualquer ank, desde que tenha pontos de alma
+//positivos. Esses pontos tambem influenciam no tempo minimo em que o player
+//permanece como fantasma. Ao dar ress o player é transportado ao corpo.
+
+//Enquanto o player esta desmaiado, seu corpo pode ser:
+// - Arrastado por qualquer um (60% str e 40% stam)
+// - Curado por qualquer um (3 bandagens e/ou 1 pocao amarela) (healing*87% ou healing*120%)
+// - Cortado ( perde 2 pontos de alma )
+// - Looteado ( perde 1 ponto de alma )
 
 //TAGS usadas:
 //tag.morte_desmaios
@@ -54,77 +71,84 @@ ON=@DEATH
   tag.morte_horario=<time>/(10)
   tag.morte_local=<p>
   tag.morte_desmaios=0
-  return 0
  endif
+ return 0
+ 
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
 
- return 1
+//*****************************************************************************
+// t_shrine
+//*****************************************************************************
+[TYPEDEF t_shrine]
+ON=@DCLICK
+ //ressurect?
+ if (<src.flags>&statf_dead)
+  //somente se tiver pontos de alma
+  if (<src.tag0.pontosdealma><=0)
+   message Sua alma esta fadada ao descanso eterno.
+   message Nunca mais voltara a vida
+   return 1
+  endif  
 
-
-ON=@ITEMCLICK
- //indica se corpo está morto ou inconsciente
- if (<act.type> == t_corpse) && (<act.link>!=04fffffff)
-  if (<act.link.flags>&statf_dead)
-   act.message <act.link.name> morto
+  //verifica se ja passou tmepo suficiente para recuperacao
+  if (<src.tag0.pontosdealma> == 1)
+   LOCAL.ressconcluido=<eval <src.tag.morte_horario>+(60 * 15)>
+  elif (<src.tag0.pontosdealma> == 2)
+   LOCAL.ressconcluido=<eval <src.tag.morte_horario>+(60 * 10)>
+  elif (<src.tag0.pontosdealma> == 3)
+   LOCAL.ressconcluido=<eval <src.tag.morte_horario>+(60 * 5)>
   else
-   act.message <act.link.name> inconsciente
+   LOCAL.ressconcluido=<eval <src.tag.morte_horario>+(60 * 2)>
   endif
-  return 1
- endif
-
-
-ON=@ITEMDCLICK
- //shrine clicked
- if (<act.type> == t_shrine)
-  //ressurect?
-  if (<flags>&statf_dead)
-   //somente se tiver pontos de alma
-   if (<tag0.pontosdealma><=0)
-    src.message Sua alma esta fadada ao descanso eterno.
-    src.message Nunca mais voltara a vida
-    return 1
-   endif  
-
-   //verifica se ja passou tmepo suficiente para recuperacao
-   if (<tag0.pontosdealma> == 1)
-    LOCAL.ressconcluido=<eval <tag.morte_horario>+(60 * 15)>
-   elif (<tag0.pontosdealma> == 2)
-    LOCAL.ressconcluido=<eval <tag.morte_horario>+(60 * 10)>
-   elif (<tag0.pontosdealma> == 3)
-    LOCAL.ressconcluido=<eval <tag.morte_horario>+(60 * 5)>
-   elif (<tag0.pontosdealma> >= 4)
-    LOCAL.ressconcluido=<eval <tag.morte_horario>+(60 * 2)>
-   else
-   .message Sua alma esta fadada ao descanso eterno.
-    message Nunca mais voltara a vida
-   endif
   
-   if (<LOCAL.ressconcluido> > <eval <time>/(10)>)
-    message Voce precisa recuperar um pouco suas forcas...
-    return 1
-   else
-    go <tag.morte_local>		
-    morte_equip
-   endif
+  if (<LOCAL.ressconcluido> > <eval <time>/(10)>)
+   message Voce precisa recuperar um pouco suas forcas...
+   return 1
   else
-   src.sysmessage Voce possui <eval <tag0.pontosdealma>> pontos de alma...
+   src.go <src.tag.morte_local>		
+   src.morte_equip <src>
+   return 0
   endif
+ else
+  src.sysmessage Voce possui <eval <src.tag0.pontosdealma>> pontos de alma...
  endif
-
- //so permite vivos lootear ou mexer nos corpos de players
- if (<act.type> == t_corpse) && !(<flags>&statf_dead) && (<act.link>!=04fffffff) && (<act.link>!=<uid>)
-  ctag.morte_corpse=<act.uid>
+ return 1
+ 
+//*****************************************************************************
+// t_corpse
+//*****************************************************************************
+[TYPEDEF t_corpse]
+ON=@DCLICK
+ //so permite vivos lootear ou mexer nos corpos de outros players
+ if ( !(<src.flags>&statf_dead) && (<link>!=04fffffff) && (<link>!=<src.uid>)
+  src.ctag.morte_corpse=<uid>
   //se player escolheu lootear o corpo, deixa usar loot padrao
-  if (<ctag0.loot_corpse>==1)
-   ctag.loot_corpse=0
+  if (<src.ctag0.loot_corpse>==1)
+   src.ctag.loot_corpse=0
    return 0
   //abre menu para player morto ou desmaiado
-  elif (<act.link.flags>&statf_dead)
-   menu=m_corpse_morto
+  elif (<link.flags>&statf_dead)
+   src.menu=m_corpse_morto
   else
-   menu=m_corpse
+   src.menu=m_corpse
   endif
   return 1
  endif
+ 
+ON=@CLICK
+  //indica se corpo está morto ou inconsciente
+  if (<link>!=04fffffff)
+   if (<link.flags>&statf_dead)
+    message <link.name> morto
+   else
+    message <link.name> inconsciente
+   endif
+   return 1
+  endif
  
 //*****************************************************************************
 //*****************************************************************************
@@ -159,21 +183,23 @@ ON=@ITEMDCLICK
  return 1
  
 //*****************************************************************************
-// morte_equip
+// morte_equip(uid)
 //*****************************************************************************
 [FUNCTION morte_equip]
+ OBJ=<argn1>
+
 //põe a roupa
- findlayer(layer_pack).findtype(t_clothing).equip
- findlayer(layer_pack).findtype(t_clothing).equip
- findlayer(layer_pack).findtype(t_clothing).equip
- findlayer(layer_pack).findtype(t_clothing).equip
+ OBJ.findlayer(layer_pack).findtype(t_clothing).equip
+ OBJ.findlayer(layer_pack).findtype(t_clothing).equip
+ OBJ.findlayer(layer_pack).findtype(t_clothing).equip
+ OBJ.findlayer(layer_pack).findtype(t_clothing).equip
 //põe armors
- findlayer(layer_pack).findtype(t_armor).equip
- findlayer(layer_pack).findtype(t_armor).equip
- findlayer(layer_pack).findtype(t_armor).equip
- findlayer(layer_pack).findtype(t_armor).equip
- findlayer(layer_pack).findtype(t_armor).equip
- findlayer(layer_pack).findtype(t_armor).equip
+ OBJ.findlayer(layer_pack).findtype(t_armor).equip
+ OBJ.findlayer(layer_pack).findtype(t_armor).equip
+ OBJ.findlayer(layer_pack).findtype(t_armor).equip
+ OBJ.findlayer(layer_pack).findtype(t_armor).equip
+ OBJ.findlayer(layer_pack).findtype(t_armor).equip
+ OBJ.findlayer(layer_pack).findtype(t_armor).equip
  return 1
  
 //*****************************************************************************
@@ -303,7 +329,7 @@ ON=@TIMER
   cont.flags=<cont.FLAGS>&~statf_dead
   cont.say *hug!*
   cont.hits=(<cont.str>/5)
-  cont.morte_equip
+  cont.timerf 1,morte_equip,<cont>
   cont.update
  else
   cont.say *morreu*
@@ -387,7 +413,6 @@ ON=@TIMER
 //*****************************************************************************
 //*****************************************************************************
 
-
 //*****************************************************************************
 // CORPO INCONSCIENTE
 //*****************************************************************************
@@ -469,7 +494,6 @@ text 123 5 152 2
 Voce caiu no chao e
 perdeu a consciencia.
 (MyT)
-
 
 [DIALOG d_desmaio BUTTON]
 
