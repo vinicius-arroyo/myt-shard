@@ -1,5 +1,399 @@
-// ####################################
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE BANCO por
+//	Galthar
+//	UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
 
+//TAGS usadas:
+//tag.raca
+//bank.TAG.OVERRIDE.MAXWEIGHT
+//*****************************************************************************
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+[TYPEDEF t_eq_bank_box]
+ON=@PICKUP_SELF
+
+if ( <weight> > <TAG.OVERRIDE.MAXWEIGHT> ) && (<src.isgm>==0)
+	src.sysmessageyellow Sua caixa bancaria esta cheia.
+	OBJ=<ARGO>
+	OBJ.bounce
+	update
+	return 1
+endif
+
+ON=@DROPON_SELF
+
+if ( <TAG0.OVERRIDE.MAXWEIGHT>==0)
+	TAG.OVERRIDE.MAXWEIGHT=10000
+endif
+
+if ( <weight> > <TAG.OVERRIDE.MAXWEIGHT> ) && (<src.isgm>==0)
+	src.sysmessageyellow Sua caixa bancaria esta cheia.
+	return 1
+endif
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// bank_consume(item, amount)
+//*****************************************************************************
+[FUNCTION bank_consume]
+LOCAL.q=<argv[1]>
+FORCONT <SRC.findlayer(layer_bankbox).uid> 10
+	if ( <baseid>==<argv[0]> )
+		if ( <LOCAL.q> > <amount> )
+			LOCAL.q=<eval <LOCAL.q>-<amount>>
+			remove
+		else
+			consume <LOCAL.q>
+			return 1
+		endif
+	endif
+ENDFOR
+
+//*****************************************************************************
+// bank_getCash( amount, countBank )
+//*****************************************************************************
+//amount of cash (in copper)
+//SRC is the player
+[FUNCTION bank_getCash]
+
+//count pack cash
+LOCAL.pcopper=<SRC.rescount i_coin_copper>
+LOCAL.psilver=<SRC.rescount i_coin_silver>
+LOCAL.pgold=<SRC.rescount i_gold>
+LOCAL.cash=<EVAL <LOCAL.pcopper>+(<LOCAL.psilver>*10)+(<LOCAL.pgold>*100)>
+
+//count bank cash if needed
+if (<argv[1]> > 0)
+	LOCAL.bcopper=<SRC.findlayer(layer_bankbox).rescount i_coin_copper>
+	LOCAL.bsilver=<SRC.findlayer(layer_bankbox).rescount i_coin_silver>
+	LOCAL.bgold=<SRC.findlayer(layer_bankbox).rescount i_gold>
+	LOCAL.cash=<EVAL <LOCAL.cash>+<LOCAL.bcopper>+(<LOCAL.bsilver>*10)+(<LOCAL.bgold>*100)>
+else
+	LOCAL.bcopper=0
+	LOCAL.bsilver=0
+	LOCAL.bgold=0
+endif
+
+//message [BNK] Total Cash: <eval <LOCAL.cash>> (<LOCAL.pcopper>,<LOCAL.psilver>,<LOCAL.pgold>)/(<LOCAL.bcopper>,<LOCAL.bsilver>,<LOCAL.bgold>)
+
+if ( <LOCAL.cash> >= <argv[0]> )
+//	sysmessage [BNK] ***************
+
+	LOCAL.cash=<argv[0]>
+	
+	if ( <LOCAL.pcopper> > 0 ) 
+		if ( <LOCAL.cash> > <LOCAL.pcopper> )
+			SRC.consume <LOCAL.pcopper> i_coin_copper
+			LOCAL.cash=<LOCAL.cash>-<LOCAL.pcopper>
+//			sysmessage [BNK] Pago em cobre da bag: <eval <LOCAL.pcopper>>. Sobra <eval <LOCAL.cash>>.
+		else
+		  SRC.consume <LOCAL.cash> i_coin_copper
+//			sysmessage [BNK] Pago em cobre da bag: <eval <LOCAL.cash>>
+			return 1	
+		endif
+	endif
+
+	if ( <LOCAL.bcopper> > 0 ) 
+		if ( <LOCAL.cash> > <LOCAL.bcopper> )
+			bank_consume i_coin_copper,<LOCAL.bcopper>
+			LOCAL.cash=<LOCAL.cash>-<LOCAL.bcopper>
+//			sysmessage [BNK] Pago em cobre do bank: <eval <LOCAL.bcopper>>. Sobra <eval <LOCAL.cash>>.
+		else
+		  bank_consume i_coin_copper,<LOCAL.cash>
+//			sysmessage [BNK] Pago em cobre do bank: <eval <LOCAL.cash>>
+			return 1	
+		endif
+	endif
+	
+	if ( <LOCAL.psilver> > 0 )
+		LOCAL.v=<LOCAL.psilver>*10
+		if ( <LOCAL.cash> > <LOCAL.v> )
+			SRC.consume <LOCAL.psilver> i_coin_silver
+			LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
+//			sysmessage [BNK] Pago em prata da bag: <eval <LOCAL.psilver>>. Sobra <eval <LOCAL.cash>>.
+		else
+			LOCAL.amt=((<LOCAL.cash>-1)/10)+1
+			SRC.consume <LOCAL.amt> i_coin_silver
+			LOCAL.pb=(<LOCAL.amt>*10)-<LOCAL.cash>
+			SRC.NEWITEM i_coin_copper
+			NEW.amount=<LOCAL.pb>
+			NEW.bounce
+//			sysmessage [BNK] Pago em prata da bag: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+			return 1	
+		endif
+	endif
+
+	if ( <LOCAL.bsilver> > 0 )
+		LOCAL.v=<LOCAL.bsilver>*10
+		if ( <LOCAL.cash> > <LOCAL.v> )
+			bank_consume i_coin_silver,<LOCAL.bsilver> 
+			LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
+//			sysmessage [BNK] Pago em prata do bank: <eval <LOCAL.bsilver>>. Sobra <eval <LOCAL.cash>>.
+		else
+			LOCAL.amt=((<LOCAL.cash>-1)/10)+1
+			bank_consume i_coin_silver,<LOCAL.amt>
+			LOCAL.pb=(<LOCAL.amt>*10)-<LOCAL.cash>
+			SRC.NEWITEM i_coin_copper
+			NEW.amount=<LOCAL.pb>
+			NEW.bounce
+//			sysmessage [BNK] Pago em prata do bank: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+			return 1	
+		endif
+	endif
+	
+	if ( <LOCAL.pgold> > 0 )
+		LOCAL.v=<LOCAL.pgold>*100
+		if ( <LOCAL.cash> > <LOCAL.v> )
+			SRC.consume <LOCAL.pgold> i_gold
+			LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
+//			sysmessage [BNK] Pago em ouro da bag: <eval <LOCAL.pgold>>. Sobra <eval <LOCAL.cash>>.
+		else
+			LOCAL.amt=((<LOCAL.cash>-1)/100)+1
+			SRC.consume <LOCAL.amt> i_gold
+			LOCAL.pb=(<LOCAL.amt>*100)-<LOCAL.cash>
+			SRC.NEWITEM i_coin_copper
+			NEW.amount=<LOCAL.pb>
+			NEW.bounce
+//			sysmessage [BNK] Pago em ouro da bag: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+			return 1	
+		endif
+	endif
+
+	LOCAL.amt=((<LOCAL.cash>-1)/100)+1
+	bank_consume i_gold,<LOCAL.amt>
+	LOCAL.pb=(<LOCAL.amt>*100)-<LOCAL.cash>
+	SRC.NEWITEM i_coin_copper
+	NEW.amount=<LOCAL.pb>
+	NEW.bounce
+//	sysmessage [BNK] Pago em ouro do bank: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+	return 1	
+
+else
+//	sysmessage [BNK] cant buy, no cash
+	return 0
+endif
+
+//*****************************************************************************
+// bank_cambio(quantia)
+//*****************************************************************************
+[FUNCTION bank_cambio]
+
+// -- Checando posse --
+if ( (<src.findlayer(layer_bankbox).rescount <src.ctag.moeda1>> + <src.rescount <src.ctag.moeda1>>) < <argn>)
+  src.sysmessageyellow Voce nao possui esta quantia...
+  return 1
+endif
+
+// -- Calculando valores de conversao --
+if (<src.ctag.moeda1>==i_gold)
+	if (<src.ctag.moeda2>==i_coin_silver)
+ 		LOCAL.q=<eval <argn>*10>
+ 	else //cobre
+ 		LOCAL.q=<eval <argn>*100>
+ 	endif
+elif (<src.ctag.moeda1>==i_coin_silver)
+	if (<src.ctag.moeda2>==i_gold)
+ 		LOCAL.q=<eval <argn>/10>
+ 	else //cobre
+ 		LOCAL.q=<eval <argn>*10>
+ 	endif
+else //cobre
+	if (<src.ctag.moeda2>==i_gold)
+ 		LOCAL.q=<eval <argn>/100>
+ 	else //prata
+ 		LOCAL.q=<eval <argn>/10>
+ 	endif
+endif
+
+// -- Fazendo a troca --
+ src.findid.i_bankbox.type=t_container
+ src.findid.i_bankbox.cont=<src.findlayer(layer_pack).uid>
+ src.consume <argn> <src.ctag.moeda1>
+ src.findid.i_bankbox.type=t_eq_bank_box
+ src.findid.i_bankbox.equip
+ src.newitem <src.ctag.moeda2>
+ NEW.amount <LOCAL.q>
+ NEW.cont <src.findlayer(layer_pack).uid>
+ src.sysmessageorange Troca de moedas concluida...
+
+
+//*****************************************************************************
+// bank_alugar(stones)
+//*****************************************************************************
+[FUNCTION bank_alugar]
+
+if !( <bank_getCash <eval <argn>/20>,1> )
+ src.sysmessageyellow Voce nao possui cobre o suficiente...
+ return 1
+endif
+
+src.findlayer(layer_bankbox).TAG.OVERRIDE.MAXWEIGHT=<eval <argn>*10>
+src.findid.i_bank_aluguel_expire.remove
+src.newitem i_bank_aluguel_expire
+NEW.link <src.uid>
+NEW.cont <src.uid>
+NEW.timer <eval (<time>/10) + ( 60 * 60 * 24 * 14 )> // 2 semanas
+src.sysmessageyellow Caixa bancaria de <argn> stones alugada...
+src.sysmessageorange Seu aluguel expira em 2 semanas (reais).
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+[ITEMDEF i_bank_aluguel_expire]
+id=i_deed
+name=Banco
+type=t_eq_script
+layer=layer_special
+
+ON=@CREATE
+attr=attr_decay
+
+ON=@TIMER
+	link.findlayer(layer_bankbox).TAG.OVERRIDE.MAXWEIGHT=10000	//volta bank para 1000 stones
+	remove
+	return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// MENUs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// m_bank - Chamado diretamente pelos players
+//*****************************************************************************
+[MENU m_bank]
+Sistema Bancario
+
+on=0 Trocar moedas
+ src.menu m_bank_cambio
+
+on=0 Abrir caixa bancaria
+ src.bankself
+
+on=0 Alugar uma caixa bancaria maior
+ src.menu m_bank_weight_alugar
+
+//*****************************************************************************
+// m_bank_weight - Mostrado quando o limite eh excedido
+//*****************************************************************************
+[MENU m_bank_weight]
+O limite de sua caixa de banco excedeu o limite, deseja alugar uma maior?
+
+on=0 Sim
+ src.menu m_bank_weight_alugar
+
+on=0 Nao
+ src.sysmessage Infelizmente sua caixa so sera liberada apos o aluguel de uma maior...
+
+//*****************************************************************************
+// m_bank_weight_alugar - Permite alugar uma caixa maior
+//*****************************************************************************
+[MENU m_bank_weight_alugar]
+Sua caixa bancaria suporta atualmente <eval (<src.findlayer(layer_bankbox).TAG.OVERRIDE.MAXWEIGHT>)/(10)> Stones, deseja alugar uma que comporte:
+
+on=0 1500 Stones (75 cp)
+ bank_alugar 1500
+
+on=0 5000 Stones (250 cp)
+ bank_alugar 5000
+
+on=0 7000 Stones (350 cp)
+ bank_alugar 7000
+
+on=0 9000 Stones (450 cp)
+ bank_alugar 9000
+
+on=0 15000 Stones (750 cp)
+ bank_alugar 15000
+
+//*****************************************************************************
+// m_bank_cambio - Permite troca de moedas - PASSO 1
+//*****************************************************************************
+[MENU m_bank_cambio]
+Que tipo de conversao voce deseja?
+
+on=0 Ouro em Prata
+ src.ctag.moeda1=i_gold
+ src.ctag.moeda2=i_coin_silver
+ src.menu m_bank_cambio_quantia
+on=0 Ouro em Cobre
+ src.ctag.moeda1=i_gold
+ src.ctag.moeda2=i_coin_copper
+ src.menu m_bank_cambio_quantia
+
+on=0 Prata em Ouro
+ src.ctag.moeda1=i_coin_silver
+ src.ctag.moeda2=i_gold
+ src.menu m_bank_cambio_quantia
+
+on=0 Prata em Cobre
+ src.ctag.moeda1=i_coin_silver
+ src.ctag.moeda2=i_coin_copper
+ src.menu m_bank_cambio_quantia
+
+on=0 Cobre em Ouro
+ src.ctag.moeda1=i_coin_copper
+ src.ctag.moeda2=i_gold
+ src.menu m_bank_cambio_quantia
+
+on=0 Cobre em Prata
+ src.ctag.moeda1=i_coin_copper
+ src.ctag.moeda2=i_coin_silver
+ src.menu m_bank_cambio_quantia
+
+//*****************************************************************************
+// m_bank_cambio - Permite troca de moedas - PASSO 2
+//*****************************************************************************
+[MENU m_bank_cambio_quantia]
+Deseja converter a seguinte quantia de <SERV.ITEMDEF.<src.ctag.moeda1>.name>:
+
+on=0 5
+ bank_cambio 5
+on=0 10
+ bank_cambio 10
+on=0 50
+ bank_cambio 50
+on=0 100
+ bank_cambio 100
+on=0 500
+ bank_cambio 500
+on=0 1000
+ bank_cambio 1000
+on=0 5000
+ bank_cambio 5000
+
+
+//*****************************************************************************
+//*****************************************************************************
+// CHARDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// RUNAKO
+//*****************************************************************************
 [CHARDEF c_runako]
 ID c_man
 DEFNAME=C_RUNAKO
@@ -46,6 +440,9 @@ CATEGORY=MyT (Trades)
 SUBSECTION=Banco
 DESCRIPTION=Runako (Humano)
 
+//*****************************************************************************
+// URUKUBANCO
+//*****************************************************************************
 [CHARDEF c_urukubanco]
 ID c_man
 DEFNAME=C_urukubanco
@@ -86,6 +483,9 @@ CATEGORY=MyT (Trades)
 SUBSECTION=Banco
 DESCRIPTION=Urukubanco (Orc)
 
+//*****************************************************************************
+// ELYIND
+//*****************************************************************************
 [CHARDEF c_elyind]
 ID c_woman
 DEFNAME=C_elyind
@@ -125,6 +525,9 @@ CATEGORY=MyT (Trades)
 SUBSECTION=Banco
 DESCRIPTION=Elyind (Elfa)
 
+//*****************************************************************************
+// RAGNAR
+//*****************************************************************************
 [CHARDEF c_ragnar]
 ID c_man
 DEFNAME=C_ragnar
@@ -168,34 +571,37 @@ CATEGORY=MyT (Trades)
 SUBSECTION=Ragnar
 DESCRIPTION=Ragnar (Anao)
 
+
+//*****************************************************************************
+//*****************************************************************************
+// SPEECHes
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// jobBANKER
+//*****************************************************************************
 [SPEECH jobBANKER]
 ON=*gostaria*ver*pertences*
 ON=*quero*minha*conta*
 ON=*gostaria*minha*conta*
 ON=*quero*ver*pertences*
 
-ON=gostaria*ver*pertences*
-ON=quero*minha*conta*
-ON=gostaria*minha*conta*
-ON=quero*ver*pertences*
+//ON=gostaria*ver*pertences*
+//ON=quero*minha*conta*
+//ON=gostaria*minha*conta*
+//ON=quero*ver*pertences*
 
-ON=*gostaria*ver*pertences
-ON=*quero*minha*conta
-ON=*gostaria*minha*conta
-ON=*quero*ver*pertences
+//ON=*gostaria*ver*pertences
+//ON=*quero*minha*conta
+//ON=*gostaria*minha*conta
+//ON=*quero*ver*pertences
 
-ON=gostaria*ver*pertences
-ON=quero*minha*conta
-ON=gostaria*minha*conta
-ON=quero*ver*pertences
-//if !(STRMATCH(<src.tag.raca>,<tag.raca>))
-// if (STRMATCH(<tag.raca>,Orc))
-//  say Mim nao faz conta pra quem num e da toca.
-// else
-//  Say Desculpe, mas so tenho acesso as caixas dos cidadaos daqui.
-// endif
-// return 1
-//endif
+//ON=gostaria*ver*pertences
+//ON=quero*minha*conta
+//ON=gostaria*minha*conta
+//ON=quero*ver*pertences
+
 if (STRMATCH(<tag.raca>,Orc))
  dorand 3
   say Zub.
@@ -214,220 +620,4 @@ endif
 src.menu m_bank
 return 1
 
-
-
-
-
-
-
-
-[menu m_bank]
-Sistema Bancario
-
-on=0 Trocar moedas
- src.menu m_bank_cambio
-
-on=0 Abrir caixa bancaria
- src.bankself
-
-on=0 Alugar uma caixa bancaria maior
- src.menu m_bank_weight_alugar
-
-[menu m_bank_weight]
-O limite de sua caixa de banco excedeu o limite, deseja alugar uma maior?
-
-on=0 Sim
- src.menu m_bank_Weight_alugar
-
-on=0 Nao
- src.sysmessage Infelizmente sua caixa de banco so sera liberada apos o aluguel de uma maior...
-
-[menu m_bank_weight_alugar]
-Sua caixa bancaria suporta atualmente <eval (<src.tag.bank.weight>)/(10)> Stones, deseja alugar uma que comporte:
-
-on=0 1500 Stones (75 cp)
- f_bank_alugar 1500
-
-on=0 5000 Stones (250 cp)
- f_bank_alugar 5000
-
-on=0 7000 Stones (350 cp)
- f_bank_alugar 7000
-
-on=0 9000 Stones (450 cp)
- f_bank_alugar 9000
-
-on=0 15000 Stones (750 cp)
- f_bank_alugar 15000
-
-[function f_bank_alugar]
-if (<eval <src.findlayer(layer_bankbox).rescount i_coin_copper> + <src.rescount i_coin_copper>>) < (<argn>/20)
- src.sysmessageyellow Voce nao possui cobre o suficiente...
- return 1
-endif
- src.findid.i_bankbox.type=t_container
- src.findid.i_bankbox.cont=<src.findlayer(21).uid>
- var.bank_coin=<eval <argn>/20>
- src.consume <var.bank_coin> i_coin_copper
- src.findid.i_bankbox.type=t_eq_bank_box
- src.findid.i_bankbox.equip
- src.tag.bank.weight=<eval (<argn> * 10)>
- src.newitem i_bank_aluguel_expire
- src.act.link <src.uid>
- src.act.cont <src.uid>
- src.act.tag.expire_on <eval (<time>/10) + ( 60 * 60 * 24 * 14 )> // 2 semanas
- src.act.timer 60
- src.sysmessageyellow Caixa bancaria de <argn> Stones alugada...
- src.sysmessageorange Seu aluguel expira em 2 semanas (reais).
-[itemdef i_bank_aluguel_expire]
-id=i_deed
-name=Aluguel de Banco
-type=t_eq_script
-layer=30
-
-on=@create
-attr=attr_decay
-
-on=@timer
- if ( <eval (<time>/10)> > <tag.expire_on>)
-  link.tag.bank.weight=10000
-  remove
-  return 1
- endif
-timer=60480
-return 1
-
-[menu m_bank_cambio]
-Que tipo de conversao voce deseja?
-
-on=0 Ouro em Prata
- src.tag.moeda1=Ouro
- src.tag.moeda2=Prata
- src.menu m_bank_cambio_quantia
-on=0 Ouro em Cobre
- src.tag.moeda1=Ouro
- src.tag.moeda2=Cobre
- src.menu m_bank_cambio_quantia
-
-on=0 Prata em Ouro
- src.tag.moeda1=Prata
- src.tag.moeda2=Ouro
- src.menu m_bank_cambio_quantia
-
-on=0 Prata em Cobre
- src.tag.moeda1=Prata
- src.tag.moeda2=Cobre
- src.menu m_bank_cambio_quantia
-
-on=0 Cobre em Ouro
- src.tag.moeda1=Cobre
- src.tag.moeda2=Ouro
- src.menu m_bank_cambio_quantia
-
-on=0 Cobre em Prata
- src.tag.moeda1=Cobre
- src.tag.moeda2=Prata
- src.menu m_bank_cambio_quantia
-
-[menu m_bank_cambio_quantia]
-Deseja converter a seguinte quantia de <src.tag.moeda1>:
-
-on=0 5
- f_bank_cambio 5
-on=0 10
- f_bank_cambio 10
-on=0 50
- f_bank_cambio 50
-on=0 100
- f_bank_cambio 100
-on=0 500
- f_bank_cambio 500
-on=0 1000
- f_bank_cambio 1000
-on=0 5000
- f_bank_cambio 5000
-
-[function f_bank_Cambio]
-// -- Calculando valores de conversao --
-if (strmatch(<src.tag.moeda1>,Ouro)) && (strmatch(<src.tag.moeda2>,Prata))
- src.tag.moedacot=<eval (<argn> * 10)>
-endif
-if (strmatch(<src.tag.moeda1>,Ouro)) && (strmatch(<src.tag.moeda2>,Cobre))
- src.tag.moedacot=<eval (<argn> * 100)>
-endif
-
-if (strmatch(<src.tag.moeda1>,Prata)) && (strmatch(<src.tag.moeda2>,Ouro))
- src.tag.moedacot=<eval (<argn> / 10)>
-endif
-if (strmatch(<src.tag.moeda1>,Prata)) && (strmatch(<src.tag.moeda2>,Cobre))
- src.tag.moedacot=<eval (<argn> * 10)>
-endif
-
-if (strmatch(<src.tag.moeda1>,Cobre)) && (strmatch(<src.tag.moeda2>,Ouro))
- src.tag.moedacot=<eval (<argn> / 100)>
-endif
-if (strmatch(<src.tag.moeda1>,Cobre)) && (strmatch(<src.tag.moeda2>,Prata))
- src.tag.moedacot=<eval (<argn> / 10)>
-endif
-
-// -- Convertendo IDs --
-if (strmatch(<src.tag.moeda1>,Ouro)
- src.tag.moeda1=gold
-endif
-if (strmatch(<src.tag.moeda1>,Prata)
- src.tag.moeda1=coin_silver
-endif
-if (strmatch(<src.tag.moeda1>,Cobre)
- src.tag.moeda1=coin_copper
-endif
-
-if (strmatch(<src.tag.moeda2>,Ouro)
- src.tag.moeda2=gold
-endif
-if (strmatch(<src.tag.moeda2>,Prata)
- src.tag.moeda2=coin_silver
-endif
-if (strmatch(<src.tag.moeda2>,Cobre)
- src.tag.moeda2=coin_copper
-endif
-
-
-// -- Checando posse --
-if (strmatch(<src.tag.moeda1>,gold)
- if ( (<src.findlayer(layer_bankbox).rescount i_gold> + <src.rescount i_gold>) < <argn>)
-  src.sysmessageyellow Voce nao possui esta quantia...
-  return 1
- endif
-endif
-if (strmatch(<src.tag.moeda1>,coin_silver)
- if ( (<src.findlayer(layer_bankbox).rescount i_coin_silver> + <src.rescount i_coin_silver>) < <argn>)
-  src.sysmessageyellow Voce nao possui esta quantia...
-  return 1
- endif
-endif
-if (strmatch(<src.tag.moeda1>,coin_copper)
- if ( (<src.findlayer(layer_bankbox).rescount i_coin_copper> + <src.rescount i_coin_copper>) < <argn>)
-  src.sysmessageyellow Voce nao possui esta quantia...
-  return 1
- endif
-endif
-
-// -- Fazendo a troca --
- src.findid.i_bankbox.type=t_container
- src.findid.i_bankbox.cont=<src.findlayer(21).uid>
- src.consume <argn> i_<src.tag.moeda1>
- src.findid.i_bankbox.type=t_eq_bank_box
- src.findid.i_bankbox.equip
- try src.tag.moeda2=i_<src.tag.moeda2>
- src.newitem <src.tag.moeda2>
- src.act.amount <eval (<src.tag.moedacot>) + (- (<src.tag.moedacot>*0,1) )>
- src.act.cont <src.findlayer(21).uid>
- if (<src.act.amount> == 0)
-  src.act.remove
-  src.sysmessagered Troca invalida.
-  src.newitem i_<src.tag.moeda1>
-  src.act.amount <argn>
-  src.act.bounce
-  return 1
- endif
- src.sysmessageorange Troca de moedas concluida...
+[EOF]
