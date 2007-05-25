@@ -1,9 +1,15 @@
 ///////////////////////////////////////////////
 /////////  Sistema de recipientes  ///////////
 ////////    Jean Gabin (MyT)      ///////////
-////////       Beta v. 0.15       //////////
+////////       Beta v. 0.16       //////////
 ///////////////////////////////////////////
 
+//Correções da versão 0.16:
+//- Limitador de distância no duplo clique, no target de char e objetos
+//- Incluir o abastecimento de jarra, garrafa e caneca com bebida do keg usando o keg como target (antigamente só funcionava dando duplo clique no keg e usando os recipientes como target)
+//- Correção do Bug do Barril e Tina que travava o server (crash)
+//- Barril e Tina não perdem mais os itens de dentro ao encher de água
+//- alterar tranca de barril e abrir a tampa com objetos pontiagudos na mão
 
 ////////////////////////////////////////////////
 ////////// recipientes vazios /////////////////
@@ -24,12 +30,16 @@ message <NAME> (vazia)
 return 1
 
 on=@Dclick
-   TARGETG Escolha com o que voce quer encher a jarra.
+  dclic_dist_recip
 return 1
 
 on=@targon_char
-if (<src.targ.body>!=c_cow_bw)&&(<src.targ.body>!=c_cow_brown)
- SRC.SYSMESSAGE para arremessar essa Jarra use a funcao ".jogar"
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGETG Escolha com o que voce quer encher a <NAME>.
+return 1
+elif (<src.targ.body>!=c_cow_bw)&&(<src.targ.body>!=c_cow_brown)
+   SRC.SYSMESSAGE para arremessar essa Jarra use a funcao ".arremecar"
 return 1
 else
    sfx 0240
@@ -45,21 +55,102 @@ ON=@Targon_ground
  SRC.SYSMESSAGE para colocar a jarra ai, simplesmente arraste e solte ela.
 RETURN 1  
 
-ON=@Targon_item 
-if (<src.targ.type>==t_water_wash)||(<src.targ.type>==t_water)
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGETG Escolha com o que voce quer encher a <NAME>.
+return 1
+elif (<src.targ.type>==t_water_wash)||(<src.targ.type>==t_water)
    sfx 0240
    src.newitem i_jarra_agua
    src.act.more1=6
    src.act.bounce
    remove
 return 1
-elif (<src.targ.baseid> == i_barril_agua)||(<src.targ.baseid> == i_tina_agua)||(<src.targ.baseid> == i_balde_agua)||(<src.targ.baseid> == i_bacia_agua)
+elif (<src.targ.dispid> == i_barrel_water)||(<src.targ.dispid> == i_tub_water)||(<src.targ.baseid> == i_balde_agua)||(<src.targ.baseid> == i_bacia_agua)
    jarradoseagua
 return 1
+elif (<src.targ.baseid> == i_barril_pequeno)
+   if (<src.targ.more1>==0)
+     src.message Este barrilete esta vazio.
+     TARGETG Escolha com o que voce quer encher a <NAME>.
+   return 1
+   else
+	if (<src.targ.more1><6)
+		if (<src.targ.more2>==1)		// se o keg tem more2=1 tem vinho nele
+		  sfx 0240				// sfx de líquido enchendo
+		  src.newitem i_jarra_vinho		// cria a jarra cheia de vinho
+		  src.act.more1=<src.targ.more1>	// seta o more1 da jarra para a quantidade que tem no keg
+		  src.act.bounce			// joga jarra na bag
+		  src.targ.more1=0			// consome todas as doses de bebida restantes do keg
+		  remove				// remove a jarra vazia
+		return 1
+		elif (<src.targ.more2>==2)
+		  sfx 0240
+		  src.newitem i_jarra_cerveja
+		  src.act.more1=<src.targ.more1>
+		  src.act.bounce
+		  src.targ.more1=0
+		  remove
+		return 1 
+		elif (<src.targ.more2>==3)
+		  sfx 0240
+		  src.newitem i_jarra_cidra
+		  src.act.more1=<src.targ.more1>
+		  src.act.bounce
+		  src.targ.more1=0
+		  remove
+		return 1
+		elif (<src.targ.more2>==4)
+		  sfx 0240
+		  src.newitem i_jarra_licor
+		  src.act.more1=<src.targ.more1>
+		  src.act.bounce
+		  src.targ.more1=0
+		  remove
+		return 1
+		endif
+	return 1
+	elif (<src.targ.more2>==1)		// se o keg tem more2=1 tem vinho nele
+	  sfx 0240				// sfx de líquido enchendo
+	  src.newitem i_jarra_vinho		// cria a jarra cheia de vinho
+	  src.act.more1=6			// seta o more1 da jarra para 6 doses
+	  src.act.bounce			// joga jarra na bag
+	  src.targ.more1=<src.targ.more1>+(-6)	// consome 6 doses de bebida do keg
+	  remove				// remove a jarra vazia
+	return 1
+	elif (<src.targ.more2>==2)
+	  sfx 0240
+	  src.newitem i_jarra_cerveja
+	  src.act.more1=6
+	  src.act.bounce
+	  src.targ.more1=<src.targ.more1>+(-6)
+	  remove
+	return 1 
+	elif (<src.targ.more2>==3)
+	  sfx 0240
+	  src.newitem i_jarra_cidra
+	  src.act.more1=6
+	  src.act.bounce
+	  src.targ.more1=<src.targ.more1>+(-6)
+	  remove
+	return 1
+	elif (<src.targ.more2>==4)
+	  sfx 0240
+	  src.newitem i_jarra_licor
+	  src.act.more1=6
+	  src.act.bounce
+	  src.targ.more1=<src.targ.more1>+(-6)
+	  remove
+	endif
+   return 1
+   endif
+return 1
 else
- SRC.SYSMESSAGE Selecione uma fonte de agua para encher essa jarra.
+ SRC.SYSMESSAGE Selecione uma fonte de bebida para encher essa jarra.
 endif
 return 1
+
 
 [function jarradoseagua]
 if (<src.targ.more1> > 6)
@@ -67,17 +158,17 @@ if (<src.targ.more1> > 6)
   src.newitem i_jarra_agua
   src.act.more1=6
   src.act.bounce
-  remove
   src.targ.more1=<src.targ.more1>+(-6)
+  remove
 return 1
 else
   sfx 0240
   src.newitem i_jarra_agua
   src.act.more1=<src.targ.more1>
   src.act.bounce
-  remove
   recipvazio
   fillcaneca
+  remove
 endif
 return 1
 
@@ -98,12 +189,16 @@ message <NAME> (vazia)
 return 1
 
 on=@Dclick
-   TARGETG Escolha com o que voce quer encher a garrafa.
+  dclic_dist_recip
 return 1
 
 on=@targon_char
-if (<src.targ.body>!=c_cow_bw)&&(<src.targ.body>!=c_cow_brown)&&(<src.targ.baseid>!=i_balde_leite) // se o char não for uma vaca um balde de leite...
- SRC.SYSMESSAGE para arremessar essa garrafa use a funcao ".jogar"
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGETG Escolha com o que voce quer encher a <NAME>.
+return 1
+elif (<src.targ.body>!=c_cow_bw)&&(<src.targ.body>!=c_cow_brown)&&(<src.targ.baseid>!=i_balde_leite) // se o char não for uma vaca um balde de leite...
+ SRC.SYSMESSAGE para arremessar essa garrafa use a funcao ".arremecar"
 return 1
 else					// se for uma vaca
    sfx 0240
@@ -119,19 +214,99 @@ ON=@Targon_ground
  SRC.SYSMESSAGE para colocar a garrafa ai, simplesmente arraste e solte ela.
 RETURN 1  
 
-ON=@Targon_item 
-if (<src.targ.type>==t_water_wash)||(<src.targ.type>==t_water)
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGETG Escolha com o que voce quer encher a <NAME>.
+return 1
+elif (<src.targ.type>==t_water_wash)||(<src.targ.type>==t_water)
    sfx 0240
    src.newitem i_garrafa_agua
    src.act.more1=4
    src.act.bounce
    remove
 return 1
-elif (<src.targ.baseid> == i_barril_agua)||(<src.targ.baseid> == i_tina_agua)||(<src.targ.baseid> == i_balde_agua)||(<src.targ.baseid> == i_bacia_agua)
+elif (<src.targ.dispid> == i_barrel_water)||(<src.targ.dispid> == i_tub_water)||(<src.targ.baseid> == i_balde_agua)||(<src.targ.baseid> == i_bacia_agua)
    garrafadoseagua
 return 1
+elif (<src.targ.baseid> == i_barril_pequeno)
+   if (<src.targ.more1>==0)
+     src.message Este barrilete esta vazio.
+     TARGETG Escolha com o que voce quer encher a <NAME>.
+   return 1
+   else
+	if (<src.targ.more1><4)
+		if (<src.targ.more2>==1)		// se o keg tem more2=1 tem vinho nele
+		  sfx 0240				// sfx de líquido enchendo
+		  src.newitem i_garrafa_vinho		// cria a jarra cheia de vinho
+		  src.act.more1=<src.targ.more1>	// seta o more1 da jarra para a quantidade que tem no keg
+		  src.act.bounce			// joga jarra na bag
+		  src.targ.more1=0			// consome todas as doses de bebida restantes do keg
+		  remove				// remove a jarra vazia
+		return 1
+		elif (<src.targ.more2>==2)
+		  sfx 0240
+		  src.newitem i_garrafa_cerveja
+		  src.act.more1=<src.targ.more1>
+		  src.act.bounce
+		  src.targ.more1=0
+		  remove
+		return 1 
+		elif (<src.targ.more2>==3)
+		  sfx 0240
+		  src.newitem i_garrafa_cidra
+		  src.act.more1=<src.targ.more1>
+		  src.act.bounce
+		  src.targ.more1=0
+		  remove
+		return 1
+		elif (<src.targ.more2>==4)
+		  sfx 0240
+		  src.newitem i_garrafa_licor
+		  src.act.more1=<src.targ.more1>
+		  src.act.bounce
+		  src.targ.more1=0
+		  remove
+		return 1
+		endif
+	return 1
+	elif (<src.targ.more2>==1)		// se o keg tem more2=1 tem vinho nele
+	  sfx 0240				// sfx de líquido enchendo
+	  src.newitem i_garrafa_vinho		// cria a jarra cheia de vinho
+	  src.act.more1=4			// seta o more1 da jarra para 6 doses
+	  src.act.bounce			// joga jarra na bag
+	  src.targ.more1=<src.targ.more1>+(-4)	// consome 6 doses de bebida do keg
+	  remove				// remove a jarra vazia
+	return 1
+	elif (<src.targ.more2>==2)
+	  sfx 0240
+	  src.newitem i_garrafa_cerveja
+	  src.act.more1=4
+	  src.act.bounce
+	  src.targ.more1=<src.targ.more1>+(-4)
+	  remove
+	return 1 
+	elif (<src.targ.more2>==3)
+	  sfx 0240
+	  src.newitem i_garrafa_cidra
+	  src.act.more1=4
+	  src.act.bounce
+	  src.targ.more1=<src.targ.more1>+(-4)
+	  remove
+	return 1
+	elif (<src.targ.more2>==4)
+	  sfx 0240
+	  src.newitem i_garrafa_licor
+	  src.act.more1=4
+	  src.act.bounce
+	  src.targ.more1=<src.targ.more1>+(-4)
+	  remove
+	endif
+   return 1
+   endif
+return 1
 else
- SRC.SYSMESSAGE Selecione uma fonte de agua para encher essa garrafa.
+ SRC.SYSMESSAGE Selecione uma fonte de bebida para encher essa garrafa.
 endif
 return 1
 
@@ -141,17 +316,17 @@ if (<src.targ.more1> > 4)
   src.newitem i_garrafa_agua
   src.act.more1=4
   src.act.bounce
-  remove
   src.targ.more1=<src.targ.more1>+(-4)
+  remove
 return 1
 else
   sfx 0240
   src.newitem i_garrafa_agua
   src.act.more1=<src.targ.more1>
   src.act.bounce
-  remove
   recipvazio
   fillcaneca
+  remove
 endif
 return 1
 
@@ -174,12 +349,16 @@ message <NAME> (vazia)
 return 1
 
 on=@Dclick
-   TARGETG Escolha com o que voce quer encher a caneca.
+   dclic_dist_recip
 return 1
 
 on=@targon_char
-if (<src.targ.body>!=c_cow_bw)&&(<src.targ.body>!=c_cow_brown)
- SRC.SYSMESSAGE para arremessar essa caneca use a funcao ".jogar"
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGETG Escolha com o que voce quer encher a <NAME>.
+return 1
+elif (<src.targ.body>!=c_cow_bw)&&(<src.targ.body>!=c_cow_brown)
+ SRC.SYSMESSAGE para arremessar essa caneca use a funcao ".arremecar"
 return 1
 else
    sfx 0240
@@ -195,18 +374,59 @@ ON=@Targon_ground
 RETURN 1  
 
 
-ON=@Targon_item 
-if (<src.targ.type>==t_water_wash)||(<src.targ.type>==t_water)
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGETG Escolha com o que voce quer encher a <NAME>.
+return 1
+elif (<src.targ.type>==t_water_wash)||(<src.targ.type>==t_water)
    sfx 0240
    src.newitem i_caneca_agua
    src.act.bounce
    remove
 return 1
-elif (<src.targ.baseid> == i_barril_agua)||(<src.targ.baseid> == i_tina_agua)||(<src.targ.baseid> == i_balde_agua)||(<src.targ.baseid> == i_bacia_agua)
+elif (<src.targ.dispid> == i_barrel_water)||(<src.targ.dispid> == i_tub_water)||(<src.targ.baseid> == i_balde_agua)||(<src.targ.baseid> == i_bacia_agua)
    canecadoseagua
 return 1
+elif (<src.targ.baseid> == i_barril_pequeno)
+   if (<src.targ.more1>==0)
+     src.message Este barrilete esta vazio.
+     TARGETG Escolha com o que voce quer encher a <NAME>.
+   return 1
+   else
+	if (<src.targ.more2>==1)		// se o keg tem more2=1 tem vinho nele
+	  sfx 0240				// sfx de líquido enchendo
+	  src.newitem i_caneca_vinho		// cria a jarra cheia de vinho
+	  src.act.bounce			// joga jarra na bag
+	  src.targ.more1=<src.targ.more1>+(-1)	// consome 1 doses de bebida do keg
+	  remove				// remove a jarra vazia
+	return 1
+	elif (<src.targ.more2>==2)
+	  sfx 0240
+	  src.newitem i_caneca_cerveja
+	  src.act.bounce
+	  src.targ.more1=<src.targ.more1>+(-1)
+	  remove
+	return 1 
+	elif (<src.targ.more2>==3)
+	  sfx 0240
+	  src.newitem i_caneca_cidra
+	  src.act.bounce
+	  src.targ.more1=<src.targ.more1>+(-1)
+	  remove
+	return 1
+	elif (<src.targ.more2>==4)
+	  sfx 0240
+	  src.newitem i_caneca_licor
+	  src.act.bounce
+	  src.targ.more1=<src.targ.more1>+(-1)
+	  remove
+	endif
+   return 1
+   endif
+return 1
 else
- SRC.SYSMESSAGE Selecione uma fonte de agua para encher essa caneca.
+ SRC.SYSMESSAGE Selecione uma fonte de bebida para encher essa caneca.
 endif
 return 1
 
@@ -215,19 +435,17 @@ if (<src.targ.more1> > 1)
   sfx 0240
   src.newitem i_caneca_agua
   src.act.bounce
-  remove
   src.targ.more1=<src.targ.more1>+(-1)
+  remove
 return 1
-elif (<src.targ.more1> = 1)
+else
   sfx 0240
   src.newitem i_caneca_agua
   src.act.bounce
-  remove
   recipvazio
   fillcaneca
+  remove
 return 1
-else
-  src.sysmessage Nao tem agua suficiente para encher esta garrafa. Use uma caneca.
 endif
 return 1
 
@@ -278,9 +496,18 @@ ON=@Create
 color=0394
 MOREZ=1
 
-
 on=@dclick
  src.sysmessage Este local esta molhado. Nao da para acender uma fogueira ai.
+return 1
+
+
+[function dclic_dist_recip]
+if ((<p.x> >= <eval (<src.p.x> + 2)>) || (<p.y> >= <eval (<src.p.y> + 2)>) || (<p.x> <= <eval (<src.p.x> + (-2))>) || (<p.y> <= <eval (<src.p.y> + (-2))>)) && (<topobj.uid> != <src.uid>)
+  src.message Chegue mais perto da <NAME>.
+return 1
+else
+  TARGETG Escolha com o que voce quer encher a <NAME>.
+endif
 return 1
 
 
@@ -331,32 +558,42 @@ src.sysmessage
 src.sysmessage 
 
 
-[function fillcaneca]
-if (<src.targ.topobj.uid> == <src.uid>) // se a caneca vazia estiver na bag
-  src.act.bounce			// joga a caneca cheia na bag
-  src.targ.remove   			// consome a caneca vazia
-return 1
-else					// se a caneca vazia não estiver na bag
-  src.act.p=<src.targ.p>			// joga a caneca cheia no lugar da caneca vazia
-  src.targ.remove   			// consome a caneca vazia
-endif
-return 1
-
-
 [function recipvazio]
-if (<src.targ.baseid> == i_barril_agua)
-  src.newitem i_barril_vazio
+if (<src.targ.dispid> == i_barrel_water)
+    src.targ.more1=0
+    src.targ.dispid=i_barrel_open  //0e77
+    src.targ.update
 return 1
-elif (<src.targ.baseid> == i_tina_agua)
-  src.newitem i_tina_vazio
+elif (<src.targ.dispid> == i_tub_water)
+    src.targ.more1=0
+    src.targ.dispid=i_tub_empty  //0e83
+    src.targ.update
 return 1
 elif (<src.targ.baseid> == i_bacia_agua)
   src.newitem i_bacia_vazia
 return 1
 elif (<src.targ.baseid> == i_balde_agua)
   src.newitem i_balde_vazio
+return 1
+else
+ src.sysmessage ERRO!
 endif
 return 1
+
+
+[function fillcaneca]
+if (<src.targ.dispid> == i_barrel_open) || (<src.targ.dispid> == i_tub_empty)
+return 1
+elif (<src.targ.topobj.uid> == <src.uid>) // se a caneca vazia estiver na bag
+  src.act.bounce			// joga a caneca cheia na bag
+  src.targ.remove   			// consome a caneca vazia
+return 1
+else					// se a caneca vazia não estiver na bag
+  src.act.p=<src.targ.p>		// joga a caneca cheia no lugar da caneca vazia
+  src.targ.remove   			// consome a caneca vazia
+return 1
+endif
+
 
 
 
@@ -382,12 +619,17 @@ message <NAME> (<more1> doses)
 return 1
 
 on=@Dclick
-TARGET Onde voce quer usar a agua?
-RETURN 1
+if ((<p.x> >= <eval (<src.p.x> + 2)>) || (<p.y> >= <eval (<src.p.y> + 2)>) || (<p.x> <= <eval (<src.p.x> + (-2))>) || (<p.y> <= <eval (<src.p.y> + (-2))>)) && (<topobj.uid> != <src.uid>)
+  src.message Chegue mais perto da <NAME>.
+return 1
+else
+  TARGET Escolha onde voce quer usar a <NAME>.
+endif
+return 1
 
 on=@targon_char
 if (<src.targ.uid>!=<src.uid>)
- src.emote Joga agua da jarra
+ src.emote Joga a agua da <NAME>
  src.newitem=i_poca
  src.act.p=<src.targ.p>
  src.act.timer={10 20]
@@ -410,11 +652,33 @@ return 1
 
 
 ON=@Targon_ground 
- SRC.SYSMESSAGE Isto nao e uma caneca. 
-RETURN 1  
+if (<src.targp.x> >= <eval (<src.p.x> + 4)>) || (<src.targp.y> >= <eval (<src.p.y> + 4)>) || (<src.targp.x> <= <eval (<src.p.x> + (-4))>) || (<src.targp.y> <= <eval (<src.p.y> + (-4))>)
+   SRC.SYSMESSAGE escolha um local mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+else
+ src.emote Joga a agua da <NAME>
+ src.newitem=i_poca
+ src.act.p=<src.targ.p>
+ src.act.timer={10 20]
+ src.newitem=i_jarra_vazia
+ src.act.bounce
+ remove
+return 1 
+endif
+return 1 
 
-ON=@Targon_item 
+///////////////////////////////////////////////////////////////////////////////////////
+//////////////////// INCLUIR AQUI A PARTE DO SISTEMA DE COZINHAR//////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
+ON=@Targon_item
 if (<src.targ.baseid>==i_caneca_vazia)
+  if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+     src.message Chegue mais perto.
+     TARGET Escolha onde voce quer usar a <NAME>.
+  return 1
+  else 
 	if (<more1>>1)
 	  sfx 0240
 	  src.newitem i_caneca_agua
@@ -430,9 +694,16 @@ if (<src.targ.baseid>==i_caneca_vazia)
 	  remove
 	  return 1
 	endif
-return1
+  return 1
+  endif
+return 1
 elif (<src.targ.baseid>==i_campfire)
- src.emote Joga agua no fogo
+  if (<src.targp.x> >= <eval (<src.p.x> + 4)>) || (<src.targp.y> >= <eval (<src.p.y> + 4)>) || (<src.targp.x> <= <eval (<src.p.x> + (-4))>) || (<src.targp.y> <= <eval (<src.p.y> + (-4))>)
+     src.message Chegue mais perto.
+     TARGET Escolha onde voce quer usar a <NAME>.
+  return 1
+  else 
+     src.emote Joga agua no fogo
 	if (<more1> <= 4)
 	 src.newitem=i_poca
 	 src.act.p=<src.targ.p>
@@ -458,8 +729,15 @@ elif (<src.targ.baseid>==i_campfire)
 	 remove
 	return 1
 	endif
+  return 1
+  endif
 elif (<src.targ.baseid>==i_ember_lit)
- src.emote Joga agua na brasa
+  if (<src.targp.x> >= <eval (<src.p.x> + 4)>) || (<src.targp.y> >= <eval (<src.p.y> + 4)>) || (<src.targp.x> <= <eval (<src.p.x> + (-4))>) || (<src.targp.y> <= <eval (<src.p.y> + (-4))>)
+     src.message Chegue mais perto.
+     TARGET Escolha onde voce quer usar a <NAME>.
+  return 1
+  else
+     src.emote Joga agua na brasa
 	 src.newitem=i_poca
 	 src.act.p=<src.targ.p>
 	 src.act.timer={10 20] 
@@ -473,8 +751,14 @@ elif (<src.targ.baseid>==i_ember_lit)
 	 src.act.bounce
 	 remove
 	return 1
+  endif
 elif (<src.targ.baseid>==i_fx_field_fire)||(<src.targ.baseid>==i_fire_column)||(<src.targ.baseid>==i_fire)
- src.emote Joga agua no fogo
+  if (<src.targp.x> >= <eval (<src.p.x> + 4)>) || (<src.targp.y> >= <eval (<src.p.y> + 4)>) || (<src.targp.x> <= <eval (<src.p.x> + (-4))>) || (<src.targp.y> <= <eval (<src.p.y> + (-4))>)
+     src.message Chegue mais perto.
+     TARGET Escolha onde voce quer usar a <NAME>.
+  return 1
+  else
+     src.emote Joga agua no fogo
 	if (<more1> <= 4)
 	 src.newitem=i_poca
 	 src.act.p=<src.targ.p>
@@ -496,35 +780,25 @@ elif (<src.targ.baseid>==i_fx_field_fire)||(<src.targ.baseid>==i_fire_column)||(
 	 remove
 	return 1
 	endif
+  return 1
+  endif
 elif (<src.targ.baseid>==i_barril_vazio)
 	if (<src.targ.topobj.uid> == <src.uid>)
 	 src.sysmessage Coloque o barril no chao primeiro.
 	return 1
-	else
-	 sfx 04e
-	 src.newitem=i_barril_agua
-	 src.act.p=<src.targ.p>
-	 src.act.more1=<more1>
-	 src.targ.remove
-	 src.newitem=i_jarra_vazia
-	 src.act.bounce
-	 remove
-	return 1
-	endif
-return 1
-elif (<src.targ.baseid>==i_barril_agua)
- sfx 04e
-	if (<src.targ.more1> == 80)
-	 src.newitem=i_poca
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20]
-	 src.targ.message *Derramou agua no chao*
-	 src.newitem=i_jarra_vazia
-	 src.act.bounce
-	 remove
-	return 1
-	else
-	 src.targ.more1=<src.targ.more1>+<more1>
+	elif (<src.targ.dispid>==i_barrel_water)
+ 	 sfx 04e
+	  if (<src.targ.more1> == 80)
+	   src.newitem=i_poca
+	   src.act.p=<src.targ.p>
+	   src.act.timer={10 20]
+	   src.targ.message *Derramou agua no chao*
+	   src.newitem=i_jarra_vazia
+	   src.act.bounce
+	   remove
+	  return 1
+	  else
+	  src.targ.more1=<src.targ.more1>+<more1>
 		if (<src.targ.more1> >= 80)
 		 src.newitem=i_poca
 		 src.act.p=<src.targ.p>
@@ -541,6 +815,17 @@ elif (<src.targ.baseid>==i_barril_agua)
 		 remove
 		return 1
 		endif
+	  return 1
+	  endif
+	return 1
+	else
+	 sfx 04e
+	 src.targ.dispid=i_barrel_water
+	 src.targ.update
+	 src.targ.more1=<more1>
+	 src.newitem=i_jarra_vazia
+	 src.act.bounce
+	 remove
 	return 1
 	endif
 return 1
@@ -548,9 +833,61 @@ elif (<src.targ.baseid>==i_tina_vazio)
 	if (<src.targ.topobj.uid> == <src.uid>)
 	 src.sysmessage Coloque a tina no chao primeiro.
 	return 1
+	elif (<src.targ.dispid>==i_tub_water) // tina com água
+	     sfx 04e
+		if (<src.targ.more1> == 40)
+		 src.newitem=i_poca
+		 src.act.p=<src.targ.p>
+		 src.act.timer={10 20]
+		 src.targ.message *Derramou agua no chao*
+		 src.newitem=i_jarra_vazia
+		 src.act.bounce
+		 remove
+		return 1
+		else
+		 src.targ.more1=<src.targ.more1>+<more1>
+			if (<src.targ.more1> >= 40)
+			 src.newitem=i_poca
+			 src.act.p=<src.targ.p>
+			 src.act.timer={10 20]
+			 src.targ.message *Derramou agua no chao*
+			 src.targ.more1=40
+			 src.newitem=i_jarra_vazia
+			 src.act.bounce
+			 remove
+			return 1
+			else
+			 src.newitem=i_jarra_vazia
+			 src.act.bounce
+			 remove
+			return 1
+			endif
+		return 1
+		endif
+  	return 1
 	else
 	 sfx 04e
-	 src.newitem=i_tina_agua
+	 src.targ.dispid=i_tub_water//0e7b
+	 src.targ.update
+	 src.targ.more1=<more1>
+	 src.newitem=i_jarra_vazia
+	 src.act.bounce
+	 remove
+	return 1
+	endif
+return 1
+elif (<src.targ.baseid>==i_balde_vazio)
+  if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+     src.message Chegue mais perto.
+     TARGET Escolha onde voce quer usar a <NAME>.
+  return 1
+  else
+	if (<src.targ.topobj.uid> == <src.uid>)
+	 src.sysmessage Coloque o balde no chao ou em uma mesa primeiro.
+	return 1
+	else
+	 sfx 04e
+	 src.newitem=i_balde_agua
 	 src.act.p=<src.targ.p>
 	 src.act.more1=<more1>
 	 src.targ.remove
@@ -559,10 +896,20 @@ elif (<src.targ.baseid>==i_tina_vazio)
 	 remove
 	return 1
 	endif
+  return 1
+  endif
 return 1
-elif (<src.targ.baseid>==i_tina_agua)
- sfx 04e
-	if (<src.targ.more1> == 40)
+elif (<src.targ.baseid>==i_balde_agua)
+  if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+     src.message Chegue mais perto.
+     TARGET Escolha onde voce quer usar a <NAME>.
+  return 1
+  else
+	if (<src.targ.topobj.uid> == <src.uid>)
+	 src.sysmessage Coloque o balde no chao ou em uma mesa primeiro.
+	return 1
+	elif (<src.targ.more1> == 15)
+	 sfx 04e
 	 src.newitem=i_poca
 	 src.act.p=<src.targ.p>
 	 src.act.timer={10 20]
@@ -572,13 +919,14 @@ elif (<src.targ.baseid>==i_tina_agua)
 	 remove
 	return 1
 	else
+	 sfx 04e
 	 src.targ.more1=<src.targ.more1>+<more1>
-		if (<src.targ.more1> >= 40)
+		if (<src.targ.more1> >= 15)
 		 src.newitem=i_poca
 		 src.act.p=<src.targ.p>
 		 src.act.timer={10 20]
 		 src.targ.message *Derramou agua no chao*
-		 src.targ.more1=40
+		 src.targ.more1=15
 		 src.newitem=i_jarra_vazia
 		 src.act.bounce
 		 remove
@@ -589,10 +937,17 @@ elif (<src.targ.baseid>==i_tina_agua)
 		 remove
 		return 1
 		endif
-	return 1
+	return1
 	endif
+  return 1
+  endif
 return 1
 elif (<src.targ.baseid>==i_bacia_vazia)
+  if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+     src.message Chegue mais perto.
+     TARGET Escolha onde voce quer usar a <NAME>.
+  return 1
+  else
 	if (<src.targ.topobj.uid> == <src.uid>)
 	 src.sysmessage Coloque a bacia no chao ou em uma mesa primeiro.
 	return 1
@@ -607,9 +962,16 @@ elif (<src.targ.baseid>==i_bacia_vazia)
 	 remove
 	return 1
 	endif
+  return 1
+  endif
 return 1
 elif (<src.targ.baseid>==i_bacia_agua)
- sfx 04e
+  if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+     src.message Chegue mais perto.
+     TARGET Escolha onde voce quer usar a <NAME>.
+  return 1
+  else
+     sfx 04e
 	if (<src.targ.more1> == 6)
 	 src.newitem=i_poca
 	 src.act.p=<src.targ.p>
@@ -636,9 +998,11 @@ elif (<src.targ.baseid>==i_bacia_agua)
 		endif
 	return1
 	endif
+  return 1
+  endif
 return 1
 else	
- SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
+ SRC.SYSMESSAGE Use a <NAME> em algum recipiente vazio.
 return 1
 endif
 return 1
@@ -664,11 +1028,15 @@ message <NAME> (<more1> doses)
 return 1
 
 on=@Dclick
-TARGET Onde voce quer servir a bebida?
+  dclic_dist_recip
 RETURN 1
 
 on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.uid>!=<src.uid>)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -685,11 +1053,19 @@ return 1
 
 
 ON=@Targon_ground 
- SRC.SYSMESSAGE Isto nao e uma caneca. 
+ SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia. 
 RETURN 1  
 
-ON=@Targon_item 
-if (<src.targ.baseid>!=i_caneca_vazia)
+///////////////////////////////////////////////////////////////////////////////////////
+//////////////////// INCLUIR AQUI A PARTE DO SISTEMA DE COZINHAR//////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.baseid>!=i_caneca_vazia)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -729,11 +1105,15 @@ message <NAME> (<more1> doses)
 return 1
 
 on=@Dclick
-TARGET Onde voce quer servir a bebida?
+  dclic_dist_recip
 RETURN 1
 
 on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.uid>!=<src.uid>)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -750,11 +1130,16 @@ return 1
 
 
 ON=@Targon_ground 
- SRC.SYSMESSAGE Isto nao e uma caneca. 
+ SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia. 
 RETURN 1  
 
-ON=@Targon_item 
-if (<src.targ.baseid>!=i_caneca_vazia)
+
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.baseid>!=i_caneca_vazia)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -794,11 +1179,15 @@ message <NAME> (<more1> doses)
 return 1
 
 on=@Dclick
-TARGET Onde voce quer servir a bebida?
+  dclic_dist_recip
 RETURN 1
 
 on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.uid>!=<src.uid>)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -815,11 +1204,15 @@ return 1
 
 
 ON=@Targon_ground 
- SRC.SYSMESSAGE Isto nao e uma caneca. 
+ SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia. 
 RETURN 1  
 
-ON=@Targon_item 
-if (<src.targ.baseid>!=i_caneca_vazia)
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.baseid>!=i_caneca_vazia)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -859,11 +1252,15 @@ message <NAME> (<more1> doses)
 return 1
 
 on=@Dclick
-TARGET Onde voce quer servir a bebida?
+  dclic_dist_recip
 RETURN 1
 
 on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.uid>!=<src.uid>)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -880,11 +1277,15 @@ return 1
 
 
 ON=@Targon_ground 
- SRC.SYSMESSAGE Isto nao e uma caneca. 
+ SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia. 
 RETURN 1  
 
-ON=@Targon_item 
-if (<src.targ.baseid>!=i_caneca_vazia)
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.baseid>!=i_caneca_vazia)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -924,11 +1325,15 @@ message <NAME> (<more1> doses)
 return 1
 
 on=@Dclick
-TARGET Onde voce quer servir a bebida?
+  dclic_dist_recip
 RETURN 1
 
 on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.uid>!=<src.uid>)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -945,11 +1350,15 @@ return 1
 
 
 ON=@Targon_ground 
- SRC.SYSMESSAGE Isto nao e uma caneca. 
+ SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia. 
 RETURN 1  
 
-ON=@Targon_item 
-if (<src.targ.baseid>!=i_caneca_vazia)
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.baseid>!=i_caneca_vazia)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -971,7 +1380,7 @@ return 1
 
 ////////////////////////////////////////////////
 //////////// garrafas cheias ///////////////////
-///////////////////////////////////////////////
+////////////////////////////////////////////////
 
 [ITEMDEF i_garrafa_agua]
 ID=099b
@@ -992,11 +1401,15 @@ message <NAME> (<more1> doses)
 return 1
 
 on=@Dclick
-TARGET Onde voce quer servir a bebida?
+  dclic_dist_recip
 RETURN 1
 
 on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.uid>!=<src.uid>)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -1012,11 +1425,15 @@ endif
 return 1
 
 ON=@Targon_ground 
- SRC.SYSMESSAGE Isto nao e uma caneca. 
+ SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia. 
 RETURN 1  
 
-ON=@Targon_item 
-if (<src.targ.baseid>!=i_caneca_vazia)
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.baseid>!=i_caneca_vazia)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -1056,11 +1473,15 @@ message <NAME> (<more1> doses)
 return 1
 
 on=@Dclick
-TARGET Onde voce quer servir a bebida?
+  dclic_dist_recip
 RETURN 1
 
 on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.uid>!=<src.uid>)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -1077,11 +1498,15 @@ return 1
 
 
 ON=@Targon_ground 
- SRC.SYSMESSAGE Isto nao e uma caneca. 
+ SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia. 
 RETURN 1  
 
-ON=@Targon_item 
-if (<src.targ.baseid>!=i_caneca_vazia)
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.baseid>!=i_caneca_vazia)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -1120,11 +1545,15 @@ message <NAME> (<more1> doses)		// diz quantas doses ainda tem na garrafa
 return 1
 
 on=@Dclick
-TARGET Onde voce quer servir a bebida?
+  dclic_dist_recip
 RETURN 1
 
 on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.uid>!=<src.uid>)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)				// se a garrafa tem mais de 1 dose
@@ -1139,9 +1568,17 @@ else
 endif
 return 1
 
+ON=@Targon_ground 
+ SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia. 
+RETURN 1
 
-ON=@Targon_item 
-if (<src.targ.baseid>!=i_caneca_vazia)	// se o item que a mira é clicada não tiver o base id i_caneca_vazia fala a sysmsg
+
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.baseid>!=i_caneca_vazia)	// se o item que a mira é clicada não tiver o base id i_caneca_vazia fala a sysmsg
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)			// se eu tenho mais de uma dose na garrafa...
@@ -1181,11 +1618,15 @@ message <NAME> (<more1> doses)
 return 1
 
 on=@Dclick
-TARGET Onde voce quer servir a bebida?
+  dclic_dist_recip
 RETURN 1
 
 on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.uid>!=<src.uid>)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -1202,11 +1643,15 @@ return 1
 
 
 ON=@Targon_ground 
- SRC.SYSMESSAGE Isto nao e uma caneca. 
-RETURN 1  
+ SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia. 
+RETURN 1 
 
-ON=@Targon_item 
-if (<src.targ.baseid>!=i_caneca_vazia)
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.baseid>!=i_caneca_vazia)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -1247,7 +1692,7 @@ message <NAME> (<more1> doses)
 return 1
 
 on=@Dclick
-TARGET Onde voce quer servir a bebida?
+  dclic_dist_recip
 RETURN 1
 
 on=@targon_char
@@ -1268,11 +1713,15 @@ return 1
 
 
 ON=@Targon_ground 
- SRC.SYSMESSAGE Isto nao e uma caneca. 
+ SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia. 
 RETURN 1  
 
-ON=@Targon_item 
-if (<src.targ.baseid>!=i_caneca_vazia)
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.baseid>!=i_caneca_vazia)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -1313,11 +1762,15 @@ message <NAME> (<more1> doses)
 return 1
 
 on=@Dclick
-TARGET Onde voce quer servir a bebida?
+  dclic_dist_recip
 RETURN 1
 
 on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto.
+  TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.uid>!=<src.uid>)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -1334,11 +1787,15 @@ return 1
 
 
 ON=@Targon_ground 
- SRC.SYSMESSAGE Isto nao e uma caneca. 
+ SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia. 
 RETURN 1  
 
-ON=@Targon_item 
-if (<src.targ.baseid>!=i_caneca_vazia)
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.baseid>!=i_caneca_vazia)
  SRC.SYSMESSAGE Sirva a bebida em alguma caneca vazia.
 return 1
 elif (<more1>>1)
@@ -1366,8 +1823,7 @@ return 1
 ID=01f91
 NAME= Caneca com agua
 RESOURCES=1 i_areia
-TYPE=T_DRINK
-TDATA1=i_caneca_vazia
+TYPE=T_script
 WEIGHT=1
 CATEGORY=Myt itens (Jean Gabin)
 SUBSECTION=Vidro
@@ -1377,14 +1833,26 @@ on=@click
 message <NAME>
 return 1
 
+on=@Dclick
+if ((<p.x> >= <eval (<src.p.x> + 2)>) || (<p.y> >= <eval (<src.p.y> + 2)>) || (<p.x> <= <eval (<src.p.x> + (-2))>) || (<p.y> <= <eval (<src.p.y> + (-2))>)) && (<topobj.uid> != <src.uid>)
+  src.message Chegue mais perto da <NAME>.
+return 1
+else
+  src.agua
+  src.newitem i_caneca_vazia 	
+  src.act.bounce 
+  remove	
+return 1
+endif
+return 1
+
 //////////////////////////////////////////
 
 [ITEMDEF i_caneca_leite]
 ID=01f89
 NAME= Caneca com leite
 RESOURCES=1 i_areia
-TYPE=T_DRINK
-TDATA1=i_caneca_vazia
+TYPE=T_script
 WEIGHT=1
 CATEGORY=Myt itens (Jean Gabin)
 SUBSECTION=Vidro
@@ -1392,6 +1860,19 @@ DESCRIPTION=Caneca com leite
 
 on=@click
 message <NAME>
+return 1
+
+on=@Dclick
+if ((<p.x> >= <eval (<src.p.x> + 2)>) || (<p.y> >= <eval (<src.p.y> + 2)>) || (<p.x> <= <eval (<src.p.x> + (-2))>) || (<p.y> <= <eval (<src.p.y> + (-2))>)) && (<topobj.uid> != <src.uid>)
+  src.message Chegue mais perto da <NAME>.
+return 1
+else
+  src.agua
+  src.newitem i_caneca_vazia 	
+  src.act.bounce 
+  remove	
+return 1
+endif
 return 1
 
 //////////////////////////////////////////
@@ -1411,14 +1892,26 @@ on=@click
 message <NAME>
 return 1
 
+on=@Dclick
+if ((<p.x> >= <eval (<src.p.x> + 2)>) || (<p.y> >= <eval (<src.p.y> + 2)>) || (<p.x> <= <eval (<src.p.x> + (-2))>) || (<p.y> <= <eval (<src.p.y> + (-2))>)) && (<topobj.uid> != <src.uid>)
+  src.message Chegue mais perto da <NAME>.
+return 1
+else
+  src.bebado
+  src.newitem i_caneca_vazia 	
+  src.act.bounce 
+  remove	
+return 1
+endif
+return 1
+
 /////////////////////////////////////////
 
 [ITEMDEF i_caneca_cerveja]
 ID=09ee
 NAME= Caneca com cerveja
 RESOURCES=1 i_areia
-TYPE=t_booze
-TDATA1=i_caneca_vazia
+TYPE=t_script
 WEIGHT=1
 CATEGORY=Myt itens (Jean Gabin)
 SUBSECTION=Vidro
@@ -1428,14 +1921,26 @@ on=@click
 message <NAME>
 return 1
 
+on=@Dclick
+if ((<p.x> >= <eval (<src.p.x> + 2)>) || (<p.y> >= <eval (<src.p.y> + 2)>) || (<p.x> <= <eval (<src.p.x> + (-2))>) || (<p.y> <= <eval (<src.p.y> + (-2))>)) && (<topobj.uid> != <src.uid>)
+  src.message Chegue mais perto da <NAME>.
+return 1
+else
+  src.bebado
+  src.newitem i_caneca_vazia 	
+  src.act.bounce 
+  remove	
+return 1
+endif
+return 1
+
 /////////////////////////////////////////
 
 [ITEMDEF i_caneca_cidra]
 ID=01f7d
 NAME= Caneca com cidra
 RESOURCES=1 i_areia
-TYPE=t_booze
-TDATA1=i_caneca_vazia
+TYPE=t_script
 WEIGHT=1
 CATEGORY=Myt itens (Jean Gabin)
 SUBSECTION=Vidro
@@ -1445,14 +1950,26 @@ on=@click
 message <NAME>
 return 1
 
+on=@Dclick
+if ((<p.x> >= <eval (<src.p.x> + 2)>) || (<p.y> >= <eval (<src.p.y> + 2)>) || (<p.x> <= <eval (<src.p.x> + (-2))>) || (<p.y> <= <eval (<src.p.y> + (-2))>)) && (<topobj.uid> != <src.uid>)
+  src.message Chegue mais perto da <NAME>.
+return 1
+else
+  src.bebado
+  src.newitem i_caneca_vazia 	
+  src.act.bounce 
+  remove	
+return 1
+endif
+return 1
+
 /////////////////////////////////////////
 
 [ITEMDEF i_caneca_licor]
 ID=01f85
 NAME= Caneca com licor
 RESOURCES=1 i_areia
-TYPE=t_booze
-TDATA1=i_caneca_vazia
+TYPE=t_script
 WEIGHT=1
 CATEGORY=Myt itens (Jean Gabin)
 SUBSECTION=Vidro
@@ -1460,6 +1977,19 @@ DESCRIPTION=Caneca com licor
 
 on=@click
 message <NAME>
+return 1
+
+on=@Dclick
+if ((<p.x> >= <eval (<src.p.x> + 2)>) || (<p.y> >= <eval (<src.p.y> + 2)>) || (<p.x> <= <eval (<src.p.x> + (-2))>) || (<p.y> <= <eval (<src.p.y> + (-2))>)) && (<topobj.uid> != <src.uid>)
+  src.message Chegue mais perto da <NAME>.
+return 1
+else
+  src.bebado
+  src.newitem i_caneca_vazia 	
+  src.act.bounce 
+  remove	
+return 1
+endif
 return 1
 
 ////////////////////////////////////////////////
@@ -1485,7 +2015,7 @@ on=@Dclick
 return 1
 
 on=@targon_char
- SRC.SYSMESSAGE para arremessar essa caneca use a funcao ".jogar"
+ SRC.SYSMESSAGE para arremessar essa caneca use a funcao ".arremecar"
 return 1
 
 ON=@Targon_ground 
@@ -1524,17 +2054,27 @@ on=@click
 message <NAME>
 return 1
 
+///////////////////////////////////////////////////////////////////////////////////////
+//////////////////// INCLUIR AQUI A PARTE DO SISTEMA DE COZINHAR//////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
 on=@Dclick
-   src.agua
-   src.newitem i_pote_vazio
-   src.act.bounce
-   remove
+if ((<p.x> >= <eval (<src.p.x> + 2)>) || (<p.y> >= <eval (<src.p.y> + 2)>) || (<p.x> <= <eval (<src.p.x> + (-2))>) || (<p.y> <= <eval (<src.p.y> + (-2))>)) && (<topobj.uid> != <src.uid>)
+  src.message Chegue mais perto da <NAME>.
+return 1
+else
+  src.agua
+  src.newitem i_pote_vazio 	
+  src.act.bounce 
+  remove	
+return 1
+endif
 return 1
 
 
-////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////// keg ////////////////////////
-///////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
 
 
 [ITEMDEF i_barril_pequeno]
@@ -1550,7 +2090,7 @@ DESCRIPTION=keg vazio
 
 on=@create
 more1=0			// o more1 determina as doses que cabem em um barril. 0 ele está vazio, 01 ele está cheio
-more2=0				// o more2 determina que bebida tem dentro do barril
+more2=0			// o more2 determina que bebida tem dentro do barril
 return 1
 
 on=@click
@@ -1573,9 +2113,15 @@ endif
 return 1
 
 on=@Dclick
-if (<more1>==0)				// Se o barril está vazio não faz nada
+if (<topobj.uid> == <src.uid>)
+  src.sysmessage nao use o barrilete dentro de sua mochila
+return 1
+elif (<p.x> >= <eval (<src.p.x> + 2)>) || (<p.y> >= <eval (<src.p.y> + 2)>) || (<p.x> <= <eval (<src.p.x> + (-2))>) || (<p.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto do barrilete.
+return 1
+elif (<more1>==0)				// Se o barril está vazio não faz nada
   more2=0
-  src.sysmessage O barril esta vazio.
+  src.sysmessage O barrilete esta vazio.
 return 1
 else
    TARGET Escolha em qual recipiente vazio voce quer colocar a bebida.
@@ -1583,18 +2129,17 @@ endif
 return 1
 
 on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
- SRC.SYSMESSAGE Coloque a bebida em alguma jarra, garrafa ou caneca vazia.
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+   src.message Chegue mais perto.
+   TARGET Escolha em qual recipiente vazio voce quer colocar a bebida.
 return 1
-elif (<more1>>1)
+elif (<src.targ.uid>!=<src.uid>)
+   SRC.SYSMESSAGE Sirva a bebida em alguma jarra, garrafa ou caneca vazia.
+return 1
+else
    more1=<more1>+(-1)
    src.bebado
 return 1
-else
-   src.bebado
-   src.newitem i_garrafa_vazia
-   src.act.bounce
-   remove
 endif
 return 1
 
@@ -1602,8 +2147,12 @@ ON=@Targon_ground
  SRC.SYSMESSAGE Escolha um recipiente vazio para colocar a bebida.
 RETURN 1  
 
-ON=@Targon_item 
-if (<src.targ.baseid>!=i_jarra_vazia)&&(<src.targ.baseid>!=i_garrafa_vazia)&&(<src.targ.baseid>!=i_caneca_vazia) // se não for nenhum desses recipientes não faz nada
+ON=@Targon_item
+if ((<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)) && (<topobj.uid> != <src.uid>)
+   src.message Chegue mais perto.
+   TARGET Escolha em qual recipiente vazio voce quer colocar a bebida.
+return 1
+elif (<src.targ.baseid>!=i_jarra_vazia)&&(<src.targ.baseid>!=i_garrafa_vazia)&&(<src.targ.baseid>!=i_caneca_vazia) // se não for nenhum desses recipientes não faz nada
  SRC.SYSMESSAGE Escolha um recipiente vazio para colocar a bebida.
 return 1
 elif (<src.targ.baseid>==i_jarra_vazia)
@@ -1799,9 +2348,9 @@ endif
 return 1
 
 
-////////////////////////////////////////////////
-////////////  Barril  /////////////////////////
-///////////////////////////////////////////////
+////////////////////////////////////////
+////////////  Barril  /////////////////
+//////////////////////////////////////
 
 [ITEMDEF i_barril_vazio]
 id=0e77
@@ -1815,53 +2364,49 @@ CATEGORY=Myt itens (Jean Gabin)
 SUBSECTION=Recipiente
 DESCRIPTION=barril vazio
 
-on=@click
-message <name>
+on=@create
+more1=0
 return 1
 
-
-on=@dclick
-if (<dispid>==0fae)||(<dispid>==i_barrel) 
- dispid=0e77
- update
- src.newitem=i_tampa_madeira
- src.act.bounce
- return 1
+on=@click
+if (<dispid>==0fae)||(<dispid>==i_barrel_open)
+  message <name>
+return 1
+elif (<dispid>== i_barrel_water) //0154d
+  message <NAME> com agua (<eval <more1>> doses)
+return 1
 endif
 
-
-
-//////////////////////////////////////////////
-
-[ITEMDEF i_barril_agua]
-ID=0154d
-NAME=Barril com agua
-TYPE=T_script
-WEIGHT=50
-
-CATEGORY=Myt itens (Jean Gabin)
-SUBSECTION=Recipiente
-DESCRIPTION=barril de agua
-
-on=@create
-more1=80			// o more2 determina as doses que cabem em um barril.
-return 1
-
-on=@click
- message <NAME> (<eval <more1>> doses)
-return 1
-
 on=@dclick
-if (<dispid>==0154d)||(<dispid>==i_barrel)
+if ((<dispid>==0fae)||(<type>==t_container_locked)) && (<src.findlayer.(01).type>!=t_weapon_fence) && (<src.findlayer.(01).type>!=t_weapon_sword)
+ src.sysmessage O barril esta trancado. use algum objeto pontiagudo para abri-lo.
+return 1
+elif (<dispid>==0154d)||(<dispid>==i_barrel_water) /////////////// alteração do barril com água aqui
  dispid=0154d
  update
+ src.emoteyellow lavando as maos e o rosto
+ src.anim 022
+return 1
+elif ((<dispid>==0fae)||(<dispid>==i_barrel)) && (<more1> > 0)
+ src.emoteyellow removendo a tampa do barril
+ src.anim 01f
+ dispid=i_barrel_water
+ type=t_container
+ update
+ src.newitem=i_tampa_madeira
+ src.act.bounce
+ return 1
+elif (<dispid>==0fae)||(<dispid>==i_barrel)
+ src.emoteyellow removendo a tampa do barril
+ src.anim 01f
+ dispid=0e77
+ type=t_container
+ update
  src.newitem=i_tampa_madeira
  src.act.bounce
  return 1
 endif
-src.emoteyellow lavando as maos e o rosto
-src.anim 022
-return 1
+
 
 //////////////////////////////////////////////
 
@@ -1879,7 +2424,6 @@ on=@dclick
 if (<src.distance> > 1)
 src.sysmessage Chegue mais perto.
 return 1
-
 else
 Target Selecione o barril que voce quer tampar.
 return 1
@@ -1887,7 +2431,7 @@ endif
 return 1
 
 on=@targon_char
-src.sysmessage Para arremessar essa tampa em alguem utilize a funcao .jogar
+src.sysmessage Para arremessar essa tampa em alguem utilize a funcao .arremecar
 return 1
 
 on=@targon_ground
@@ -1905,11 +2449,13 @@ return 1
 else
 	if (<src.targ.dispid> == 0e77) || (<src.targ.dispid> == i_barrel_open)
 	  src.targ.dispid=0fae
+	  src.targ.type=t_container_locked // alteração aqui
 	  src.targ.update
 	  remove
 	return 1
 	elif (<src.targ.dispid> == 0154d) || (<src.targ.dispid> == i_barrel_water)
 	  src.targ.dispid=0fae
+	  src.targ.type=t_container_locked // alteração aqui
 	  src.targ.update
 	  remove
 	return 1
@@ -1935,31 +2481,27 @@ SUBSECTION=Recipiente
 DESCRIPTION=tina vazio
 
 
-//////////////////////////////////////////////
-
-
-[ITEMDEF i_tina_agua]
-ID=0e7b
-NAME=Tina com agua
-TYPE=T_script
-WEIGHT=30
-
-CATEGORY=Myt itens (Jean Gabin)
-SUBSECTION=Recipiente
-DESCRIPTION=tina de agua
-
 on=@create
-more1=40			// o more2 determina as doses que cabem em um barril.
-
+more1=0
+return 1
 
 on=@click
- message <NAME> (<eval <more1>> doses)
+if (<dispid>==i_tub_empty)
+  message <name>
 return 1
+elif (<dispid>== i_tub_water)
+  message <NAME> com agua (<eval <more1>> doses)
+return 1
+endif
 
-on=@Dclick
-  src.emote Lavando as maos e o rosto.
-  src.anim 022
+on=@dclick
+if (<dispid>==i_tub_water) /////////////// alteração da tina com água aqui
+ src.emoteyellow lavando as maos e o rosto
+ src.anim 022
 return 1
+endif
+
+
 
 ////////////////////////////////////////////////
 ////////////  Balde  /////////////////////////
@@ -1968,7 +2510,7 @@ return 1
 [ITEMDEF i_balde_vazio]
 id=014e0
 name=Balde
-TYPE=t_script
+TYPE=T_script
 WEIGHT=3
 
 CATEGORY=Myt itens (Jean Gabin)
@@ -1983,8 +2525,8 @@ on=@click
  message <NAME> 
 return 1
 
-on=@dclick
- TARGETG Escolha com o que voce quer encher o balde.
+on=@Dclick
+   TARGETG Escolha com o que voce quer encher o balde.
 return 1
 
 on=@targon_char
@@ -2008,7 +2550,7 @@ if (<src.targ.type>==t_water_wash)||(<src.targ.type>==t_water)
    src.act.bounce
    remove
 return 1
-elif (<src.targ.baseid> == i_barril_agua)||(<src.targ.baseid> == i_tina_agua)||(<src.targ.baseid> == i_balde_agua)
+elif (<src.targ.dispid> == i_barrel_water)||(<src.targ.dispid> == 0e7b)||(<src.targ.baseid> == i_balde_agua)
    baldedoseagua
 return 1
 else
@@ -2158,31 +2700,19 @@ elif (<src.targ.baseid>==i_barril_vazio)
 	if (<src.targ.topobj.uid> == <src.uid>)
 	 src.sysmessage Coloque o barril no chao primeiro.
 	return 1
-	else
-	 sfx 04e
-	 src.newitem=i_barril_agua
-	 src.act.p=<src.targ.p>
-	 src.act.more1=<more1>
-	 src.targ.remove
-	 src.newitem=i_balde_vazio
-	 src.act.bounce
-	 remove
-	return 1
-	endif
-return 1
-elif (<src.targ.baseid>==i_barril_agua)
- sfx 04e
-	if (<src.targ.more1> == 80)
-	 src.newitem=i_poca
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20]
-	 src.targ.message *Derramou agua no chao*
-	 src.newitem=i_balde_vazio
-	 src.act.bounce
-	 remove
-	return 1
-	else
-	 src.targ.more1=<src.targ.more1>+<more1>
+	elif (<src.targ.dispid>==i_barrel_water)
+ 	  sfx 04e
+	  if (<src.targ.more1> == 80)
+	   src.newitem=i_poca
+	   src.act.p=<src.targ.p>
+	   src.act.timer={10 20]
+	   src.targ.message *Derramou agua no chao*
+	   src.newitem=i_balde_vazio
+	   src.act.bounce
+	   remove
+	  return 1
+	  else
+	  src.targ.more1=<src.targ.more1>+<more1>
 		if (<src.targ.more1> >= 80)
 		 src.newitem=i_poca
 		 src.act.p=<src.targ.p>
@@ -2199,6 +2729,17 @@ elif (<src.targ.baseid>==i_barril_agua)
 		 remove
 		return 1
 		endif
+	  return 1
+	  endif
+	return 1
+	else
+	 sfx 04e
+	 src.targ.dispid=i_barrel_water
+	 src.targ.update
+	 src.targ.more1=<more1>
+	 src.newitem=i_balde_vazio
+	 src.act.bounce
+	 remove
 	return 1
 	endif
 return 1
@@ -2206,9 +2747,61 @@ elif (<src.targ.baseid>==i_tina_vazio)
 	if (<src.targ.topobj.uid> == <src.uid>)
 	 src.sysmessage Coloque a tina no chao primeiro.
 	return 1
+	elif (<src.targ.dispid>==i_tub_water) // tina com água
+	     sfx 04e
+		if (<src.targ.more1> == 40)
+		 src.newitem=i_poca
+		 src.act.p=<src.targ.p>
+		 src.act.timer={10 20]
+		 src.targ.message *Derramou agua no chao*
+		 src.newitem=i_balde_vazio
+		 src.act.bounce
+		 remove
+		return 1
+		else
+		 src.targ.more1=<src.targ.more1>+<more1>
+			if (<src.targ.more1> >= 40)
+			 src.newitem=i_poca
+			 src.act.p=<src.targ.p>
+			 src.act.timer={10 20]
+			 src.targ.message *Derramou agua no chao*
+			 src.targ.more1=40
+			 src.newitem=i_balde_vazio
+			 src.act.bounce
+			 remove
+			return 1
+			else
+			 src.newitem=i_balde_vazio
+			 src.act.bounce
+			 remove
+			return 1
+			endif
+		return 1
+		endif
+  	return 1
 	else
 	 sfx 04e
-	 src.newitem=i_tina_agua
+	 src.targ.dispid=i_tub_water
+	 src.targ.update
+	 src.targ.more1=<more1>
+	 src.newitem=i_balde_vazio
+	 src.act.bounce
+	 remove
+	return 1
+	endif
+return 1
+elif (<src.targ.baseid>==i_balde_vazio)
+  if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+     src.message Chegue mais perto.
+     TARGET Escolha onde voce quer usar a <NAME>.
+  return 1
+  else
+	if (<src.targ.topobj.uid> == <src.uid>)
+	 src.sysmessage Coloque o balde no chao ou em uma mesa primeiro.
+	return 1
+	else
+	 sfx 04e
+	 src.newitem=i_balde_agua
 	 src.act.p=<src.targ.p>
 	 src.act.more1=<more1>
 	 src.targ.remove
@@ -2217,10 +2810,20 @@ elif (<src.targ.baseid>==i_tina_vazio)
 	 remove
 	return 1
 	endif
+  return 1
+  endif
 return 1
-elif (<src.targ.baseid>==i_tina_agua)
- sfx 04e
-	if (<src.targ.more1> == 40)
+elif (<src.targ.baseid>==i_balde_agua)
+  if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+     src.message Chegue mais perto.
+     TARGET Escolha onde voce quer usar a <NAME>.
+  return 1
+  else
+	if (<src.targ.topobj.uid> == <src.uid>)
+	 src.sysmessage Coloque o balde no chao ou em uma mesa primeiro.
+	return 1
+	elif (<src.targ.more1> == 15)
+	 sfx 04e
 	 src.newitem=i_poca
 	 src.act.p=<src.targ.p>
 	 src.act.timer={10 20]
@@ -2230,13 +2833,14 @@ elif (<src.targ.baseid>==i_tina_agua)
 	 remove
 	return 1
 	else
+	 sfx 04e
 	 src.targ.more1=<src.targ.more1>+<more1>
-		if (<src.targ.more1> >= 40)
+		if (<src.targ.more1> >= 15)
 		 src.newitem=i_poca
 		 src.act.p=<src.targ.p>
 		 src.act.timer={10 20]
 		 src.targ.message *Derramou agua no chao*
-		 src.targ.more1=40
+		 src.targ.more1=15
 		 src.newitem=i_balde_vazio
 		 src.act.bounce
 		 remove
@@ -2247,8 +2851,10 @@ elif (<src.targ.baseid>==i_tina_agua)
 		 remove
 		return 1
 		endif
-	return 1
+	return1
 	endif
+  return 1
+  endif
 return 1
 elif (<src.targ.baseid>==i_bacia_vazia)
 	if (<src.targ.topobj.uid> == <src.uid>)
