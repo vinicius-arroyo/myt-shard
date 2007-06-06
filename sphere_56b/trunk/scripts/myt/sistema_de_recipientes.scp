@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////
 /////////  Sistema de recipientes  ///////////
 ////////    Jean Gabin (MyT)      ///////////
-////////       Beta v. 0.16       //////////
+////////       Beta v. 0.161      //////////
 ///////////////////////////////////////////
 
 //Correções da versão 0.16:
@@ -10,6 +10,12 @@
 //- Correção do Bug do Barril e Tina que travava o server (crash)
 //- Barril e Tina não perdem mais os itens de dentro ao encher de água
 //- alterar tranca de barril e abrir a tampa com objetos pontiagudos na mão
+
+//Correções da versão 0.161:
+//- balde com água apaga fogo da armadilha
+//- balde com água apaga fogo em pessoas
+//- correções de distância e apaga fogo com jarra e bacia além do balde
+
 
 ////////////////////////////////////////////////
 ////////// recipientes vazios /////////////////
@@ -595,6 +601,22 @@ return 1
 endif
 
 
+[function recip_vazio_apagafogo]
+if (<baseid>==i_balde_agua)
+  src.newitem=i_balde_vazio
+  src.act.bounce
+  remove
+return 1
+elif (<baseid>==i_jarra_agua)
+  src.newitem=i_jarra_vazio
+  src.act.bounce
+  remove
+return 1
+elif (<baseid>==i_bacia_agua)
+  src.newitem=i_bacia_vazio
+  src.act.bounce
+  remove
+return 1
 
 
 ////////////////////////////////////////////////
@@ -628,28 +650,61 @@ endif
 return 1
 
 on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
- src.emote Joga a agua da <NAME>
- src.newitem=i_poca
- src.act.p=<src.targ.p>
- src.act.timer={10 20]
- src.targ.emote esta molhado(a)!!!
- src.newitem=i_jarra_vazia
- src.act.bounce
- remove
-return 1
-elif (<more1>>1)
-   more1=<more1>+(-1)
-   src.agua				// function drink
+if (<src.targp.x> >= <eval (<src.p.x> + 4)>) || (<src.targp.y> >= <eval (<src.p.y> + 4)>) || (<src.targp.x> <= <eval (<src.p.x> + (-4))>) || (<src.targp.y> <= <eval (<src.p.y> + (-4))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
 return 1
 else
-   src.agua				// function drink
-   src.newitem i_jarra_vazia		// cria a jarra vazia
-   src.act.bounce			// coloca a jarra na bag
-   remove				// remove a jarra de agua  (que tem o script)
+  if (<src.targ.uid>!=<src.uid>)
+	if (<src.targ.tag.pegandofogo>==1)
+	 src.emote Joga agua da jarra
+	 src.newitem=i_poca
+	 src.act.p=<src.targ.p>
+	 src.act.timer={10 20]
+	   if (<more1> <= 4)
+		 src.targ.emote Tinha pouca agua no recipiente e não apagou o fogo!!!
+		 recip_vazio_apagafogo
+	   else
+		 src.targ.emote apagou o fogo!!!
+		 src.targ.tag.pegandofogo=   		//apaga a tag pegando fogo
+		 recip_vazio_apagafogo
+	   endif	 
+	else
+	 src.emote Joga agua da jarra
+	 src.newitem=i_poca
+	 src.act.p=<src.targ.p>
+	 src.act.timer={10 20]
+	 src.targ.emote esta molhado(a)!!!
+	 recip_vazio_apagafogo
+	endif
+  return 1
+  else
+	if (<src.targ.tag.pegandofogo>==1)
+	 src.newitem=i_poca
+	 src.act.p=<src.targ.p>
+	 src.act.timer={10 20]
+	   if (<more1> <= 4)
+		 src.targ.emote Tinha pouca agua no recipiente e não apagou o fogo!!!
+		 recip_vazio_apagafogo
+	   else
+		 src.targ.emote apagou o fogo!!!
+		 src.targ.tag.pegandofogo=   		//apaga a tag pegando fogo
+		 recip_vazio_apagafogo
+	   endif
+	return 1	 
+	elif (<more1>>1)
+	   more1=<more1>+(-1)
+	   src.agua				// function drink
+	return 1
+	else
+	   src.agua				// function drink
+	   recip_vazio_apagafogo
+	endif
+	return 1
+  endif
+  return 1
 endif
 return 1
-
 
 ON=@Targon_ground 
 if (<src.targp.x> >= <eval (<src.p.x> + 4)>) || (<src.targp.y> >= <eval (<src.p.y> + 4)>) || (<src.targp.x> <= <eval (<src.p.x> + (-4))>) || (<src.targp.y> <= <eval (<src.p.y> + (-4))>)
@@ -673,13 +728,12 @@ return 1
 /////////////////////////////////////////////////////////////////////////////////////
 
 ON=@Targon_item
-if (<src.targ.baseid>==i_caneca_vazia)
-  if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
-     src.message Chegue mais perto.
-     TARGET Escolha onde voce quer usar a <NAME>.
-  return 1
-  else 
-	if (<more1>>1)
+if (<src.targp.x> >= <eval (<src.p.x> + 4)>) || (<src.targp.y> >= <eval (<src.p.y> + 4)>) || (<src.targp.x> <= <eval (<src.p.x> + (-4))>) || (<src.targp.y> <= <eval (<src.p.y> + (-4))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.baseid>==i_caneca_vazia)
+  	if (<more1>>1)
 	  sfx 0240
 	  src.newitem i_caneca_agua
 	  fillcaneca
@@ -694,94 +748,44 @@ if (<src.targ.baseid>==i_caneca_vazia)
 	  remove
 	  return 1
 	endif
-  return 1
-  endif
 return 1
-elif (<src.targ.baseid>==i_campfire)
-  if (<src.targp.x> >= <eval (<src.p.x> + 4)>) || (<src.targp.y> >= <eval (<src.p.y> + 4)>) || (<src.targp.x> <= <eval (<src.p.x> + (-4))>) || (<src.targp.y> <= <eval (<src.p.y> + (-4))>)
-     src.message Chegue mais perto.
-     TARGET Escolha onde voce quer usar a <NAME>.
-  return 1
-  else 
-     src.emote Joga agua no fogo
+elif (<src.targ.type>==t_fire) || (<src.targ.type>==t_campfire)
 	if (<more1> <= 4)
+         src.emote Joga agua no fogo
 	 src.newitem=i_poca
 	 src.act.p=<src.targ.p>
 	 src.act.timer={10 20]
 	 src.sysmessage Nao tinha agua suficiente para apagar o fogo!
-	 src.newitem=i_jarra_vazia
-	 src.act.bounce
-	 remove
+	 recip_vazio_apagafogo			  // função para devolver recipiente vazio após apagar fogo
 	return 1
 	else
-	 src.newitem=i_poca
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20] 
-	 src.act.effect 2,i_fx_smoke,0,15,0
-	 sfx 02b 
-	 src.newitem=i_graveto_molhado
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20]
-	 src.targ.link.morez=0  // desliga a fogueira para o caldeirão se tiver um nela
-	 src.targ.remove
-	 src.newitem=i_jarra_vazia
-	 src.act.bounce
-	 remove
+ 	   if (<src.targ.baseid>==i_ember_lit)
+             src.emote Joga agua na brasa
+	     src.newitem=i_graveto_molhado
+	     src.act.p=<src.targ.p>
+	     src.act.timer={10 20]
+	   else
+             src.emote Joga agua no fogo
+	   endif
+	   src.newitem=i_poca
+	   src.act.p=<src.targ.p>
+	   if (<src.targ.link.tag.pegandofogo>==1)
+		src.act.z=<src.targ.z>+(-10)
+	   endif
+	   src.act.timer={10 20] 
+	   src.act.effect 2,i_fx_smoke,0,15,0
+	   sfx 02b
+		if (<src.targ.link.tag.pegandofogo>==1)
+		   src.targ.link.tag.pegandofogo=   		//apaga a tag pegando fogo
+		elif (<src.targ.baseid>==i_campfire) && (<src.targ.link.morez>==1)
+	 	   src.targ.link.morez=0  		// desliga a fogueira para o caldeirão se tiver um nela
+		else
+		endif
+	   src.targ.remove
+	   recip_vazio_apagafogo
 	return 1
 	endif
-  return 1
-  endif
-elif (<src.targ.baseid>==i_ember_lit)
-  if (<src.targp.x> >= <eval (<src.p.x> + 4)>) || (<src.targp.y> >= <eval (<src.p.y> + 4)>) || (<src.targp.x> <= <eval (<src.p.x> + (-4))>) || (<src.targp.y> <= <eval (<src.p.y> + (-4))>)
-     src.message Chegue mais perto.
-     TARGET Escolha onde voce quer usar a <NAME>.
-  return 1
-  else
-     src.emote Joga agua na brasa
-	 src.newitem=i_poca
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20] 
-	 src.act.effect 2,i_fx_smoke,0,15,0
-	 sfx 02b 
-	 src.newitem=i_graveto_molhado
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20]
-	 src.targ.remove
-	 src.newitem=i_jarra_vazia
-	 src.act.bounce
-	 remove
-	return 1
-  endif
-elif (<src.targ.baseid>==i_fx_field_fire)||(<src.targ.baseid>==i_fire_column)||(<src.targ.baseid>==i_fire)
-  if (<src.targp.x> >= <eval (<src.p.x> + 4)>) || (<src.targp.y> >= <eval (<src.p.y> + 4)>) || (<src.targp.x> <= <eval (<src.p.x> + (-4))>) || (<src.targp.y> <= <eval (<src.p.y> + (-4))>)
-     src.message Chegue mais perto.
-     TARGET Escolha onde voce quer usar a <NAME>.
-  return 1
-  else
-     src.emote Joga agua no fogo
-	if (<more1> <= 4)
-	 src.newitem=i_poca
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20]
-	 src.sysmessage Nao tinha agua suficiente para apagar o fogo!
-	 src.newitem=i_jarra_vazia
-	 src.act.bounce
-	 remove
-	return 1
-	else
-	 src.newitem=i_poca
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20] 
-	 src.act.effect 2,i_fx_smoke,0,15,0 
-	 sfx 02b
-	 src.targ.remove
-	 src.newitem=i_jarra_vazia
-	 src.act.bounce
-	 remove
-	return 1
-	endif
-  return 1
-  endif
+return 1
 elif (<src.targ.baseid>==i_barril_vazio)
 	if (<src.targ.topobj.uid> == <src.uid>)
 	 src.sysmessage Coloque o barril no chao primeiro.
@@ -1006,7 +1010,8 @@ else
 return 1
 endif
 return 1
-
+endif
+return 1
 
 ////////////////////////////////////////////////
 
@@ -2382,10 +2387,27 @@ if ((<dispid>==0fae)||(<type>==t_container_locked)) && (<src.findlayer.(01).type
  src.sysmessage O barril esta trancado. use algum objeto pontiagudo para abri-lo.
 return 1
 elif (<dispid>==0154d)||(<dispid>==i_barrel_water) /////////////// alteração do barril com água aqui
- dispid=0154d
- update
- src.emoteyellow lavando as maos e o rosto
- src.anim 022
+  if (<src.tag.pegandofogo>==1)
+	 dispid=0154d
+	 update
+	 if (<more1> <= 4 )
+	   src.sysmessage Este barril tem pouca agua para apagar o fogo!!!
+	   src.anim 022
+	 else
+	   more1=<more1>+(-4)
+	   src.newitem=i_poca
+	   src.act.p=<src.p>
+	   src.act.timer={10 20]
+	   src.tag.pegandofogo=
+	   src.emote Apagou o fogo!!!
+	   src.anim 022
+	 endif
+  else
+	 dispid=0154d
+	 update
+	 src.emoteyellow lavando as maos e o rosto
+	 src.anim 022
+  endif
 return 1
 elif ((<dispid>==0fae)||(<dispid>==i_barrel)) && (<more1> > 0)
  src.emoteyellow removendo a tampa do barril
@@ -2496,16 +2518,31 @@ endif
 
 on=@dclick
 if (<dispid>==i_tub_water) /////////////// alteração da tina com água aqui
- src.emoteyellow lavando as maos e o rosto
- src.anim 022
+  if (<src.tag.pegandofogo>==1)
+	 if (<more1> <= 4 )
+	   src.sysmessage Esta tina tem pouca agua para apagar o fogo!!!
+	   src.anim 022
+	 else
+	   more1=<more1>+(-4)
+	   src.newitem=i_poca
+	   src.act.p=<src.p>
+	   src.act.timer={10 20]
+	   src.tag.pegandofogo=
+	   src.emote Apagou o fogo!!!
+	   src.anim 022
+	 endif
+  else
+	 src.emoteyellow lavando as maos e o rosto
+	 src.anim 022
+  endif
 return 1
 endif
-
 
 
 ////////////////////////////////////////////////
 ////////////  Balde  /////////////////////////
 ///////////////////////////////////////////////
+
 
 [ITEMDEF i_balde_vazio]
 id=014e0
@@ -2526,8 +2563,13 @@ on=@click
 return 1
 
 on=@Dclick
+if ((<p.x> >= <eval (<src.p.x> + 3)>) || (<p.y> >= <eval (<src.p.y> + 3)>) || (<p.x> <= <eval (<src.p.x> + (-3))>) || (<p.y> <= <eval (<src.p.y> + (-3))>)) && (<topobj.uid> != <src.uid>)
+  src.message Chegue mais perto da <NAME>.
+return 1
+else
    TARGETG Escolha com o que voce quer encher o balde.
 return 1
+endif
 
 on=@targon_char
 if (<src.targ.body>==c_cow_bw)||(<src.targ.body>==c_cow_brown)
@@ -2538,9 +2580,18 @@ else
 endif
 return 1
 
-ON=@Targon_ground 
+ON=@Targon_ground
+if (<src.targ.type>==t_water)||(<src.targ.type>==t_water_wash)
+   sfx 0240
+   src.newitem i_balde_agua
+   src.act.more1=15
+   src.act.bounce
+   remove
+return 1
+else
  SRC.SYSMESSAGE para colocar o balde ai, simplesmente arraste e solte ele.
-RETURN 1  
+RETURN 1
+endif  
 
 ON=@Targon_item 
 if (<src.targ.type>==t_water_wash)||(<src.targ.type>==t_water)
@@ -2600,28 +2651,67 @@ on=@click
 return 1
 
 on=@Dclick
-  Target onde voce deseja jogar agua?
-return 1
-
-on=@targon_char
-if (<src.targ.uid>!=<src.uid>)
- src.emote Joga agua do balde
- src.newitem=i_poca
- src.act.p=<src.targ.p>
- src.act.timer={10 20]
- src.targ.emote esta molhado(a)!!!
- src.newitem=i_balde_vazio
- src.act.bounce
- remove
+if ((<p.x> >= <eval (<src.p.x> + 3)>) || (<p.y> >= <eval (<src.p.y> + 3)>) || (<p.x> <= <eval (<src.p.x> + (-3))>) || (<p.y> <= <eval (<src.p.y> + (-3))>)) && (<topobj.uid> != <src.uid>)
+  src.message Chegue mais perto da <NAME>.
 return 1
 else
- src.emote Joga agua do balde em si mesmo e fica molhado(a)!!!
- src.newitem=i_poca
- src.act.p=<src.targ.p>
- src.act.timer={10 20]
- src.newitem=i_balde_vazio
- src.act.bounce
- remove
+  Target onde voce deseja jogar agua?
+return 1
+endif
+
+on=@targon_char
+if (<src.targp.x> >= <eval (<src.p.x> + 5)>) || (<src.targp.y> >= <eval (<src.p.y> + 5)>) || (<src.targp.x> <= <eval (<src.p.x> + (-5))>) || (<src.targp.y> <= <eval (<src.p.y> + (-5))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+else
+  if (<src.targ.uid>!=<src.uid>)
+	if (<src.targ.tag.pegandofogo>==1)
+	 src.emote Joga agua do <name>
+	 src.newitem=i_poca
+	 src.act.p=<src.targ.p>
+	 src.act.timer={10 20]
+	   if (<more1> <= 4)
+		 src.targ.emote Tinha pouca agua no recipiente e não apagou o fogo!!!
+		 recip_vazio_apagafogo
+	   else
+		 src.targ.emote apagou o fogo!!!
+		 src.targ.tag.pegandofogo=   		//apaga a tag pegando fogo
+		 recip_vazio_apagafogo
+	   endif	 
+	else
+	 src.emote Joga agua do <name>
+	 src.newitem=i_poca
+	 src.act.p=<src.targ.p>
+	 src.act.timer={10 20]
+	 src.targ.emote esta molhado(a)!!!
+	 recip_vazio_apagafogo
+	endif
+  return 1
+  else
+	if (<src.targ.tag.pegandofogo>==1)
+	 src.emote Joga agua do <name>
+	 src.newitem=i_poca
+	 src.act.p=<src.targ.p>
+	 src.act.timer={10 20]
+	   if (<more1> <= 4)
+		 src.targ.emote Tinha pouca agua no recipiente e não apagou o fogo!!!
+		 recip_vazio_apagafogo
+	   else
+		 src.targ.emote apagou o fogo!!!
+		 src.targ.tag.pegandofogo=   		//apaga a tag pegando fogo
+		 recip_vazio_apagafogo
+	   endif	 
+	else
+	 src.emote Joga agua do balde em si mesmo e fica molhado(a)!!!
+	 src.newitem=i_poca
+	 src.act.p=<src.targ.p>
+	 src.act.timer={10 20]
+	 recip_vazio_apagafogo
+	endif
+	return 1
+  endif
+  return 1
 endif
 return 1
 
@@ -2630,72 +2720,48 @@ ON=@Targon_ground
 return 1 
 
 
-ON=@Targon_item 
-if (<src.targ.baseid>==i_campfire)
- src.emote Joga agua no fogo
+ON=@Targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 5)>) || (<src.targp.y> >= <eval (<src.p.y> + 5)>) || (<src.targp.x> <= <eval (<src.p.x> + (-5))>) || (<src.targp.y> <= <eval (<src.p.y> + (-5))>)
+   src.message Chegue mais perto.
+   TARGET Escolha onde voce quer usar a <NAME>.
+return 1
+elif (<src.targ.type>==t_fire) || (<src.targ.type>==t_campfire)
 	if (<more1> <= 4)
-	 src.newitem=i_poca
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20]
-	 src.sysmessage Nao tinha agua suficiente para apagar o fogo!
-	 src.newitem=i_balde_vazio
-	 src.act.bounce
-	 remove
+           src.emote Joga agua no fogo
+	   src.newitem=i_poca
+	   src.act.p=<src.targ.p>
+	   src.act.timer={10 20]
+	   src.sysmessage Nao tinha agua suficiente para apagar o fogo!
+	   recip_vazio_apagafogo			  // função para devolver recipiente vazio após apagar fogo
 	return 1
 	else
-	 src.newitem=i_poca
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20] 
-	 src.act.effect 2,i_fx_smoke,0,15,0
-	 sfx 02b 
-	 src.newitem=i_graveto_molhado
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20]
-	 src.targ.link.morez=0  // desliga a fogueira para o caldeirão se tiver um nela
-	 src.targ.remove
-	 src.newitem=i_balde_vazio
-	 src.act.bounce
-	 remove
-	return 1
-	endif
-elif (<src.targ.baseid>==i_ember_lit)
- src.emote Joga agua na brasa
-	 src.newitem=i_poca
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20] 
-	 src.act.effect 2,i_fx_smoke,0,15,0
-	 sfx 02b 
-	 src.newitem=i_graveto_molhado
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20]
-	 src.targ.remove
-	 src.newitem=i_balde_vazio
-	 src.act.bounce
-	 remove
-	return 1
-elif (<src.targ.baseid>==i_fx_field_fire)||(<src.targ.baseid>==i_fx_field_fire_ns)||(<src.targ.baseid>==i_fire_column)||(<src.targ.baseid>==i_fire)
- src.emote Joga agua no fogo
-	if (<more1> <= 4)
-	 src.newitem=i_poca
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20]
-	 src.sysmessage Nao tinha agua suficiente para apagar o fogo!
-	 src.newitem=i_balde_vazio
-	 src.act.bounce
-	 remove
-	return 1
-	else
-	 src.newitem=i_poca
-	 src.act.p=<src.targ.p>
-	 src.act.timer={10 20] 
-	 src.act.effect 2,i_fx_smoke,0,15,0 
-	 sfx 02b
-	 src.targ.remove
-	 src.newitem=i_balde_vazio
-	 src.act.bounce
-	 remove
-	return 1
-	endif
+ 	   if (<src.targ.baseid>==i_ember_lit)
+             src.emote Joga agua na brasa
+	     src.newitem=i_graveto_molhado
+	     src.act.p=<src.targ.p>
+	     src.act.timer={10 20]
+	   else
+             src.emote Joga agua no fogo
+	   endif
+	   src.newitem=i_poca
+	   src.act.p=<src.targ.p>
+	   if (<src.targ.link.tag.pegandofogo>==1)
+		src.act.z=<src.targ.z>+(-10)
+	   endif
+	   src.act.timer={10 20] 
+	   src.act.effect 2,i_fx_smoke,0,15,0
+	   sfx 02b
+		if (<src.targ.link.tag.pegandofogo>==1)
+		   src.targ.link.tag.pegandofogo=   		//apaga a tag pegando fogo
+		elif (<src.targ.baseid>==i_campfire) && (<src.targ.link.morez>==1)
+	 	   src.targ.link.morez=0  		// desliga a fogueira para o caldeirão se tiver um nela
+		else
+		endif
+	   src.targ.remove
+	   recip_vazio_apagafogo
+	  return 1
+	  endif
+return 1
 elif (<src.targ.baseid>==i_barril_vazio)
 	if (<src.targ.topobj.uid> == <src.uid>)
 	 src.sysmessage Coloque o barril no chao primeiro.
@@ -2919,6 +2985,8 @@ else
  src.sysmessage Isto nao esta pegando fogo.
 endif
 return 1
+endif
+return 1
 
 
 
@@ -2946,6 +3014,7 @@ on=@Dclick
   src.sysmessage Coloque agua nessa bacia para que voce possa usa-la.
 return 1
 
+////////////////////////////////////////////////////////////////////////
 
 [ITEMDEF i_bacia_agua]
 id=01008
@@ -2970,6 +3039,7 @@ on=@Dclick
   src.anim 022
 return 1
 
+/////////////////////////////////////////////////////////////////////
 
 [ITEMDEF i_bacia_sangue]
 id=00e23

@@ -1,0 +1,1284 @@
+//////////////////////////////////////////////////////
+///////  sistema de armadilha (MyT)  ////////////////
+//////        Jean Gabin            ////////////////
+/////     Versão beta test 0.3     ////////////////
+//////////////////////////////////////////////////
+
+
+// locais e tipos de armadilha:
+
+// conteiners:
+//	explosao	1 poção rosa, 2 engrenagens com eixo, 4 molas
+//	gas venenoso	1 poção verde, 2 engrenagens com eixo, 4 molas
+//	perfuração	5 flechas simples, 1 arco, 1 arame de metal, 2 engrenagens com eixo, 4 molas
+//	corte		1 machado, 1 arame de metal, 2 engrenagens com eixo, 4 molas
+
+// portas
+//	explosao	1 poção rosa, 2 engrenagens com eixo, 4 molas
+//	gas venenoso	1 poção verde, 2 engrenagens com eixo, 4 molas
+//	perfuração	5 flechas simples, 1 arco, 1 arame de metal, 2 engrenagens com eixo, 4 molas
+//	corte		1 machado, 1 arame de metal, 2 engrenagens com eixo, 4 molas
+
+// step on
+
+
+// For containers, doors, ships, and ship holds, MORE is the key UID, MORE2 is the lock complexity (how hard to pick), and MOREX is the trap type (not used yet). 
+
+// For an explosion, MOREX is the damage from the explosion, MOREY is the type of damage ( fire, magic, etc), and MOREZ is the distance range for the damage. 
+
+// For a trap, MORE is the animation ID, MORE2 is the damage, MOREX is the time to animate, MOREY is the time to idle until reset, and MOREZ is a flag to indicate if the trap simply idles from active to inactive.
+
+
+//armadilha de pisar - utilização dos "more"
+//more1= se a armadilha está armada ou desarmada. 0=desarmada 1=armada
+//more2= tipo de armadilha 0=nenhuma 1=explosão 2=gas venenoso 3=spikes 4=saw 5=cela de fogo 6=dardo parede
+
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////    kit de instalação de qualquer armadilha    /////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+
+
+[itemdef i_kit_armadilha]
+id=09b0
+name=Kit de instalacao de armadilha
+type=t_script
+
+on=@create
+more1=0
+more2=0 // tipo de armadilha
+morep=0
+
+on=@click
+if (<more2> == 1)
+message <name> (explosao) // Chao, container e porta = mesma id
+return 1
+elif (<more2> == 2)
+message <name> (gas venenoso) // Chao = 011a6 / container e porta = 01145(0/4) e 0113a(2/6)
+return 1
+elif (<more2> == 3)
+message <name> (espetos) // Chao = 011a2(0/4) e 0119c(2/6) / container = 037f5 / porta
+return 1
+elif (<more2> == 4)
+message <name> (serra) // Chao / container
+return 1
+elif (<more2> == 5)
+message <name> (cela de fogo) // Chao / container
+return 1
+elif (<more2> == 6)
+message <name> (coluna de fogo) // Chao / container
+return 1
+elif (<more2> == 7)
+message <name> (machado) // container / porta
+return 1
+endif
+
+on=@dclick
+if (<more2> == 7)
+  target Selecione a porta ou o container para instalar a armadilha
+else
+  MENU m_install_armadilha
+endif
+return 1
+
+on=@targon_char
+  target Escolha um local valido para instalar esta armadilha.
+return 1
+
+on=@targon_ground
+  target Escolha um local valido para instalar esta armadilha.
+return 1
+
+on=@targon_item
+if (<src.targp.x> >= <eval (<src.p.x> + 2)>) || (<src.targp.y> >= <eval (<src.p.y> + 2)>) || (<src.targp.x> <= <eval (<src.p.x> + (-2))>) || (<src.targp.y> <= <eval (<src.p.y> + (-2))>)
+  src.message Chegue mais perto do local de instalacao da armadilha.
+  target Onde voce quer colocar a armadilha?
+return 1
+else
+	if (<src.targ.type> == t_container_locked) || (<src.targ.type> == t_door_locked)
+	  src.message Destranque antes de instalar a armadilha.
+	  target Onde voce quer colocar a armadilha?
+	return 1
+	else
+
+	    if (<src.targ.topobj.uid> == <src.uid>)
+	      src.message Coloque o container no chao ou em uma mesa antes de instalar a armadilha.
+	      target Onde voce quer colocar a armadilha?
+	    return 1
+	    else
+		if (<src.targ.type> == t_armadilha_container) || (<src.targ.type> == t_armadilha_porta)
+		  src.targ.use
+		return 1
+		else
+			if (<src.targ.type> == t_container) || (<src.targ.type> == t_door)
+			  if (<more2>==4)
+				src.sysmessage Esta armadilha so pode ser instalada no chao ou em portas
+			  return 1
+			  else
+			  src.say *instalando armadilha*
+			  sfx 048
+			  src.anim 020
+				if (<src.targ.type> == t_container)
+			  	   src.targ.type=t_armadilha_container
+				elif (<src.targ.type> == t_door)
+			  	   src.targ.type=t_armadilha_porta
+				endif
+			  src.targ.tag.tipoarmadilha=<more2>
+			  src.targ.update
+			  endif
+			return 1
+			else
+			  src.message Instale esta armadilha apenas em containers ou portas.
+			  target Onde voce quer colocar a armadilha?
+			return 1
+			endif
+		return 1
+		endif
+	     return 1
+	     endif
+	return 1
+	endif
+return 1
+endif
+
+//////////////////////////////////////////////////////////////////////
+///////////////////////  MENUS  ///////////////////////////////////// 
+//////////////////////////////////////////////////////////////////////
+
+[MENU m_install_armadilha]
+Onde voce deseja instalar esta armadilha?
+
+ON=0 No chao (sera instalada na sua frente)
+  src.say *instalando armadilha*
+  sfx 048
+  src.newitem=i_armadilha_pisar
+  //src.act.attr=(<src.act.attr> | 08080)  // torna a armadilha invisível
+  src.act.more1=1                          // está armada
+  src.act.more2=<more2>                    // coloca que tipo de dano dá a armadilha
+  src.act.p=<src.p>
+  coloca_dir
+  src.act.morep=<src.act.p>
+  src.anim 020
+  src.tag.linkarmadilha=<src.act.uid>
+	if (<more2> == 1) || (<more2> == 2)
+	  //remove
+	return 1
+	else
+	  target Onde voce quer colocar a alavanca?
+	return 1
+	endif
+return 1
+
+
+ON=0 Em alguma porta ou container (Bau, caixa, etc.)
+  target Selecione a porta ou o container para instalar a armadilha
+return 1
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////    typedef    //////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+[typedef t_armadilha_container]
+
+on=@dclick
+if (<src.targ.distance> > 1)
+  src.message Chegue mais perto. 
+return 1
+else
+	if (<tag.tipoarmadilha> == 01 )
+	  sfx 011d 			// explosao
+	  src.newitem=i_explosao
+	  if (<topobj.uid>==<src.uid>)
+		src.act.p=<src.p>	
+	  else
+		src.act.p=<p>
+	  endif
+	  src.act.timer=1
+	  src.sfx 0157 			// grito de dor
+	  src.anim 015
+	  type=t_container
+	  update
+	  tag.tipoarmadilha=  //apaga a tag
+		if (<src.hitpoints> >= 20)//(<src.tag.desmaios> < 5)
+			src.flags=(<src.flags> | 04)
+			src.damage=<src.hitpoints>+(-5)
+			src.sleep
+		return 1
+		else
+			//src.tag.pontosdemorte=<src.tag.pontosdemorte> + (-1)
+			//src.suicide
+			src.say morri!!! <src.hitpoints>
+		return 1
+		endif
+	return 1
+	elif (<tag.tipoarmadilha> == 02 )
+	  sfx 02b 			// jato de gas
+	  src.newitem=i_gas_chao
+	  if (<topobj.uid>==<src.uid>)
+		src.act.p=<src.p>	
+	  else
+		src.act.p=<p>
+	  endif
+	  src.act.z=<src.z> + 5
+	  src.act.link=<src.uid>
+	  src.act.timerd=0.1
+	  type=t_container
+	  update
+	  tag.tipoarmadilha=  //apaga a tag
+	return 1
+	elif (<tag.tipoarmadilha> == 03 )
+		src.flags=(<src.flags> | 04)
+		src.update
+		src.newitem=i_spike_container	// espeto
+		src.act.attr=08010
+		if (<topobj.uid>==<src.uid>)
+		   src.act.p=<src.p>
+		else
+		   src.act.p=<p>
+		   src.act.z=<src.act.z>+(-1)
+		endif
+		src.act.link=<src.uid>
+		src.act.timerd=0.1
+		//link=<src.act.uid>  // linka com o container
+		src.newitem=0122a
+		src.act.attr=02
+		src.act.p=<src.p>
+		src.act.timer={60 80]
+		sfx 1311
+		src.anim 014
+    		src.sfx 0157
+	  	type=t_container
+	  	update
+	  	tag.tipoarmadilha=  //apaga a tag
+	return 1
+	elif (<tag.tipoarmadilha> == 05 ) 
+		src.flags=(<src.flags> | 04)
+		sfx 0160
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		   else
+			src.act.p=<p>
+		   endif
+		   src.act.move 0 2 0
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		   else
+			src.act.p=<p>
+		   endif
+		   src.act.move 0 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		   else
+			src.act.p=<p>
+		   endif
+		   src.act.move 1 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		   else
+			src.act.p=<p>
+		   endif
+		   src.act.move -1 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		   else
+			src.act.p=<p>
+		   endif
+		   src.act.move -1 2 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		   else
+			src.act.p=<p>
+		   endif
+		   src.act.move 1 2 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		   else
+			src.act.p=<p>
+		   endif
+		   src.act.move 2 1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		   else
+			src.act.p=<p>
+		   endif
+		   src.act.move 2 0 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		   else
+			src.act.p=<p>
+		   endif
+		   src.act.move 2 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		   else
+			src.act.p=<p>
+		   endif
+		   src.act.move -1 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		   else
+			src.act.p=<p>
+		   endif
+		   src.act.move -1 0 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		   else
+			src.act.p=<p>
+		   endif
+		   src.act.move -1 1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		//link=<src.act.uid>
+		src.flags=(<src.flags> &~ 04)
+		type=t_container
+	  	update
+	 	tag.tipoarmadilha=  //apaga a tag
+	return 1
+	elif (<tag.tipoarmadilha> == 06 )   
+	    if (<src.hitpoints> >= 30)
+		src.damage=<src.hitpoints>+(-30)
+		src.newitem=i_pegando_fogo
+		src.act.link=<src.uid>
+		src.act.p=<src.p>
+		src.act.z=<src.z>+10
+		src.tag.pegandofogo=1
+		src.newitem=i_mry_pegandofogo
+		src.act.equip
+		src.update
+		sfx 015f 			// coluna de fogo
+		src.newitem=i_coluna_fogo
+		if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		else
+			src.act.p=<p>
+		endif
+		src.act.timerd=2.5
+		src.sfx 0157 			// grito de dor
+		src.anim 015
+		type=t_container
+		update
+		tag.tipoarmadilha=  //apaga a tag
+	    return 1
+	    else
+		sfx 015f 			// coluna de fogo
+		src.newitem=i_coluna_fogo
+		if (<topobj.uid>==<src.uid>)
+			src.act.p=<src.p>
+		else
+			src.act.p=<p>
+		endif
+		src.act.timerd=2.5
+		src.sfx 0157 			// grito de dor
+		src.anim 015
+		type=t_container
+		update
+		tag.tipoarmadilha=  //apaga a tag
+		src.say morri!!! <src.hitpoints>
+		//src.suicide
+	    return 1
+	    endif
+	return 1
+	endif
+return 1
+endif
+
+///////////////////////////////////////////////////////////////////////////////////
+
+
+[typedef t_armadilha_porta]
+
+on=@dclick
+if (<src.targ.distance> > 1)
+  src.message Chegue mais perto. 
+return 1
+else
+	if (<tag.tipoarmadilha> == 01 )
+	  sfx 011d 			// explosao
+	  src.newitem=i_explosao
+	  src.act.p=<src.p>
+	  src.act.timer=1
+	  src.sfx 0157 			// grito de dor
+	  src.anim 015
+	  type=t_door
+	  update
+	  tag.tipoarmadilha=  //apaga a tag
+		if (<src.hitpoints> <= 20)//(<src.tag.desmaios> < 5)
+			src.flags=(<src.flags> | 04)
+			src.damage=<src.hitpoints>+(-5)
+			src.sleep
+		return 1
+		else
+			//src.tag.pontosdemorte=<src.tag.pontosdemorte> + (-1)
+			//src.suicide
+			src.say morri!!! <src.hitpoints>
+		return 1
+		endif
+	return 1
+	elif (<tag.tipoarmadilha> == 02 )
+	  sfx 02b 			// jato de gas
+	  src.newitem=i_gas_chao
+	  src.act.p=<src.p>
+	  src.act.z=<src.z> + 5
+	  src.act.link=<src.uid>
+	  src.act.timerd=0.1
+	  type=t_door
+	  update
+	  tag.tipoarmadilha=  //apaga a tag
+	return 1
+	elif (<tag.tipoarmadilha> == 03 )
+	  say Finch!
+	  src.say Ai! que dor!! espetei-me
+	  type=t_door
+	  update
+	  tag.tipoarmadilha=  //apaga a tag
+	return 1
+	elif (<tag.tipoarmadilha> == 04 )
+	  say Zzzziiinnnn!
+	  src.say Ai! que dor!! cortei-me
+	  type=t_door
+	  update
+	  tag.tipoarmadilha=  //apaga a tag
+	return 1
+	elif (<tag.tipoarmadilha> == 05 ) 
+	//src.emote Instalando cela de fogo no container
+//////////////////////////////////////////////////////////////////////////////
+//////////////// inserir cela de fogo aqui   ////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+		src.flags=(<src.flags> | 04)
+		sfx 0160
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 0 2 0
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 0 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 1 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move -1 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move -1 2 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 1 2 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 2 1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 2 0 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 2 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move -1 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move -1 0 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move -1 1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		link=<src.act.uid>
+		src.flags=(<src.flags> &~ 04)
+		type=t_door
+		update
+		tag.tipoarmadilha=  //apaga a tag
+	return 1
+	elif (<tag.tipoarmadilha> == 07 )
+	  say Zap!
+	  src.say Ai! me cortei com o machado!!
+	  type=t_container
+	  update
+	  tag.tipoarmadilha=  //apaga a tag
+	return 1
+	else
+	  say falhou a armadilha
+	  type=t_container
+	  update
+	return 1
+	endif
+return 1
+endif
+
+
+///////////////////////////////////////////////////////////////////////////////////
+//////////////////////////  	 Armadilha de chão  	///////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
+
+[itemdef i_armadilha_pisar]
+id=01122
+name=armadilha
+type=t_script
+
+on=@create
+more1=0     // armadilha armada ou desarmada
+more2=0     // tipo da armadilha
+attr=08010
+
+on=@click
+if (<more1>==1)
+   message armadilha
+   return 1
+else
+   message armadilha desarmada
+   return 1
+endif
+
+on=@dclick
+if (<src.distance> > 2)
+  src.sysmessage Chegue mais perto
+return 1
+else
+  if (<dispid> != 01122)
+  return 1
+  else
+    if (<src.removetrap> >= 40)
+      src.say *esconde a armadilha*
+      attr=(<attr> | 080)
+      update
+      src.update
+      src.anim 020
+    else 
+      src.say *tenta esconder a armadilha mas nao consegue*
+      src.anim 020
+  return 1
+  endif
+return 1
+endif
+
+on=@step
+if (<more1>==1) // se tá armada
+	if (<attr> & 080)
+	  attr=(<attr> &~ 080)
+	  update
+	  dispid=01124
+	  update
+	  more1=0
+	  sfx 022c		// barulho de armadilha disparando
+	  armadilha_chao
+	return 1
+	else
+	  dispid=01124
+	  update
+	  more1=0
+	  sfx 022c		// barulho de armadilha disparando
+	  armadilha_chao
+	return 1
+	endif
+return 1
+else
+return 1
+endif
+
+/////////////////////////////////////////////////////////////////////////////////////////
+///////////////////  function que determina qual tipo de armadilha é ///////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+//   DAMAGE <amount> <damage_type> <src_uid>  
+
+//Damage Types
+//(This is a bitmask, and so these are flags)
+ 
+//0001 Unblockable "god" damage 
+//0002 Some sort of physical damage (as opposed to magical) 
+//0004 Some sort of magical damage 
+//0008 Poisonous or biological (harm spell) damage 
+//0010 Fire-based damage 
+//0020 Electrical damage (lightning) 
+//0040 Draining damage 
+//0080 Damage that hits the entire body, rather than just one part of it 
+//0100 Acidic damage (will destroy armor) 
+//0200 Cold-based damage 
+//0400 Damage done by slashing (swords, etc) 
+//0800 Damage done by piercing (spears, archery, etc) 
+
+
+[function armadilha_chao]
+
+	if (<more2>==1)
+		attr=04012
+		sfx 011d 			// explosao
+		src.newitem=i_explosao
+		src.act.p=<p>
+		src.act.timer=1
+		src.act.link=<src.uid>  // linka com o src
+		src.sfx 0157 			// grito de dor
+		if (<src.hitpoints> >= 20)
+			src.damage=<src.hitpoints>+(-5)
+			src.flags=(<src.flags> | 04)
+			src.sleep
+		return 1
+		else
+			src.say morri!!! <src.hitpoints>
+			//src.tag.pontosdemorte=<src.tag.pontosdemorte> + (-1)
+			//src.tag.desmaios=5
+			//src.suicide
+		return 1
+		endif
+	return 1
+	elif (<more2>==2)
+		attr=04012
+		sfx 02b 			// jato de gas
+		src.newitem=i_gas_chao
+		src.act.p=<p>
+		src.act.link=<src.uid>
+		src.act.timerd=0.1
+	return 1
+	elif (<more2>==3)
+		src.flags=(<src.flags> | 04)
+		src.newitem=i_spike_chao	// espeto
+		src.act.attr=08010
+		src.act.p=<p>
+		src.act.move 1 1 0
+		src.act.z=<src.act.z>+5
+		src.act.link=<src.uid>
+		src.act.timerd=0.1
+		link=<src.act.uid>
+		if (<src.dir> == 0) || (<src.dir> == 3) || (<src.dir> == 4) || (<src.dir> == 7)
+			src.act.dispid=011a2
+			src.act.update
+		else
+		endif
+	return 1
+	elif (<more2>==4)
+		src.flags=(<src.flags> | 04)
+		src.newitem=i_saw_chao
+		src.act.attr=08010
+		src.act.p=<p>
+		src.act.z=<src.act.z>+(-1)
+		src.act.link=<src.uid>
+		src.act.timerd=0.1
+		link=<src.act.uid>
+		if (<src.dir> == 0) || (<src.dir> == 3) || (<src.dir> == 4) || (<src.dir> == 7)
+			src.act.dispid=011b3
+			src.act.update
+		else
+		endif
+	return 1
+	elif (<more2>==5)
+		src.flags=(<src.flags> | 04)
+		sfx 0160
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 0 2 0
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 0 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 1 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move -1 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move -1 2 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_lo
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 1 2 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 2 1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 2 0 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move 2 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move -1 -1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move -1 0 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		   src.newitem=i_fogo_armadilha_ns
+		   src.act.attr=08010
+		   src.act.p=<p>
+		   src.act.move -1 1 0
+		   src.act.link=<tag.linkfogouid>
+		   tag.linkfogouid=<src.act.uid>
+		link=<src.act.uid>
+		src.flags=(<src.flags> &~ 04)
+	return 1
+	elif (<more2>==6)			//coluna de fogo
+	    attr=04012
+	    if (<src.hitpoints> >= 30)
+		src.damage=<src.hitpoints>+(-30)
+		src.newitem=i_pegando_fogo
+		src.act.link=<src.uid>
+		src.act.p=<src.p>
+		src.act.z=<src.z>+10
+		src.tag.pegandofogo=1
+		src.newitem=i_mry_pegandofogo
+		src.act.equip
+		src.update
+		sfx 015f 			// coluna de fogo
+		src.newitem=i_coluna_fogo
+		src.act.p=<src.p>
+		src.act.timerd=2.5
+		src.sfx 0157 			// grito de dor
+		src.anim 015
+	    return 1
+	    else
+		sfx 015f 			// coluna de fogo
+		src.newitem=i_coluna_fogo
+		src.act.p=<src.p>
+		src.act.timerd=2.5
+		src.sfx 0157 			// grito de dor
+		src.anim 015
+		src.say morri!!! <src.hitpoints>
+		//src.tag.pontosdemorte=<src.tag.pontosdemorte> + (-1)
+		//src.tag.desmaios=5
+		//src.suicide
+	    return 1
+	    endif
+	return 1
+	else
+	   src.sysmessage ERRO!
+	return 1
+	endif
+
+////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////   efeitos de armadilhas   /////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+/////////  more2= 1 - explosão  ////////////////////////////////////////////////////////////
+
+// T_EXPLOSION = Damage all items and characters <MOREZ> tiles in all directions, by <MOREX> damage of <MOREY> type.  Then remove the explosion item.  See the "Little Known Facts, Part 1" article for more information on how this is useful. 
+
+[ITEMDEF i_explosao]
+id=036b0
+TYPE=t_script
+DUPELIST=036b1,036b2,036b3,036b4,036b5,036b6,036b7,036b8,036b9,036ba,036bb,036bc
+
+
+on=@timer
+link.flags=(<link.flags> &~ 04)
+remove
+return 1
+
+
+/////////  more2= 2 - gás venenoso  ////////////////////////////////////////////////////////////
+
+[ITEMDEF i_gas_chao]
+id=011a7
+TYPE=t_script
+//DUPELIST=011a7,011a8,011a9,011aa,011ab
+
+
+on=@timer
+if (<dispid>==011ab)
+  link.poison 700
+  link.sfx 0158
+  remove
+return 1
+else
+  dispid=<dispid>+1
+  update
+  timerd=0.1
+return 1
+endif
+
+/////////  more2= 3 - espeto  ////////////////////////////////////////////////////////////
+
+[ITEMDEF i_spike_chao]
+id=0119c
+NAME=Armadilha de espetos
+TYPE=t_script
+
+on=@click
+ message <name>
+return 1
+
+on=@timer
+if (<dispid>==0119f) || (<dispid>==011a5)
+ dorand 5
+  link.newitem=0122a
+  link.newitem=0122b
+  link.newitem=0122d
+  link.newitem=0122e
+  link.newitem=0122f
+ enddo
+  link.act.attr=02
+  link.act.p=<p>
+  link.act.z=<link.act.z>+(-5)
+  link.act.timer={60 80]
+ dorand 5
+  link.newitem=0122a
+  link.newitem=0122b
+  link.newitem=0122d
+  link.newitem=0122e
+  link.newitem=0122f
+ enddo
+  link.act.attr=02
+  link.act.p=<p>
+  link.act.z=<link.act.z>+(-5)
+  link.act.move -1 0 0
+  link.act.timer={60 80]
+  if (<link.dex> >= 80)
+	link.flags=(<link.flags> &~ 04)
+	link.say *escapou por pouco da morte*
+	//link.damage=<link.hitpoints>+(-5)
+  return 1
+  else
+	link.say MORRI!!!
+	//link.tag.pontosdemorte=<link.tag.pontosdemorte> + (-1)
+	//link.tag.desmaios=5
+	//link.suicide
+	link.flags=(<link.flags> &~ 04)
+  return 1
+  endif
+return 1
+else
+dispid=<dispid>+1
+update
+timerd=0.1
+return 1
+endif
+
+/////////////////////////////////
+
+[ITEMDEF i_spike_container]
+id=037f7
+NAME=Armadilha de espetos
+TYPE=t_script
+
+on=@click
+ message <name>
+return 1
+
+on=@timer
+if (<dispid>==037fb)
+  link.newitem=0122f 
+  link.act.attr=02 
+  link.act.p=<link.p> 
+  link.act.move 1 1 0 
+  link.act.timer={60 80]
+  sfx 1311
+  link.anim 014
+  link.sfx 0157
+  dispid=<dispid>+1
+  update
+  timerd=0.1
+return 1
+elif (<dispid>==03802)
+  link.newitem=0122b
+  link.act.attr=02
+  link.act.p=<link.p>
+  link.act.move -1 1 0
+  link.act.timer={60 80]
+  sfx 1311
+  link.anim 014
+  link.sfx 0157	
+  dispid=<dispid>+1
+  update
+  timerd=0.1
+return 1
+elif (<dispid>==03809)
+  link.newitem=0122e
+  link.act.attr=02
+  link.act.p=<link.p>
+  link.act.move 0 1 0
+  link.act.timer={60 80]
+  sfx 1311
+  link.anim 014
+  link.sfx 0157
+  dispid=<dispid>+1
+  update
+  timerd=0.1
+return 1
+elif (<dispid>==0380f)
+  link.newitem=0122f
+  link.act.attr=02
+  link.act.p=<link.p>
+  link.act.move -1 0 0
+  link.act.timer={60 80]
+  sfx 1311
+  if (<link.dex> >= 80)
+	link.flags=(<link.flags> &~ 04)
+	link.message *escapou por pouco da morte*
+	//link.damage=<link.hitpoints>+(-5)
+	attr=04012 // enquanto não tiver alavanca deixar assim
+  return 1
+  else
+	link.say MORRI!!!
+	//link.tag.pontosdemorte=<link.tag.pontosdemorte> + (-1)
+	//link.tag.desmaios=5
+	//link.suicide
+	link.flags=(<link.flags> &~ 04)
+	attr=04012
+  return 1
+  endif
+return 1
+else
+dispid=<dispid>+1
+update
+timerd=0.1
+return 1
+endif
+
+
+/////////  more2= 4 - serra  ////////////////////////////////////////////////////////////
+
+[ITEMDEF i_saw_chao]
+id=011ae
+NAME=Armadilha de serra
+TYPE=t_script
+//DUPELIST=011b2,011b3,011b4,011b5
+
+on=@click
+ message <name>
+return 1
+
+on=@dclick
+ dorand 5
+  src.newitem=0122a
+  src.newitem=0122b
+  src.newitem=0122d
+  src.newitem=0122e
+  src.newitem=0122f
+ enddo
+  src.act.attr=02
+  src.act.p=<p>
+  src.act.z=<src.act.z>+(-5)
+  src.act.move -1 0 0
+  src.act.timer={60 80]
+  src.say Me cortei!
+  //src.damage=30
+return 1
+
+on=@timer
+if (<dispid>==011b0) || (<dispid>==011b5)
+ dorand 5
+  link.newitem=0122a
+  link.newitem=0122b
+  link.newitem=0122d
+  link.newitem=0122e
+  link.newitem=0122f
+ enddo
+  link.act.attr=02
+  link.act.p=<p>
+  link.act.z=<link.act.z>+1(-5)
+  link.act.timer={60 80]
+ dorand 5
+  link.newitem=0122a
+  link.newitem=0122b
+  link.newitem=0122d
+  link.newitem=0122e
+  link.newitem=0122f
+ enddo
+  link.act.attr=02
+  link.act.p=<p>
+  link.act.z=<link.act.z>+(-5)
+  link.act.move -1 0 0
+  link.act.timer={60 80]
+  if (<link.dex> >= 80)
+	link.flags=(<link.flags> &~ 04)
+	link.say *escapou por pouco da morte*
+	//link.damage=<link.hitpoints>+(-5)
+  return 1
+  else
+	link.say MORRI!!!
+	//link.tag.pontosdemorte=<link.tag.pontosdemorte> + (-1)
+	//link.tag.desmaios=5
+	//link.suicide
+	link.flags=(<link.flags> &~ 04)
+  return 1
+  endif
+return 1
+else
+dispid=<dispid>+1
+update
+timerd=0.1
+return 1
+endif
+
+/////////  more2= 5 - Cela de fogo  ////////////////////////////////////////////////////////////
+
+
+[ITEMDEF i_fogo_armadilha_lo]
+name=Cela de fogo
+id=0398c
+TYPE=t_fire
+CATEGORY=Myt (Jean Gabin)
+SUBSECTION=Armadilhas
+DESCRIPTION=Cela de fogo LO
+DUPELIST=0398d,0398e,0398f,03990,03991,03992,03993,03994,03995,03e27
+
+ON=@Create
+MOREZ=1
+
+on=@step
+ src.newitem=i_pegando_fogo
+ src.act.link=<src.uid>
+ src.act.p=<src.p>
+ src.act.z=<src.z>+10
+ src.tag.pegandofogo=1
+ src.newitem=i_mry_pegandofogo
+ src.act.equip
+ src.update
+ src.damage=10
+return 1
+
+
+[ITEMDEF i_fogo_armadilha_ns]
+name=Cela de fogo
+id=03996
+TYPE=t_fire
+CATEGORY=Myt (Jean Gabin)
+SUBSECTION=Armadilhas
+DESCRIPTION=Cela de fogo NS
+DUPELIST=03997,03998,03999,0399a,0399b,0399c,0399d,0399e,0399f,03e31
+
+ON=@Create
+MOREZ=1
+
+on=@step
+ src.newitem=i_pegando_fogo
+ src.act.link=<src.uid>
+ src.act.p=<src.p>
+ src.act.z=<src.z>+10
+ src.tag.pegandofogo=1
+ src.newitem=i_mry_pegandofogo
+ src.act.equip
+ src.update
+ src.damage=10
+return 1
+
+/////////  more2= 6 - Coluna de fogo  ////////////////////////////////////////////////////////////
+
+[ITEMDEF i_coluna_fogo]
+id=03709
+TYPE=t_script
+DUPELIST=0370a,0370b,0370c,0370d,0370e,0370f,03710,03711,03712,03713,03714,03715,03716,03717,03718,03719,0371a,0371b,0371c,0371d,0371e,0371f,03720,03721,03722,03723,03724,03725,03726,03727,
+
+on=@timer
+  remove
+return 1
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////    memory pega fogo   ///////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
+[ITEMDEF i_mry_pegandofogo]
+id=i_memory
+NAME=pegando fogo
+TYPE=T_eq_script
+WEIGHT=0
+
+ON=@Create
+	ATTR=attr_newbie
+	attr=(<attr> | 080 )
+	timer=1
+
+ON=@TIMER
+if (<cont.tag.pegandofogo>==1)
+    cont.sfx 0157
+    dorand 3
+      cont.emote PEGANDO FOGO!!!
+    enddo
+	if (<cont.hitpoints> > 2)		
+ 	  //cont.hitpoints=<cont.hitpoints>+(-1)
+	  cont.damage=1
+	  timer=1
+	return 1
+	else
+	  cont.say Morri!!!
+	  //cont.tag.pontosdemorte=<link.tag.pontosdemorte> + (-1)
+	  //cont.tag.desmaios=5
+	  //cont.suicide
+	  cont.tag.pegandofogo=   //apaga a tag pegando fogo
+	  remove			// remove a memory pegando fogo
+	return 1
+	endif
+else
+ remove
+return 1
+endif
+
+/////////////////////////////////////////////////////////////////////
+
+
+[ITEMDEF i_pegando_fogo]
+NAME=Fogo
+type=t_fire//script
+ID=019ab
+
+CATEGORY=Myt Efeitos
+SUBSECTION=Fogo
+DESCRIPTION=pegando fogo
+
+ON=@create
+timerd=0.1
+attr=08010
+
+ON=@TIMER
+if (<link.tag.pegandofogo>==1)
+	p=<link.p>
+	z=<link.z>+10
+	update
+	timerd=0.1
+return 1
+elif (<link.hitpoints><1)
+	remove
+	return 1
+return 1
+else
+	remove
+return 1
+endif
+return 1
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////    functions diversas   /////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+
+[function coloca_dir]
+if (<src.dir> == 0)
+  src.act.move 0 -1 0
+return 1
+elif (<src.dir> == 1)
+  src.act.move 1 -1 0
+return 1
+elif (<src.dir> == 2)
+  src.act.move 1 0 0
+return 1
+elif (<src.dir> == 3)
+  src.act.move 1 1 0
+return 1
+elif (<src.dir> == 4)
+  src.act.move 0 1 0
+return 1
+elif (<src.dir> == 5)
+  src.act.move -1 1 0
+return 1
+elif (<src.dir> == 6)
+  src.act.move -1 0 0
+return 1
+elif (<src.dir> == 7)
+  src.act.move -1 -1 0
+return 1
+endif
+
+[EOF]
