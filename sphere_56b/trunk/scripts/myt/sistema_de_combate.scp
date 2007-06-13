@@ -10,7 +10,6 @@
 //*****************************************************************************
 //*****************************************************************************
 //TODO:
-//--remover src.damage pq ele vai dar mensagens de acerto e acionar @damage nos itens novamente
 
 //@HIT
 //
@@ -181,6 +180,12 @@ if ( <src.flags>&(statf_invul|statf_dead|statf_invisible|statf_insubstantial|sta
 endif
 
 //*************************************
+// @HITMISS - somente evita mensagem de miss
+//*************************************
+ON=@HITMISS
+return 1
+
+//*************************************
 // @HIT
 //*************************************
 ON=@HIT
@@ -334,7 +339,7 @@ endif
 //Se a arma na HAND1 estiver??
 if (<findlayer.layer_hand1.more2>==15)
  src.effect 2 i_fire_column 0 32 0
- src.damage {3 6} dam_fire <uid>
+ src.do_damage {3 6},dam_fire,<uid>
  findlayer.layer_hand1.morex=<findlayer.layer_hand1.morex>-1
  if (<findlayer.layer_hand1.morex>==0)
   findlayer.layer_hand1.more2=0
@@ -869,7 +874,7 @@ if (<src.mana> >= 6)
 endif
 
 ///// Transfere e aplica dano
-src.damage <argn1> dam_physical <uid>
+src.do_damage <argn1>,dam_physical,<uid>
 
 ///// Marca assassino (sistema de morte)
 //if (<argn1> >= <src.hits>)
@@ -1152,7 +1157,7 @@ else
  if (<LOCAL.dano> > 15)
   LOCAL.dano=15
  endif
- cont.damage <LOCAL.dano> dam_poison
+ cont.do_damage <LOCAL.dano>,dam_poison,<cont>
  if (<more2> <= 20) && ({0 15}==1)
   cont.emotegreen regurgita
   cont.newitem 0122a
@@ -1202,6 +1207,26 @@ combate
 
 [FUNCTION combate]
 src.dialog d_estrategia
+return 1
+
+//*****************************************************************************
+// do_damage( dano, tipo, uid_attacker )
+//*****************************************************************************
+//src leva o dano
+[FUNCTION do_damage]
+OBJ=<argv[2]>
+//say d<argv[0]> t <argv[1]> de <argv[2]>
+
+//do damage
+SRC.hits=<SRC.hits>-<argv[0]>
+
+//aos damage (show counter above player head)
+if (0<src.npc> == 0)
+	SRC.SENDPACKET  0bf W11 W022 01 D<SRC> B<argv[0]> 
+endif
+if (0<OBJ.npc> == 0)
+	OBJ.SENDPACKET  0bf W11 W022 01 D<SRC> B<argv[0]> 
+endif
 return 1
 
 [FUNCTION veneno]

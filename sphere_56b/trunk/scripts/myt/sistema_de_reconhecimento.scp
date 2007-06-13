@@ -26,12 +26,13 @@ r
 [EVENTS e_recon]
  
 ON=@CLICK
- //se estiver se olhando, se for gm, ou olhando gm
- if (<uid> == <src.uid>) || (<src.gm> == 1) || ( (0<isgm> == 1) && (0<canseelos> == 1) )
+
+//se estiver se olhando, se for gm, ou olhando gm
+if (<uid> == <src.uid>) || (<src.gm> == 1) || ( (0<isgm> == 1) && (0<canseelos> == 1) )
 //	src.sysmessage [REC] NOME REAL
-  message <tag.name>
-  return 1
- endif
+	message <tag.name>
+	return 1
+endif
 
 if ( !<src.rec_canSee <uid>> )
 	src.sysmessage Voce nao consegue ver o rosto...
@@ -55,32 +56,57 @@ endif
 //*****************************************************************************
 
 //*****************************************************************************
-// r
+// r - reconhecimento
 //*****************************************************************************
 [FUNCTION r]
-src.newitem=i_recon
-src.act.equip
-src.act.use
+targetf rr
+
+//*****************************************************************************
+// rr - continuacao do reconhecimento
+//*****************************************************************************
+[FUNCTION rr]
+
+//É player?
+if (0<argo>==0) || (<argo>>040000000) || (0<argo.npc>!=0)
+ src.sysmessage Jogador invalido.
+ return 1
+endif
+	
+// É você mesmo?
+if (<argo.uid>==<src.uid>)
+ sysmessage Nao pode mudar seu nome real.
+ return 1
+endif
+
+if ( !<src.rec_canSee <argo.uid>> )
+	src.sysmessage Nao consegue ver...
+	return 1
+endif
+
+src.ctag.recon=<argo.uid>
+src.dialog=d_recon
+src.say * observando *
+src.sysmessage Reconhecendo...
 return 1
 
 //*****************************************************************************
 // rec_checkName( name )
 //*****************************************************************************
 [FUNCTION rec_checkName]
-if (<STRLEN(<ARGS>)> >= 17)
+if (STRLEN(<ARGS>) >= 17)
  src.sysmessage Nome muito longo.
  return 1
 endif
-if strmatch(*[0-1]*, <args>)
+if strmatch(*[0-9]*, <args>)
  src.sysmessage Nao pode conter numeros.
  return 1
 endif
-if strmatch(* [a-Z], <args>)
+if strmatch(* *, <args>)
  src.sysmessage Nao pode conter letras separadas.
  return 1
 endif
-if strmatch([a-Z] *, <args>)
- src.sysmessage Nao pode conter letras separadas.
+if strmatch(*[\'!@#$%&*_+{}~^:?.<>;|/\\`´]*, <args>) //"()
+ src.sysmessage Nao pode conter simbolos. 
  return 1
 endif
 return 0
@@ -109,56 +135,6 @@ return 1
  
 //*****************************************************************************
 //*****************************************************************************
-// ITEMDEFs
-//*****************************************************************************
-//*****************************************************************************
-
-//*****************************************************************************
-// i_recon
-//*****************************************************************************
-[ITEMDEF i_recon]
-ID=i_deed
-NAME=Reconhecimento
-TYPE=t_eq_script
-LAYER=layer_special
-
-ON=@CREATE
-ATTR=attr_decay
-
-ON=@DCLICK
-Target Reconhecer...
-RETURN 1
-
-ON=@TARGON_CHAR
-// É player?
-if (<targ.npc>!=0)
- sysmessage Jogador invalido.
- remove
- return 1
-endif
-
-// É você mesmo?
-if (<targ.uid>==<src.uid>)
- sysmessage Nao pode mudar seu nome real.
- remove
- return 1
-endif
-
-if ( !<src.rec_canSee <targ.uid>> )
-	src.sysmessage Nao consegue ver...
-	remove
-	return 1
-endif
-
-src.ctag.recon=<targ.uid>
-src.dialog=d_recon
-src.say * observando *
-src.sysmessage Reconhecendo...
-remove
-return 1
-
-//*****************************************************************************
-//*****************************************************************************
 // GUMPs
 //*****************************************************************************
 //*****************************************************************************
@@ -181,13 +157,14 @@ Como voce gostaria de reconhecer esta pessoa?
 
 [DIALOG d_recon BUTTON]
 ON=1
-if ( src.rec_checkName <ARGTXT[0]> )
-	src.dialog d_recon
+if ( <rec_checkName <ARGTXT[0]>> )
+	dialog d_recon
 	return 1
 endif
 
-TRYP 0 src.tag.uid_<src.ctag.recon>_name = <ARGTXT[0]>
-src.sysmessage Agora voce o(a) conhece como <ARGTXT[0]>
+OBJ=<src.ctag.recon>
+TRYP 0 src.tag.uid_<OBJ>_name = <ARGTXT[0]>
+src.sysmessage Agora voce <OBJ.SEX o/a> conhece como <ARGTXT[0]>
 return 1
 
 ON=2
