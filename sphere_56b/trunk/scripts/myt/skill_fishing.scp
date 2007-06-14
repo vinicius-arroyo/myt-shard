@@ -1,137 +1,3 @@
-
-//fishing myt
-
-[DEFNAME min_mr2]
-// fishing
-min_mr2_fish1 1.0
-min_mr2_fish2 1.0
-min_mr2_fish3 1.0
-min_mr2_fish4 1.0
-min_mr2_fish5 80.0
-min_mr2_fish6 80.0
-min_mr2_fish7 80.0
-min_mr2_fish8 80.0
-min_mr2_fishing_net 30.0
-min_mr_bottle_empty 40.0
-min_mr_boots_calf 30.0
-min_mr_sandals 45.0
-min_mr_shoes_plain 40.0
-min_mr_boots_thigh 50.0
-min_mr_sos_bottle 98.0
-
-// (*) ADD MINIMUM LEVELS FOR OTHER FISH HERE
-
-default_fishing_mr mr_nothing // THIS IS THE DEFAULT RESOURCE TO OBTAIN
-
-[FUNCTION resource_targon_ground2]
-if ( <src.findid(i_resprobe2).uid> ) // we are still to be relocated
-return 1
-endif
-
-if ( <SRC.ACTION> != -1 )
-SRC.ACTION = -1 // cancel current activity
-endif
-
-SRC.NEWITEM i_resprobe2 // Load the probe item that will send us back
-SRC.ACT.P = <SRC.TARGP> // place it at the fishing point
-SRC.ACT.MOREP = <SRC.P>
-
-if ( <SRC.ACT.DISTANCE> > 8 ) // check for distance to fishing point
-src.sysmessage Fora de alcance.
-SRC.ACT.REMOVE
-return 1
-endif
-
-//this is disabled because if your on a boat you cant fish unless its directly NEXT to the boat
-//if ( !<SRC.ACT.CANSEELOS> ) // check for line of sight to fishing point
-//src.sysmessage Fora de alcance.
-//SRC.ACT.REMOVE
-//return 1
-//endif
-
-SRC.ACT.ATTR = <SRC.ACT.ATTR>|attr_invis
-SRC.ACT.EQUIP
-
-SRC.EVENTS +e_probe2
-SRC.P = <SRC.TARGP> // move the character WITHOUT updating. Notice that
-// it'll be moved back in at most 1sec, not noticeable
-
-[EVENTS e_probe2]
-// here, SRC.ACT is the item being stepped on - the spawn
-ON = @itemStep
-if ( 0 )
-elseif ( <SRC.ACT.TYPE> == t_rock )
-elseif ( <SRC.ACT.TYPE> == t_tree )
-elseif ( <SRC.ACT.TYPE> == t_water )
-else
-return 0
-endif
-
-SRC.EVENTS -e_probe2
-SRC.TAG.PROBE = <SRC.ACT.UID>
-SRC.P = <SRC.FINDID(i_resprobe2).MOREP> // restore original position
-
-SRC.FINDID(i_resprobe2).remove
-
-//if ( <SRC.isgm> ) // just a message for GMs, remove these //3 //lines on final version
-//src.sysmessage <SRC.ACTION>:: <SRC.ACT.TYPE>, //<SRC.ACT.AMOUNT> <SRC.ACT.MORE1>
-//endif
-
-// ADD tests for skill here!
-if ( 0)
-elseif ( <SRC.ACT.TYPE> == t_water )
-if ( 0 )
-elseif ( (<SRC.ACT.MORE1> == mr_fish1) &amp;&amp; (<src.fishing> < min_mr2_fish1) )
-elseif ( (<SRC.ACT.MORE1> == mr_fish2) &amp;&amp; (<src.fishing> < min_mr2_fish2) )
-elseif ( (<SRC.ACT.MORE1> == mr_fish3) &amp;&amp; (<src.fishing> < min_mr2_fish3) )
-elseif ( (<SRC.ACT.MORE1> == mr_fish4) &amp;&amp; (<src.fishing> < min_mr2_fish4) )
-elseif ( (<SRC.ACT.MORE1> == mr_fish5) &amp;&amp; (<src.fishing> < min_mr2_fish5) )
-elseif ( (<SRC.ACT.MORE1> == mr_fish6) &amp;&amp; (<src.fishing> < min_mr2_fish6) )
-elseif ( (<SRC.ACT.MORE1> == mr_fish7) &amp;&amp; (<src.fishing> < min_mr2_fish7) )
-elseif ( (<SRC.ACT.MORE1> == mr_fish8) &amp;&amp; (<src.fishing> < min_mr2_fish8) )
-elseif ( (<SRC.ACT.MORE1> == mr_fishing_net) &amp;&amp; (<src.fishing> < min_mr2_fishing_net) )
-elseif ( (<SRC.ACT.MORE1> == mr_bottle_empty) &amp;&amp; (<src.fishing> < min_mr_bottle_empty) )
-elseif ( (<SRC.ACT.MORE1> == mr_boots_calf) &amp;&amp; (<src.fishing> < min_mr_boots_calf) )
-elseif ( (<SRC.ACT.MORE1> == mr_sandals) &amp;&amp; (<src.fishing> < min_mr_sandals) )
-elseif ( (<SRC.ACT.MORE1> == mr_shoes_plain) &amp;&amp; (<src.fishing> < min_mr_shoes_plain) )
-elseif ( (<SRC.ACT.MORE1> == mr_boots_thigh) &amp;&amp; (<src.fishing> < min_mr_boots_thigh) )
-elseif ( (<SRC.ACT.MORE1> == mr_sos_bottle) &amp;&amp; (<src.fishing> < min_mr_sos_bottle) &amp;&amp; (<eval rand(2)>==1) )
-elseif ( (<SRC.ACT.MORE1> == mr_nothing) )
-else
-return 0 // it's ok, we can fish
-endif
-
-SRC.ACT.MORE1 = default_fishing_mr // REPLACE the current fishing resource
-return 0
-elseif ( <SRC.ACT.TYPE> == t_tree )
-return 0
-elseif ( <SRC.ACT.TYPE> == t_rock )
-return 0
-endif
-return 0
-
-[ITEMDEF i_resprobe2]
-ID = i_memory
-TYPE = t_eq_script
-LAYER = layer_special
-
-ON = @Create
-TIMER = 1
-MORE2 = 0
-ATTR = attr_move_never
-
-ON = @Timer
-// allow this to run twice, if we don't stop the action
-if ( (<CONT.ACTION> != -1) &amp;&amp; (<MORE2> == 0) )
-MORE2 = 1
-TIMER = 1
-return 1
-endif
-CONT.P = <MOREP>
-CONT.UPDATE
-remove
-return 1
-
 [FUNCTION sextant]
 VAR.LAT = <eval (((<P.Y> - 1624) * 360 * 60) / 4096)>
 VAR.LNG = <eval (((<P.X> - 1323) * 360 * 60) / 5120)>
@@ -266,207 +132,47 @@ OKAY
 on=0
 src.tag.sextantcoords=
 
-[ITEMDEF i_vara_pesca]
+[ITEMDEF 0dbf]
 //Fishing Pole
-ID=0dbf
-DEFNAME=i_vara_pesca
+DEFNAME=i_fishing_pole
 TYPE=T_FISH_POLE
 WEIGHT=2
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Fisherman
-DESCRIPTION=vara de pesca
-RESOURCES=5 i_cloth
-SKILLMAKE=CARPENTRY 68.4, TAILORING 40.0, t_carpentry
+DESCRIPTION=Vara de pesca
+RESOURCES=1 i_log,1 i_thread
+SKILLMAKE=CARPENTRY 50.0
 DUPELIST=0dc0
-RESOURCES2=1 i_log,1 i_thread
 
-ON = @DClick
-Target Onde quer jogar o anzol ?
-return <resource_dclick>
-return 1
+//ON=@DCLICK
+//	EQUIP
+//	TARGET Onde quer jogar o anzol?
+//	return 1
 
-ON = @Targon_item
-if (<src.targ.baseid>==i_sos_tile)
-src.anim 12
-src.sound 027
-VAR.PERCENT=<EVAL RAND(100)>
-if (<EVAL <VAR.PERCENT>>>80)
-src.sysmessage Voce puxa da agua um tesouro!
-src.newitem=loot_sos_treasure
-src.act.p=<src.targp>
-src.targ.link.remove
-src.targ.remove
-elseif (<EVAL <VAR.PERCENT>><10)
-src.sysmessage Voce perturbou um monstro do mar!
-src.tag.oldp=<src.p>
-src.p=<src.targp>
-src.newnpc=c_sea_serpent
-src.p=<src.tag.oldp>
-src.tag.oldp=
-else
-src.message Voce pesca por um tempo, mas falha em pegar qualquer coisa.
-endif
-VAR.PERCENT=
-else
-SRC.SYSMESSAGE Nao tem peixe aqui.
-endif
-return 1
-ON = @Targon_char
-SRC.SYSMESSAGE Voce nao pode pegar isso.
-return 1
-ON = @Targon_ground
-return <resource_targon_ground2>
-endif
-
-[ITEMDEF 0dc0]
-//fishing pole
-DUPEITEM=0dbf
-
-[TEMPLATE loot_sos_treasure]
-CATEGORY=MyT - Item Templates
-SUBSECTION=SOS LootTemplates
-DESCRIPTION=
-CONTAINER=0e41
-ITEM=i_gold,{400 600}
-ITEM=random_weapon_ruin,R1
-ITEM=random_weapon_might,R5
-ITEM=random_weapon_force,R10
-ITEM=i_arrow,{10 25}
-ITEM=random_scroll
-ITEM=random_scroll
-ITEM=random_scroll
-ITEM={ RANDOM_SHIELD_HARDENING 1 RANDOM_PLATEMAIL_HARDENING 1 RANDOM_CHAINMAIL_HARDENING 1 RANDOM_RINGMAIL_HARDENING 1 RANDOM_SHIELD_DEFENSE 1 RANDOM_PLATEMAIL_DEFENSE 1 RANDOM_CHAINMAIL_DEFENSE 1 RANDOM_RINGMAIL_DEFENSE 1 }
-ITEM=random_jewel,{1 3}
-ITEM=random_jewel,{1 3}
-ITEM=random_jewel,{1 3}
-ITEM=i_reag_black_pearl,(10 20
-ITEM=i_reag_blood_moss,(10 20)
-ITEM=i_reag_garlic,(10 20)
-ITEM=i_reag_ginseng,(10 20)
-ITEM=i_reag_mandrake_root,(10 20)
-ITEM=i_reag_nightshade,(10 20)
-ITEM=i_reag_sulfur_ash,(10 20)
-ITEM=i_reag_spider_silk,(10 20)
-
-[ITEMDEF i_prize_fish_mem]
-NAME=Small Fish Memory
-ID=i_memory
-TYPE=t_eq_script
-
-on=@create
-ATTR=attr_invis|attr_newbie
-TIMER=240
-
-on=@timer
-UNEQUIP
-REMOVE
-RETURN 1
-
-on=@equip
-if (<eval <tag.type>>==1)
-src.str=<src.str>+5
-elseif (<eval <tag.type>>==2)
-src.dex=<src.dex>+5
-else
-src.int=<src.int>+5
-endif
-return 1
-
-on=@unequip
-if (<eval <tag.type>>==1)
-src.str=<src.str>+-5
-elseif (<eval <tag.type>>==2)
-src.dex=<src.dex>+-5
-else
-src.int=<src.int>+-5
-endif
-RETURN 1
-
-[ITEMDEF i_prize_fish]
-NAME=peixe%s% premiado%s%
-ID=0dd6
-TYPE=t_script
-weight=1
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Fisherman
-DESCRIPTION=Peixe premiado(Temp +5 int)
-VALUE=1000
-
-on=@create
-COLOR=033
-
-on=@dclick
-src.newitem=i_prize_fish_mem
-src.act.tag.type=3
-src.act.equip
-REMOVE
-return 1
-
-[ITEMDEF i_wonderous_fish]
-NAME=fabuloso%s% peixe%s%
-ID=0dd6
-TYPE=t_script
-weight=1
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Fisherman
-DESCRIPTION=Fabuloso peixe (Temp +5 dex)
-VALUE=1000
-
-on=@create
-COLOR=024a
-
-on=@dclick
-src.newitem=i_prize_fish_mem
-src.act.tag.type=2
-src.act.equip
-REMOVE
-return 1
-
-[ITEMDEF i_truly_rare_fish]
-NAME=Verdadeiro%s% peixe%s% raro%s%
-ID=0dd6
-TYPE=t_script
-weight=1
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Fisherman
-DESCRIPTION=verdadeiro peixe raro (Temp +5 str)
-VALUE=1000
-
-on=@create
-COLOR=017b
-
-on=@dclick
-src.newitem=i_prize_fish_mem
-src.act.tag.type=1
-src.act.equip
-REMOVE
-return 1
-
-[ITEMDEF i_highly_peculiar_fish]
-NAME=Peixe%s% altamente peculiar%es%
-ID=0dd6
-TYPE=t_script
-weight=1
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Fisherman
-DESCRIPTION=Altamente peculiar (refreshe 10 stamina)
-VALUE=1000
-
-on=@create
-COLOR=0b0
-
-on=@dclick
-if (<src.stam>==<src.dex>)
-src.message You feel fully refreshed already.
-else
-src.message You feel refreshed.
-src.stam=<src.stam>+10
-if (<src.stam> > <src.dex>)
-src.stam=<src.dex>
-endif
-remove
-endif
-return 1
+ON=@TARGON_ITEM
+	if (<src.targ.baseid>==i_sos_tile)
+		src.anim 12
+		src.sound 027
+		LOCAL.PERCENT=<EVAL RAND(100)>
+		if (<LOCAL.PERCENT><10)
+			src.sysmessage Voce perturbou um monstro do mar!
+			LOCAL.oldp=<src.p>
+			src.p=<src.targp>
+			src.newnpc=c_sea_serpent
+			src.p=<LOCAL.oldp>
+		elseif (<LOCAL.PERCENT>>80)
+			src.sysmessage Voce puxa da agua um tesouro!
+			src.newitem=loot_sos_treasure
+			src.act.p=<src.p>
+			src.targ.link.remove
+			src.targ.remove
+		else
+			src.message Voce pesca por um tempo, mas falha em pegar qualquer coisa.
+		endif
+	else
+		SRC.SYSMESSAGE Nao tem peixe aqui.
+	endif
+	return 1
 
 [FUNCTION isonwater]
 VAR.ISONWATER 0
@@ -538,10 +244,10 @@ return 1
 on=@targon_ground
 src.home=<src.p>
 src.p=<src.targp>
-if (!<SRC.isonwater>)
-src.p=<src.home>
-src.message Use na agua.
-else
+//if (!<SRC.isonwater>)
+//src.p=<src.home>
+//src.message Use na agua.
+//else
 remove
 src.p=<src.home>
 src.newitem=0dca
@@ -568,9 +274,7 @@ src.newnpc=01024
 src.newnpc=010
 enddo
 src.p=<src.home>
-endif
+//endif
 return 1
-
-
 
 [EOF]
