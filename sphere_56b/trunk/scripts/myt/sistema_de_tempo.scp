@@ -1,8 +1,10 @@
 //*****************************************************************************
 //*****************************************************************************
 //
-// SISTEMA DE SKILLS por UsMarine (vinicius.arroyo at gmail.com)
-//			 Galthar
+// SISTEMA DE SKILLS por
+//
+//			Galthar
+//			UsMarine (vinicius.arroyo at gmail.com)
 //
 //*****************************************************************************
 //*****************************************************************************
@@ -10,7 +12,6 @@
 //TODO:
 //-ajustar valores (roupas, temperaturas)
 //-reativar danos devido ao clima
-//-remover monitoracoes
 
 //TAGS usadas:
 //REGION.TAG.modtemp	//modificador de temperatura por regiao
@@ -24,6 +25,7 @@
 //VAR.tYear
 //VAR.tSeason
 //VAR.temperature
+
 //*****************************************************************************
 //*****************************************************************************
 // DEFNAMEs
@@ -31,6 +33,7 @@
 //*****************************************************************************
 
 [DEFNAME tempo]
+minutos_por_tick=6
 segundos_por_minuto=10
 minutos_por_hora=60
 horas_por_dia=24
@@ -148,14 +151,14 @@ endif
 //*****************************************************************************
 
 [ITEMDEF i_pedra_tempo]
-id=01810
-name=Pedra dos Tempos
+ID=01810
+NAME=Pedra dos Tempos
 CATEGORY=MyT - Provisions - GM Items
 SUBSECTION=Tempo
 DESCRIPTION=Pedra dos Tempos
-type=t_script
+TYPE=t_script
 
-on=@create
+ON=@create
 attr=attr_static|attr_move_never
 VAR.tMin=0
 VAR.tHour=0
@@ -167,50 +170,6 @@ VAR.temperature=0
 
 on=@dclick
 dialog d_tempo
-return 1
-
-on=@timer
-timer=segundos_por_minuto
-VAR.tMin=<VAR.tMin>+1
-if (<VAR.tMin> >= minutos_por_hora) //minuto
- VAR.tMin=0
- VAR.tHour=<VAR.tHour>+1
-
-// serv.allclients findid.i_mry_clima.timer=8
-// serv.allclients sector.light=0
-// if (0<var.fixclima>==1)
-//  say *arrumando clima*
-//  serv.allclients events +e_clima
-//  serv.allclients sysmessageorange ,*arrumando clima*
-// endif
-
- if (<VAR.tHour> >= horas_por_dia)  //hora
-  VAR.tHour=0
-  VAR.tDay=<VAR.tDay>+1
-  
-  if (<VAR.tMonth>==12) || (<VAR.tMonth>==1) || (<VAR.tMonth>==2)
-   var.tSeason=inverno
-  elif (<VAR.tMonth>==3) || (<VAR.tMonth>==4) || (<VAR.tMonth>==5)
-   var.tSeason=primavera
-  elif (<VAR.tMonth>==6) || (<VAR.tMonth>==7) || (<VAR.tMonth>==8)
-   var.tSeason=verao
-  elif (<VAR.tMonth>==9) || (<VAR.tMonth>==10) || (<VAR.tMonth>==11)
-   var.tSeason=outono
-  endif
- 
-  if (<VAR.tDay> > dias_por_mes)   //dia
-   VAR.tDay=1
-   VAR.tMonth=<VAR.tMonth>+1
-
-   if (<VAR.tMonth> > meses_por_ano)  //meses 
-    VAR.tMonth=1
-    VAR.tYear=<VAR.tYear>+1
-   endif
-  endif
- endif
- VAR.temperature=<eval <DEF.temp_<eval <VAR.tHour>>>>+<eval <DEF.temp_<VAR.tSeason>>>
-endif
-
 return 1
 
 //*****************************************************************************
@@ -325,6 +284,56 @@ return 1
 // FUNCTIONs
 //*****************************************************************************
 //*****************************************************************************
+[FUNCTION f_onserver_timer]
+//	serv.b tick
+
+	VAR.tMin=<eval <VAR.tMin>+minutos_por_tick>
+
+	if (<VAR.tMin> >= minutos_por_hora) //minuto
+	 VAR.tMin=0
+	 VAR.tHour=<VAR.tHour>+1
+
+	// serv.allclients findid.i_mry_clima.timer=8
+	// serv.allclients sector.light=0
+	// if (0<var.fixclima>==1)
+	//  say *arrumando clima*
+	//  serv.allclients events +e_clima
+	//  serv.allclients sysmessageorange ,*arrumando clima*
+	// endif
+
+	 if (<VAR.tHour> >= horas_por_dia)  //hora
+		VAR.tHour=0
+		VAR.tDay=<VAR.tDay>+1
+
+		doswitch <eval <VAR.tMonth> - 1>
+			var.tSeason=inverno
+			var.tSeason=inverno
+			var.tSeason=primavera
+			var.tSeason=primavera
+			var.tSeason=primavera
+			var.tSeason=verao
+			var.tSeason=verao
+			var.tSeason=verao
+			var.tSeason=outono
+			var.tSeason=outono
+			var.tSeason=outono
+			var.tSeason=inverno
+		enddo
+
+		if (<VAR.tDay> > dias_por_mes)   //dia
+		 VAR.tDay=1
+		 VAR.tMonth=<VAR.tMonth>+1
+
+		 if (<VAR.tMonth> > meses_por_ano)  //meses 
+			VAR.tMonth=1
+			VAR.tYear=<VAR.tYear>+1
+		 endif
+		endif
+	 endif
+	 VAR.temperature=<eval <DEF.temp_<eval <VAR.tHour>>>>+<eval <DEF.temp_<VAR.tSeason>>>
+	endif
+
+return 1
 
 //*****************************************************************************
 // time_now
@@ -588,8 +597,6 @@ ELSE
   LOCAL.retry=1
   SRC.SYSMESSAGE Anos nao podem ser negativos
 ENDIF
-
-TIMER segundos_por_minuto
 
 if ( <LOCAL.retry>==1 )
   dialog d_tempo
