@@ -1,3 +1,418 @@
+<<<<<<< .mine
+//*****************************************************************************
+//*****************************************************************************
+//
+// EVENTOS RACIAIS por
+//	Galthar
+//	Metus
+//	UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+//
+//TAGS usadas:
+//src.tag.drowLowLightBonus	//1 with bonus active, 0 otherwise
+//src.tag.resisteaoclima
+//src.tag.str
+//src.tag.dex
+//src.tag.int
+//src.tag.raca
+//src.tag.bank.weight
+//*****************************************************************************
+
+
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+
+[DEFNAME charCreation]
+//regenerates one mana point every n seconds
+ev_elf_mana_timer=3
+//check drow bonuses every n seconds
+ev_drow_check_timer=5
+//regenerates one stam point every n seconds
+ev_dwarf_stam_timer=3
+
+//*****************************************************************************
+//*****************************************************************************
+// EVENTs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// ELFOS
+//*****************************************************************************
+//Elfos possuem visao noturna e mana acelerada
+[EVENTS e_elfo]
+
+on=@login
+src.nightsight 1
+src.findid.i_elfo_mana.remove
+src.newitem=i_elfo_mana
+src.act.link <src.uid>
+src.act.cont <src.uid>
+
+[ITEMDEF i_elfo_mana]
+id=i_deed
+name=Elfo - Mana
+type=t_eq_script
+layer=layer_special
+weight=0
+
+on=@create
+timer=ev_elf_mana_timer
+return 1
+
+on=@timer
+if (<link.mana> < <eval <link.int>-10>)
+  link.mana=<link.mana>+1
+endif
+timer=ev_elf_mana_timer
+return 1
+
+//*****************************************************************************
+// DROWS
+//*****************************************************************************
+//Drows tem visao noturna preferenciada, ganham bonus no escuro e sofrem danos
+//no claro.
+[EVENTS e_drow]
+
+on=@login
+src.nightsight 1
+src.findid.i_drow_check.remove
+src.newitem=i_drow_check
+src.act.link <src.uid>
+src.act.cont <src.uid>
+
+[ITEMDEF i_drow_check]
+id=i_deed
+name=Drow - Check
+type=t_eq_script
+layer=layer_special
+weight=0
+
+on=@create
+timer=ev_drow_check_timer
+
+on=@timer
+
+if ( <sector.light> >= 13 )
+  if (<link.tag.drowLowLightBonus> != 1)
+    link.tag.drowLowLightBonus=1
+    link.nightsight 1
+    link.hiding=<link.hiding>+10.0
+    link.stealth=<link.stealth>+5.0
+    link.magicresistance=<link.magicresistance>+5.0
+    link.dex=<link.dex>+20
+    link.sysmessage Voce se sente mais forte no escuro...
+  endif
+else
+  if (<link.tag.drowLowLightBonus> != 0)
+    link.tag.drowLowLightBonus=0
+    link.nightsight 0
+    link.hiding=<link.hiding>-10.0
+    link.stealth=<link.stealth>-5.0
+    link.magicresistance=<link.magicresistance>-5.0
+    link.dex=<link.dex>-20
+    link.sysmessage A luz esta debilitando seu corpo...
+  endif
+ 
+  if (<link.hits> > 0)
+    link.damage {5 10}
+  endif
+endif
+
+timer=ev_drow_check_timer
+return 1
+
+//*****************************************************************************
+// ORCS
+//*****************************************************************************
+//Orcs possuem mascara fixa (cara de orc) e não podem usar capacetes. 
+//Quando são atingidos e estão com poucos pontos de vida dão dano no inimigo.
+[EVENTS e_orc]
+
+on=@login
+src.findlayer(layer_hair).remove
+src.findlayer(layer_beard).remove
+src.findlayer(layer_helm).hitpoints 999
+src.update
+
+on=@hit
+if (<hits> < 20)
+  say * Em Furia *
+  src.damage {5 10}
+endif
+
+[ITEMDEF i_head_orc]
+id=0141b
+name=Orc
+TYPE=t_armor
+VALUE=0
+WEIGHT=0
+ARMOR=50
+
+ON=@Create
+COLOR=0597
+HITPOINTS=9999
+attr=attr_static|attr_move_never
+
+//*****************************************************************************
+// ANOES
+//*****************************************************************************
+//Anoes resistem ao clima e tem regeneracao de stamina acelerada
+//-Caem ao subir em cavalos
+//-Se queimao ao tocar itens magicos
+[EVENTS e_anao]
+
+on=@login
+src.tag.resisteaoclima=1
+
+src.findid.i_anao_stam.remove
+src.newitem=i_anao_stam
+src.act.link <src.uid>
+src.act.cont <src.uid>
+
+src.findid.i_no_mounting.remove
+src.newitem=i_no_mounting
+src.act.link <src.uid>
+src.act.cont <src.uid>
+
+on=@itemDclick
+
+if (<act.attr>&attr_magic) && (!<src.isgm>)
+ src.say * Se queimou *
+ src.damage {10 15}
+ act.p=<src.p>
+endif
+
+on=@itemEquip
+if (<act.attr>&attr_magic) && (<src.isgm>==0)
+ src.say * Se queimou *
+ src.damage {10 15}
+ act.p=<src.p>
+endif
+
+
+[ITEMDEF i_anao_stam]
+id=i_deed
+name=Anao - Stam
+type=t_eq_script
+layer=layer_special
+weight=0
+
+on=@create
+timer=ev_dwarf_stam_timer
+return 1
+
+on=@timer
+if (<link.stam> < <eval <link.dex>-10>)
+  link.stam=<link.stam>+1
+endif
+timer=ev_dwarf_stam_timer
+return 1
+
+
+[ITEMDEF i_no_mounting]
+id=i_deed
+name=No - Mounting
+type=t_eq_script
+layer=layer_special
+weight=0
+
+on=@create
+timer=2
+return 1
+
+on=@timer
+if (<link.findlayer(layer_horse)>)
+ link.say * Caiu da montaria *
+ link.sleep
+ link.sysmessage Suas pernas sao pequenas demais para montar o animal...
+endif
+timer=2
+return 1
+
+//*****************************************************************************
+// HUMANOS
+//*****************************************************************************
+[EVENTS e_humano]
+
+
+//*****************************************************************************
+// ARQUEIRO
+//*****************************************************************************
+[EVENTS e_arqueiro]
+
+//*****************************************************************************
+// GUERREIRO
+//*****************************************************************************
+[EVENTS e_guerreiro]
+
+//*****************************************************************************
+// MAGO
+//*****************************************************************************
+[EVENTS e_mago]
+
+ON=@ItemDclick
+if (<src.act.type>==t_spellbook)
+ if (<src.findlayer(layer_pack).findid(i_spellbook).link>==<src.uid>)
+  if (<src.magery> <= 599)
+   src.findlayer(layer_pack).findid(i_spellbook).More1 = 000020c78
+   src.findlayer(layer_pack).findid(i_spellbook).More2 = 000000000
+  elif (<src.magery> <= 699)
+   src.findlayer(layer_pack).findid(i_spellbook).More1 = 00156cdf8
+   src.findlayer(layer_pack).findid(i_spellbook).More2 = 000000000
+  elif (<src.magery> <=799)
+   src.findlayer(layer_pack).findid(i_spellbook).More1 = 02557fff8
+   src.findlayer(layer_pack).findid(i_spellbook).More2 = 000000012
+  elif (<src.magery> <=699)
+   src.findlayer(layer_pack).findid(i_spellbook).More1 = 06757fff8
+   src.findlayer(layer_pack).findid(i_spellbook).More2 = 000008b12
+  else
+   src.findlayer(layer_pack).findid(i_spellbook).More1 = 06757fff8
+   src.findlayer(layer_pack).findid(i_spellbook).More2 = 00000af1a
+  endif
+ endif
+endif 
+
+//*****************************************************************************
+// BARDO
+//*****************************************************************************
+[EVENTS e_bardo]
+
+//*****************************************************************************
+// LADRAO
+//*****************************************************************************
+[EVENTS e_ladrao]
+
+//*****************************************************************************
+// ARTESAO
+//*****************************************************************************
+[EVENTS e_artesao]
+
+//*****************************************************************************
+// LENHADOR
+//*****************************************************************************
+[EVENTS e_lenhador]
+
+//*****************************************************************************
+// FERREIRO
+//*****************************************************************************
+[EVENTS e_ferreiro]
+
+//*****************************************************************************
+// EVENTO GERAL PARA TODOS CHARS
+//*****************************************************************************
+[EVENTS e_mytgeral]
+
+//*************************************
+ON=@LOGIN
+//*************************************
+  skill_init
+  src.name=<src.tag.raca>
+  src.PUT_RP
+  src.title " "
+  src.flags=<src.flags>&~statf_freeze
+  src.str=<src.tag.str>
+  src.dex=<src.tag.dex>
+  src.int=<src.tag.int>
+
+//if ( !strmatch(<src.cliver>, 5.0.0))
+//  src.warnAndDisconnect
+//endif
+
+  //entrega mensagens pendentes
+  f_deliverPendingMessages
+
+//*************************************
+ON=@USERQUESTBUTTON
+//*************************************
+  quest_userQuests
+  return 1
+
+//on=@itemClientTooltip
+//SRC.addcliloc 1042971,Race: Goblin
+//return 0
+
+//on=@ClientTooltip 
+//SRC.addcliloc 1042970,Race: Goblin
+//return 0
+
+//*************************************
+ON=@ITEMDCLICK
+//*************************************
+ if (<src.act.type> == t_spellbook) && (<src.act.link> != <src.uid>)
+   src.sysmessage Este livro nao lhe pertence...
+   return 1
+ endif
+
+ if (<src.act.type>==t_meat_raw) && !(strmatch(<src.tag.raca>,Orc))
+   src.sysmessagered Isso deve ser cozinhado antes de consumido.
+   return 1
+ endif
+
+//////////////////  alteração Jean Gabin   /////////////////////////////////////////////////////////
+
+ if (<src.act.type> == t_container) || (<src.act.type> == t_container_locked) || (<src.act.type> == t_door) || (<src.act.type> == t_door_locked) || (<src.act.type> == t_ship_hold) || (<src.act.type> == t_ship_hold_lock)
+	if (<src.act.distance> > 1)
+	   src.sysmessage Chegue mais perto.
+	return 1
+	endif
+ endif
+
+//*************************************
+ON=@ITEMCLICK
+//*************************************
+  //bloqueia descricao se fora do raio de visao
+  if (!<src.act.canseelos>) && (!<src.gm>)
+   return 1
+  endif
+
+  //testa pra ver se é roupa e checa tamanho da roupa
+  if (<src.act.type>==t_clothing)
+    src.ctag.csize = <clothes_checkSize <SRC>,<SRC.ACT>>
+    if ( <src.ctag.csize> == 1 )
+      src.act.message <src.act.name> (pequena)
+      return 1
+    elif ( <src.ctag.csize> == 3 )
+      src.act.message <src.act.name> (grande)
+      return 1
+    else
+      return 0
+    endif
+  endif
+
+//*************************************
+//ON=@ITEMEQUIP
+//*************************************
+ //testa pra ver se é roupa e checa tamanho da roupa
+ if (<src.act.type>==t_clothing)
+   src.ctag.csize = <clothes_checkSize <SRC>,<SRC.ACT>>
+   if ( <src.ctag.csize> == 2 )
+      return 0
+   else
+     src.sysmessage Nao serve...
+     src.act.bounce
+     return 1
+   endif
+ endif
+ 
+//*************************************
+ON=@SKILLSTART
+//*************************************
+  
+  if ( <src.action> == Skill_Anatomy)
+    sk_anatomy
+    return 1
+  else
+    skill_gain <src>,<action>
+  endif
+
+=======
 //*****************************************************************************
 //*****************************************************************************
 //
@@ -409,4 +824,5 @@ ON=@SKILLSTART
     skill_gain <src>,<action>
   endif
 
+>>>>>>> .r109
 [EOF]
