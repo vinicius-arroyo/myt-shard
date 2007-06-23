@@ -13,8 +13,9 @@
 //TODO:
 
 //TAGS usadas:
-
-//VARS usadas:
+//src.ctag.qtditem		quantidade a fazer
+//src.ctag.qtditeml		ultima quantidade feita
+//tags do sistema de crafting
 
 //--------------legenda-----------------//
 //
@@ -61,154 +62,145 @@ return 1
 endif 
 
 //*****************************************************************************
+// t_incomplete_forged
 //*****************************************************************************
-// FUNCTIONs
-//*****************************************************************************
-//*****************************************************************************
-
-//*****************************************************************************
-// FUNCTIONs
-//*****************************************************************************
-[FUNCTION repairfix]
-SRC.NEWITEM i_f_repair
-SRC.ACT.EQUIP
-
-//*****************************************************************************
-// i_f_repair
-//*****************************************************************************
-[ITEMDEF i_f_repair]
-name=repair fix
-ID=i_worldgem_bit 
-TYPE=T_EQ_SCRIPT 
-WEIGHT=0
-LAYER=layer_special 
-
-ON=@create 
-COLOR=021 
-ATTR=attr_invis|attr_decay 
-
-ON=@EQUIP
-TARGET O que deseja reparar?
-TIMER 60
-RETURN 1
-
-ON=@timer
-IF (0<VAR.REPAIRING> == 1)
-	CONT.MESSAGE * Reparou *
-	cont.tentarganhar_bs2
-        REMOVE
-ELSEIF (0<VAR.REPAIRING> == 2)
-	CONT.SYSMESSAGE * Falhou *
-	cont.tentarganhar_bs2
-        CONT.SFX 43
-	REMOVE
-ELSEIF (0<VAR.REPAIRING> == 3)
-	CONT.SFX 43
-	cont.tentarganhar_bs2
-        CONT.MESSAGE * Destroi o item *
-	REMOVE
-ELSE
-	REMOVE
-	VAR.REPAIRING //cabo o tempo
-ENDIF
-RETURN 1
+//usado em  pre itens
+[TYPEDEF t_incomplete_forged]
+ON=@DCLICK
+target Selecione a tina de agua:
+return 1
 
 ON=@TARGON_ITEM
-//make sure in pack
-IF !(<CONT.RESTEST 3 i_ingot_iron>)
-	SRC.SYSMESSAGE Voce nao tem material para isso.
-	RETURN 1
-ENDIF
+if (<src.targ.dispid>==i_barrel_water)
+	if (<src.targ.distance> > 1)
+		src.sysmessage Chegue mais perto.
+		return 1
+	endif
+	sfx 054
+	src.targ.effect 2,i_fx_smoke,0,15,0
+	serv.newitem=<more2>
+	new.more1=<more1>
+//	src.act.tag.dono=<src.uid>
+//	src.tag.furniact=0<src.tag.furniact>+1
+	new.bounce
+	remove
+	return 1
+else
+	src.sysmessage Voce deve selecionar uma tina de agua.
+	return 1
+endif
+return 1
 
-IF (<CONT.TARG.TOPOBJ.DISTANCE>>=2) || (<SRC.TARG.CanSeeLos>!=1)
-	CONT.SYSMESSAGE Esta muito longe.
-	RETURN 1
-ENDIF
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// repairfix ()
+//*****************************************************************************
+[FUNCTION repairfix]
+
+if ( !<argo> )
+	src.sysmessage O que deseja reparar?
+	targetf repairfix
+	return 1
+endif
+
+if (<argo><040000000) 
+ src.sysmessage Somente itens podem ser reparados.
+ return 1
+endif
+
+if !(<restest 5 i_ingot_iron>)
+	src.sysmessage Voce precisa de pelo menos 5 lingotes de ferro.
+	return 1
+endif
+
+if (<ARGO.TOPOBJ.DISTANCE>>=2) || (<SRC.TARG.CanSeeLos>!=1)
+	src.sysmessage Esta muito longe.
+	return 1
+endif
 
 //make sure item is armor/swords etc
-IF !(<CONT.TARG.TYPE>==t_weapon_mace_smith) && !(<CONT.TARG.TYPE>==t_weapon_sword) && !(<CONT.TARG.TYPE>==t_weapon_fence) && !(<CONT.TARG.TYPE>==t_armor) && !(<CONT.TARG.TYPE>==t_weapon_axe) && !(<CONT.TARG.TYPE> == t_weapon_mace_pick) && !(<CONT.TARG.TYPE> == t_weapon_mace_sharp) && !(<CONT.TARG.TYPE>==t_shield)
-	CONT.SYSMESSAGE voce nao pode reparar isto.
-	REMOVE
-	RETURN 1
-ENDIF
+if (<argo.type>!=t_weapon_mace_smith) && (<argo.type>!=t_weapon_sword) && (<argo.type>!=t_weapon_fence) && (<argo.type>!=t_armor) && (<argo.type>!=t_weapon_axe) && (<argo.type>!=t_weapon_mace_pick) && (<argo.type>!=t_weapon_mace_sharp) && (<argo.type>!=t_shield)
+	src.sysmessage Voce nao pode reparar isto.
+	return 1
+endif
 
-IF (0<CONT.TARG.MORE1l>)
-	IF (<CONT.TARG.MOREY> == <CONT.TARG.HITPOINTS>)
-		SRC.SYSMESSAGE Nao esta danificado.	
-		REMOVE
-		RETURN 1
-	ENDIF
-ENDIF
+if (<argo.hits>>=<argo.maxhits>)
+	src.sysmessage Nao esta danificado.	
+	return 1
+endif
 
-// Get Percentage Factors
-IF (<CONT.BLACKSMITHING> < 51.5)
-	VAR.Rpercent <eval (rand(10)) + 15>
-	VAR.RSuccess <eval 100 - <var.RAdjust>>  // 80 - 90%
-	var.RWeaken 4
-ENDIF
+LOCAL.tRepair=<eval 6-(<src.blacksmithing>/250)>
 
-IF (<CONT.BLACKSMITHING> > 51.5)
-	VAR.Rpercent <eval (rand(10)) + 10>
-	VAR.RSuccess <eval 100 - <var.RAdjust>>  // 80 - 90%
-	var.RWeaken 3
-ENDIF
+//inicia processo de reparo
+timerf 1 repair_step <argo>,<LOCAL.tRepair>
 
-IF (<CONT.BLACKSMITHING> > 61.5)
-	VAR.Rpercent <eval (rand(3)) + 7>
-	VAR.RSuccess <eval 100 - <var.RAdjust>>  // 90 - 93% 
-	var.RWeaken 3
-ENDIF
+//*****************************************************************************
+// repair_step ( uid_to_repair, steps_remaining )
+//*****************************************************************************
+[FUNCTION repair_step]
 
-IF (<CONT.BLACKSMITHING> > 71.5)
-	VAR.Rpercent <eval (rand(3)) + 4>
-	VAR.RSuccess <eval 100 - <var.RAdjust>>  // 93 - 96% 
-	var.RWeaken 2
-ENDIF
+if ( !<argv[0]> )
+	src.sysmessage Erro reparando!!
+	return 1
+endif
 
-IF (<CONT.BLACKSMITHING> > 81.5)
-	VAR.Rpercent <eval (rand(2)) + 2>
-	VAR.RSuccess <eval 100 - <var.RAdjust>>  // 96 - 98% 
-	var.RWeaken 1
-ENDIF
+//repete animacao ate terminar
+if ( <argv[1]> > 0 )
+	src.anim 11
+	src.sfx 42
 
-IF (<CONT.BLACKSMITHING> > 91.5)
-	VAR.Rpercent <eval (rand(1)) + 1>
-	VAR.RSuccess <eval 100 - <var.RAdjust>>  // 98 - 99% 
-	var.RWeaken 1
-ENDIF
+	LOCAL.r=<eval <argv[1]>-1>
+	timerf 1 repair_step <argv[0]>,<LOCAL.r>
+	return 1
+endif
 
-IF (<CONT.BLACKSMITHING> == 100.0)
-	VAR.RSuccess 99
-	var.RWeaken 1
-ENDIF
+if !(<restest 5 i_ingot_iron>)
+	src.sysmessage Voce precisa de pelo menos 5 lingotes de ferro.
+	return 1
+endif
 
+LOCAL.chance1=<eval rand(1500)>
+LOCAL.chance2=<eval rand(1000)>
+LOCAL.chance3=<eval rand(500)>
 
-IF ((rand(100)) < <VAR.RSuccess>) //Success
-	CONT.TARG.HITPOINTS <eval <CONT.TARG.MORE1l> - 1> //fill up hitpoints 
-	VAR.REPAIRING 1
-ELSE //Failed - do percent chance, later, on breaking item completely?
+//consome de 1 a 5 lingotes
+LOCAL.consume=<eval 5-(<src.blacksmithing>/201)>
+src.consume <LOCAL.consume> i_ingot_iron
 
-	IF ((<eval <CONT.TARG.HITPOINTS> - <VAR.RWEAKEN>>) < 1)
-		CONT.TARG.REMOVE
-		VAR.REPAIRING 3
-		CONT.CONSUME 3 i_ingot_iron
-	ELSE
-		VAR.BakMore1h <CONT.TARG.MORE1l> //back up max hp
-		CONT.TARG.HITPOINTS <eval <CONT.TARG.HITPOINTS>> - <VAR.RWEAKEN>>//Weaken Hitpoints
-		CONT.TARG.MOREY <eval <VAR.BakMore1h> - <VAR.RWEAKEN>>  //restore more1h and Weaken Max Hitpoints
-		VAR.REPAIRING 2
-		CONT.CONSUME 1 i_ingot_iron
-	ENDIF
-ENDIF
+OBJ=<argv[0]>
+if ( <LOCAL.chance1> < <src.blacksmithing> )
+	src.sysmessage Reparo finalizado com sucesso.
+	OBJ.maxhits=<eval <OBJ.maxhits>-1>
+	OBJ.hits=<OBJ.maxhits>
+elif ( <LOCAL.chance2> < <src.blacksmithing> )
+	src.sysmessage Reparo incompleto.
+	OBJ.maxhits=<eval <OBJ.maxhits>-1>
+	LOCAL.maxinc=<eval (<OBJ.maxhits>-<OBJ.hits>)-1>
+	OBJ.hits=<eval <OBJ.hits>+rand(<LOCAL.maxinc>)>
+elif ( <LOCAL.chance3> > <src.blacksmithing> )
+	src.sysmessage Reparo falhou e o material foi danificado!!	
+	OBJ.maxhits=<eval <OBJ.maxhits>-1>
+	LOCAL.maxdec=<eval <OBJ.hits>-1>
+	OBJ.hits=<eval <OBJ.hits>-rand(<LOCAL.maxdec>)>
+else
+	src.sysmessage Voce nao conseguiu reparar.
+endif
 
-CONT.ANIM 11
-CONT.SFX 42
-TIMER = 2
-RETURN 1
+if (<OBJ.maxhits>==0)
+	src.sysmessage Este item possui muitos remendos e nao pode ser mais reparado.
+	OBJ.remove
+endif
+
+return 1
 
 //*****************************************************************************
 //*****************************************************************************
-// ITEMDEFs
+// ITEMDEFs - Ferramentas
 //*****************************************************************************
 //*****************************************************************************
 
@@ -291,7 +283,6 @@ else
 //	src.sysmessage Use-a sozinha ou com o martelo.
 	src.targ.bounce
 	if (<src.restest i_cabo_ferro>)
-	//var.blacksmithing_bs=<src.blacksmithing>>
 	 	src.skillmenu sm_bs_alicate
 	else
 		src.sysmessage Voce precisa de arame ou argolas.
@@ -299,36 +290,6 @@ else
 endif
 return 1
  
-//*****************************************************************************
-// i_pregos
-//*****************************************************************************
-[itemdef i_pregos]
-ID=014fb
-TYPE=t_script
-NAME=prego%s
-PILE=1
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Blacksmith
-DESCRIPTION=pregos
-WEIGHT=0
-
-ON=@CREATE
-color=00b27
-
-ON=@DLICK
-src.sysmessage Usado por carpinteiros.
-
-//*****************************************************************************
-// i_argola_barril
-//*****************************************************************************
-[itemdef i_argola_barril]
-ID=010e2
-NAME=argolas de ferro
-FLIP=1
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Blacksmith
-DESCRIPTION=argolas para barril
-
 //*****************************************************************************
 // i_picareta
 //*****************************************************************************
@@ -365,24 +326,220 @@ TYPE=T_WEAPON_MACE_PICK
 ON=@Create
 HITPOINTS={31 60}
 
+
 //*****************************************************************************
-// i_ferradura
 //*****************************************************************************
-[ITEMDEF i_ferradura]
-NAME=ferraduras
-ID=4022
-TYPE=t_normal
-WEIGHT=1
+// ITEMDEFs - Material incompleto - forjado
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_bigorna_forjada
+//*****************************************************************************
+[ITEMDEF i_bigorna_forjada]
+NAME=metal forjado
+WEIGHT=30
+ID=i_anvil
+TYPE=t_incomplete_forged
+
+ON=@CREATE
+color=007a
+
+//*****************************************************************************
+// i_ponta_picareta
+//*****************************************************************************
+[ITEMDEF i_ponta_picareta]
+//usado tambem para representar laminas de machados.
+NAME=metal forjado
+ID=01043
+TYPE=t_incomplete_forged
+
+ON=@CREATE
+color=0845
+
+//*****************************************************************************
+// i_metal_forjado
+//*****************************************************************************
+[ITEMDEF i_metal_forjado]
+NAME=metal forjado
+ID=0fb7
+TYPE=t_incomplete_forged
+
+//*****************************************************************************
+//i_bola_maca
+//*****************************************************************************
+[ITEMDEF i_bola_maca]
+NAME=bola para maca
+//antigo id 01cb
+ID=3699
+TYPE=t_incomplete_forged
+
+ON=@CREATE
+color=00b0c
+
+//*****************************************************************************
+// i_tacha_forjada
+//*****************************************************************************
+[ITEMDEF i_tacha_forjada]
+name=metal forjado
+id=7847
+weight=0.1
+type=t_incomplete_forged
+Pile=0
+
+ON=@CREATE
+color=00b0c
+
+//*****************************************************************************
+// i_placa_ferro_forjada
+//*****************************************************************************
+[ITEMDEF i_placa_ferro_forjada]
+name=placa de ferro
+id=01f25
+type=t_incomplete_forged
+weight=0
+pile=1
+
+ON=@CREATE
+color=0b0e
+
+//*****************************************************************************
+// i_maca_martelo
+//*****************************************************************************
+[ITEMDEF i_maca_martelo]
+NAME=maca para o martelo
+ID=01044
+TYPE=t_incomplete_forged
+
+ON=@CREATE
+color=0845
+
+//*****************************************************************************
+// i_metal_fundido
+//*****************************************************************************
+[ITEMDEF i_metal_fundido]
+name=metal fundido
+id=0136b
+type=t_incomplete_forged
+
+ON=@CREATE
+color=0f89
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - Peças / Materia Prima / Outros
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_barra_metal
+//*****************************************************************************
+[ITEMDEF i_barra_metal]
+NAME=barra%s de metal
+ID=0f8a
+WEIGHT=0.1
+TYPE=t_script
+
+ON=@create
+color=00482
+
+ON=@dclick
+src.sysmessage Use a bola para maca para montar.
+return 1
+
+//*****************************************************************************
+// i_tacha_armor
+//*****************************************************************************
+[ITEMDEF i_tacha_armor]
+NAME=tachas para armadura
+ID=0f12
+TYPE=t_script
+WEIGHT=0.1
+PILE=1
+
+ON=@create
+color=0430
+
+ON=@dclick
+src.sysmessage Utilize o martelo para fixar
+src.sysmessage as tachas numa armadura de couro.
+return 1
+
+//*****************************************************************************
+// i_anel_ferro
+//*****************************************************************************
+[ITEMDEF i_anel_ferro]
+NAME=anel de ferro
+ID=0f87
+WEIGHT=0
+TYPE=t_script
+PILE=1
+
+ON=@create
+color=0847
+
+ON=@dclick
+src.sysmessage Utilize o martelo para criar
+src.sysmessage as pecas.
+return 1
+
+//*****************************************************************************
+// i_placa_ferro
+//*****************************************************************************
+[ITEMDEF i_placa_ferro]
+NAME=placa de ferro
+ID=01f25
+TYPE=t_script
+WEIGHT=8
+PILE=1
+
+ON=@create
+color=09a4
+
+ON=@dclick
+src.sysmessage Utilize o martelo para criar
+src.sysmessage pecas com a placa de ferro.
+return 1
+
+//ON=@StackOn 
+//amount=<amount>+1
+
+//*****************************************************************************
+// i_pregos
+//*****************************************************************************
+[ITEMDEF i_pregos]
+ID=014fb
+TYPE=t_script
+NAME=prego%s
+PILE=1
 CATEGORY=MyT - Items by Professions
-subsectiON=Blacksmith
-descriptiON=ferraduras
+SUBSECTION=Blacksmith
+DESCRIPTION=pregos
+WEIGHT=0
+
+ON=@CREATE
+color=00b27
+
+ON=@DLICK
+src.sysmessage Usado por carpinteiros.
+
+//*****************************************************************************
+// i_argola_barril
+//*****************************************************************************
+[ITEMDEF i_argola_barril]
+ID=010e2
+NAME=argolas de ferro
+FLIP=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=argolas para barril
 
 //*****************************************************************************
 // i_iron_wire
 //*****************************************************************************
 [ITEMDEF 6262]
 defname=i_iron_wire
- 
+
 //*****************************************************************************
 // i_cabo_ferro
 //***************************************************************************** 
@@ -396,358 +553,27 @@ DESCRIPTION=arame de ferro
 PILE=1
 
 //*****************************************************************************
-// i_bigorna_forjada
+// i_ferradura
 //*****************************************************************************
-[ITEMDEF i_bigorna_forjada]
-NAME=metal forjado
-WEIGHT=30
-ID=i_anvil
-TYPE=t_script
-
-ON=@DCLICK
-target Selecione a tina de agua:
-return 1
-
-ON=@CREATE
-color=007a
-
-ON=@TARGON_ITEM
-if (<src.targ.dispid>==i_barrel_water)
-	if (<src.targ.distance> > 1)
-		src.sysmessage Chegue mais perto.
-		return 1
-	endif
-	sfx 054
-	src.targ.effect 2,i_fx_smoke,0,15,0
-	src.newitem=<more2>
-	src.act.tag.dono=<src.uid>
-	src.tag.furniact=0<src.tag.furniact>+1
-	src.act.bounce
-	remove
-else
-	src.sysmessage Voce deve selecionar uma tina de agua.
-endif
-return 1
-
-//*****************************************************************************
-// i_ponta_picareta
-//*****************************************************************************
-[ITEMDEF i_ponta_picareta]
-//usado tambem para representar laminas de machados.
-NAME=metal forjado
-ID=01043
-TYPE=t_script
-
-ON=@CREATE
-color=0845
-
-ON=@DCLICK
-target Selecione a tina de agua:
-return 1
-
-ON=@TARGON_ITEM
-if (<src.targ.dispid>==i_barrel_water)
-	if (<src.targ.distance> > 1)
-		src.sysmessage Chegue mais perto.
-		return 1
-	endif
-	sfx 054
-	src.targ.effect 2,i_fx_smoke,0,15,0
-	src.newitem=<more2>
-	src.act.more1=<more1>
-	src.act.bounce
-	remove
-else
-	src.sysmessage Voce deve selecionar uma tina de agua.
-endif
-return 1
-
-//*****************************************************************************
-// i_metal_forjado
-//*****************************************************************************
-[ITEMDEF i_metal_forjado]
-NAME=metal forjado
-ID=0fb7
-TYPE=t_script
-
-ON=@DCLICK
-target Selecione a tina de agua:
-return 1
-
-ON=@TARGON_ITEM
-if (<src.targ.dispid>==i_barrel_water)
-	if (<src.targ.distance> > 1)
-		src.sysmessage Chegue mais perto.
-		return 1
-	endif
-	sfx 054
-	src.targ.effect 2,i_fx_smoke,0,15,0
-	src.newitem=<more2>
-	src.act.more1=<more1>
-	src.act.bounce
-	remove
-else
-	src.sysmessage Voce deve selecionar uma tina de agua.
-endif
-return 1
-
-//i_bola_maca
-// i_bigorna
-//*****************************************************************************
-[ITEMDEF i_bola_maca]
-NAME=bola para maca
-//antigo id 01cb
-ID=3699
-TYPE=t_script
-
-ON=@CREATE
-color=00b0c
-
-ON=@DCLICK
-target Selecione a tina de agua:
-return 1
-
-ON=@TARGON_ITEM
-if (<src.targ.dispid>==i_barrel_water)
-	if (<src.targ.distance> > 1)
-		src.sysmessage Chegue mais perto.
-		return 1
-	endif
-	sfx 054
-	src.targ.effect 2,i_fx_smoke,0,15,0
-	src.newitem=<more2>
-	src.act.more1=<more1>
-	src.act.bounce
-	remove
-else
-	src.sysmessage Voce deve selecionar uma tina de agua.
-endif
-return 1
-
-//*****************************************************************************
-// i_maca_martelo
-//*****************************************************************************
-[ITEMDEF i_maca_martelo]
-NAME=maca para o martelo
-ID=01044
-TYPE=t_script
-
-ON=@CREATE
-color=0845
-
-ON=@DCLICK
-if (<src.restest 1 i_cabo_madeira>)
- target Selecione a tina de agua:
-else
- src.sysmessage Falta um item para confeccionar.
-endif
-return 1
-
-ON=@TARGON_ITEM
-if (<src.targ.dispid>==i_barrel_water)
- if (<src.targ.distance> > 1)
-  src.sysmessage Chegue mais perto.
-  return 1
- endif
- sfx 054
- src.targ.effect 2,i_fx_smoke,0,15,0
- src.consume=1 i_cabo_madeira
- src.newitem=i_martelo_ferreiro
- src.act.more1=<more1>
- src.act.bounce
- remove
-else
- src.sysmessage Voce deve selecionar uma tina de agua.
-endif
-return 1
-
-
-//*****************************************************************************
-// i_bigorna
-//*****************************************************************************
-[ITEMDEF i_metal_fundido]
-name=metal fundido
-id=0136b
-type=t_script
-//cor antiga = 0489
-ON=@create
-color=0f89
-
-ON=@dclick
-if (<src.restest 1 i_trefila>)
- target Selecione a tina de agua:
-else
- src.sysmessage Voce precisa de uma trefila.
-endif
-return 1
-
-ON=@TARGON_ITEM
-if (<src.targ.dispid>==i_barrel_water)
- if (<src.targ.distance> > 1)
-  src.sysmessage Chegue mais perto.
-  return 1
- endif
- sfx 054
- src.targ.effect 2,i_fx_smoke,0,15,0
- src.newitem=i_cabo_ferro
- src.act.bounce
- remove
-else
- src.sysmessage Voce deve selecionar uma tina de agua.
-endif
-return 1
-
-//*****************************************************************************
-// i_bigorna
-//*****************************************************************************
-[ITEMDEF i_barra_metal]
-name=barra%s de metal
-id=0f8a
-weight=0.1
-type=t_script
-
-ON=@create
-color=00482
-
-ON=@dclick
-src.sysmessage Use a bola para maca para montar.
-return 1
-
-//*****************************************************************************
-// i_bigorna
-//*****************************************************************************
-[ITEMDEF i_tacha_armor]
-name=tachas para armadura
-id=0f12
-type=t_script
-weight=0.1
-PILE=1
-
-ON=@create
-color=0430
-
-ON=@dclick
-src.sysmessage Utilize o martelo para fixar
-src.sysmessage as tachas numa armadura de couro.
-return 1
-
-//*****************************************************************************
-// i_bigorna
-//*****************************************************************************
-[ITEMDEF i_anel_ferro]
-name=anel de ferro
-id=0f87
-weight=0
-type=t_script
-PILE=1
-
-ON=@create
-color=0847
-
-ON=@dclick
-src.sysmessage Utilize o martelo para criar
-src.sysmessage as pecas.
-return 1
-
-//*****************************************************************************
-// i_bigorna
-//*****************************************************************************
-[ITEMDEF i_tacha_forjada]
-name=metal forjado
-id=7847
-weight=0.1
-type=t_script
-Pile=0
-
-ON=@create
-color=00b0c
-
-
-ON=@dclick
-target Selecione a tina de agua:
-return 1
-
-ON=@TARGON_ITEM
-if (<src.targ.dispid>==i_barrel_water)
-
- if (<src.targ.distance> > 1)
-  src.sysmessage Chegue mais perto.
-  return 1
- endif
- sfx 054
- src.targ.effect 2,i_fx_smoke,0,15,0
- src.newitem=<more2>
- src.act.bounce
- remove
-else
- src.sysmessage Voce deve selecionar uma tina de agua.
-endif
-return 1
-
-//*****************************************************************************
-// i_bigorna
-//*****************************************************************************
-[ITEMDEF i_placa_ferro_forjada]
-name=placa de ferro
-id=01f25
-type=t_script
-weight=0
-pile=1
-
-ON=@create
-color=0b0e
-
-ON=@dclick
-target Selecione a tina de agua:
-return 1
-
-ON=@TARGON_ITEM
-if (<src.targ.dispid>==i_barrel_water)
- if (<src.targ.distance> > 1)
-  src.sysmessage Chegue mais perto.
-  return 1
- endif
- sfx 054
- src.targ.effect 2,i_fx_smoke,0,15,0
- src.newitem=i_placa_ferro
- src.act.bounce
- remove
-else
- src.sysmessage Voce deve selecionar uma tina de agua.
-endif
-return 1
-
-//*****************************************************************************
-// i_bigorna
-//*****************************************************************************
-[ITEMDEF i_placa_ferro]
-name=placa de ferro
-id=01f25
-type=t_script
-weight=8
-pile=1
-
-ON=@create
-color=09a4
-
-ON=@dclick
-src.sysmessage Utilize o martelo para criar
-src.sysmessage pecas com a placa de ferro.
-return 1
-
-@StackOn 
-amount=<amount>+1
-
-//*****************************************************************************
-// i_bigorna
-//*****************************************************************************
-[itemdef i_foligem_bs]
-name=foligem
-id=01038
-type=t_script
+[ITEMDEF i_ferradura]
+NAME=ferraduras
+ID=4022
+TYPE=t_normal
+WEIGHT=1
 CATEGORY=MyT - Items by Professions
-subsectiON=Carpenter
-descriptiON=foligem
+subsectiON=Blacksmith
+descriptiON=ferraduras
+
+//*****************************************************************************
+// i_foligem_bs
+//*****************************************************************************
+[ITEMDEF i_foligem_bs]
+NAME=foligem
+ID=01038
+TYPE=t_script
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=foligem
 
 ON=@create
 color=009a7
@@ -924,7 +750,7 @@ text 345 285 95 7	//<--- texto para MAX
 [DIALOG d_bs_fazitem TEXT]
 Quantidade:
 +1
-<eval 0<src.tag.qtditem>>
+<eval 0<src.ctag.qtditem>>
 -1
 zerar
 fazer
@@ -937,8 +763,8 @@ ON=
  	src.update
 	return 
 ON=0					//INCREMENTA
-	if ( <src.tag.qtditem> < 10 )
-		src.tag.qtditem=<src.tag.qtditem>+1
+	if ( <src.ctag.qtditem> < 10 )
+		src.ctag.qtditem=<src.ctag.qtditem>+1
 		src.dialog=d_bs_fazitem
  		src.update
 		return 
@@ -948,8 +774,8 @@ ON=0					//INCREMENTA
  		src.update
 		return 
 ON=1					//DECREMENTA
-	if ( <src.tag.qtditem> >0 )	
-		src.tag.qtditem=<src.tag.qtditem>-1
+	if ( <src.ctag.qtditem> >0 )	
+		src.ctag.qtditem=<src.ctag.qtditem>-1
 		src.update
  		src.dialog=d_bs_fazitem
 		return 
@@ -959,24 +785,24 @@ ON=1					//DECREMENTA
 		src.update
 		return 
 ON=2					// ZERA O CONTADOR
-	src.tag.qtditem=0 
+	src.ctag.qtditem=0 
 	src.update
  	src.dialog=d_bs_fazitem
 	return 
 ON=3					//FAZ O ITEM
-	if (<src.tag.qtditem> == 0 )
+	if (<src.ctag.qtditem> == 0 )
 		src.sysmessageyellow Nao foi selecionada a quantidade
 		return
 	else
-		src.fazitem <src.tag.qtditem>
+		src.fazitem <src.ctag.qtditem>
 		src.update	
 		return 
 ON=4
-	src.tag.qtditeml=<src.tag.qtditem>
-	src.tag.qtditem=
+	src.ctag.qtditeml=<src.ctag.qtditem>
+	src.ctag.qtditem=
 	return
 ON=5  
-	src.tag.qtditem=10
+	src.ctag.qtditem=10
 	src.dialog=d_bs_fazitem
 	src.update
 	return
@@ -3631,32 +3457,32 @@ obj.tag.scrap=i_foligem_bs
 src.fazitem
 return 1
 
-ON=i_raspadeira_p raspadeira pequena (LF,CM)
-obj=<src.findid.i_mry_fazitem.uid>
-obj.cleartags
-obj.tag.skill=blacksmithing
-obj.tag.dif=35
-obj.tag.delay=30
-obj.tag.res1=i_ingot_iron
-obj.tag.res2=i_cabo_madeira
-obj.tag.nam1=lingote de ferro
-obj.tag.nam2=cabo de madeira
-obj.tag.amt1=1
-obj.tag.amt2=1
-obj.tag.neartype=t_forge
-obj.tag.nearname=forja acesa
-obj.tag.espname=alicate
-obj.tag.espid=i_alicate
-obj.tag.item=i_metal_forjado
-obj.tag.more2=i_raspadeira_p
-obj.tag.anim=9
-obj.tag.sfx=02a
-obj.tag.emote=trabalhando
-obj.tag.needtype=t_anvil				
-obj.tag.need=bigorna
-obj.tag.scrap=i_foligem_bs
-src.fazitem
-return 1
+//ON=i_raspadeira_p raspadeira pequena (LF,CM)
+//obj=<src.findid.i_mry_fazitem.uid>
+//obj.cleartags
+//obj.tag.skill=blacksmithing
+//obj.tag.dif=35
+//obj.tag.delay=30
+//obj.tag.res1=i_ingot_iron
+//obj.tag.res2=i_cabo_madeira
+//obj.tag.nam1=lingote de ferro
+//obj.tag.nam2=cabo de madeira
+//obj.tag.amt1=1
+//obj.tag.amt2=1
+//obj.tag.neartype=t_forge
+//obj.tag.nearname=forja acesa
+//obj.tag.espname=alicate
+//obj.tag.espid=i_alicate
+//obj.tag.item=i_metal_forjado
+//obj.tag.more2=i_raspadeira_p
+//obj.tag.anim=9
+//obj.tag.sfx=02a
+//obj.tag.emote=trabalhando
+//obj.tag.needtype=t_anvil				
+//obj.tag.need=bigorna
+//obj.tag.scrap=i_foligem_bs
+//src.fazitem
+//return 1
 
 ON=i_raspadeira raspadeira (2LF,CM)
 obj=<src.findid.i_mry_fazitem.uid>
@@ -4159,6 +3985,7 @@ obj.tag.espid=i_alicate
 obj.tag.espname=trefila
 obj.tag.espid=i_trefila
 obj.tag.item=i_metal_fundido
+obj.tag.more2=i_cabo_ferro
 obj.tag.anim=34
 obj.tag.sfx=0248
 obj.tag.emote=fundindo metal
