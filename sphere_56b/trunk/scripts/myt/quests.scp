@@ -12,6 +12,10 @@
 //	TAGs utilizadas:
 //	- tag.sound
 //	- tag.odisp
+//	- tag.trap_time
+//	- tag.trap_dif
+//	- tag.trap_force
+//	- tag.trap_type
 //
 //  ########################################################
 //
@@ -65,62 +69,24 @@
 
 // ---------# TYPEDEFS #---------//
 
-[TYPEDEF t_armadilha]
+[TYPEDEF t_trap]
+
+//more2 dificuldade de desarmar (1000 = 100.0%)
+//morex spell
+//morey força (1000 = 100.0%)
+//morez typedef original
+//morem armada/desarmada
+
 on=@step
-if (<morex>==1)// Se estiver armada...
- if (<src.brain>) || (<src.isgm>)
-  return 1
- endif
- if ({0 <eval <src.detectinghidden>>} >= <more2>)
-  attr=<ATTR>&~080
-  serv.allclients update
-  say *click*
-  src.sysmessage Voce achou uma armadilha!!!
-  src.ganhadetecthidden
-  timer=10
-  morex=0
-  return 1
- else
-  src.sysmessage Voce disparou uma armadilha!!!
-  attr=<ATTR>&~080
-  effect 02 <more1> 0 50
-  var.damage={30 <EVAL <more2>>}
-  var.damage=<var.damage>/6
-  src.damage <eval <var.damage>> <morey> <uid>
-  sfx <tag.sound>
-  morex=0
-  if !(RAND(4))
-   remove
-  endif
-  timer=10
-  return 1
- endif
-else
- timer={30 3600}
- return 1
-endif
+return 1
 
 on=@dclick
-if (<src.isgm>)
- morex=1
- src.sysmessage A armadilha foi armada.
- attr=<ATTR>|080
- serv.allclients update
- timer=-1
- return 1
-endif
-if !(<src.isgm>) && !(<attr>&080)
- var.armadilhaUID=<uid>
- src.menu m_armadilha
- return 1
-endif
+morem=2
+src.spelleffect <morex> <morey>
+type=<morez>
+return 1
 
 on=@Timer
-if (<morex>==0)
- morex=1
- attr=<ATTR>|080
- serv.allclients update
-endif
 return 1
 
 
@@ -159,10 +125,129 @@ on=0 Deixar visivel
  src.anim 11
  return 1
 
+[menu m_set_trap]
+(MyT) Que armadilha deseja instalar? (MyT)
+
+on=0 Reduzir DEX //Clumsy
+tag.trap_type=1
+menu m_set_trap_force
+
+on=0 Reduzir IND //feeblemind
+tag.trap_type=3
+menu m_set_trap_force
+
+on=0 Reduzir STR //Weaken
+tag.trap_type=8
+menu m_set_trap_force
+
+on=0 Envenenar
+tag.trap_type=20
+menu m_set_trap_force
+
+on=0 Ferir
+tag.trap_type=12
+menu m_set_trap_force
+
+on=0 Raio
+tag.trap_type=30
+menu m_set_trap_force
+
+on=0 Esplosao
+tag.trap_type=43
+menu m_set_trap_force
+
+[menu m_set_trap_force]
+(MyT) Qual forca tera a armadilha? (MyT)
+on=0 irrisoria
+tag.trap_force=<eval {50 150}>
+menu m_set_trap_skill
+
+on=0 fraca
+tag.trap_force=<eval {200 400}>
+menu m_set_trap_skill
+
+on=0 media
+tag.trap_force=<eval {400 600}>
+menu m_set_trap_skill
+
+on=0 forte
+tag.trap_force=<eval {600 850}>
+menu m_set_trap_skill
+
+on=0 mortal
+tag.trap_force=<eval {850 2000}>
+menu m_set_trap_skill
+
+[menu m_set_trap_skill]
+(MyT) Dificuldade para achar/desarmar? (MyT)
+on=0 irrisoria
+tag.trap_dif=<eval {50 150}>
+menu m_set_trap_time
+
+on=0 baixa
+tag.trap_dif=<eval {200 400}>
+menu m_set_trap_time
+
+on=0 media
+tag.trap_dif=<eval {400 600}>
+menu m_set_trap_time
+
+on=0 alta
+tag.trap_dif=<eval {600 850}>
+menu m_set_trap_time
+
+on=0 impossivel
+tag.trap_dif=<eval {1000 2000}>
+menu m_set_trap_time
+
+[menu m_set_trap_time]
+(MyT) Qual sera o tempo de regeneracao? (MyT)
+on=0 30 segundos
+tag.trap_time 30
+f_set_trap
+
+on=0 1 minuto
+tag.trap_time 60
+f_set_trap
+
+on=0 5 minutos
+tag.trap_time 60*5
+f_set_trap
+
+on=0 10 minutos
+tag.trap_time 60*10
+f_set_trap
+
+on=0 20 minutos
+tag.trap_time 60*20
+f_set_trap
+
+on=0 30 minutos
+tag.trap_time 60*30
+f_set_trap
+
+on=0 45 minutos
+tag.trap_time 45*60
+f_set_trap
+
+on=0 1 hora
+tag.trap_time 60*60
+f_set_trap
+
+on=0 3 horas
+tag.trap_time 3*60*60
+f_set_trap
+
+on=0 5 horas
+tag.trap_time 5*60*60
+f_set_trap
 
 
 // ---------# FUNCTIONS #---------//
 
+
+[PLEVEL 2]
+TRAP
 
 
 [FUNCTION ganhadetecthidden]
@@ -170,16 +255,61 @@ on=0 Deixar visivel
   GAIN_SKILL detectinghidden  
  endif
 
+[FUNCTION TRAP]
+menu m_set_trap
 
+[FUNCTION f_set_trap]
+Sysmessage Selecione o item...
+targetf f_set_trap_
+
+[FUNCTION f_set_trap_]
+if (0<argo>==0) || (<argo><040000000)
+ Sysmessage Selecione o item...
+ targetf f_set_trap_
+ return 1
+endif
+argo.morex=<eval 0<src.tag.trap_type>>
+argo.morey=<eval 0<src.tag.trap_force>>
+argo.morez=<argo.type>
+argo.morem=1
+argo.more2=<eval 0<src.tag.trap_dif>>
+argo.type=t_trap
+serv.newitem i_reset_trap
+new.p=<argo.p>
+new.link=<argo.uid>
+new.more2=<eval 0<src.tag.trap_time>>
+new.attr=08090
+new.timer=5
+src.tag.trap_time
+src.tag.trap_dif
+src.tag.trap_force
+src.tag.trap_type
+sysmessage=@026 Pronto
 
 
 // ---------# ITEMDEFS #---------//
+[ITEMDEF i_reset_trap]
+ID=i_worldgem_bit
+NAME=reset de armadilha
+type=t_script
 
-
+on=@timer
+if (<link.morem>==1)
+ timer=5
+elif (<more1>==1)
+ link.morem=1
+ link.type=t_trap
+ more1=0
+ timer=30
+else
+ more1=1
+ timer=<more2>
+endif
+return 1
 
 [ITEMDEF i_armadilha_machado]
 ID=01b71
-type=t_armadilha
+type=t_trap
 name=armadilha
 CATEGORY=MyT - Quest Items
 SUBSECTION=Armadilhas
@@ -196,7 +326,7 @@ timer=-1
 
 [ITEMDEF i_armadilha_magica_fraca]
 ID=01b71
-type=t_armadilha
+type=t_trap
 name=armadilha
 CATEGORY=MyT - Quest Items
 SUBSECTION=Armadilhas
@@ -213,7 +343,7 @@ timer=-1
 
 [ITEMDEF i_armadilha_magica_forte]
 ID=01b71
-type=t_armadilha
+type=t_trap
 name=armadilha
 CATEGORY=MyT - Quest Items
 SUBSECTION=Armadilhas
@@ -230,7 +360,7 @@ timer=-1
 
 [ITEMDEF i_armadilha_magica_media]
 ID=01b71
-type=t_armadilha
+type=t_trap
 name=armadilha
 CATEGORY=MyT - Quest Items
 SUBSECTION=Armadilhas
@@ -247,7 +377,7 @@ timer=-1
 
 [ITEMDEF i_armadilha_explosao_forte]
 ID=01b71
-type=t_armadilha
+type=t_trap
 name=armadilha
 CATEGORY=MyT - Quest Items
 SUBSECTION=Armadilhas
@@ -264,7 +394,7 @@ timer=-1
 
 [ITEMDEF i_armadilha_explosao_media]
 ID=01b71
-type=t_armadilha
+type=t_trap
 name=armadilha
 CATEGORY=MyT - Quest Items
 SUBSECTION=Armadilhas
@@ -281,7 +411,7 @@ timer=-1
 
 [ITEMDEF i_armadilha_explosao_fraca]
 ID=01b71
-type=t_armadilha
+type=t_trap
 name=armadilha
 CATEGORY=MyT - Quest Items
 SUBSECTION=Armadilhas
@@ -298,7 +428,7 @@ timer=-1
 
 [ITEMDEF i_armadilha_gas_fraca]
 ID=01b71
-type=t_armadilha
+type=t_trap
 name=armadilha
 CATEGORY=MyT - Quest Items
 SUBSECTION=Armadilhas
@@ -315,7 +445,7 @@ timer=-1
 
 [ITEMDEF i_armadilha_gas_media]
 ID=01b71
-type=t_armadilha
+type=t_trap
 name=armadilha
 CATEGORY=MyT - Quest Items
 SUBSECTION=Armadilhas
@@ -332,7 +462,7 @@ timer=-1
 
 [ITEMDEF i_armadilha_gas_forte]
 ID=01b71
-type=t_armadilha
+type=t_trap
 name=armadilha
 CATEGORY=MyT - Quest Items
 SUBSECTION=Armadilhas
@@ -349,7 +479,7 @@ timer=-1
 
 [ITEMDEF i_armadilha_gas_mortal]
 ID=01b71
-type=t_armadilha
+type=t_trap
 tag.sound=0108
 name=armadilha
 CATEGORY=MyT - Quest Items
@@ -843,6 +973,131 @@ SUBSECTION=Barreiras
 DESCRIPTION=Barreira de energia
 
 
+   //////////////////////////////////////////////
+  //	          TESOUROS GUARDADOS          //
+ //////////////////////////////////////////////
+
+
+// -------# TYPEDEFS #-------- //
+
+[TYPEDEF t_guarded_container]
+on=@dclick
+if (<link.npc>
+ src.sysmessagered <link.name> esta guardando este objeto.
+else
+ if (0<src.tag.fRP> < -1)
+  src.sysmessage=@037 Seus pontos de RP estao baixos. Tesouro bloqueado.
+  return 1
+ endif
+ type=t_container
+ emoteyellow destrancou
+endif
+return 1
+
+// -------# ITEMDEFS #-------- //
+
+[ITEMDEF i_trig_guarded_cont]
+ID=i_rune_glowing_1
+NAME=gatilho de guarda de container
+TYPE=t_script
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=guarda de container
+
+on=@create
+attr=080b0
+
+on=@dclick
+if (<src.isgm>)
+ TARGET Selecione o container a guardar:
+ return 1
+endif
+
+on=@Targon_Item
+if (<src.targ.type>==t_container)
+ link=<src.targ.UID>
+ link.type=t_guarded_container
+ src.sysmessagered linkado em <link.name>
+ src.sysmessagered Assegure-se que o guarda pise no gatilho.
+else
+ src.sysmessage Apenas containeres abertos.
+endif
+return 1
+
+on=@step
+if (<src.npc>)
+ if (!<link.link.npc>)
+  link.link=<src.uid>
+  link.empty
+  link.type t_guarded_container
+  if (<link.more1>)
+   serv.newitem=<link.more1>
+  else
+   serv.newitem=i_loot_quest_pobre
+  endif
+  new.cont=<link>
+ endif
+endif
+return 1
+
+
+
+[ITEMDEF i_tesouro_pobre]
+id=0e43
+name=tesouro
+type=t_container
+CATEGORY=MyT - Quest Items
+SUBSECTION=Quest
+DESCRIPTION=Tesouro pobre
+
+on=@create
+attr=08010
+more1=i_loot_quest_pobre
+say Use um gatilho de guarda em mim!
+
+[ITEMDEF i_tesouro_regular]
+id=i_chest_metal
+name=tesouro
+type=t_container
+CATEGORY=MyT - Quest Items
+SUBSECTION=Quest
+DESCRIPTION=Tesouro regular
+
+on=@create
+COLOR=color_o_copper
+attr=08010
+more1=i_loot_quest_regular
+say Use um gatilho de guarda em mim!
+
+[ITEMDEF i_tesouro_rico]
+id=i_chest_metal
+name=tesouro
+type=t_container
+CATEGORY=MyT - Quest Items
+SUBSECTION=Quest
+DESCRIPTION=Tesouro rico
+
+on=@create
+COLOR=color_o_silver
+attr=08010
+more1=i_loot_quest_rico
+say Use um gatilho de guarda em mim!
+
+
+[ITEMDEF i_tesouro_milhonario]
+id=i_chest_metal
+name=tesouro
+type=t_container
+CATEGORY=MyT - Quest Items
+SUBSECTION=Quest
+DESCRIPTION=Tesouro Milhonario
+
+on=@create
+COLOR=color_o_gold
+attr=08010
+more1=i_loot_quest_milhonario
+say Use um gatilho de guarda em mim!
 
 
 
