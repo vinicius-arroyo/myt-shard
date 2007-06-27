@@ -1126,19 +1126,11 @@ DUPELIST=0398d,0398e,0398f,03990,03991,03992,03993,03994,03995,03e27
 
 ON=@Create
 MOREZ=1
+ATTR=012
 
 on=@step
- src.newitem=i_pegando_fogo
- src.act.link=<src.uid>
- src.act.p=<src.p>
- src.act.z=<src.z>+10
- src.tag.pegandofogo=1
- src.newitem=i_mry_pegandofogo
- src.act.equip
- src.update
- src.damage=10
+src.f_pega_fogo
 return 1
-
 
 [ITEMDEF i_fogo_armadilha_ns]
 name=Cela de fogo
@@ -1151,17 +1143,10 @@ DUPELIST=03997,03998,03999,0399a,0399b,0399c,0399d,0399e,0399f,03e31
 
 ON=@Create
 MOREZ=1
+ATTR=012
 
 on=@step
- src.newitem=i_pegando_fogo
- src.act.link=<src.uid>
- src.act.p=<src.p>
- src.act.z=<src.z>+10
- src.tag.pegandofogo=1
- src.newitem=i_mry_pegandofogo
- src.act.equip
- src.update
- src.damage=10
+src.f_pega_fogo
 return 1
 
 /////////  more2= 6 - Coluna de fogo  ////////////////////////////////////////////////////////////
@@ -1190,69 +1175,52 @@ ON=@Create
 	ATTR=attr_newbie
 	attr=(<attr> | 080 )
 	timer=1
+	more2={12 30}
 
 ON=@TIMER
+cont.effect 3 i_fire 0 64 0
+cont.bark
 if (<cont.tag.pegandofogo>==1)
-    cont.sfx 0157
-    dorand 3
-      cont.emote PEGANDO FOGO!!!
-    enddo
-	if (<cont.hitpoints> > 2)		
- 	  //cont.hitpoints=<cont.hitpoints>+(-1)
-	  cont.damage=1
-	  timer=1
-	return 1
-	else
-	  cont.say Morri!!!
-	  //cont.tag.pontosdemorte=<link.tag.pontosdemorte> + (-1)
-	  //cont.tag.desmaios=5
-	  //cont.suicide
-	  cont.tag.pegandofogo=   //apaga a tag pegando fogo
-	  remove			// remove a memory pegando fogo
-	return 1
-	endif
+ dorand 5
+  cont.emotered pegando fogo
+  cont.anim 9
+  cont.anim 10
+  cont.emotered se debate
+ enddo
+ if (<cont.hits> >= 4)
+  LOCAL.dam={0 6 1 3 2 2 3 1}
+  cont.damage <eval <LOCAL.dam>> 010 <UID>
+  timer=1
+ else
+  cont.tag.pegandofogo=   //apaga a tag pegando fogo
+  remove			// remove a memory pegando fogo
+ endif
 else
  remove
-return 1
 endif
-
-/////////////////////////////////////////////////////////////////////
-
-
-[ITEMDEF i_pegando_fogo]
-NAME=Fogo
-type=t_fire//script
-ID=019ab
-
-CATEGORY=MyT - Effects
-SUBSECTION=Fogo
-DESCRIPTION=pegando fogo
-
-ON=@create
-timerd=0.1
-attr=08010
-
-ON=@TIMER
-if (<link.tag.pegandofogo>==1)
-	p=<link.p>
-	z=<link.z>+10
-	update
-	timerd=0.1
-return 1
-elif (<link.hitpoints><1)
-	remove
-	return 1
-return 1
-else
-	remove
-return 1
+more2=<more2>-1
+if (!<more2>)
+ remove
 endif
 return 1
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////    functions diversas   /////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////
+
+[FUNCTION f_pega_fogo]
+if (!<src.RESTEST 1 i_mry_pegandofogo>)
+ src.effect 3 i_fire 0 64 0
+ src.tag.pegandofogo=1
+ src.newitem=i_mry_pegandofogo
+ src.act.equip
+ src.update
+ src.sfx 015f
+ LOCAL.dam=<eval {5 15}>
+ src.damage <LOCAL.dam> 010
+endif
 
 [function coloca_dir]
 if (<src.dir> == 0)
