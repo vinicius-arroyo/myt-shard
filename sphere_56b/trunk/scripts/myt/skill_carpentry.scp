@@ -1,8 +1,22 @@
-   //////////////////////////////////////////
-  //////Sistema de carpentry - MyT    //////
- ////// V0.91 - por: Silver          //////
-//////  Sistma de furniture: Galthar//////
-/////////////////////////////////////////
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE CARPENTRY por
+//
+//			Galthar
+//			Silver
+//			UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+// - ira fazer sistema com diversos tipos de madeira?
+// - rever skillmenus que estao desabilitados
+// - rever rates (dif)
+
+//TAGS usadas:
+//tags do sistema de crafting
 
 //ferramentas utilizaveis
 //martelo
@@ -11,15 +25,14 @@
 //Racha
 
 //id das toras:
-//-i_log_birch
-//-i_log_yew
-//-i_log_cedar
-//-i_log_oak
-//-i_log_mahogany
-//-i_log_cyprus
-//-i_log_willow
-//-i_log_walnut
-
+//1-i_log_birch
+//2-i_log_cedar
+//3-i_log_oak
+//4-i_log_walnut
+//5-i_log_willow
+//6-i_log_cyprus
+//7-i_log_yew
+//8-i_log_mahogany
 
 // Recursos:
 //corda
@@ -31,27 +44,25 @@
 //more 1 - normal , more 2 - container , more 3 - container //locked 
 
 //Legenda
-// P = pena
-// T = tora
-// B = tabua
-// C = corda
-// V = vareta
-// TF = tacha de ferro
-// PE = pregos 
-// BA = base para o item
-// ME = madeira envergada
-// AR = argolas de ferro
-// ST = estofamento
-// SP = suporte 
-// TR = torneira
-// TM = tampa madeira
-// GV = gaveta
-// PL = ponta leve
-// PP = ponta precisao
-// PR = ponta perfurante
-// PF = ponta de ferro
-//-----------gumps----------
-
+// P= pena
+// T= tora
+// B= tabua
+// C= corda
+// V= vareta
+// TF= tacha de ferro
+// PE= pregos 
+// BA= base para o item
+// ME= madeira envergada
+// AR= argolas de ferro
+// ST= estofamento
+// SP= suporte 
+// TR= torneira
+// TM= tampa madeira
+// GV= gaveta
+// PL= ponta leve
+// PP= ponta precisao
+// PR= ponta perfurante
+// PF= ponta de ferro
 
  //--Sfx--//
 //023d - Toc Toc 	( batendo com o martelo )
@@ -63,282 +74,317 @@
 //anim 34 - comendo algo
 
 
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
 
-//########TRATAMENTO DO MENU########//
+//*****************************************************************************
+// t_envergadeira
+//*****************************************************************************
+[TYPEDEF t_envergadeira]
+ON=@DCLICK
+if (0<src.targ.distance> > 1) 
+	src.sysmessage Chegue mais perto. 
+else 
+	src.SKILLMENU sm_envergadeira 
+endif
+return 1
 
+//*****************************************************************************
+// t_carpentry_tool
+//*****************************************************************************
+[TYPEDEF t_carpentry_tool]
+ON=@DCLICK
+if (<topobj.uid> != <src.uid>)  
+	src.targ.bounce  		
+endif
 
-// Função chamada quando se clica em uma ferramenta de carp. Ela limpa //os tags relacionados aos botões de resource 
-
-[FUNCTION habilitacao_buttons_cr]
-//limpa a tag resource e coloca os botões para não selecionados. 
-if (!strmatch(<src.tag.resource_change_resource>,)	
-	src.tag.bt_carp1=<src.tag.bt_carp1>
-	src.tag.bt_carp2=<src.tag.bt_carp2>
-	src.tag.bt_carp3=<src.tag.bt_carp3>
-	src.tag.bt_carp4=<src.tag.bt_carp4>
-	src.tag.bt_carp5=<src.tag.bt_carp5>
-	src.tag.bt_carp6=<src.tag.bt_carp6>
-	src.tag.bt_carp7=<src.tag.bt_carp7>
-	src.tag.bt_carp8=<src.tag.bt_carp8>
+if (<topobj.uid> != <src.uid>)  
+	src.sysmessage Voce deve possuir a ferramenta para poder usar. 
 	return 1
+endif
+
+src.dialog d_menu_cr   
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// cr_fazTabua
+//*****************************************************************************
+[FUNCTION cr_fazTabua]
+//if (!<src.resource_change>)
+//     return 1
+//endif
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=carpentry
+
+//obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
+//obj.tag.nam1=tabua%s<src.tag.resource_change.sufixname>
+//obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.item=i_tabua<src.tag.resource_change.sufixtype>
+//obj.tag.name=tabua%s<src.tag.resource_change.sufixname>
+obj.tag.res1=i_log
+obj.tag.nam1=tora
+obj.tag.item=i_tabua
+obj.tag.name=tabua%s
+
+obj.tag.amt1=1
+obj.tag.dif=30
+obj.tag.anim=9
+obj.tag.sfx=023d
+obj.tag.delay=10
+obj.tag.emote=trabalhando
+obj.tag.espid=i_racha
+obj.tag.espname=racha
+obj.tag.scrap=i_foligem_carp
+if (<src.lumberjacking> > 70 )
+	obj.tag.amt=5
 else
-	src.tag.bt_carp1=00D2
-	src.tag.bt_carp2=00D2
-	src.tag.bt_carp3=00D2
-	src.tag.bt_carp4=00D2
-	src.tag.bt_carp5=00D2
-	src.tag.bt_carp6=00D2
-	src.tag.bt_carp7=00D2
-	src.tag.bt_carp8=00D2
-	return 1
+	obj.tag.amt=3
 endif
+src.fazitem
 return 1
 
-//Função que altera o valor das checkboxes , setando o valor da tag.resource_change_resource
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - Ferramentas
+//*****************************************************************************
+//*****************************************************************************
 
-[FUNCTION click_buttons_cr_1]
-if (0<src.tag.bt_carp1>==00D2)		// se selecionar o check
-	src.clear_tags_resource_change	
-	src.tag.bt_carp1=00D3
-	src.tag.resource_change_resource=birch
-	src.tag.bt_carp1=<src.tag.bt_carp1>
-	src.tag.bt_carp2=00D2
-	src.tag.bt_carp3=00D2
-	src.tag.bt_carp4=00D2
-	src.tag.bt_carp5=00D2
-	src.tag.bt_carp6=00D2
-	src.tag.bt_carp7=00D2
-	src.tag.bt_carp8=00D2
-else					// se descelecionar o check
-	src.tag.bt_carp1=00D2
-	src.clear_tags_resource_change	
-endif
-return 1
+[ITEMDEF i_prendedora]
+ID=019f4
+NAME=prendedora
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Prendedora
 
-[FUNCTION click_buttons_cr_2]
-if (0<src.tag.bt_carp2>==00D2)
-	src.clear_tags_resource_change	
-	src.tag.bt_carp2=00D3
-	src.tag.resource_change_resource=cedar
-	src.tag.bt_carp2=<src.tag.bt_carp2>
-	src.tag.bt_carp1=00D2
-	src.tag.bt_carp3=00D2
-	src.tag.bt_carp4=00D2
-	src.tag.bt_carp5=00D2
-	src.tag.bt_carp6=00D2
-	src.tag.bt_carp7=00D2
-	src.tag.bt_carp8=00D2
-else				
-	src.tag.bt_carp2=00D2
-	src.clear_tags_resource_change	
-endif
-return 1
+ON=@CREATE
+attr=08000
 
-[FUNCTION click_buttons_cr_3]
-if (0<src.tag.bt_carp3>==00D2)		
-	src.clear_tags_resource_change	
-	src.tag.bt_carp3=00D3
-	src.tag.resource_change_resource=oak
-	src.tag.bt_carp3=<src.tag.bt_carp3>
-	src.tag.bt_carp1=00D2
-	src.tag.bt_carp2=00D2
-	src.tag.bt_carp4=00D2
-	src.tag.bt_carp5=00D2
-	src.tag.bt_carp6=00D2
-	src.tag.bt_carp7=00D2
-	src.tag.bt_carp8=00D2
-else					
-	src.tag.bt_carp3=00D2
-	src.clear_tags_resource_change	
-endif
-return 1
+[ITEMDEF i_prendedora2]
+ID=019f8
+NAME=prendendora
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Prendedora
 
-[FUNCTION click_buttons_cr_4]
-if (0<src.tag.bt_carp4>==00D2)
-	src.clear_tags_resource_change	
-	src.tag.bt_carp4=00D3
-	src.tag.resource_change_resource=walnut
-	src.tag.bt_carp4=<src.tag.bt_carp4>
-	src.tag.bt_carp1=00D2
-	src.tag.bt_carp2=00D2
-	src.tag.bt_carp3=00D2
-	src.tag.bt_carp5=00D2
-	src.tag.bt_carp6=00D2
-	src.tag.bt_carp7=00D2
-	src.tag.bt_carp8=00D2
-else	
-	src.tag.bt_carp4=00D2
-	src.clear_tags_resource_change	
-endif
-return 1
+ON=@CREATE
+attr=08000
 
-[FUNCTION click_buttons_cr_5]
-if (0<src.tag.bt_carp5>==00D2)
-	src.clear_tags_resource_change	
-	src.tag.bt_carp5=00D3
-	src.tag.resource_change_resource=willow
-	src.tag.bt_carp5=<src.tag.bt_carp5>
-	src.tag.bt_carp1=00D2
-	src.tag.bt_carp2=00D2
-	src.tag.bt_carp3=00D2
-	src.tag.bt_carp4=00D2
-	src.tag.bt_carp6=00D2
-	src.tag.bt_carp7=00D2
-	src.tag.bt_carp8=00D2
-else					
-	src.tag.bt_carp5=00D2
-	src.clear_tags_resource_change	
-endif
-return 1
+[ITEMDEF i_carpm]
+ID=019f1
+NAME=mesa de carpintaria
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Mesa
 
-[FUNCTION click_buttons_cr_6]
-if (0<src.tag.bt_carp6>==00D2)		
-	src.clear_tags_resource_change	
-	src.tag.bt_carp6=00D3
-	src.tag.resource_change_resource=cyprus
-	src.tag.bt_carp6=<src.tag.bt_carp6>
-	src.tag.bt_carp1=00D2
-	src.tag.bt_carp2=00D2
-	src.tag.bt_carp3=00D2
-	src.tag.bt_carp4=00D2
-	src.tag.bt_carp5=00D2
-	src.tag.bt_carp7=00D2
-	src.tag.bt_carp8=00D2
-else					
-	src.tag.bt_carp6=00D2
-	src.clear_tags_resource_change	
-endif
-return 1
+ON=@CREATE
+attr=08000
 
-[FUNCTION click_buttons_cr_7]
-if (0<src.tag.bt_carp7>==00D2)		
-	src.clear_tags_resource_change	
-	src.tag.bt_carp7=00D3
-	src.tag.resource_change_resource=yew
-	src.tag.bt_carp7=<src.tag.bt_carp7>
-	src.tag.bt_carp1=00D2
-	src.tag.bt_carp2=00D2
-	src.tag.bt_carp3=00D2
-	src.tag.bt_carp4=00D2
-	src.tag.bt_carp5=00D2
-	src.tag.bt_carp6=00D2
-	src.tag.bt_carp8=00D2
-else					
-	src.tag.bt_carp7=00D2
-	src.clear_tags_resource_change	
-endif
-return 1
+[ITEMDEF i_carpm2]
+ID=019f3
+NAME=mesa de carpintaria
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Mesa
 
-[FUNCTION click_buttons_cr_8]
-if (0<src.tag.bt_carp8>==00D2)		
-	src.clear_tags_resource_change	
-	src.tag.bt_carp8=00D3
-	src.tag.resource_change_resource=mahogany 
-	src.tag.bt_carp8=<src.tag.bt_carp8>
-	src.tag.bt_carp1=00D2
-	src.tag.bt_carp2=00D2
-	src.tag.bt_carp3=00D2
-	src.tag.bt_carp4=00D2
-	src.tag.bt_carp5=00D2
-	src.tag.bt_carp6=00D2
-	src.tag.bt_carp7=00D2
-	
-else					
-	src.tag.bt_carp8=00D2
-	src.clear_tags_resource_change	
-	
-endif
-return 1
+ON=@CREATE
+attr=08000
 
+[ITEMDEF i_carpm3]
+ID=019f5
+NAME=mesa de carpintaria
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Mesa
 
-[dialog d_menures_carpinter]
-0, 230
-noclose
-//nomove
-PAGE 0
-resizepic 3 5 5120 170 248
-resizepic 25 30 5054 125 189
-text 30 7 152 0
-text 30 39 1345 1
-text 30 59 1345 2
-text 30 79 1345 3
-text 30 99 1345 4
-text 30 119 1345 5
-text 30 139 1345 6
-text 30 159 1345 7    
-text 30 179 1345 8
-text 50 220 1345 9  
-button 110 40 <src.tag.bt_carp1> 00D3 1 0 1
-button 110 60 <src.tag.bt_carp2> 00D3 1 0 2
-button 110 80 <src.tag.bt_carp3> 00D3 1 0 3
-button 110 100 <src.tag.bt_carp4> 00D3 1 0 4
-button 110 120 <src.tag.bt_carp5> 00D3 1 0 5
-button 110 140 <src.tag.bt_carp6> 00D3 1 0 6
-button 110 160 <src.tag.bt_carp7> 00D3 1 0 7
-button 110 180 <src.tag.bt_carp8> 00D3 1 0 8 
-button 30 225 2224 2224 1 0 9
+ON=@CREATE
+attr=08000
 
-[DIALOG d_menures_carpinter TEXT]
-Recursos
-Vidoeiro
-Cedro
-Carvalho
-Castanheira
-Salgueiro
-Cipreste
-Yew
-Mogno
-Voltar
+[ITEMDEF i_carpm4]
+ID=019F7
+NAME=mesa de carpintaria
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Mesa
 
-[DIALOG d_menures_carpinter BUTTON]
-on= 
-src.dialog=d_menures_carpinter
-return 1
+ON=@CREATE
+attr=08000
 
-on=1
-src.click_buttons_cr_1
-src.dialog=d_menures_carpinter
-return 1
+[ITEMDEF i_envergadeira]
+ID=019f9
+NAME=envergadeira
+TYPE=t_envergadeira
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Envergadeira
 
-on=2
-src.click_buttons_cr_2
-src.dialog=d_menures_carpinter
-return 1
+[ITEMDEF i_envergadeira2]
+ID=019fa
+NAME=envergadeira
+TYPE=t_envergadeira
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Envergadeira
 
-on=3
-src.click_buttons_cr_3
-src.dialog=d_menures_carpinter
-return 1
+[ITEMDEF i_envergadeira3]
+ID=019fb
+NAME=envergadeira
+TYPE=t_envergadeira
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Envergadeira
 
-on=4
-src.click_buttons_cr_4
-src.dialog=d_menures_carpinter
-return 1
+[ITEMDEF i_envergadeira4]
+ID=019fc
+NAME=envergadeira
+TYPE=t_envergadeira
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Envergadeira
 
-on=5
-src.click_buttons_cr_5
-src.dialog=d_menures_carpinter
-return 1
+[ITEMDEF i_racha]
+NAME=racha
+ID=010e5
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Racha
 
-on=6
-src.click_buttons_cr_6
-src.dialog=d_menures_carpinter
-return 1
+[ITEMDEF i_raspadeira]
+NAME=raspadeira
+ID=010E6
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Raspadeira
 
-on=7
-src.click_buttons_cr_7
-src.dialog=d_menures_carpinter
-return 1
+[ITEMDEF i_serra_duasm]
+NAME=serra larga
+ID=010e4
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=serra de duas maos
 
-on=8
-src.click_buttons_cr_8
-src.dialog=d_menures_carpinter
-return 1
+[ITEMDEF i_plaina]
+NAME=plaina
+ID=01030
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=plaina
+DUPELIST=01031
 
-on=9
-src.dialog=d_menu_cr
-return 1
+[ITEMDEF i_lixa]
+NAME=lixa
+ID=0102c
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=lixa
+DUPELIST=0102C
 
+[ITEMDEF i_martelo]
+NAME=martelo
+ID=0102b
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=martelo de carpinteiro
+
+[ITEMDEF i_serra]
+ID=01028
+NAME=serra
+WEIGHT=1
+TYPE=t_carpentry_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=serra
+DUPELIST=01029
+
+[ITEMDEF i_serrote]
+NAME=serrote
+ID=01034
+TYPE=t_carpentry_tool
+WEIGHT=3
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=serronte
+DUPELIST=01035
+
+[ITEMDEF i_talhadeira]
+NAME=talhadeira
+ID=01026
+TYPE=t_carpentry_tool
+WEIGHT=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=talhadeira
+DUPELIST=01027
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - Outros
+//*****************************************************************************
+//*****************************************************************************
+
+[ITEMDEF i_torneira]
+NAME=torneira para barril
+ID=01004
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tinker
+DESCRIPTION=estofamento
+
+[ITEMDEF i_estofamento]
+//para ser colocado em tailoring
+NAME=estofamento
+ID=0163c
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=estofamento
+
+[ITEMDEF i_foligem_carp]
+NAME=foligem
+ID=01038
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=foligem
+
+ON=@CREATE
+attr=00002
+timer=30
+
+[ITEMDEF i_corda]
+NAME=corda
+ID=014f8
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=corda
+
+//*****************************************************************************
+//*****************************************************************************
+// DIALOGs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// d_menu_cr - Menu principal de carpentry
+//*****************************************************************************
 [DIALOG d_menu_cr]
 0, 230
 PAGE 0
@@ -426,31 +472,37 @@ return 1
 
 on=5
 src.sysmessageyellow	sistema em manutencao
+dialog d_menu_cr
 //SKILLMENU=sm_cr_mesas
 return 1
 
 on=6
 src.sysmessageyellow	sistema em manutencao
+dialog d_menu_cr
 //SKILLMENU=sm_cr_camas
 return 1
 
 on=7
 src.sysmessageyellow	sistema em manutencao
+dialog d_menu_cr
 //SKILLMENU=sm_cr_container
 return 1
 
 on=8
 src.sysmessageyellow	sistema em manutencao
+dialog d_menu_cr
 //SKILLMENU=sm_cr_Armarios
 return 1
 
 on=9
 src.sysmessageyellow	sistema em manutencao
+dialog d_menu_cr
 //SKILLMENU=sm_cr_cadeiras
 return 1
 
 on=10
 src.sysmessageyellow	sistema em manutencao
+dialog d_menu_cr
 //SKILLMENU=sm_cr_bancos
 return 1
 
@@ -467,325 +519,246 @@ SKILLMENU=sm_cr_outros
 return 1
 
 on=14
-src.tag.qtditem=<src.tag.qtditeml>
-src.dialog=d_bs_fazitem
+src.dialog=d_fazitem
 return 1
 
 on=15
-src.dialog=d_menures_carpinter
+//src.dialog=d_menures_carpinter
+src.sysmessageyellow	sistema em manutencao
+dialog d_menu_cr
 return 1
 
-
-on=14
-src.sysmessageyellow Sistema em manutencao, desculpem o transtorno.
-src.click_buttons_cr
-src.dialog=d_menures_carpinter
-//src.dialog=d_menu_cr
-return 1
-
-
-
-[DIALOG d_bs_fazitem]
--310, 120
-PAGE 0
+//*****************************************************************************
+// d_menures_carpinter
+//*****************************************************************************
+[DIALOG d_menures_carpinter]
+0, 230
 noclose
 //nomove
-resizepic 312 219 3500 165 135
-button 325 250 2224 2224 1 0 0  // <- botao do +1
-button 325 270 2224 2224 1 0 1	// <- botao do -1
-button 325 310 2224 2224 1 0 2	// <- botao de zerar
-button 400 270 2224 2224 1 0 3	// <- botao de fazer
-button 400 310 2224 2224 1 0 4 	// <- botao de sair
-button 325 290 2224 2224 1 0 5  // <- botao de MAX
-text 345 225 152 0 	//<--- texto label
-text 345 246 1345 1 	//<--- texto do mais 1
-text 435 226 162 2	//<--- texto do contador	
-text 345 267 95 3	//<--- texto do menos 1
-text 345 305 95 4	//<--- texto de zerar
-text 420 267 95 5       //<--- texto para fazer
-text 420 305 41 6       //<--- texto para sair
-text 345 285 95 7	//<--- texto para MAX
-[DIALOG d_bs_fazitem TEXT]
-Quantidade:
-+1
-<eval 0<src.tag.qtditem>>
--1
-zerar
-fazer
-sair
-max
+PAGE 0
+resizepic 3 5 5120 170 248
+resizepic 25 30 5054 125 189
+text 30 7 152 0
+text 30 39 1345 1
+text 30 59 1345 2
+text 30 79 1345 3
+text 30 99 1345 4
+text 30 119 1345 5
+text 30 139 1345 6
+text 30 159 1345 7    
+text 30 179 1345 8
+text 50 220 1345 9  
+button 110 40 <src.tag.bt_carp1> 00D3 1 0 1
+button 110 60 <src.tag.bt_carp2> 00D3 1 0 2
+button 110 80 <src.tag.bt_carp3> 00D3 1 0 3
+button 110 100 <src.tag.bt_carp4> 00D3 1 0 4
+button 110 120 <src.tag.bt_carp5> 00D3 1 0 5
+button 110 140 <src.tag.bt_carp6> 00D3 1 0 6
+button 110 160 <src.tag.bt_carp7> 00D3 1 0 7
+button 110 180 <src.tag.bt_carp8> 00D3 1 0 8 
+button 30 225 2224 2224 1 0 9
 
-[DIALOG d_bs_fazitem BUTTON]
+[DIALOG d_menures_carpinter TEXT]
+Recursos
+Vidoeiro
+Cedro
+Carvalho
+Castanheira
+Salgueiro
+Cipreste
+Yew
+Mogno
+Voltar
 
-on=
-	src.dialog=d_bs_fazitem
- 	src.update
-	return 
-on=0					//INCREMENTA
-	if ( <src.tag.qtditem> < 10 )
-		src.tag.qtditem=<src.tag.qtditem>+1
-		src.dialog=d_bs_fazitem
- 		src.update
-		return 
-	else
-		src.sysmessageyellow Limite alcancado
-		src.dialog=d_bs_fazitem
- 		src.update
-		return 
-on=1					//DECREMENTA
-	if ( <src.tag.qtditem> >0 )	
-		src.tag.qtditem=<src.tag.qtditem>-1
-		src.update
- 		src.dialog=d_bs_fazitem
-		return 
-	else
-		src.sysmessageyellow Limite alcancado
-		src.dialog=d_bs_fazitem
-		src.update
-		return 
-on=2					// ZERA O CONTADOR
-	src.tag.qtditem=0 
-	src.update
- 	src.dialog=d_bs_fazitem
-	return 
-on=3					//FAZ O ITEM
-	if (<src.tag.qtditem> == 0 )
-		src.sysmessageyellow Nao foi selecionada a quantidade
-		return
-	else
-		src.fazitem <src.tag.qtditem>
-		src.update	
-		return 
+[DIALOG d_menures_carpinter BUTTON]
+
+on=1
+src.dialog=d_menures_carpinter
+return 1
+
+on=2
+src.dialog=d_menures_carpinter
+return 1
+
+on=3
+src.dialog=d_menures_carpinter
+return 1
+
 on=4
-	src.tag.qtditeml=<src.tag.qtditem>
-	src.tag.qtditem=
-	return
-on=5  
-	src.tag.qtditem=10
-	src.dialog=d_bs_fazitem
-	src.update
-	return
+src.dialog=d_menures_carpinter
+return 1
 
+on=5
+src.dialog=d_menures_carpinter
+return 1
 
+on=6
+src.dialog=d_menures_carpinter
+return 1
 
+on=7
+src.dialog=d_menures_carpinter
+return 1
 
-//########SKILLMENUS########//
+on=8
+src.dialog=d_menures_carpinter
+return 1
 
-//--Escudos--//
-[skillmenu sm_cr_escudos]
+on=9
+src.dialog=d_menu_cr
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// SKILLMENUs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// Escudos
+//*****************************************************************************
+[SKILLMENU sm_cr_escudos]
 Que escudo deseja construir?
 
 on=i_tabua tabua
-obj=<src.findid.i_mry_fazitem.uid>
-obj.cleartags
-obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=tabua%s<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua%s<src.tag.resource_change.sufixname>
-obj.tag.amt1 =1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif =30
-obj.tag.anim =9
-obj.tag.sfx=023d
-obj.tag.delay =10
-obj.tag.emote=trabalhando
-obj.tag.espid =i_racha
-obj.tag.espiname=racha
-obj.tag.scrap=i_foligem_carp
-obj.tag.Item =i_tabua<src.tag.resource_change.sufixtype>
-if (<src.lumberjacking> > 70 )
-     obj.tag.amount =5
-Else
-     obj.tag.amount =3
-EndIf
-if (<lumberjacking> <=1000) && (RAND(4))
-     GAIN_SKILL lumberjacking
-Endif
-src.fazitem
-return 1
+src.cr_fazTabua
 
 on=i_bescudo base para escudo
-TESTIF =(<carpentry> >= 40 )
+TESTIF=(<carpentry> >= 40 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=base para escudo<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabuas<src.tag.resource_change.sufixname>
-obj.tag.amt1 =5
+obj.tag.name=base para escudo
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabuas
+obj.tag.amt1=5
 obj.tag.res2=i_pregos
 obj.tag.nam2=pregos
-obj.Tag.amt2 =5
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif =30
-obj.tag.anim =9
+obj.tag.amt2=5
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=30
+obj.tag.anim=9
 obj.tag.sfx=023d
-obj.tag.delay =30
+obj.tag.delay=30
 obj.tag.emote=trabalhando
-obj.tag.espid =i_serrote
-obj.tag.espiname=serrote
+obj.tag.espid=i_serrote
+obj.tag.espname=serrote
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item =i_bescudo<src.tag.resource_change.sufixtype>
-obj.tag.amount=1
+obj.tag.item=i_bescudo
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_bescudo2 base grande para escudo
-TESTIF =(<carpentry> >= 55 )
+TESTIF=(<carpentry> >= 55 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=base grande para escudo<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabuas<src.tag.resource_change.sufixname>
+obj.tag.name=base grande para escudo
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabuas
 obj.tag.amt1=10
 obj.tag.res2=i_pregos
 obj.tag.nam2=pregos
-obj.Tag.amt2 =10
-obj.tag.color=<src.tag.resource_change.color>
+obj.tag.amt2=10
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
-obj.tag.delay =35
+obj.tag.delay=35
 obj.tag.emote=trabalhando
-obj.tag.espid =i_serrote
-obj.tag.espiname=serrote
+obj.tag.espid=i_serrote
+obj.tag.espname=serrote
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_bescudo2<src.tag.resource_change.sufixtype>
-obj.tag.amount=1
+obj.tag.item=i_bescudo2
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_escudo_madeira escudo simples
-TESTIF =(<carpentry> >= 55 )
+TESTIF=(<carpentry> >= 55 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=escudo simples<src.tag.resource_change.sufixname>
-obj.tag.res1=i_bescudo<src.tag.resource_change.sufixtype>
-obj.tag.nam1=base para escudo<src.tag.resource_change.sufixname>
-obj.tag.amt1 =1
+obj.tag.name=escudo simples
+obj.tag.res1=i_bescudo
+obj.tag.nam1=base para escudo
+obj.tag.amt1=1
 obj.tag.res2=i_pregos
 obj.tag.nam2=pregos
-obj.Tag.amt2 =10
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif =40
-obj.tag.anim =9
+obj.tag.amt2=10
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=40
+obj.tag.anim=9
 obj.tag.sfx=023d
-obj.tag.delay =10
+obj.tag.delay=10
 obj.tag.emote=trabalhando
-obj.tag.espid =i_martelo
-obj.tag.espiname=martelo
+obj.tag.espid=i_martelo
+obj.tag.espname=martelo
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item =i_escudo_madeira
-obj.tag.amount =1
+obj.tag.item=i_escudo_madeira
+obj.tag.amt=1
 obj.tag.iswpn=1
 src.fazitem
 return 1
 
 on=i_escudo_batalham escudo de batalha
-TESTIF =(<carpentry> >= 55 )
+TESTIF=(<carpentry> >= 55 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if !(<src.tag.resource_change>)
-     return 1
-Endif
-obj.tag.name=escudo de batalha<src.tag.resource_change.sufixname>
-obj.tag.res1=i_bescudo2<src.tag.resource_change.sufixtype>
-obj.tag.nam1=base grande para escudo<src.tag.resource_change.sufixname>
-obj.tag.amt1 =1
+obj.tag.name=escudo de batalha
+obj.tag.res1=i_bescudo2
+obj.tag.nam1=base grande para escudo
+obj.tag.amt1=1
 obj.tag.res2=i_pregos
 obj.tag.nam2=pregos
-obj.Tag.amt2 =10
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif =55
-obj.tag.anim =9
+obj.tag.amt2=10
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=55
+obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=15
 obj.tag.emote=trabalhando
-obj.tag.espid =i_martelo
-obj.tag.espiname=martelo
+obj.tag.espid=i_martelo
+obj.tag.espname=martelo
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item =i_escudo_batalham
-obj.tag.amount =1
+obj.tag.item=i_escudo_batalham
+obj.tag.amt=1
 obj.tag.iswpn=1
 src.fazitem
 return 1
 
 
-//-- Flechas--//
-
-[skillmenu sm_cr_flechas]
+//*****************************************************************************
+// Flechas
+//*****************************************************************************
+[SKILLMENU sm_cr_flechas]
 Que flecha deseja fazer ?
 
-on=i_tabua tabua 
-obj=<src.findid.i_mry_fazitem.uid>
-obj.cleartags
-obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=tabua%s<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua%s<src.tag.resource_change.sufixname>
-obj.tag.amt1 =1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif =30
-obj.tag.anim =9
-obj.tag.sfx=023d
-obj.tag.delay =10
-obj.tag.emote=trabalhando
-obj.tag.espid =i_racha
-obj.tag.espiname=racha
-obj.tag.scrap=i_foligem_carp
-obj.tag.Item =i_tabua<src.tag.resource_change.sufixtype>
-if (<src.lumberjacking> > 70 )
-     obj.tag.amount =5
-Else
-     obj.tag.amount =3
-EndIf
-if (<lumberjacking> <=1000) && (RAND(4))
-     GAIN_SKILL lumberjacking
-Endif
-src.fazitem
-return 1
+on=i_tabua tabua
+src.cr_fazTabua
 
 on=i_vareta vareta 
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=bowcraft
-if (!<src.resource_change>) 
-	return 1
-endif
-obj.tag.res1=i_tabua<tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<tag.resource_change.sufixname>		
-obj.tag.name=vareta%s<tag.resource_change.sufixname>
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=(dif.defaut)
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
+obj.tag.name=vareta%s
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=30
 obj.tag.anim=9							
 obj.tag.sfx=023d			
 obj.tag.delay=10				
 obj.tag.amt1=1				
 obj.tag.espid=i_talhadeira		
 obj.tag.espname=formao		
-obj.tag.item=i_vareta<src.tag.resource_change.sufixtype>
+obj.tag.item=i_vareta
 if (<src.lumberjacking> > 70 )
-	obj.tag.amount=5
+	obj.tag.amt=5
 else
-	obj.tag.amount=3
+	obj.tag.amt=3
 endif
 obj.tag.emote=trabalhando
 obj.tag.scrap=i_foligem
@@ -796,16 +769,13 @@ on=i_arrow flecha de madeira
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=bowcraft
-if (!<src.resource_change>) 
-	return 1
-endif
-obj.tag.res1=i_vareta<tag.resource_change.sufixtype>
-obj.tag.nam1=vareta<tag.resource_change.sufixname>		
+obj.tag.res1=i_vareta
+obj.tag.nam1=vareta
 obj.tag.res2=i_pena
 obj.tag.nam2=penas
-obj.tag.name=flecha%s<tag.resource_change.sufixname>
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=(dif.defaut)
+obj.tag.name=flecha%s
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=30
 obj.tag.anim=9							
 obj.tag.sfx=023d			
 obj.tag.delay=10			
@@ -823,16 +793,13 @@ on=i_xbolt dardos de madeira
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=bowcraft
-if (!<src.resource_change>) 
-	return 1
-endif
-obj.tag.res1=i_vareta<tag.resource_change.sufixtype>
-obj.tag.nam1=vareta<tag.resource_change.sufixname>		
+obj.tag.res1=i_vareta
+obj.tag.nam1=vareta
 obj.tag.res2=i_pena
 obj.tag.nam2=penas
-obj.tag.name=dardo%s<tag.resource_change.sufixname>
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=(dif.defaut)
+obj.tag.name=dardo%s
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=30
 obj.tag.anim=9							
 obj.tag.sfx=023d			
 obj.tag.delay=13			
@@ -846,53 +813,23 @@ obj.tag.scrap=i_foligem
 src.fazitem
 return 1
 
-//--Arcos e Bestas--//
-[skillmenu sm_cr_lancadores]
+//*****************************************************************************
+// Arcos e Bestas
+//*****************************************************************************
+[SKILLMENU sm_cr_lancadores]
 Que flecha deseja fazer ?
 
-on=i_tabua tabua 
-obj=<src.findid.i_mry_fazitem.uid>
-obj.cleartags
-obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=tabua%s<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua%s<src.tag.resource_change.sufixname>
-obj.tag.amt1 =1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif =30
-obj.tag.anim =9
-obj.tag.sfx=023d
-obj.tag.delay =10
-obj.tag.emote=trabalhando
-obj.tag.espid =i_racha
-obj.tag.espiname=racha
-obj.tag.scrap=i_foligem_carp
-obj.tag.Item =i_tabua<src.tag.resource_change.sufixtype>
-if (<src.lumberjacking> > 70 )
-     obj.tag.amount =5
-Else
-     obj.tag.amount =3
-EndIf
-if (<lumberjacking> <=1000) && (RAND(4))
-     GAIN_SKILL lumberjacking
-Endif
-src.fazitem
-return 1
+on=i_tabua tabua
+src.cr_fazTabua
 
 on=i_crossbow besta
-TESTIF =(<carpentry> >= 700 )
+TESTIF=(<carpentry> >= 700 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=besta<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabuas<src.tag.resource_change.sufixname>
+obj.tag.name=besta
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabuas
 obj.tag.amt1=5
 obj.tag.res2=i_pregos
 obj.tag.nam2=pregos
@@ -900,18 +837,18 @@ obj.tag.amt2=10
 obj.tag.res3=i_axel_and_gears
 obj.tag.nam3=eixo e engrenagem
 obj.tag.amt3=1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=80
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_crossbow
+obj.tag.item=i_crossbow
 obj.tag.type=t_weapon_bow
-obj.tag.amount=1
+obj.tag.amt=1
 if (<bowcraft> <=1000) && (RAND(4))
      GAIN_SKILL bowcraft
 Endif
@@ -919,34 +856,31 @@ src.fazitem
 return 1
 
 on=i_crossbow_heavy besta pesada
-TESTIF =(<carpentry> >= 900 )
+TESTIF=(<carpentry> >= 900 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
 obj.tag.type=t_weapon_bow
-obj.tag.name=besta pesada<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabuas<src.tag.resource_change.sufixname>
+obj.tag.name=besta pesada
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabuas
 obj.tag.amt1=10
 obj.tag.res2=i_pregos
 obj.tag.nam2=pregos
-obj.Tag.amt2=20
+obj.tag.amt2=20
 obj.tag.res3=i_axel_and_gears
 obj.tag.nam3=eixo e engrenagenss
 obj.Tag.amt3=1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
-obj.tag.delay =120
+obj.tag.delay=120
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item =i_crossbow_heavy
+obj.tag.item=i_crossbow_heavy
 if (<bowcraft> <=1000) && (RAND(4))
      GAIN_SKILL bowcraft
 Endif
@@ -954,29 +888,26 @@ src.fazitem
 return 1
 
 on=i_bow arco simples
-TESTIF =(<carpentry> >= 300 )
+TESTIF=(<carpentry> >= 300 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
 obj.tag.type=t_weapon_bow
-obj.tag.name=arco simples<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabuas<src.tag.resource_change.sufixname>
+obj.tag.name=arco simples
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabuas
 obj.tag.amt1=1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=60
 obj.tag.emote=trabalhando
-obj.tag.espid =i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espid=i_talhadeira
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item =i_bow
-obj.tag.amount =1
+obj.tag.item=i_bow
+obj.tag.amt=1
 if (<bowcraft> <=1000) && (RAND(4))
      GAIN_SKILL bowcraft
 Endif
@@ -984,69 +915,35 @@ Endif
 src.fazitem
 return 1
 
-//--Cajados , Bastões e Lanças--//
-
-[skillmenu sm_cr_cajados]
+//*****************************************************************************
+// Cajados, bastões e lanças
+//*****************************************************************************
+[SKILLMENU sm_cr_cajados]
 O que deseja construir ?
 
-on=i_tabua tabua 
-obj=<src.findid.i_mry_fazitem.uid>
-obj.cleartags
-obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=tabua%s<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua%s<src.tag.resource_change.sufixname>
-obj.tag.amt1 =1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif =30
-obj.tag.anim =9
-obj.tag.sfx=023d
-obj.tag.delay =10
-obj.tag.emote=trabalhando
-obj.tag.espid =i_racha
-obj.tag.espiname=racha
-obj.tag.scrap=i_foligem_carp
-obj.tag.Item =i_tabua<src.tag.resource_change.sufixtype>
-if (<src.lumberjacking> > 70 )
-     obj.tag.amount =5
-Else
-     obj.tag.amount =3
-EndIf
-if (<lumberjacking> <=1000) && (RAND(4))
-     GAIN_SKILL lumberjacking
-Endif
-src.fazitem
-return 1
+on=i_tabua tabua
+src.cr_fazTabua
 
 on=i_porrete porrete
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=porrete<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tora<src.tag.resource_change.sufixname>
+obj.tag.name=porrete
+obj.tag.res1=i_log
+obj.tag.nam1=tora
 obj.tag.amt1=1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_porrete
-obj.tag.amount=1
+obj.tag.item=i_porrete
+obj.tag.amt=1
 obj.tag.iswpn=1
-if (<armslore> <=1000) && (RAND(4))
-     GAIN_SKILL armslore
-Endif
 src.fazitem
 return 1
 
@@ -1054,57 +951,48 @@ on=i_cabo_madeira cabo de madeira
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=cabo de madeira<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<src.tag.resource_change.sufixname>
+obj.tag.name=cabo de madeira
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
 obj.tag.amt1=1
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_serrote
-obj.tag.espiname=serrote
+obj.tag.espname=serrote
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_cabo_madeira<src.tag.resource_change.sufixtype>
-if (<lumberjacking> > 70 )
-     obj.tag.amount=5
-Else
-     obj.tag.amount=3
-EndIf
-if (<lumberjacking> <=1000) && (RAND(4))
-     GAIN_SKILL lumberjacking
-Endif
+obj.tag.item=i_cabo_madeira
+if (<src.lumberjacking> > 70 )
+	obj.tag.amt=5
+else
+	obj.tag.amt=3
+endif
 src.fazitem
 return 1
 
 on=i_lanca lanca de madeira
-TESTIF =(<carpentry> >= 600 )
+TESTIF=(<carpentry> >= 600 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=lanca<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tora<src.tag.resource_change.sufixname>
+obj.tag.name=lanca
+obj.tag.res1=i_log
+obj.tag.nam1=tora
 obj.tag.amt1=1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=50
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_lanca_madeira
-obj.tag.amount=1
+obj.tag.item=i_lanca_madeira
+obj.tag.amt=1
 obj.tag.iswpn=1
 if (<armslore> <=1000) && (RAND(4))
      GAIN_SKILL armslore
@@ -1113,28 +1001,25 @@ src.fazitem
 return 1
 
 on=i_cajado_rustico cajado rustico
-TESTIF =(<carpentry> >= 550 )
+TESTIF=(<carpentry> >= 550 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=cajado rustico<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tora<src.tag.resource_change.sufixname>
+obj.tag.name=cajado rustico
+obj.tag.res1=i_log
+obj.tag.nam1=tora
 obj.tag.amt1=1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=50
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_cajado_rustico
-obj.tag.amount=1
+obj.tag.item=i_cajado_rustico
+obj.tag.amt=1
 obj.tag.iswpn=1
 if (<armslore> <=1000) && (RAND(4))
      GAIN_SKILL armslore
@@ -1143,28 +1028,25 @@ src.fazitem
 return 1
 
 on=i_cajado bastao
-TESTIF =(<carpentry> >= 600 )
+TESTIF=(<carpentry> >= 600 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=bastao<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tora<src.tag.resource_change.sufixname>
+obj.tag.name=bastao
+obj.tag.res1=i_log
+obj.tag.nam1=tora
 obj.tag.amt1=1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=50
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_cajado
-obj.tag.amount=1
+obj.tag.item=i_cajado
+obj.tag.amt=1
 obj.tag.iswpn=1
 if (<armslore> <=1000) && (RAND(4))
      GAIN_SKILL armslore
@@ -1173,54 +1055,48 @@ src.fazitem
 return 1
 
 on=i_cajado_pastor cajado de pastoreio
-TESTIF =(<carpentry> >= 450 )
+TESTIF=(<carpentry> >= 450 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=cajado de pastoreio<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tora<src.tag.resource_change.sufixname>
+obj.tag.name=cajado de pastoreio
+obj.tag.res1=i_log
+obj.tag.nam1=tora
 obj.tag.amt1=1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=45
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_cajado_pastor
-obj.tag.amount=1
+obj.tag.item=i_cajado_pastor
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_cajado_negro cajado ornado
-TESTIF =(<carpentry> >= 750 )
+TESTIF=(<carpentry> >= 750 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=cajado ornado<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tora<src.tag.resource_change.sufixname>
+obj.tag.name=cajado ornado
+obj.tag.res1=i_log
+obj.tag.nam1=tora
 obj.tag.amt1=2
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=60
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_cajado_negro
-obj.tag.amount=1
+obj.tag.item=i_cajado_negro
+obj.tag.amt=1
 obj.tag.iswpn=1
 if (<armslore> <=1000) && (RAND(4))
      GAIN_SKILL armslore
@@ -1228,53 +1104,45 @@ Endif
 src.fazitem
 return 1
 
-//--Luteria--//
-
-[skillmenu sm_cr_luteria]
+//*****************************************************************************
+// Luteria
+//*****************************************************************************
+[SKILLMENU sm_cr_luteria]
 O que deseja construir ?
 
 on=i_madeiraenvergada madeira envergada
-TESTIF =(<carpentry> >= 450 )
+TESTIF=(<carpentry> >= 450 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=madeira envergada<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<src.tag.resource_change.sufixname>
+obj.tag.name=madeira envergada
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
 obj.tag.amt1=1
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.needtype=t_envergadeira
 obj.tag.need=envergadeira
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_madeiraenvergada<src.tag.resource_change.sufixtype>
-obj.tag.amount=1
-if (<lumberjacking> <=1000) && (RAND(4))
-     GAIN_SKILL lumberjacking
-Endif
+obj.tag.item=i_madeiraenvergada
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_drum tambor
-TESTIF =(<carpentry> >= 450 )
+TESTIF=(<carpentry> >= 450 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=tambor<src.tag.resource_change.sufixname>
-obj.tag.res1=i_madeiraenvergada<src.tag.resource_change.sufixtype>
-obj.tag.nam1=madeira envergada<src.tag.resource_change.sufixname>
+obj.tag.name=tambor
+obj.tag.res1=i_madeiraenvergada
+obj.tag.nam1=madeira envergada
 obj.tag.amt1=1
 obj.tag.res2=i_couro_cru
 obj.tag.nam2=couro cru
@@ -1282,31 +1150,28 @@ obj.tag.amt2=1
 obj.tag.res3=i_pregos
 obj.tag.nam3=pregos
 obj.tag.amt3=5
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=60
 obj.tag.emote=trabalhando
 obj.tag.espid=i_martelo
-obj.tag.espiname=martelo
+obj.tag.espname=martelo
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_drum
-obj.tag.amount=1
+obj.tag.item=i_drum
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_tambourine tamborim
-TESTIF =(<carpentry> >= 550 )
+TESTIF=(<carpentry> >= 550 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=tamborim<src.tag.resource_change.sufixname>
-obj.tag.res1=i_madeiraenvergada<src.tag.resource_change.sufixtype>
-obj.tag.nam1=madeira envergada<src.tag.resource_change.sufixname>
+obj.tag.name=tamborim
+obj.tag.res1=i_madeiraenvergada
+obj.tag.nam1=madeira envergada
 obj.tag.amt1=1
 obj.tag.res2=i_cabo_ferro
 obj.tag.nam2=arame de ferro
@@ -1314,31 +1179,28 @@ obj.tag.amt2=1
 obj.tag.res3=i_pregos
 obj.tag.nam3=pregos
 obj.tag.amt3=5
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=55
 obj.tag.emote=trabalhando
 obj.tag.espid=i_martelo
-obj.tag.espiname=martelo
+obj.tag.espname=martelo
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_tambourine
-obj.tag.amount=1
+obj.tag.item=i_tambourine
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_tambourine_tas tamborim com fita
-TESTIF =(<carpentry> >= 550 )
+TESTIF=(<carpentry> >= 550 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=tamborim ornado<src.tag.resource_change.sufixname>
-obj.tag.res1=i_madeiraenvergada<src.tag.resource_change.sufixtype>
-obj.tag.nam1=madeira envergada<src.tag.resource_change.sufixname>
+obj.tag.name=tamborim ornado
+obj.tag.res1=i_madeiraenvergada
+obj.tag.nam1=madeira envergada
 obj.tag.amt1=1
 obj.tag.res2=i_cabo_ferro
 obj.tag.nam2=arame de ferro
@@ -1349,31 +1211,28 @@ obj.tag.amt3=5
 obj.tag.res3=i_bandage
 obj.tag.nam3=bandagem
 obj.tag.amt3=1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=55
 obj.tag.emote=trabalhando
 obj.tag.espid=i_martelo
-obj.tag.espiname=martelo
+obj.tag.espname=martelo
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_tambourine_tas
-obj.tag.amount=1
+obj.tag.item=i_tambourine_tas
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_lute alaude
-TESTIF =(<carpentry> >= 600 )
+TESTIF=(<carpentry> >= 600 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=alaude<src.tag.resource_change.sufixname>
-obj.tag.res1=i_madeiraenvergada<src.tag.resource_change.sufixtype>
-obj.tag.nam1=madeira envergada<src.tag.resource_change.sufixname>
+obj.tag.name=alaude
+obj.tag.res1=i_madeiraenvergada
+obj.tag.nam1=madeira envergada
 obj.tag.amt1=1
 obj.tag.res2=i_cabo_ferro
 obj.tag.nam2=arame de ferro
@@ -1381,31 +1240,28 @@ obj.tag.amt2=1
 obj.tag.res3=i_pregos
 obj.tag.nam3=pregos
 obj.tag.amt3=5
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=60
 obj.tag.emote=trabalhando
 obj.tag.espid=i_martelo
-obj.tag.espiname=martelo
+obj.tag.espname=martelo
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_lute
-obj.tag.amount=1
+obj.tag.item=i_lute
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_lyre Arpa  de mao
-TESTIF =(<carpentry> >= 750 )
+TESTIF=(<carpentry> >= 750 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=Arpa  de mao<src.tag.resource_change.sufixname>
-obj.tag.res1=i_madeiraenvergada<src.tag.resource_change.sufixtype>
-obj.tag.nam1=madeira envergada<src.tag.resource_change.sufixname>
+obj.tag.name=Arpa  de mao
+obj.tag.res1=i_madeiraenvergada
+obj.tag.nam1=madeira envergada
 obj.tag.amt1=1
 obj.tag.res2=i_cabo_ferro
 obj.tag.nam2=arame de ferro
@@ -1413,31 +1269,28 @@ obj.tag.amt2=1
 obj.tag.res3=i_pregos
 obj.tag.nam3=pregos
 obj.tag.amt3=5
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=120
 obj.tag.emote=trabalhando
 obj.tag.espid=i_martelo
-obj.tag.espiname=martelo
+obj.tag.espname=martelo
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_lyre
-obj.tag.amount=1
+obj.tag.item=i_lyre
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_harp_large Arpa 
-TESTIF =(<carpentry> >= 800 )
+TESTIF=(<carpentry> >= 800 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=Arpa <src.tag.resource_change.sufixname>
-obj.tag.res1=i_madeiraenvergada<src.tag.resource_change.sufixtype>
-obj.tag.nam1=madeira envergada<src.tag.resource_change.sufixname>
+obj.tag.name=Arpa 
+obj.tag.res1=i_madeiraenvergada
+obj.tag.nam1=madeira envergada
 obj.tag.amt1=1
 obj.tag.res2=i_cabo_ferro
 obj.tag.nam2=arames de ferro
@@ -1445,119 +1298,80 @@ obj.tag.amt2=2
 obj.tag.res3=i_pregos
 obj.tag.nam3=pregos
 obj.tag.amt3=5
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=120
 obj.tag.emote=trabalhando
 obj.tag.espid=i_martelo
-obj.tag.espiname=martelo
+obj.tag.espname=martelo
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_harp_large
-obj.tag.amount=1
+obj.tag.item=i_harp_large
+obj.tag.amt=1
 src.fazitem
 return 1
 
-//--Envergadeira--//
-
-[skillMENU sm_envergadeira]
+//*****************************************************************************
+// Envergadeira
+//*****************************************************************************
+[SKILLMENU sm_envergadeira]
 O que deseja fazer ?
 
 on=i_madeiraenvergada madeira envergada
-TESTIF =(<carpentry> >= 450 )
+TESTIF=(<carpentry> >= 450 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=madeira envergada<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<src.tag.resource_change.sufixname>
+obj.tag.name=madeira envergada
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
 obj.tag.amt1=1
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_madeiraenvergada<src.tag.resource_change.sufixtype>
-obj.tag.amount=1
-if (<lumberjacking> <=1000) && (RAND(4))
-     GAIN_SKILL lumberjacking
-Endif
+obj.tag.item=i_madeiraenvergada
+obj.tag.amt=1
 src.fazitem
 return 1
 
-//--Outros--//
-
-[skillmenu sm_cr_outros]
+//*****************************************************************************
+// Outros
+//*****************************************************************************
+[SKILLMENU sm_cr_outros]
 O que deseja construir ?
 
-on=i_tabua tabua 
-obj=<src.findid.i_mry_fazitem.uid>
-obj.cleartags
-obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=tabua%s<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua%s<src.tag.resource_change.sufixname>
-obj.tag.amt1 =1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif =30
-obj.tag.anim =9
-obj.tag.sfx=023d
-obj.tag.delay =10
-obj.tag.emote=trabalhando
-obj.tag.espid =i_racha
-obj.tag.espiname=racha
-obj.tag.scrap=i_foligem_carp
-obj.tag.Item =i_tabua<src.tag.resource_change.sufixtype>
-if (<src.lumberjacking> > 70 )
-     obj.tag.amount =5
-Else
-     obj.tag.amount =3
-EndIf
-if (<lumberjacking> <=1000) && (RAND(4))
-     GAIN_SKILL lumberjacking
-Endif
-src.fazitem
-return 1
+on=i_tabua tabua
+src.cr_fazTabua
 
 on=i_madeiraenvergada madeira envergada
-TESTIF =(<carpentry> >= 450 )
+TESTIF=(<carpentry> >= 450 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=madeira envergada<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<src.tag.resource_change.sufixname>
+obj.tag.name=madeira envergada
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
 obj.tag.amt1=1
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.needtype=t_envergadeira
 obj.tag.need=envergadeira
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_madeiraenvergada<src.tag.resource_change.sufixtype>
-obj.tag.amount=1
-if (<lumberjacking> <=1000) && (RAND(4))
-     GAIN_SKILL lumberjacking
-Endif
+obj.tag.item=i_madeiraenvergada
+obj.tag.amt=1
 src.fazitem
 return 1
 
@@ -1565,31 +1379,25 @@ on=i_cabo_madeira cabo de madeira
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=cabo de madeira<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<src.tag.resource_change.sufixname>
+obj.tag.name=cabo de madeira
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
 obj.tag.amt1=1
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_serrote
-obj.tag.espiname=serrote
+obj.tag.espname=serrote
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_cabo_madeira<src.tag.resource_change.sufixtype>
-if (<lumberjacking> > 70 )
-     obj.tag.amount=5
-Else
-     obj.tag.amount=3
-EndIf
-if (<lumberjacking> <=1000) && (RAND(4))
-     GAIN_SKILL lumberjacking
-Endif
+obj.tag.item=i_cabo_madeira
+if (<src.lumberjacking> > 70 )
+	obj.tag.amt=5
+else
+	obj.tag.amt=3
+endif
 src.fazitem
 return 1
 
@@ -1597,12 +1405,9 @@ on=i_torch tocha
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=tocha<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<src.tag.resource_change.sufixname>
+obj.tag.name=tocha
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
 obj.tag.amt1=1
 obj.tag.res2=i_bandage
 obj.tag.nam2=bandagem
@@ -1610,17 +1415,17 @@ obj.tag.amt2=1
 obj.tag.res3=i_beeswax
 obj.tag.nam3=cera 
 obj.tag.amt3=1
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_serrote
-obj.tag.espiname=serrote
+obj.tag.espname=serrote
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_torch
-obj.tag.amount=1
+obj.tag.item=i_torch
+obj.tag.amt=1
 src.fazitem
 return 1
 
@@ -1629,302 +1434,248 @@ on=i_vara_pesca vara de pescar
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=vara de pescar<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tora<src.tag.resource_change.sufixname>
+obj.tag.name=vara de pescar
+obj.tag.res1=i_log
+obj.tag.nam1=tora
 obj.tag.amt1=1
 obj.tag.res2=i_barbante
 obj.tag.nam2=barbante
 obj.tag.amt2=1
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_vara_pesca
-obj.tag.amount=1
+obj.tag.item=i_vara_pesca
+obj.tag.amt=1
 src.fazitem
 return 1
 
 
 on=i_caixa_relogio caixa para relogio
-TESTIF =(<carpentry> >= 550 )
+TESTIF=(<carpentry> >= 550 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=caixa para relógio<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<src.tag.resource_change.sufixname>
+obj.tag.name=caixa para relógio
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
 obj.tag.amt1=5
 obj.tag.res2=i_pregos
 obj.tag.nam2=pregos
 obj.tag.amt2=10
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif=<src.tag.resource_change.dif>
+//obj.tag.color=<src.tag.resource_change.color>
+obj.tag.dif=50
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_martelo
-obj.tag.espiname=martelo
+obj.tag.espname=martelo
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_caixa_relogio
-obj.tag.amount=1
+obj.tag.item=i_caixa_relogio
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_moldura_sem_couro moldura sem couro
-TESTIF =(<carpentry> >= 550 )
+TESTIF=(<carpentry> >= 550 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=moldura sem couro<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<src.tag.resource_change.sufixname>
+obj.tag.name=moldura sem couro
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
 obj.tag.amt1=4
 obj.tag.res2=i_pregos
 obj.tag.nam2=pregos
 obj.tag.amt2=8
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_martelo
-obj.tag.espiname=martelo
+obj.tag.espname=martelo
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_moldura_sem_couro
-obj.tag.amount=1
+obj.tag.item=i_moldura_sem_couro
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_assadeira assadeira
-TESTIF =(<carpentry> >= 500 )
+TESTIF=(<carpentry> >= 500 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=assadeira<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<src.tag.resource_change.sufixname>
+obj.tag.name=assadeira
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
 obj.tag.amt1=3
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_assadeira
-obj.tag.amount=1
+obj.tag.item=i_assadeira
+obj.tag.amt=1
 src.fazitem
 return 1
 
 
 on=i_tigela_massa tigela para massas
-TESTIF =(<carpentry> >= 500 )
+TESTIF=(<carpentry> >= 500 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=tigela para massas<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<src.tag.resource_change.sufixname>
+obj.tag.name=tigela para massas
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
 obj.tag.amt1=2
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_tigela_massa
-obj.tag.amount=1
+obj.tag.item=i_tigela_massa
+obj.tag.amt=1
 src.fazitem
 return 1
 
-//--Ferramentas--//
-
-[skillmenu sm_cr_ferramentas]
+//*****************************************************************************
+// Ferramentas
+//*****************************************************************************
+[SKILLMENU sm_cr_ferramentas]
 O que deseja construir ?
 
-on=i_tabua tabua 
-obj=<src.findid.i_mry_fazitem.uid>
-obj.cleartags
-obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=tabua%s<src.tag.resource_change.sufixname>
-obj.tag.res1=i_log<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua%s<src.tag.resource_change.sufixname>
-obj.tag.amt1 =1
-obj.tag.color=<src.tag.resource_change.color>
-obj.tag.dif =30
-obj.tag.anim =9
-obj.tag.sfx=023d
-obj.tag.delay =10
-obj.tag.emote=trabalhando
-obj.tag.espid =i_racha
-obj.tag.espiname=racha
-obj.tag.scrap=i_foligem_carp
-obj.tag.Item =i_tabua<src.tag.resource_change.sufixtype>
-if (<src.lumberjacking> > 70 )
-     obj.tag.amount =5
-Else
-     obj.tag.amount =3
-EndIf
-if (<lumberjacking> <=1000) && (RAND(4))
-     GAIN_SKILL lumberjacking
-Endif
-src.fazitem
-return 1
+on=i_tabua tabua
+src.cr_fazTabua
 
 on=i_plaina plaina
-TESTIF =(<carpentry> >= 500 )
+TESTIF=(<carpentry> >= 500 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=plaina<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<src.tag.resource_change.sufixname>
+obj.tag.name=plaina
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
 obj.tag.amt1=2
 obj.tag.res2=i_pregos
 obj.tag.nam2=pregos
 obj.tag.amt2=5
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_plaina
-obj.tag.amount=1
+obj.tag.item=i_plaina
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_lixa lixa
-TESTIF =(<carpentry> >= 500 )
+TESTIF=(<carpentry> >= 500 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=lixa<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabua<src.tag.resource_change.sufixname>
+obj.tag.name=lixa
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
 obj.tag.amt1=2
 obj.tag.res2=i_pregos
 obj.tag.nam2=pregos
 obj.tag.amt2=3
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_talhadeira
-obj.tag.espiname=formao
+obj.tag.espname=formao
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_lixa
-obj.tag.amount=1
+obj.tag.item=i_lixa
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_cxtinker_vazia caixa p/ ferramentas artesao
-TESTIF =(<carpentry> >= 500 )
+TESTIF=(<carpentry> >= 500 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=caixa p/ ferramentas de artesao<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabuas<src.tag.resource_change.sufixname>
+obj.tag.name=caixa p/ ferramentas de artesao
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabuas
 obj.tag.amt1=1
 obj.tag.res2=i_pregos
 obj.tag.nam2=pregos
 obj.tag.amt2=5
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_martelo
-obj.tag.espiname=martelo
+obj.tag.espname=martelo
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_cxtinker_vazia
-obj.tag.amount=1
+obj.tag.item=i_cxtinker_vazia
+obj.tag.amt=1
 src.fazitem
 return 1
 
 on=i_cxcarpinteiro_vazia caixa p/ ferramentas carpinteiro
-TESTIF =(<carpentry> >= 500 )
+TESTIF=(<carpentry> >= 500 )
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
 obj.tag.skill=carpentry
-if (!<src.resource_change>)
-     return 1
-Endif
-obj.tag.name=caixa p/ ferramentas de artesao<src.tag.resource_change.sufixname>
-obj.tag.res1=i_tabua<src.tag.resource_change.sufixtype>
-obj.tag.nam1=tabuas<src.tag.resource_change.sufixname>
+obj.tag.name=caixa p/ ferramentas de artesao
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabuas
 obj.tag.amt1=1
 obj.tag.res2=i_pregos
 obj.tag.nam2=pregos
 obj.tag.amt2=5
-obj.tag.color=<src.tag.resource_change.color>
+//obj.tag.color=<src.tag.resource_change.color>
 obj.tag.dif=30
 obj.tag.anim=9
 obj.tag.sfx=023d
 obj.tag.delay=30
 obj.tag.emote=trabalhando
 obj.tag.espid=i_martelo
-obj.tag.espiname=martelo
+obj.tag.espname=martelo
 obj.tag.scrap=i_foligem_carp
-obj.tag.Item=i_cxcarpinteiro_vazia
-obj.tag.amount=1
+obj.tag.item=i_cxcarpinteiro_vazia
+obj.tag.amt=1
 src.fazitem
 return 1
 
-//--Containeres--//
-
+//*****************************************************************************
+// Containers
+//*****************************************************************************
 [SKILLMENU sm_cr_container]
 O que deseja construir?
 
 ON=i_tabua tabuas (1 T)
-TESTIF =(<src.restest 1 i_log,1 i_racha>) && (<src.carpentry> >= 300 )
+TESTIF=(<src.restest 1 i_log,1 i_racha>) && (<src.carpentry> >= 300 )
 src.tag.cr_make=i_tabua
 src.tag.cr_resn=i_log
 src.tag.cr_res=1
@@ -1943,7 +1694,7 @@ src.tag.cr_dif=10
 src.cr_fazitem
 
 on=i_balde_vazio balde (5B , 5 PE)
-TESTIF =(<src.restest 5 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,5 i_pregos>) && (<src.carpentry> >= 500 )
+TESTIF=(<src.restest 5 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,5 i_pregos>) && (<src.carpentry> >= 500 )
 src.tag.cr_make=i_balde_vazio
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=5
@@ -1955,7 +1706,7 @@ src.tag.cr_dif=8
 src.cr_fazitem2
 
 on=i_caixote_branco caixote branco (10 B,8 PE)
-TESTIF =(<src.restest 10 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,8 i_pregos>) && (<src.carpentry> >= 500 )
+TESTIF=(<src.restest 10 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,8 i_pregos>) && (<src.carpentry> >= 500 )
 src.tag.cr_make=i_caixote_branco
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=10
@@ -1967,7 +1718,7 @@ src.tag.cr_dif=30
 src.cr_fazitem2
 
 on=i_caixote caixote (10 B,8 PE)
-TESTIF =(<src.restest 10 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,8 i_pregos>) && (<src.carpentry> >= 510 )
+TESTIF=(<src.restest 10 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,8 i_pregos>) && (<src.carpentry> >= 510 )
 src.tag.cr_make=i_caixote
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=10
@@ -1979,7 +1730,7 @@ src.tag.cr_dif=30
 src.cr_fazitem2
 
 on=i_caixa bau (15 B,8 PE)
-TESTIF =(<src.restest 15 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo, 1 i_raspadeira_p,1 i_alisar_moldador,8 i_pregos>) && (<src.carpentry> >= 520 )
+TESTIF=(<src.restest 15 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo, 1 i_raspadeira_p,1 i_alisar_moldador,8 i_pregos>) && (<src.carpentry> >= 520 )
 src.tag.cr_make=i_caixa
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=15
@@ -1992,7 +1743,7 @@ src.cr_fazitem2
 
 
 on=i_caixa_media caixa de madeira(M)(20 B,12 PE)
-TESTIF =(<src.restest 20 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,12 i_pregos>) && (<src.carpentry> >= 525 )
+TESTIF=(<src.restest 20 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,12 i_pregos>) && (<src.carpentry> >= 525 )
 src.tag.cr_make=i_caixa_media
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=20
@@ -2005,7 +1756,7 @@ src.cr_fazitem2
 
 
 on=i_caixa_grande caixa de madeira(G)(25 B,15 PE)
-TESTIF =(<src.restest 25 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,15 i_pregos>) && (<src.carpentry> >= 530 )
+TESTIF=(<src.restest 25 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,15 i_pregos>) && (<src.carpentry> >= 530 )
 src.tag.cr_make=i_caixa_grande
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=25
@@ -2017,7 +1768,7 @@ src.tag.cr_dif=40
 src.cr_fazitem2
 
 on=i_portajoia porta joias (2 B,7 PE)
-TESTIF =(<src.restest 25 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,7 i_pregos,1 i_raspadeira_p>) && (<src.carpentry> >= 534 )
+TESTIF=(<src.restest 25 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,7 i_pregos,1 i_raspadeira_p>) && (<src.carpentry> >= 534 )
 src.tag.cr_make=i_postajoia
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=2
@@ -2029,7 +1780,7 @@ src.tag.cr_dif=35
 src.cr_fazitem2
 
 on=i_bau bau (35 B,20 PE)
-TESTIF =(<src.restest 35 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,20 i_pregos,1 i_raspadeira>) && (<src.carpentry> >= 550 )
+TESTIF=(<src.restest 35 i_tabua,1 i_alisar_pequeno,1 i_alisar,1 i_serra,1 i_talhadeira, 1 i_martelo,1 i_alisar_moldador,20 i_pregos,1 i_raspadeira>) && (<src.carpentry> >= 550 )
 src.tag.cr_make=i_bau
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=35
@@ -2041,7 +1792,7 @@ src.tag.cr_dif=35
 src.cr_fazitem2
 
 on=i_barril_vazio barril (ME,30 PE,2 AR) 
-TESTIF =(<src.restest 1 i_madeira_envergada,30 i_pregos,1 i_martelo,2 i_argola_barril>) && (<src.carpentry> >= 585 )
+TESTIF=(<src.restest 1 i_madeira_envergada,30 i_pregos,1 i_martelo,2 i_argola_barril>) && (<src.carpentry> >= 585 )
 src.tag.cr_make=i_barril_vazio
 src.tag.cr_resn=i_pregos
 src.tag.cr_resn2=i_madeira_envergada
@@ -2055,7 +1806,7 @@ src.tag.cr_dif=35
 src.cr_fazitem3
 
 on=i_molde_keg base p/ keg (ME,10 PE,AR) 
-TESTIF =(<src.restest 1 i_madeira_envergada,10 i_pregos,1 i_martelo,1 i_argola_barril>) && (<src.carpentry> >= 600 )
+TESTIF=(<src.restest 1 i_madeira_envergada,10 i_pregos,1 i_martelo,1 i_argola_barril>) && (<src.carpentry> >= 600 )
 src.tag.cr_make=i_molde_keg
 src.tag.cr_resn=i_pregos
 src.tag.cr_resn2=i_madeira_envergada
@@ -2069,7 +1820,7 @@ src.tag.cr_dif=30
 src.cr_fazitem3
 
 on=i_barril_pequeno keg (ME,5 PE,BA,TR,TM) 
-TESTIF =(<src.restest 1 i_tampa_madeira,5 i_pregos,1 i_martelo,1 i_molde_keg,1 i_torneira>) && (<src.carpentry> >= 600 )
+TESTIF=(<src.restest 1 i_tampa_madeira,5 i_pregos,1 i_martelo,1 i_molde_keg,1 i_torneira>) && (<src.carpentry> >= 600 )
 src.tag.cr_make=i_barril_pequeno
 src.tag.cr_resn=i_molde_keg
 src.tag.cr_resn2=i_torneira
@@ -2085,7 +1836,7 @@ src.tag.cr_dif=5
 src.cr_fazitem4
 
 on=i_tina_vazio tina (ME,8 PE,AR) 
-TESTIF =(<src.restest 1 i_madeira_envergada,8 i_pregos,1 i_martelo,1 i_argola_barril>) && (<src.carpentry> >= 590 )
+TESTIF=(<src.restest 1 i_madeira_envergada,8 i_pregos,1 i_martelo,1 i_argola_barril>) && (<src.carpentry> >= 590 )
 src.tag.cr_make=i_tina_vazio
 src.tag.cr_resn=i_pregos
 src.tag.cr_resn2=i_madeira_envergada
@@ -2098,15 +1849,14 @@ src.tag.cr_name=tina
 src.tag.cr_dif=25
 src.cr_fazitem3
 
-
-
-
-
+//*****************************************************************************
+// Bancos
+//*****************************************************************************
 [SKILLMENU sm_cr_bancos]
 O que deseja construir ?
 
 ON=i_tabua tabuas (1 T)
-TESTIF =(<src.restest 1 i_log, 1 i_racha>) && (<src.carpentry> >= 300 )
+TESTIF=(<src.restest 1 i_log, 1 i_racha>) && (<src.carpentry> >= 300 )
 src.tag.cr_make=i_tabua
 src.tag.cr_resn=i_log
 src.tag.cr_res=1
@@ -2116,7 +1866,7 @@ src.tag.cr_name=tabua
 src.cr_faztabua
 
 on=i_suporte suporte (5 B)
-TESTIF =(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 300)
+TESTIF=(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 300)
 src.tag.cr_make=i_suporte
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=5
@@ -2126,7 +1876,7 @@ src.tag.cr_name=tabua tratada
 src.cr_fazitem
 
 on=i_banco_bar banco de bar (6 B,6 PE)
-TESTIF =(<src.restest 6 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,6 i_pregos>) && (<src.carpentry> >= 400) 
+TESTIF=(<src.restest 6 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,6 i_pregos>) && (<src.carpentry> >= 400) 
 src.tag.cr_make=i_banco_bar
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2138,7 +1888,7 @@ src.tag.cr_name=banco de bar
 src.cr_fazitem2
 
 on=i_banco_bar2 banco de bar (5 B,6 PE)
-TESTIF =(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,6 i_pregos>) && (<src.carpentry> >= 400) 
+TESTIF=(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,6 i_pregos>) && (<src.carpentry> >= 400) 
 src.tag.cr_make=i_banco_bar2
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2150,7 +1900,7 @@ src.tag.cr_name=banco de bar
 src.cr_fazitem2
 
 on=i_bancom banquinho madeira(6 B,7 PE)
-TESTIF =(<src.restest 6 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,7 i_pregos>) && (<src.carpentry> >= 410) 
+TESTIF=(<src.restest 6 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,7 i_pregos>) && (<src.carpentry> >= 410) 
 src.tag.cr_make=i_bancom
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2162,7 +1912,7 @@ src.tag.cr_name=banco de bar
 src.cr_fazitem2
 
 on=i_banco banco (2 SP,8 CP)
-TESTIF =(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 420) 
+TESTIF=(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 420) 
 src.tag.cr_make=i_banco
 src.tag.cr_resn=i_suporte
 src.tag.cr_resn2=i_pregos
@@ -2174,7 +1924,7 @@ src.tag.cr_name=banco
 src.cr_fazitem2
 
 on=i_banco2 banco (2 SP,8 CP)
-TESTIF =(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 420) 
+TESTIF=(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 420) 
 src.tag.cr_make=i_banco2
 src.tag.cr_resn=i_suporte
 src.tag.cr_resn2=i_pregos
@@ -2186,7 +1936,7 @@ src.tag.cr_name=banco
 src.cr_fazitem2
 
 on=i_banco3 banco (2 SP,8 CP)
-TESTIF =(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 420) 
+TESTIF=(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 420) 
 src.tag.cr_make=i_banco3
 src.tag.cr_resn=i_suporte
 src.tag.cr_resn2=i_pregos
@@ -2198,7 +1948,7 @@ src.tag.cr_name=banco
 src.cr_fazitem2
 
 on=i_banco4 banco (2 SP,8 CP)
-TESTIF =(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 420) 
+TESTIF=(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 420) 
 src.tag.cr_make=i_banco3
 src.tag.cr_resn=i_suporte
 src.tag.cr_resn2=i_pregos
@@ -2210,7 +1960,7 @@ src.tag.cr_name=banco
 src.cr_fazitem4
 
 on=i_banco5 banco liso (2 SP,8 CP)
-TESTIF =(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 425) 
+TESTIF=(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 425) 
 src.tag.cr_make=i_banco5
 src.tag.cr_resn=i_suporte
 src.tag.cr_resn2=i_pregos
@@ -2222,7 +1972,7 @@ src.tag.cr_name=banco liso
 src.cr_fazitem2
 
 on=i_banco6 banco liso (2 SP,1 CP)
-TESTIF =(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 425) 
+TESTIF=(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 425) 
 src.tag.cr_make=i_banco6
 src.tag.cr_resn=i_suporte
 src.tag.cr_resn2=i_pregos
@@ -2234,7 +1984,7 @@ src.tag.cr_name=banco liso
 src.cr_fazitem2
 
 on=i_banco7 banco liso (2 SP,1 CP)
-TESTIF =(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 425) 
+TESTIF=(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 425) 
 src.tag.cr_make=i_banco7
 src.tag.cr_resn=i_suporte
 src.tag.cr_resn2=i_pregos
@@ -2246,7 +1996,7 @@ src.tag.cr_name=banco liso
 src.cr_fazitem2
 
 on=i_banco8 banco liso (2 SP,1 CP)
-TESTIF =(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 425) 
+TESTIF=(<src.restest 2 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,1 i_pregos>) && (<src.carpentry> >= 425) 
 src.tag.cr_make=i_banco8
 src.tag.cr_resn=i_suporte
 src.tag.cr_resn2=i_pregos
@@ -2258,7 +2008,7 @@ src.tag.cr_name=banco liso
 src.cr_fazitem2
 
 on=i_banco9 banco real (3 SP,2 CP)
-TESTIF =(<src.restest 3 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,2 i_pregos>) && (<src.carpentry> >= 430) 
+TESTIF=(<src.restest 3 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,2 i_pregos>) && (<src.carpentry> >= 430) 
 src.tag.cr_make=i_banco9
 src.tag.cr_resn=i_suporte
 src.tag.cr_resn2=i_pregos
@@ -2270,7 +2020,7 @@ src.tag.cr_name=banco real
 src.cr_fazitem2
 
 on=i_banco10 banco real (3 SP,2 CP)
-TESTIF =(<src.restest 3 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,2 i_pregos>) && (<src.carpentry> >= 430) 
+TESTIF=(<src.restest 3 i_suporte,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,2 i_pregos>) && (<src.carpentry> >= 430) 
 src.tag.cr_make=i_banco10
 src.tag.cr_resn=i_suporte
 src.tag.cr_resn2=i_pregos
@@ -2282,11 +2032,14 @@ src.tag.cr_name=banco real
 src.cr_fazitem2
 
 
+//*****************************************************************************
+// Cadeiras
+//*****************************************************************************
 [SKILLMENU sm_cr_cadeiras]
 O que deseja construir ?
 
 ON=i_tabua tabuas (1 T)
-TESTIF =(<src.restest 1 i_log, 1 i_racha>) && (<src.carpentry> >= 300 )
+TESTIF=(<src.restest 1 i_log, 1 i_racha>) && (<src.carpentry> >= 300 )
 src.tag.cr_make=i_tabua
 src.tag.cr_resn=i_log
 src.tag.cr_res=1
@@ -2296,7 +2049,7 @@ src.tag.cr_name=tabua
 src.cr_faztabua
 
 on=i_suporte suporte (5 B)
-TESTIF =(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 300)
+TESTIF=(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 300)
 src.tag.cr_make=i_suporte
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=5
@@ -2306,7 +2059,7 @@ src.tag.cr_name=tabua tratada
 src.cr_fazitem
 
 ON=i_cadeira_p base pra cadeira (10 B,7 PE)
-TESTIF =(<src.restest 10 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,7 i_pregos,1 i_serrote>) && (<src.carpentry> >= 400)
+TESTIF=(<src.restest 10 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,7 i_pregos,1 i_serrote>) && (<src.carpentry> >= 400)
 src.tag.cr_make=i_cadeira_p
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2318,7 +2071,7 @@ src.tag.cr_name=base pra cadeira
 src.cr_fazitem2
 
 on=i_cadeiram cadeira de madeira(20 B,4 PE)
-TESTIF =(<src.restest 20 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,4 i_pregos>) && (<src.carpentry> >= 420) 
+TESTIF=(<src.restest 20 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,4 i_pregos>) && (<src.carpentry> >= 420) 
 src.tag.cr_make=i_cadeiram
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2331,7 +2084,7 @@ src.cr_fazitem2
 
 
 on=i_cadeira_simples simples(15B,4PE,BA,SP)
-TESTIF =(<src.restest 15 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,4 i_pregos,1 i_cadeira_p,1 i_suporte>) && (<src.carpentry> >= 435) 
+TESTIF=(<src.restest 15 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,4 i_pregos,1 i_cadeira_p,1 i_suporte>) && (<src.carpentry> >= 435) 
 src.tag.cr_make=i_cadeira_simples
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2347,7 +2100,7 @@ src.tag.cr_name=cadeira simples
 src.cr_fazitem4
 
 on=i_cadeira_simples2 simples(15B,4PE,BA,SP)
-TESTIF =(<src.restest 15 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,4 i_pregos,1 i_cadeira_p,1 i_suporte>) && (<src.carpentry> >= 435) 
+TESTIF=(<src.restest 15 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,4 i_pregos,1 i_cadeira_p,1 i_suporte>) && (<src.carpentry> >= 435) 
 src.tag.cr_make=i_cadeira_simples2
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2363,7 +2116,7 @@ src.tag.cr_name=cadeira simples
 src.cr_fazitem4
 
 on=i_cadeira_estofada estofada(18B,5PE,BA,ST,SP)
-TESTIF =(<src.restest 18 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,5 i_pregos,1 i_cadeira_p,1 i_estofamento,1 i_suporte>) && (<src.carpentry> >= 450) 
+TESTIF=(<src.restest 18 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,5 i_pregos,1 i_cadeira_p,1 i_estofamento,1 i_suporte>) && (<src.carpentry> >= 450) 
 src.tag.cr_make=i_cadeira_estofada
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2381,7 +2134,7 @@ src.tag.cr_name=cadeira estofada
 src.cr_fazitem5
 
 on=i_cadeira_estofada2 estofada(18B,5PE,BA,ST,SP)
-TESTIF =(<src.restest 18 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,5 i_pregos,1 i_cadeira_p,1 i_estofamento,1 i_suporte>) && (<src.carpentry> >= 450) 
+TESTIF=(<src.restest 18 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,5 i_pregos,1 i_cadeira_p,1 i_estofamento,1 i_suporte>) && (<src.carpentry> >= 450) 
 src.tag.cr_make=i_cadeira_estofada2
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2399,7 +2152,7 @@ src.tag.cr_name=cadeira estofada
 src.cr_fazitem5
 
 on=i_trono trono(20B,6PE,BA,ST,SP)
-TESTIF =(<src.restest 20 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,6 i_pregos,1 i_cadeira_p,1 i_estofamento,1 i_suporte>) && (<src.carpentry> >= 495) 
+TESTIF=(<src.restest 20 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,6 i_pregos,1 i_cadeira_p,1 i_estofamento,1 i_suporte>) && (<src.carpentry> >= 495) 
 src.tag.cr_make=i_trono
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2417,11 +2170,14 @@ src.tag.cr_name=trono
 src.cr_fazitem5
 
 
+//*****************************************************************************
+// Mesas
+//*****************************************************************************
 [SKILLMENU sm_cr_Mesas]
 O que deseja construir ?
 
 ON=i_tabua tabuas (1 T)
-TESTIF =(<src.restest 1 i_log, 1 i_racha>) && (<src.carpentry> >= 300 )
+TESTIF=(<src.restest 1 i_log, 1 i_racha>) && (<src.carpentry> >= 300 )
 src.tag.cr_make=i_tabua
 src.tag.cr_resn=i_log
 src.tag.cr_res=1
@@ -2431,7 +2187,7 @@ src.tag.cr_name=tabua
 src.cr_faztabua
 
 on=i_suporte suporte (5 B)
-TESTIF =(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 300)
+TESTIF=(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 300)
 src.tag.cr_make=i_suporte
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=5
@@ -2441,7 +2197,7 @@ src.tag.cr_name=tabua tratada
 src.cr_fazitem
 
 ON=i_mesa_p base para mesa (10 B,6 PE)
-TESTIF =(<src.restest 6 i_pregos,10 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira>) && (<src.carpentry> >= 400)
+TESTIF=(<src.restest 6 i_pregos,10 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira>) && (<src.carpentry> >= 400)
 src.tag.cr_make=i_mesa_p
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2453,7 +2209,7 @@ src.tag.cr_name=base pra mesa
 src.cr_fazitem2
 
 ON=i_perna_p perna para mesa (5 B)
-TESTIF =(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 400)
+TESTIF=(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 400)
 src.tag.cr_make=i_perna_p
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=5
@@ -2463,7 +2219,7 @@ src.tag.cr_name=base para mesa(perna)
 src.cr_fazitem
 
 ON=i_perna_p2 perna para mesa (5 B)
-TESTIF =(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 400)
+TESTIF=(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 400)
 src.tag.cr_make=i_perna_p2
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=5
@@ -2674,12 +2430,14 @@ src.tag.cr_name=mesa lisa
 src.tag.cr_dif=30
 src.cr_fazitem4
 
-
-[skillmenu sm_cr_armarios]
+//*****************************************************************************
+// Armários
+//*****************************************************************************
+[SKILLMENU sm_cr_armarios]
 O que deseja fazer ?
 
 ON=i_tabua tabuas (1 T)
-TESTIF =(<src.restest 1 i_log,1 i_racha>) && (<src.carpentry> >= 300 )
+TESTIF=(<src.restest 1 i_log,1 i_racha>) && (<src.carpentry> >= 300 )
 src.tag.cr_make=i_tabua
 src.tag.cr_resn=i_log
 src.tag.cr_res=1
@@ -2689,7 +2447,7 @@ src.tag.cr_dif=5
 src.cr_faztabua
 
 on=i_suporte suporte (5 B)
-TESTIF =(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 300)
+TESTIF=(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 300)
 src.tag.cr_make=i_suporte
 src.tag.cr_resn=i_tabua
 src.tag.cr_res=5
@@ -2699,7 +2457,7 @@ src.tag.cr_name=tabua tratada
 src.cr_fazitem
 
 ON=i_gaveta_p gaveta (5B , 5PE)
-TESTIF =(<src.restest 5 i_pregos,5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 400)
+TESTIF=(<src.restest 5 i_pregos,5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 400)
 src.tag.cr_make=i_gaveta_p
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2711,7 +2469,7 @@ src.tag.cr_name=gaveta de madeira
 src.cr_fazitem2
 
 ON=i_estante_p base para estante (20B,13PE,2SP)
-TESTIF =(<src.restest 13 i_pregos,2 i_suporte,20 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 400)
+TESTIF=(<src.restest 13 i_pregos,2 i_suporte,20 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 400)
 src.tag.cr_make=i_estante_p
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2725,7 +2483,7 @@ src.tag.cr_name=base para estante
 src.cr_fazitem3
 
 ON=i_gaveteiro_p base para gavetiero (15B,15PE,2SP)
-TESTIF =(<src.restest 15 i_pregos,2 i_suporte, 15 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 400)
+TESTIF=(<src.restest 15 i_pregos,2 i_suporte, 15 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 400)
 src.tag.cr_make=i_gaveteiro_p
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2739,7 +2497,7 @@ src.tag.cr_name=base para gaveteiro
 src.cr_fazitem3
 
 ON=i_gaveta gaveta (2 PE, 1 BA, 2 B)
-TESTIF =(<src.restest 2 i_pregos,2 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,1 i_gaveta_p>) && (<src.carpentry> >= 410)
+TESTIF=(<src.restest 2 i_pregos,2 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,1 i_gaveta_p>) && (<src.carpentry> >= 410)
 src.tag.cr_make=i_gaveta
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2753,7 +2511,7 @@ src.tag.cr_name=gaveta
 src.cr_fazitem3
 
 ON=i_gaveteiro gaveteiro simples (5PE,1BA,3GC)
-TESTIF =(<src.restest 5 i_pregos,1 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,3 i_gaveta,1 i_gaveteiro_p>) && (<src.carpentry> >= 425)
+TESTIF=(<src.restest 5 i_pregos,1 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,3 i_gaveta,1 i_gaveteiro_p>) && (<src.carpentry> >= 425)
 src.tag.cr_make=i_gaveteiro
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2771,7 +2529,7 @@ src.tag.cr_name=gaveteiro simples
 src.cr_fazitem5
 
 ON=i_gaveteiro2 gaveteiro simples (5PE,1BA,3GC)
-TESTIF =(<src.restest 5 i_pregos,1 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,1 i_gaveteiro_p,3 i_gaveta>) && (<src.carpentry> >= 425)
+TESTIF=(<src.restest 5 i_pregos,1 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,1 i_gaveteiro_p,3 i_gaveta>) && (<src.carpentry> >= 425)
 src.tag.cr_make=i_gaveteiro2
 src.tag.cr_resn=i_tabua
 src.tag.cr_resn2=i_pregos
@@ -2789,7 +2547,7 @@ src.tag.cr_name=gaveteiro ornado
 src.cr_fazitem5
 
 ON=i_estante_vazia estante(4PE,2SP,1BA)
-TESTIF =(<src.restest 5 i_pregos,2 i_suporte,4 i_pregos,1 i_estante_p>) && (<src.carpentry> >= 435)
+TESTIF=(<src.restest 5 i_pregos,2 i_suporte,4 i_pregos,1 i_estante_p>) && (<src.carpentry> >= 435)
 src.tag.cr_make=i_estante_vazia
 src.tag.cr_resn=i_estante_p
 src.tag.cr_resn2=i_pregos
@@ -2803,7 +2561,7 @@ src.tag.cr_name=estante
 src.cr_fazitem3
 
 ON=i_armario_simples armario simples(4PE,2SP,1BA)
-TESTIF =(<src.restest 5 i_pregos,2 i_suporte,4 i_pregos,1 i_estante_p>) && (<src.carpentry> >= 445)
+TESTIF=(<src.restest 5 i_pregos,2 i_suporte,4 i_pregos,1 i_estante_p>) && (<src.carpentry> >= 445)
 src.tag.cr_make=i_armario_simples
 src.tag.cr_resn=i_estante_p
 src.tag.cr_resn2=i_pregos
@@ -2818,7 +2576,7 @@ src.tag.cr_name=gaveta de madeira
 src.cr_fazitem3
 
 ON=i_armario_talhado armario simples(4PE,2SP,1BA)
-TESTIF =(<src.restest 5 i_pregos,2 i_suporte,4 i_pregos,1 i_estante_p>) && (<src.carpentry> >= 455)
+TESTIF=(<src.restest 5 i_pregos,2 i_suporte,4 i_pregos,1 i_estante_p>) && (<src.carpentry> >= 455)
 src.tag.cr_make=i_armario_simples
 src.tag.cr_resn=i_estante_p
 src.tag.cr_resn2=i_pregos
@@ -2830,591 +2588,6 @@ src.tag.cr_delay=6
 src.tag.cr_dif=10
 src.tag.cr_name=gaveta de madeira
 src.cr_fazitem3
-
-
-
-
-
-
- 
-
-//ferramentas
-
-[itemdef i_prendedora]
-id=019f4
-name=prendedora
-
-on=@dclick
-if (<src.targ.distance> > 1)   
-src.sysmessage Chegue mais perto. 
-
-return 1
-else  
-src.dialog d_menu_cr   
-return 1
-endif
-return 1
-
-on=@create
-attr=08000
-
-[itemdef i_prendedora2]
-id=019f8
-name=prendendora
-
-on=@dclick
-if (<src.targ.distance> > 1)   
-src.sysmessage Chegue mais perto. 
-return 1
-else  
-src.dialog d_menu_cr   
-return 1
-endif
-return 1
-
-on=@create
-attr=08000
-
-[itemdef i_carpm]
-id=019f1
-name=mesa de carpintaria
-
-on=@dclick
-if (<src.targ.distance> > 1)   
-src.sysmessage Chegue mais perto. 
-return 1
-else  
-src.dialog d_menu_cr   
-return 1
-endif
-return 1
-
-on=@create
-attr=08000
-
-[itemdef i_carpm2]
-id=019f3
-name=mesa de carpintaria
-
-on=@dclick
-if (<src.targ.distance> > 1)   
-src.sysmessage Chegue mais perto. 
-return 1
-else  
-src.dialog d_menu_cr   
-return 1
-endif
-return 1
-
-on=@create
-attr=08000
-
-[itemdef i_carpm3]
-id=019f5
-name=mesa de carpintaria
-
-on=@dclick
-if (<src.targ.distance> > 1)   
-src.sysmessage Chegue mais perto. 
-return 1
-else  
-src.dialog d_menu_cr   
-return 1
-endif
-return 1
-
-on=@create
-attr=08000
-
-[itemdef i_carpm4]
-id=019f7
-name=mesa de carpintaria
-
-on=@dclick
-if (<src.targ.distance> > 1)   
-src.sysmessage Chegue mais perto. 
-return 1
-else  
-src.dialog d_menu_cr   
-return 1
-endif
-return 1
-
-on=@create
-attr=08000
-
-[typedef t_envergadeira]
-on=@dclick
-if (<src.carpentry> < 50)
-	src.sysmessageyellow Voce nao tem ideia de como usar isso.
-return 1
-elseif (0<src.targ.distance> > 1) 
-	src.sysmessage Chegue mais perto. 
-return 1
-else 
-	src.skillmenu sm_envergadeira 
-	return 1
-endif
-return 1
-
-
-[itemdef i_envergadeira]
-id=019f9
-name=envergadeira
-type=t_envergadeira
-
-
-
-[itemdef i_envergadeira2]
-id=019fa
-name=envergadeira
-
-on=@dclick
-if (<src.carpentry> < 50)
-src.sysmessage skill negada.
-return 1
-elseif (<src.targ.distance> > 1) 
-src.sysmessage Chegue mais perto. 
-return 1
-else 
-if (<src.restest i_tabua>)
-	var.carpentry_cr=<src.carpentry>
-   	src.skillmenu sm_envergadeira 
-	return 1
-else 
-        src.sysmessage Voce preicsa de tabuas.      
-        return 1
-  	endif
-return 1
-endif
-return 1
-
-[itemdef i_envergadeira3]
-id=019fb
-name=envergadeira
-
-on=@dclick
-if (<src.carpentry> < 50)
-
-src.sysmessage skill negada.
-return 1
-elseif (<src.targ.distance> > 1) 
-src.sysmessage Chegue mais perto. 
-return 1
-else 
-if (<src.restest i_tabua>)
-	var.carpentry_cr=<src.carpentry>
-   	src.skillmenu sm_envergadeira 
-	return 1
-else 
-        src.sysmessage Voce preicsa de tabuas.      
-        return 1
-  	endif
-return 1
-endif
-return 1
-
-
-[itemdef i_envergadeira4]
-id=019fc
-name=envergadeira
-
-on=@dclick
-if (<src.carpentry> < 50)
-src.sysmessage skill negada.
-return 1
-elseif (<src.targ.distance> > 1) 
-src.sysmessage Chegue mais perto. 
-return 1
-else 
-if (<src.restest i_tabua>)
-	var.carpentry_cr=<src.carpentry>
-   	src.skillmenu sm_envergadeira 
-	return 1
-else 
-        src.sysmessage Voce preicsa de tabuas.      
-        return 1
-  	endif
-return 1
-endif
-return 1
-
-
-[itemdef i_racha]
-name=racha
-id=010e5
-type=t_Script
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Carpenter
-description=racha
-
-on=@dclick
-if (<src.carpentry> < 50)
-src.sysmessage skill negada.
-return 1
-elseif (<src.targ.distance> > 1) && (<topobj.uid> != <src.uid>)  
-src.sysmessage Chegue mais perto. 
-
-return 1
-elif  
-src.targ.bounce  
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-else   
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-endif 
-return 1
-
-
-
-[itemdef i_raspadeira]
-name=raspadeira
-id=010e6
-type=t_Script
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Carpenter
-description=raspadeira
-
-
-on=@dclick
-if (<src.carpentry> < 50)
-src.sysmessage skill negada.
-return 1
-elseif (<src.targ.distance> > 1) && (<topobj.uid> != <src.uid>)  
-src.sysmessage Chegue mais perto. 
-
-return 1
-elif  
-src.targ.bounce  
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-else   
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-endif 
-return 1
-
-
-
-[itemdef i_serra_duasm]
-name=serra larga
-id=010e4
-type=t_Script
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Carpenter
-description=serra de duas maos
-
-
-on=@dclick
-if (<src.carpentry> < 50)
-src.sysmessage skill negada.
-return 1
-elseif (<src.targ.distance> > 1) && (<topobj.uid> != <src.uid>)  
-src.sysmessage Chegue mais perto. 
-
-return 1
-elif  
-src.targ.bounce  
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-else   
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-endif 
-return 1
-
-
-[itemdef i_plaina]
-name=plaina
-id=01030
-type=t_Script
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Carpenter
-description=plaina
-dupelist=01031
-
-on=@dclick
-if (<src.carpentry> < 50)
-src.sysmessage skill negada.
-return 1
-elseif (<src.targ.distance> > 1) && (<topobj.uid> != <src.uid>)  
-src.sysmessage Chegue mais perto. 
-
-return 1
-elif  
-src.targ.bounce  
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-else   
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-endif 
-return 1
-
-
-[itemdef i_lixa]
-name=lixa
-id=0102c
-type=t_Script
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Carpenter
-description=lixa
-dupelist=0102c
-
-
-on=@dclick
-if (<src.carpentry> < 50)
-src.sysmessage skill negada.
-return 1
-elseif (<src.targ.distance> > 1) && (<topobj.uid> != <src.uid>)  
-src.sysmessage Chegue mais perto. 
-
-return 1
-elif  
-src.targ.bounce  
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-else   
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-endif 
-return 1
-
-[itemdef i_martelo]
-name=martelo
-id=0102b
-type=t_Script
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Carpenter
-description=martelo de carpinteiro
-
-
-on=@dclick
-if (<src.carpentry> < 50)
-src.sysmessage skill negada.
-return 1
-elseif (<src.targ.distance> > 1) && (<topobj.uid> != <src.uid>)  
-src.sysmessage Chegue mais perto. 
-
-return 1
-elif  
-src.targ.bounce  
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-else   
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-endif 
-return 1
-
-[itemdef i_serra]
-id=01028
-name=serra
-weight=1
-type=t_Script
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Carpenter
-description=serra
-dupelist=01029
-
-
-on=@dclick
-if (<src.carpentry> < 50)
-src.sysmessage skill negada.
-return 1
-elseif (<src.targ.distance> > 1) && (<topobj.uid> != <src.uid>)  
-src.sysmessage Chegue mais perto. 
-
-return 1
-elif  
-src.targ.bounce  
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-else   
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-endif 
-return 1
-
-[itemdef i_serrote]
-name=serrote
-id=01034
-type=t_Script
-weight=3
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Carpenter
-description=serronte
-dupelist=01035
-
-on=@dclick
-if (<src.carpentry> < 50)
-src.sysmessage skill negada.
-return 1
-elseif (<src.targ.distance> > 1) && (<topobj.uid> != <src.uid>)  
-src.sysmessage Chegue mais perto. 
-
-return 1
-elif  
-src.targ.bounce  
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-else   
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-endif 
-return 1
-
-
-[itemdef i_talhadeira]
-name=talhadeira
-id=01026
-type=t_Script
-weight=1
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Carpenter
-description=talhadeira
-dupelist=01027
-
-
-on=@dclick
-if (<src.carpentry> < 50)
-src.sysmessage skill negada.
-return 1
-elseif (<src.targ.distance> > 1) && (<topobj.uid> != <src.uid>)  
-src.sysmessage Chegue mais perto. 
-
-return 1
-elif  
-src.targ.bounce  
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-else   
-var.carpentry_cr=<src.carpentry>
-src.habilitacao_buttons_cr
-src.dialog d_menu_cr   
-return 1
-endif 
-return 1
-
- 
-
-
-
-//[itemdef i_keg]
-//name=keg
-//id=01940
-//type=t_furniture
-//CATEGORY=MyT - Items by Professions
-//SUBSECTION=Carpenter
-//description=keg
-//dupelist=01ad7
-
-//[itemdef i_tina_vazio]
-//name=tina
-//id=0e83
-//type=t_furniture
-//CATEGORY=MyT - Items by Professions
-//SUBSECTION=Carpenter
-//description=tina 
-
-//on=@create
-//morex=2
-//return 1
-
-
-//escudos
-
-
-
-//singulares
-
-[itemdef i_torneira]
-name=torneira para barril
-id=01004
-CATEGORY=MyT - Items by Professions
-subsection=Tinker
-description=estofamento
-
-[itemdef i_estofamento]
-//para ser colocado em tailoring
-name=estofamento
-id=0163c
-CATEGORY=MyT - Items by Professions
-subsection=Tailor
-description=estofamento
-
-
-[itemdef i_foligem_carp]
-name=foligem
-id=01038
-type=t_script
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Carpenter
-description=foligem
-
-on=@create
-attr=00002
-timer=30
-
-
-
-
-on=@targon_ground
-src.sysmessage Alvo invalido.
-return 1
-
-on=@targon_char
-src.sysmessage Alvo invalido.
-return 1
-
-
-[itemdef i_corda]
-name=corda
-id=014f8
-
-CATEGORY=MyT - Items by Professions
-subsection=Tailor
-description=corda
-
-
-
-
-
 
 
 [EOF]
