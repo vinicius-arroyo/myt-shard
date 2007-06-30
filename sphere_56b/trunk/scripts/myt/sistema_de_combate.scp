@@ -299,13 +299,10 @@ endif
 ///////////////////////////////////////////////
 
 // Se eu for um animal venenoso e a minha presa não está envenenada...
-if (<poisoning> >= 300) && (<NPC>!=0) && (<src.restest 1 i_veneno>==0)
- if ({1 1000} < <poisoning>) && (RAND(4)==0) && (<ctag0.veneno>==0)
+if (<poisoning> >= 300) && (<NPC>!=0) && (!<src.ispoisoned>)
+ if ({1 1000} < <poisoning>) && (RAND(4)==0)
   src.veneno <eval <poisoning>/10>
-  ctag.veneno={20 30}
   emotered morde profundamente
- elif (<ctag0.veneno>!=0)
-  ctag.veneno <ctag.veneno>-1
  endif
 endif
 
@@ -1233,14 +1230,25 @@ if (<OBJ> > 0 ) && (0<OBJ.npc> == 0)
 endif
 return 1
 
+[FUNCTION ispoisoned]
+if (<restest 1 i_veneno>)	//testa se está envenenado
+ return 1			//se está, retorna 1
+else
+ return 0			//se não está, retorna 0
+endif
+
 [FUNCTION veneno]
-newitem i_veneno
-act.more2 <eval <argn>>
-act.timer 5
-act.equip
-flags=<flags>|statf_poisoned
-src.update
-update
+if (!<ispoisoned>)		//testa se está envenenado
+ newitem i_veneno
+ act.more2 <eval <argn>>
+ act.timer 5
+ act.equip
+ flags=<flags>|080
+ update
+ return 0			//avisa o caller que ele não estava envenenado
+else
+ return 1			//avisa o caller que ele já estava envenenado e não fez nada
+endif
 
 [FUNCTION stun]
 newitem i_stun
