@@ -6,6 +6,26 @@
 /////////////////////////////////////////////////////
 
 
+//|||||||||||||||||||||||||||||||||
+// ---------# DEFNAMES #---------//
+//|||||||||||||||||||||||||||||||||
+
+[DEFNAME traps]
+trap_magic_arrow	5
+trap_fire_ball		18
+trap_poison		20
+trap_fire_field		28
+trap_lighting		30
+trap_poison_field	39
+trap_energy_blast	42
+trap_explosion		43
+trap_flame_bolt		51
+trap_saw		100
+trap_spike		101
+trap_mushroom		102
+trap_axe		103
+trap_cas		104
+
 
 //|||||||||||||||||||||||||||||||||
 // ---------# TYPEDEFS #---------//
@@ -14,7 +34,6 @@
 
 
 [TYPEDEF t_trap]
-
 //more1 spell
 //more2 força (%skill magery)
 //morex cargas (morex>04fffffff = infinito, coisa de GM)
@@ -74,60 +93,62 @@ src.spelleffect <more1> <more2> <uid>	//aplica efeito hardcoded
 return 1
 
 on=@step
-type=<morez>
-if (<morex>==0)
- src.remove
+if (<more1> < 100)			//Armadilhas que usam mágica
+ type=<morez>
+ if (<morex>==0)
+  src.remove
+  return 1
+ endif
+ if (<more1>==trap_magic_arrow)			//Magic Arrow
+  src.effect 3 i_fx_smoke_small 0 32 0
+  src.sfx 0223
+ elif (<more1>==trap_fire_ball)			//Fireball
+  src.effect 3 i_fx_explode 0 14 0
+  src.sfx 015e
+ elif (<more1>==trap_poison)			//Poison
+  src.effect 2 i_trap_gas_3 0 24 0
+  src.sfx 022f
+ elif (<more1>==trap_poison_field)		//Fire Field
+  LOCAL.time=<eval <more2>/10>
+  src.f_cela_fogo <LOCAL.time>
+  more2=0
+ elif (<more1>==trap_lighting)			//Lighting
+  src.effect 1 0 0 24 0
+  src.sfx 028
+ elif (<more1>==trap_poison_field)		//Poison Field
+  LOCAL.time=<eval <more2>/10>
+  src.f_cela_veneno <LOCAL.time>
+  more2=0
+ elif (<more1>==trap_explosion)			//Explosion
+  effect 3 i_fx_explode 0 14 0
+  src.sfx 011b
+ elif (<more1>==trap_energy_blast)		//Energy Blast
+  src.effect 3 036cb 0 9 0 0b90 0
+  src.sfx 0213
+ elif (<more1>==trap_flame_bolt)		//Flame Bolt
+  src.effect 3 i_fire_column 0 16
+  src.sfx 011b
+ endif
+ if (<morex> == 04fffffff)		//Carga infinita
+  var.blank=
+ else					//decrementa carga
+  morex=<morex>-1
+ endif
+ if (<attr>&080)			//Se estiver invis (testa antes de mudar attr para não dar erro no console do Sphere)
+  attr==<attr>&~080			//Apareça
+  update
+ endif
+ f_resetTrap
+ src.spelleffect <more1> <more2> <uid>	//aplica efeito hardcoded
  return 1
 endif
-if (<more1>==5)				//Magic Arrow
- src.effect 3 i_fx_smoke_small 0 32 0
- src.sfx 0223
-elif (<more1>==18)			//Fireball
- src.effect 3 i_fx_explode 0 14 0
- src.sfx 015e
-elif (<more1>==20)			//Poison
- src.effect 2 i_trap_gas_3 0 24 0
- src.sfx 022f
-elif (<more1>==28)			//Fire Field
- LOCAL.time=<eval <more2>/10>
- src.f_cela_fogo <LOCAL.time>
- more2=0
-elif (<more1>==30)			//Lighting
- src.effect 1 0 0 24 0
- src.sfx 028
-elif (<more1>==39)			//Poison Field
- LOCAL.time=<eval <more2>/10>
- src.f_cela_veneno <LOCAL.time>
- more2=0
-elif (<more1>==43)			//Explosion
- effect 3 i_fx_explode 0 14 0
- src.sfx 011b
-elif (<more1>==42)			//Energy Blast
- src.effect 3 036cb 0 9 0 0b90 0
- src.sfx 0213
-elif (<more1>==51)			//Flame Bolt
- src.effect 3 i_fire_column 0 16
- src.sfx 011b
-endif
-if (<morex> == 04fffffff)		//Carga infinita
- var.blank=
-else					//decrementa carga
- morex=<morex>-1
-endif
-if (<attr>&080)				//Se estiver invis (testa antes de mudar attr para não dar erro no console do Sphere)
- attr==<attr>&~080			//Apareça
- update
-endif
-f_resetTrap
-src.spelleffect <more1> <more2> <uid>	//aplica efeito hardcoded
-return 1
 
 
 [TYPEDEF t_trap_active]
 //animação das traps
-//morex contador do timer
+//morex ID do quadro que termina o loop
 //morey ID do quadro que começa o loop
-//morez ID do quadro que termina o loop
+//morez contador do loop
 //morem tempo antes de sumir em décimos de segundo
 //more1l dano
 //more1h tipo do dano
@@ -150,42 +171,36 @@ if (<morez> > <morem>)
 endif
 if (<dispiddec> == <morex>) 
  dispiddec=<morey>
+// say maximo
 else
  dispiddec=<dispiddec>+1
+ if (<dispiddec> == 0<tag.jump>)
+  dispiddec=<dispiddec>+1
+ endif
+// say <dispid> / <morex>
 endif
 update
 morez=<morez>+1
 timerd 1
 return 1
 
-[ITEMDEF i_tat]
-ID=011a7
-NAME=teste de trap active
-TYPE=t_trap_active
-
-
-on=@create
-morey=011aa
-morex=011ab
-morem=60
-more1l=5
-more1h=010
-more2=01dc
-
-//morex cotador do timer
-//morey ID do quadro que começa o loop
-//morez ID do quadro que termina o loop
-//morem tempo antes de sumir em décimos de segundo
-//more1l dano
-//more1h tipo do dano
-//more2 som do step
-
-
 
 //|||||||||||||||||||||||||||||||||
 // ---------# ITEMDEFS #---------//
 //|||||||||||||||||||||||||||||||||
 
+
+[ITEMDEF i_trap_active]
+ID=i_gold
+TYPE=t_trap_active
+
+//morex ID do quadro que termina o loop
+//morey ID do quadro que começa o loop
+//morez contador do loop
+//morem tempo antes de sumir em décimos de segundo
+//more1l dano
+//more1h tipo do dano
+//more2 som do step
 
 
 
@@ -248,7 +263,7 @@ if (<cont.tag.pegandofogo>==1)
   cont.damage <eval <LOCAL.dam>> 010 <UID>
   timer=1
  else
-  cont.tag.pegandofogo=   //apaga a tag pegando fogo
+  cont.tag.pegandofogo=		//apaga a tag pegando fogo
   remove			// remove a memory pegando fogo
  endif
 else
@@ -256,6 +271,7 @@ else
 endif
 more2=<more2>-1
 if (!<more2>)
+ cont.tag.pegandofogo=	
  remove
 endif
 return 1
@@ -480,3 +496,246 @@ if (!<src.RESTEST 1 i_mry_pegandofogo>)
  LOCAL.dam=<eval {5 15}>
  src.damage <LOCAL.dam> 010
 endif
+
+////////////////// SERRA
+
+[FUNCTION f_active_trap_saw_0]
+// serra NS
+serv.newitem i_trap_active
+new.dispid=01103
+new.tag.jump=01114
+new.morey=01106
+new.morex=01107
+new.morem=<eval <argv2>*10>
+new.more2=01dc
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+[FUNCTION f_active_trap_saw_1]
+f_active_trap_saw_2 <argv0>, <argv1>, <argv2>
+
+[FUNCTION f_active_trap_saw_2]
+// serra down LO
+serv.newitem i_trap_active
+new.dispid=011b1
+new.tag.jump=011b2
+new.morey=011b4
+new.morex=011b5
+new.morem=<eval <argv2>*10>
+new.more2=01dc
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+[FUNCTION f_active_trap_saw_3]
+f_active_trap_saw_2 <argv0>, <argv1>, <argv2>
+
+[FUNCTION f_active_trap_saw_4]
+// serra down NS
+serv.newitem i_trap_active
+new.dispid=011ac
+new.tag.jump=011ad
+new.morey=011af
+new.morex=011b0
+new.morem=<eval <argv2>*10>
+new.more2=01dc
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+[FUNCTION f_active_trap_saw_5]
+f_active_trap_saw_4 <argv0>, <argv1>, <argv2>
+
+[FUNCTION f_active_trap_saw_6]
+// serra OL
+serv.newitem i_trap_active
+new.dispid=01116
+new.tag.jump=01117
+new.morey=01119
+new.morex=0111a
+new.morem=<eval <argv2>*10>
+new.more2=01dc
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+[FUNCTION f_active_trap_saw_7]
+f_active_trap_saw_4 <argv0>, <argv1>, <argv2>
+
+
+////////////////// SPIKE
+
+[FUNCTION f_active_trap_spike_0]
+// spike NS
+serv.newitem i_trap_active
+new.dispid=0111b
+new.morey=01121
+new.morex=01121
+new.morem=<eval <argv2>*10>
+new.more2=022b
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+[FUNCTION f_active_trap_spike_1]
+f_active_trap_spike_2 <argv0>, <argv1>, <argv2>
+
+[FUNCTION f_active_trap_spike_2]
+// spike down LO
+serv.newitem i_trap_active
+new.dispid=0119a
+new.tag.jump=0119b
+new.morey=0119f
+new.morex=0119f
+new.morem=<eval <argv2>*10>
+new.more2=022b
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+[FUNCTION f_active_trap_spike_3]
+f_active_trap_spike_2 <argv0>, <argv1>, <argv2>
+
+[FUNCTION f_active_trap_spike_4]
+// spike down NS
+serv.newitem i_trap_active
+new.dispid=011a0
+new.tag.jump=011a1
+new.morey=011a5
+new.morex=011a5
+new.morem=<eval <argv2>*10>
+new.more2=022b
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+[FUNCTION f_active_trap_spike_5]
+f_active_trap_spike_4 <argv0>, <argv1>, <argv2>
+
+[FUNCTION f_active_trap_spike_6]
+// spike OL
+serv.newitem i_trap_active
+new.dispid=01108
+new.tag.jump=01109
+new.morey=0110e
+new.morex=0110e
+new.morem=<eval <argv2>*10>
+new.more2=022b
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+[FUNCTION f_active_trap_spike_7]
+f_active_trap_spike_4 <argv0>, <argv1>, <argv2>
+
+///////////// COGUMELO
+
+
+[FUNCTION f_active_trap_mushroom]
+// mushroom explode
+serv.newitem i_trap_active
+new.dispid=01125
+new.morey=01127
+new.morex=0112a
+new.morem=<eval <argv2>*10>
+new.more2=02b
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+///////////// AXE
+
+[FUNCTION f_active_trap_axe_0]
+// axe NS
+serv.newitem i_trap_active
+new.dispid=0114b
+new.morey=0114f
+new.tag.jump=0114c
+new.morex=0114f
+new.morem=<eval <argv2>*10>
+new.more2=0235
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+[FUNCTION f_active_trap_axe_6]
+// axe LO
+serv.newitem i_trap_active
+new.dispid=01141
+new.morey=01144
+new.morex=01144
+new.morem=<eval <argv2>*10>
+new.more2=0235
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+
+////////// GAS
+
+
+[FUNCTION f_active_trap_gas_0]
+// gas NS
+serv.newitem i_trap_active
+new.dispid=0113a
+new.morey=0113a
+new.tag.jump=0113b
+new.morex=0113e
+new.morem=<eval <argv2>*10>
+new.more2=02b
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+[FUNCTION f_active_trap_gas_1]
+// gas down
+serv.newitem i_trap_active
+new.dispid=011a7
+new.morey=011a7
+new.morex=011ab
+new.morem=<eval <argv2>*10>
+new.more2=02b
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+[FUNCTION f_active_trap_gas_3]
+f_active_trap_gas_1 <argv0>, <argv1>, <argv2>
+
+[FUNCTION f_active_trap_gas_4]
+f_active_trap_gas_1 <argv0>, <argv1>, <argv2>
+
+[FUNCTION f_active_trap_gas_5]
+f_active_trap_gas_1 <argv0>, <argv1>, <argv2>
+
+[FUNCTION f_active_trap_gas_6]
+// gas LO
+serv.newitem i_trap_active
+new.dispid=01146
+new.morey=01146
+new.morex=01149
+new.morem=<eval <argv2>*10>
+new.more2=02b
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
+
+[FUNCTION f_active_trap_gas_7]
+f_active_trap_gas_1 <argv0>, <argv1>, <argv2>
+
+
+///////// SPIKE GRANDE
+
+
+[FUNCTION f_active_trap_spike_big]
+// spike big
+serv.newitem i_trap_active
+new.dispid=01d9a
+new.morey=01d9e
+new.morex=01d9e
+new.morem=<eval <argv2>*10>
+new.more2=022b
+new.more1l=<argv0>
+new.more1h=<argv1>
+new.p=<p>
