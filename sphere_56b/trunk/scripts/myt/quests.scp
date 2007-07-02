@@ -53,7 +53,7 @@
 // Ative a peste pelo comando ".nopeste 0" e desative por
 // ".NOPESTE 1".
 // Ponha algum objeto no chão, mude o type dele para t_peste
-// e espere o pobre coisato pisar.
+// e espere o pobre coitato pisar.
 // MAS NÃO USE SEM O CONSENTIMENTO DE TODOS NA STAFF! É ABSURDO!
 
 
@@ -542,8 +542,9 @@ DESCRIPTION=Barreira de energia
 
 [TYPEDEF t_guarded_container]
 on=@dclick
-if (<link.npc>
- src.sysmessagered <link.name> esta guardando este objeto.
+obj=<more2>
+if (<obj.npc>)
+ src.sysmessagered <obj.name> esta guardando este objeto.
 else
  if (0<src.tag.fRP> < -1)
   src.sysmessage=@037 Seus pontos de RP estao baixos. Tesouro bloqueado.
@@ -557,6 +558,7 @@ return 1
 
 // -------# ITEMDEFS #-------- //
 
+//Não pode usar link. Se usa, os dois objetos somem durante o save por BAD LINK.
 [ITEMDEF i_trig_guarded_cont]
 ID=i_rune_glowing_1
 NAME=gatilho de guarda de container
@@ -567,7 +569,7 @@ SUBSECTION=Gatilhos
 DESCRIPTION=guarda de container
 
 on=@create
-attr=080b0
+attr=08080
 
 on=@dclick
 if (<src.isgm>)
@@ -588,8 +590,9 @@ return 1
 
 on=@step
 if (<src.npc>)
- if (!<link.link.npc>)
-  link.link=<src.uid>
+ obj=<link.more2>
+ if (!<obj.npc>)
+  link.more2=<src.uid>
   link.empty
   link.type t_guarded_container
   if (<link.more1>)
@@ -602,12 +605,82 @@ if (<src.npc>)
 endif
 return 1
 
+[ITEMDEF i_trig_guarded_door]
+ID=i_rune_glowing_2
+NAME=gatilho de guarda de porta
+TYPE=t_script
 
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=guarda de porta
+
+on=@create
+attr=08080
+
+on=@dclick
+if (<src.isgm>)
+ TARGET Selecione a porta a guardar:
+ return 1
+endif
+
+on=@Targon_Item
+if (<src.targ.type>==t_door) || (<src.targ.type>==t_door_locked)
+ link=<src.targ.UID>
+ link.type=t_door_locked
+ src.sysmessagered linkado em <link.name>
+ src.sysmessagered Assegure-se que o guarda pise no gatilho.
+else
+ src.sysmessage Apenas portas.
+endif
+return 1
+
+on=@step
+if (<src.npc>)
+ obj=<link.TAG0.GUARD>
+ if (!<obj.npc>)
+  link.TAG.GUARD=<src.uid>
+  link.type t_door_locked
+  serv.newitem i_key_quest
+  new.link=<link>
+  new.cont=<src.uid>
+ endif
+endif
+return 1
+
+[ITEMDEF i_key_quest]
+ID=01010
+NAME=chave
+TYPE=t_script
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=chave de quest
+
+on=@dclick
+TARGET Que porta você gostaria de destrancar?
+return 1
+
+on=@targon_item
+if (<link>==<src.targ.uid>) && (<src.targ.type>==t_door_locked)
+ if (<src.targ.distance> < 2)
+  src.targ.type t_door
+  src.targ.dclick
+  src.targ.type t_door_locked
+  src.targ.timer 30
+  remove
+ else
+  src.sysmessage Chegue mais perto...
+ endif
+else
+ src.sysmessage Voce nao pode destrancar <src.targ.name>.
+endif
+return 1
 
 [ITEMDEF i_tesouro_pobre]
 id=0e43
 name=tesouro
 type=t_container
+
 CATEGORY=MyT - Quest Items
 SUBSECTION=Quest
 DESCRIPTION=Tesouro pobre
@@ -621,6 +694,7 @@ say Use um gatilho de guarda em mim!
 id=i_chest_metal
 name=tesouro
 type=t_container
+
 CATEGORY=MyT - Quest Items
 SUBSECTION=Quest
 DESCRIPTION=Tesouro regular
@@ -635,6 +709,7 @@ say Use um gatilho de guarda em mim!
 id=i_chest_metal
 name=tesouro
 type=t_container
+
 CATEGORY=MyT - Quest Items
 SUBSECTION=Quest
 DESCRIPTION=Tesouro rico
@@ -650,6 +725,7 @@ say Use um gatilho de guarda em mim!
 id=i_chest_metal
 name=tesouro
 type=t_container
+
 CATEGORY=MyT - Quest Items
 SUBSECTION=Quest
 DESCRIPTION=Tesouro Milhonario
