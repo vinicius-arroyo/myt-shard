@@ -1,82 +1,102 @@
-//Camping system v1.1
-//Scripted by Rudenid for use on the Final Aegis shard.
-//Sphere version: 55i.
-//Replace the current campfire items with these... or just load this one after the sphereitem*.scp scripts.
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL CAMPING 
+//
+//	Galthar
+//	UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
 
-[FUNCTION CAMPHEAL]
+//TODO:
+//diminuir area de cura
+
+//TAGS usadas:
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// campheal
+//*****************************************************************************
+[FUNCTION campheal]
+
+//cancela efeito do camping se alguem em warmode
 IF (<FLAGS> & statf_war) 
-VAR.OLDACT=<ACT.UID>
-ACT=<EVAL <VAR.CAMPFIREUID>>
-ACT.TAG.HEALINTERVAL=-1
-ACT.REGION.ALLCLIENTS SYSMESSAGE Um <NAME> perturbou o acampamento!
-ACT.LINK.REMOVE
-ACT.REMOVE
-ACT=<EVAL <VAR.OLDACT>>
-VAR.OLDACT=
+	OBJ=<argv[1]>
+	OBJ.REGION.ALLCLIENTS SYSMESSAGERED <NAME> perturbou o acampamento!
+	OBJ.LINK.REMOVE
+	OBJ.REMOVE
 ENDIF
 
-IF (<food> >= 10 )
- IF (<HITS> < <STR>)
-  HITS=<HITS>+<ARGN>+1
- ENDIF
- IF (<MANA> < <INT>)
-   MANA=<MANA>+<ARGN>+2
- ENDIF
- IF (<STAM> < <DEX>)
-  STAM=<STAM>+<ARGN>+3
- ENDIF
-ELSE
-  IF (<HITS> < <STR>)
-    HITS=<HITS>+<ARGN>/2
-  ENDIF
-  IF (<MANA> < <INT>)
-   MANA=<MANA>+<ARGN>/2
-  ENDIF
-  IF (<STAM> < <DEX>)
-   STAM=<STAM>+<ARGN>/2
-  ENDIF
+//faz efeito do healing
+IF (<HITS> < <STR>)
+	HITS=<HITS>+<argv[0]>
+ENDIF
+IF (<MANA> < <INT>)
+	MANA=<MANA>+<argv[0]>
+ENDIF
+IF (<STAM> < <DEX>)
+	STAM=<STAM>+<argv[0]>
 ENDIF
 
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
 
+
+//*****************************************************************************
+// i_multi_campfire
+//*****************************************************************************
 [ITEMDEF i_multi_campfire]
-// Good campfire
 ID=i_campfire
 TYPE=t_multi
 MULTIREGION=-5,-5,5,5
 
 ON=@Create
 MOREZ=29
-
-
+ATTR=attr_move_never
+//*****************************************************************************
+// i_campfire_tracker - cura hits, mana e stam de quem estiver proximo
+//*****************************************************************************
 [ITEMDEF i_campfire_tracker]
 ID=01ea7
 TYPE=t_eq_script
 
-ON=@Create
+ON=@CREATE
 ATTR=attr_move_never|attr_invis
 
-ON=@Timer
+ON=@TIMER
+//remove tracker e campfire se acabou o tempo
 IF (<MORE2> < 1)
-LINK.REMOVE
-REMOVE
-RETURN 1
+	LINK.REMOVE
+	REMOVE
+	RETURN 1
 ENDIF
 
-VAR.CAMPFIREUID=<UID>
-REGION.ALLCLIENTS CAMPHEAL 1
-VAR.CAMPFIREUID=
+//cura quem estiver na regiao
+REGION.ALLCLIENTS CAMPHEAL 1,<uid>
 
-MORE2=<MORE2>+(<EVAL -1*<TAG.HEALINTERVAL>>)
-TIMER=<EVAL <TAG.HEALINTERVAL>>
+//subtrai tempo percorrido
+MORE2=<MORE2>-<MORE1>
+TIMER=<MORE1>
 RETURN 1
 
+//*****************************************************************************
+// i_gravetos
+//*****************************************************************************
 [ITEMDEF 0de1]
-//Kindling
 DEFNAME=i_kindling
 DEFNAME2=i_gravetos
-TYPE=T_KINDLING
+TYPE=t_kindling
 NAME=gravetos%s%
-RESOURCES=1 I_LOG
+RESOURCES=1 i_log
 SKILLMAKE=BOWCRAFT 0.0
 REPLICATE=1
 WEIGHT=1
@@ -85,64 +105,37 @@ SUBSECTION=Camping
 DESCRIPTION=gravetos
 DUPELIST=0de2
 
-ON=@DClick
-IF (<SRC.CAMPING> < 50.0)
-RETURN 0
-ENDIF
+ON=@DCLICK
 
-
-IF (<SRC.CAMPING> < 65.0) 
-IF (rand(12) !=1) //1
-RETURN 0 
-ENDIF
-ELSEIF (<SRC.CAMPING> < 80.0)
-IF (rand(5) != 1) //1
-RETURN 0
-ENDIF
-ELSE
-IF (rand(2) != 1) // !=1
-RETURN 0
-ENDIF
-ENDIF
-
-
-VAR.CURRENTREGIONFLAGS=<REGION.FLAGS>
-
-SRC.NEWITEM i_multi_campfire
-SRC.ACT.P=<P>
-SRC.ACT.ATTR=<SRC.ACT.ATTR>|attr_move_never
-VAR.OLDACT=<SRC.ACT.UID>
-SRC.NEWITEM i_campfire_tracker
-SRC.ACT.P=<P>
-SRC.ACT.LINK=<EVAL <VAR.OLDACT>>
-VAR.OLDACT=
-SRC.ACT.MORE2=<EVAL <EVAL <SRC.CAMPING>*3> / 10>
-SRC.ACT.TAG.HEALINTERVAL=<EVAL <SRC.CAMPING> / 100>
-SRC.ACT.TAG.HEALINTERVAL=<EVAL <SRC.ACT.TAG.HEALINTERVAL> * -1>
-SRC.ACT.TAG.HEALINTERVAL=<EVAL 12 + <SRC.ACT.TAG.HEALINTERVAL>>
-
-SRC.ACT.REGION.FLAGS=<EVAL <VAR.CURRENTREGIONFLAGS>>
-SRC.ACT.TIMER=<EVAL <SRC.ACT.TAG.HEALINTERVAL>>
-SRC.P=<SRC.P>
-UPDATE
-SRC.SAYU Ahhh , isto e que e uma fogueira!
-src.tentarganhar_camping
-
-
-[FUNCTION tentarganhar_camping]
-if ({1 120} >= <eval 0<camping>>) && (<eval 0<camping>> <=100)
- camping=<camping>+5
+//teste se sera um caping de cura
+if (<R0,2000> > <SRC.CAMPING>)
+	return 0
 endif
 
+SERV.NEWITEM i_multi_campfire
+NEW.P=<P>
+OBJ=<NEW>
+SERV.NEWITEM i_campfire_tracker
+NEW.P=<P>
+NEW.LINK=<OBJ>
+//tempo total (max 300 segundos)
+NEW.MORE2=<EVAL (<SRC.CAMPING>*3)/10>
+//healing interval (de 2 a 12 segundos)
+NEW.MORE1=<EVAL 12-(<SRC.CAMPING>/100)>
+NEW.TIMER=<NEW.MORE1>
+UPDATE
+SRC.emotered faz uma bela fogueira
+
 [ITEMDEF 0de2]
-//kindling
 DUPEITEM=0de1
 
+//*****************************************************************************
+// i_campfire
+//*****************************************************************************
 [ITEMDEF 0de3]
-//campfire
 DEFNAME=i_campfire
-TYPE=T_CAMPFIRE
-name=fogueira
+TYPE=t_fire
+NAME=fogueira
 RESOURCES=i_kindling
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Camping
@@ -155,45 +148,44 @@ SRC.RESEND
 return 1
 
 [ITEMDEF 0de4]
-//campfire
 DUPEITEM=0de3
 
 [ITEMDEF 0de5]
-//campfire
 DUPEITEM=0de3
 
 [ITEMDEF 0de6]
-//campfire
 DUPEITEM=0de3
 
 [ITEMDEF 0de7]
-//campfire
 DUPEITEM=0de3
 
 [ITEMDEF 0de8]
-//campfire
 DUPEITEM=0de3
 
+//*****************************************************************************
+// i_ember_lit
+//*****************************************************************************
 [ITEMDEF 0de9]
-//embers
-NAME=braza
+NAME=brasa
 DEFNAME=i_ember_lit
-TYPE=t_CAMPFIRE
+TYPE=t_fire
 VALUE=2
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Camping
-DESCRIPTION=brazas
+DESCRIPTION=brasas
 
 ON=@PICKUP_GROUND
 MOVABLE=0
 return 1
 
+//*****************************************************************************
+// i_ember
+//*****************************************************************************
 [ITEMDEF 0dea]
-//burned wood
 DEFNAME=i_ember
 TYPE=t_garbage
 name=madeira queimada
-RESOURCES=1 I_KINDLING
+RESOURCES=1 i_kindling
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Camping
 DESCRIPTION=madeira queimada
@@ -201,3 +193,5 @@ DESCRIPTION=madeira queimada
 ON=@PICKUP_GROUND
 MOVABLE=0
 return 1
+
+[EOF]
