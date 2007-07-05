@@ -856,9 +856,6 @@ if (<LOCAL.tipo>&<src.tag0.immune>)
  ENDDO
 endif
 
-///// Amenizar dano se resistente
-
- 
 /////cansar atacante
 if (<stam> >= 6)
  stam=<stam>-{0 2}
@@ -910,8 +907,21 @@ return 1
 
 on=@GetHit
 
+///// Manter apênas um tipo de dano empilhado na bitmaks se for de flecha
+if (<argn2>&dam_pierce) && (!<argn>&dam_magic)
+ argn2=dam_pierce
+endif
+
 ///// Bloquear dano se imune
 if (<argn2>&<src.tag0.immune>)
+ return 1
+///// Piorar dano se agravante
+elif (<tag0.aggravate>&<argn2>)
+ LOCAL.agg=<eval {150 325}> 		//Agrava sempre de 50 a 225% de dano
+ argn1=<eval (<argn1>*<LOCAL.agg>)/100>
+///// Adicionar HITS se regenera com dano
+elif (<tag0.regendam>&<argn2>)
+ hits=<hits>+<argn1>
  return 1
 endif
 
@@ -941,24 +951,12 @@ elif (<TAG0.resistance>&<argn2>)	///Compatibilidade com resistencia a pierce, ph
  argn1=<eval (<argn1>*<LOCAL.res>)/100>
 endif
 
-///// Piorar dano se agravante
-if (<tag0.aggravate>&<argn2>)
- LOCAL.agg=<eval {150 325}> 		//Agrava sempre de 50 a 225% de dano
- argn1=<eval (<argn1>*<LOCAL.agg>)/100>
-endif
-
-///// Adicionar HITS se regenera com dano
-if (<tag0.regendam>&<argn2>)
- hits=<hits>+<argn1>
- return 1
-endif
-
 /////aos damage (show counter above player head)
-if (0<npc> == 0)
+if (0<npc> == 0) && (<hits> > 0)
 	SENDPACKET  0bf W11 W022 01 D<UID> B<argn1> 
 endif
-if (<src> > 0 ) && (0<src.npc> == 0)
-	OBJ.SENDPACKET  0bf W11 W022 01 D<UID> B<argn1> 
+if (<src> > 0 ) && (0<src.npc> == 0) && (<hits> > 0)
+	SRC.SENDPACKET  0bf W11 W022 01 D<UID> B<argn1> 
 endif
 
 //// anima
@@ -1005,7 +1003,7 @@ endif
 if (<argn1>==20) && (<restest 1 i_veneno>==0)
  LOCAL.poison <argn2>
  LOCAL.poison <eval <LOCAL.poison>/20>
- veveno <LOCAL.poison>
+ veneno <LOCAL.poison>
  effect 2 i_fx_curse 0 30 0
  update
  return 1
