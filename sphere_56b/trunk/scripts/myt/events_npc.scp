@@ -138,12 +138,10 @@ elif (<argv0>==fear_paralyze) && (<mana> > 25)
  mana=<mana>-25
  spell_delay 32
 elif (<argv0>==infestation) && (<mana> > 20)
- sfx 0fb
  say=@026 infestus
  FOR <eval <magery>/200>
   OBJ=<f_summon_creature c_rato_sepultura,15>
   obj.movenear <uid> {1 2}
-  obj.effect 3 i_fx_sparkle 0 16 0 0a1
  ENDFOR 
  mana=<mana>-15
  spell_delay 75
@@ -179,6 +177,17 @@ elif (<argv0>==in_putrefus) && (<mana> > 20)
  mana=<mana>-20
  spell_delay 37
  in_putrefus
+elif (<argv0>==death_confusion) && (<mana> > 20)
+ say=@026 conturbatis
+ OBJ.f_spl_confusion <Magery>
+ mana=<mana>-20
+ spell_delay 5
+ in_putrefus
+elif (<argv0>==death_confusion) && (<mana> > 25)
+ say=@026 Kal Xen
+ f_spl_summon_undead <Magery>
+ mana=<mana>-25
+ spell_delay 35
 endif
 
 [FUNCTION NPC_CanCast]
@@ -216,10 +225,14 @@ new.link <uid>
 new.cont <obj>
 serv.newitem i_mry_summon
 new.more2 <argv1>
+say <argv1>
 new.link <uid>
 new.cont <obj>
 new.timer 1
+obj.effect 3 i_fx_sparkle 0 16 0 0a1
+sfx 0fb
 return <obj.uid>
+
 
 [ITEMDEF i_mry_summon]
 ID=i_rune_summon_creature
@@ -232,7 +245,7 @@ attr=020
 
 on=@timer
 more2=<more2>-1
-if (<more2> <= 0) || (!<link.npc>)
+if (<more2> <= 0) || (!<link.uid>)
  serv.newitem i_fx_vortex_full
  new.attr=02
  new.timerd 16
@@ -295,6 +308,32 @@ new.timer=<local.timer>
 effect 3 i_fx_curse 0 16 0 017d
 sfx 01fa
 
+[FUNCTION f_polymorph]
+//f_polymorph <body> <tempo> <str> <dex> <int>
+if (0<argv1>==0)
+ local.timer 30
+else
+ local.timer <argv1>
+endif
+local.body=<argv0>
+if (!<serv.resources.<local.body>>)
+ local.body=c_zombie
+else
+ local.body=<argv0>
+endif
+local.modstr=<argv2>
+local.moddex=<argv3>
+local.modint=<argv4>
+serv.newitem i_spl_polymorph
+new.morex=<local.modstr>
+new.morey=<local.moddex>
+new.morez=<local.modint>
+new.more1=<local.body>
+new.equip
+new.timer=<local.timer>
+effect 3 i_fx_curse 0 16 0 017d
+sfx 01fa
+
 [ITEMDEF i_spl_curse]
 ID=i_rune_curse
 name=curse
@@ -318,7 +357,7 @@ return 1
 
 [ITEMDEF i_spl_polymorph]
 ID=i_rune_polymorph
-name=polimorph
+name=polymorph
 type=t_eq_script
 layer=layer_special
 
@@ -367,8 +406,20 @@ cont.sfx 01fa
 remove
 return 1
 
-[ITEMDEF i_spl_polymorph]
-ID=i_rune_cuse
+[FUNCTION f_spl_confusion]
+if (!0<argn>)
+ LOCAL.skill={400 600}
+else
+ LOCAL.skill=<argn>
+endif
+serv.newitem i_spl_confusion
+new.more2 = <eval <LOCAL.skill>/75>
+new.equip
+sfx 01fb
+EFFECT 3 i_fx_curse 0 16 0
+
+[ITEMDEF i_spl_confusion]
+ID=i_rune_curse
 name=insanity
 type=t_eq_script
 layer=layer_special
@@ -379,8 +430,8 @@ more2=5
 
 on=@equip
 cont.flags=<cont.flags>|0400000		//Hallu
-timer 1
-cont.sysmessagered Voce se sente muito estranho.
+timer 3
+cont.sysmessagegreen Voce se sente muito estranho.
 
 on=@timer
 IF (<more2> >=0 )
@@ -393,8 +444,52 @@ IF (<more2> >=0 )
  enddo
  more2=<more2>-1
  timer={2 4}
+ cont.update
 else
+ cont.flags=<cont.flags>&~0400000	//Tira hallu
+ cont.update
+ cont.sysmessagegreen Voce se sente melhor
  remove
- cont.flags=<cont.flags>&~0400000
 endif
+return 1
+
+[FUNCTION f_spl_summon_undead]
+if (!0<argn>)
+ local.skill={400 600}
+else
+ local.skill=<argn>
+endif
+local.undead={c_zombie 16 c_skeleton 10 c_skeleton_w_axe 8 c_skeleton_w_sword 8 c_grim_reaper 4 c_zumbi_superior 4 c_spectre 1}
+local.rand =<eval {0 (<local.skill>/300)}>
+FOR <local.rand>
+ f_summon_creature <eval <local.undead>>,30
+ENDFOR
+return 1
+
+[FUNCTION f_death_mask]
+//simplesmente equipa um i_spl_death_mask
+if (0<argv1>==0)
+ local.timer 30
+else
+ local.timer <argv0>
+endif
+serv.newitem i_spl_death_mask
+new.equip
+new.timer=<local.timer>
+effect 3 i_fx_curse 0 16 0 017d
+sfx 01fa
+
+[ITEMDEF i_spl_death_mask]
+ID=i_rune_poison
+name=death mask
+type=t_eq_script
+layer=layer_special
+
+on=@equip
+timer 1
+cont.sysmessagegreen Voce se sente todo dormente, como um defunto.
+
+on=@timer
+cont.sysmessagegreen Voce volta ao seu estado natural de ser vivo.
+remove
 return 1

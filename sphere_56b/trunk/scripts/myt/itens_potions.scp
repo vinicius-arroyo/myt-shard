@@ -1,0 +1,475 @@
+    ////////////////////////////////////////////////////////////////
+   ////////////////////////////////////////////////////////////////
+  /////                          POTIONS                     /////
+ ////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+
+
+// --- Magic Reflection ---
+
+[itemdef i_potion_magic_reflection]
+ID=i_bottle_white
+NAME=pocao da reflexao
+TYPE=t_potion
+TDATA1=i_bottle_empty
+
+on=@create
+more2=50
+
+on=@dclick
+src.spelleffect s_magic_reflection,<more2>
+
+
+// --- Encolher ---
+
+[itemdef i_potion_encolher]
+ID=i_bottle_black
+NAME=Pocao de Encolher
+TYPE=T_script
+TDATA1=i_bottle_empty
+
+on=@create
+more2=50
+
+on=@dclick
+if (<topobj.uid> != <src.uid>)
+ src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
+ return 1
+endif
+ target Selecione o animal para encolher...
+return 1
+
+on=@targon_char
+if (<src.targ.npc> != 1)
+ src.sysmessage Este alvo nao pode ser encolhido por meio de uma pocao...
+ return 1
+endif
+if (<src.targ.ismypet> == 0)
+ src.sysmessage Voce deve ser o dono do animal...
+ return 1
+endif
+if (<src.targ.stam> > <eval (<more2>/10) + 10>)
+ src.targ.stam=<src.targ.stam> + (- (<more2>/(10))) - 10
+ src.newitem i_bottle_empty
+ src.act.bounce
+ src.sysmessage A dose aplicada nao surtiu efeito, tente com mais pocoes...
+ remove
+ return 1
+endif
+if (<src.targ.stam> <= <eval (<more2>/10) + 10>)
+ src.targ.stam=<src.targ.str>
+ src.targ.shrink
+ src.say *Encolheu um animal*
+ src.newitem i_bottle_empty
+ src.act.bounce
+ remove
+ return 1
+endif
+return 1
+
+
+
+// --- Explosao Terrestre ---
+
+[itemdef i_potion_explosao_terrestre]
+ID=i_bottle_purple
+NAME=Pocao de Explosao Terrestre
+TYPE=T_script
+TDATA1=i_bottle_empty
+
+on=@dclick
+if (0<tag.armed>==0)
+ tag.armed=1
+ p=<src.p>
+ update
+ attr=attr_static
+ say *Preparando*
+ morex=3
+ timer=1
+endif
+return 1
+
+on=@timer
+ if (<tag.armed>==1) && (<morex> > 0)
+  say=<eval <morex>>
+  morex=<morex> + (-1)
+  timer=1
+  return 1
+ endif
+ if (<morex> <= 0) && (<tag.armed> == 1)
+  say *Armada*
+  tag.armed=2
+  attr=<attr>|08080
+  update
+  return 1
+ endif
+return 1
+
+on=@step
+ if (0<tag.armed> == 2)
+  src.damage {10 30}
+  src.effect 3,i_fx_explode,0,13,0
+  sfx 011b
+  src.say *Atingido por uma explosao terrestre*
+  remove
+  return 1
+ endif
+return 1
+
+
+
+// --- Sopro de Fogo ---
+
+[itemdef i_potion_sopro_de_fogo]
+ID=i_bottle_orange
+NAME=pocao do sopro de fogo
+TYPE=T_script
+TDATA1=i_bottle_empty
+
+on=@dclick
+if (<topobj.uid> != <src.uid>)
+ src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
+ return 1
+endif
+ target Selecione o alvo...
+return 1
+
+on=@targon_char
+src.anim 11
+src.targ.effect 0,i_fx_fireball_small,10,1,1
+src.targ.damage (<src.int>/5) 0010 <src.targ.uid>
+src.newitem i_bottle_empty
+src.act.bounce
+src.consume 1 <baseid>
+return 1
+
+on=@targon_item
+src.sysmessage Alvo invalido.
+return 1
+
+on=@targon_ground
+src.sysmessage Alvo invalido.
+return 1
+
+
+
+// --- Morvor (stamina) ---
+
+[itemdef i_potion_morvor]
+ID=i_bottle_red
+NAME=pocao do maximo vigor
+TYPE=T_script
+TDATA1=i_bottle_empty
+
+on=@dclick
+if (<topobj.uid> != <src.uid>)
+ src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
+ return 1
+endif
+src.newitem i_mry_morvor
+src.act.equip
+src.act.more1=<src.stamina>
+src.act.more2={10 20}
+src.act.timer=1
+src.sysmessage Voce se sente estranhamnte vigoroso.
+src.consume 1 <baseid>
+return 1
+
+[itemdef i_mry_morvor]
+ID=i_memory
+NAME=pocao do maximo vigor
+TYPE=T_eq_script
+layer=30
+
+on=@timer
+if (<more2> > 1)
+ cont.stamina=<cont.dex>
+ more2=(<more2>+(-1))
+ timer=1
+ return 1
+else
+ cont.stamina=<more1>
+ cont.sysmessage O efeito da pocao passou.
+ remove
+ return 1
+endif
+
+
+
+// --- Invisibilidade ---
+
+[itemdef i_potion_invis]
+ID=i_bottle_black
+NAME=pocao da invisibilidade
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+
+on=@dclick
+if (<topobj.uid> != <src.uid>)
+ src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
+ return 1
+endif
+src.newitem i_mry_invis
+src.act.equip
+src.act.more2=(<src.int>/10)
+src.act.timer=1
+src.flags=<src.flags>|08
+src.sysmessage Ninguem pode lhe ver.
+
+
+[itemdef i_mry_invis]
+ID=i_memory
+NAME=pocao da invisibilidade
+TYPE=T_eq_script
+layer=30
+
+on=@timer
+if (<more2> > 1)
+ cont.flags=<cont.flags>|statf_hidden
+ cont.update
+ more2=(<more2>+(-1))
+ timer=1
+ return 1
+else
+ cont.flags=<cont.flags>&~statf_hidden
+ cont.update
+ cont.sysmessage O efeito da pocao passou.
+ remove
+ return 1
+endif
+
+
+
+// --- Furor de Batalha ---
+
+[itemdef i_potion_furor]
+ID=i_bottle_white
+NAME=pocao do furor de batalha
+TYPE=T_script
+TDATA1=i_bottle_empty
+
+on=@dclick
+if (<topobj.uid> != <src.uid>)
+ src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
+ return 1
+endif
+src.newitem i_mry_furor
+src.act.equip
+src.act.timer=(<src.str>/5)
+src.sysmessage Sentese estranhamnte disposto a lutar.
+src.tactics=(<src.tactics>+200)
+src.fencing=(<src.fencing>+200)
+src.wrestling=(<src.wrestling>+200)
+src.swordsmanship=(<src.swordsmanship>+200)
+src.macefighting=(<src.macefighting>+200)
+src.parrying=(<src.parrying>+200)
+src.consume 1 <baseid>
+src.say Graurrrr!
+return 1
+
+[itemdef i_mry_furor]
+ID=i_memory
+NAME=pocao do furor de batalha
+TYPE=T_eq_script
+layer=30
+
+on=@timer
+cont.tactics=(<cont.tactics>+(-200))
+cont.fencing=(<cont.fencing>+(-200))
+cont.wrestling=(<cont.wrestling>+(-200))
+cont.swordsmanship=(<cont.swordsmanship>+(-200))
+cont.macefighting=(<cont.macefighting>+(-200))
+cont.parrying=(<cont.parrying>+(-200))
+cont.sysmessage Perdeu o furor de batalha.
+cont.say ouf!
+remove
+return 1
+
+
+
+// --- Formula 21 (ferro para ouro) ---
+
+[itemdef i_potion_formula_21]
+ID=0f04
+NAME=formula 21
+TYPE=T_script
+TDATA1=i_bottle_empty
+
+on=@dclick
+if (<topobj.uid> != <src.uid>)
+ src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
+ return 1
+endif
+ target Selecione um lingote de ferro.
+return 1
+
+on=@targon_char
+src.sysmessage Alvo invalido.
+return 1
+
+on=@targon_item
+if (<src.targ.dispid>!=i_ingot_iron)
+ src.sysmessage Isso nao e um lingote de ferro.
+ return 1
+endif
+if (<src.targ.cont.uid> == <src.findlayer(21).uid>)
+ src.sysmessage O ferro deve estar fora de sua mala para aplicar a formula.
+ return 1
+endif
+src.targ.effect 2,i_fire_column,0,30,0
+src.targ.effect 2,i_fx_sparkle,0,16,0
+sfx 01ec
+if ({1 5}==1)// || (<src.gm>==1)
+ src.newitem=i_gold
+ src.act.amount=<eval <src.int>/3>
+elif ({1 3}==1
+ src.newitem=i_coin_copper
+ src.act.amount={15 20}
+else
+ dorand (5)
+  src.newitem={ i_r_perola_negra 1 i_r_musgo_sangue 1 i_r_alho 1 i_r_ginseng 1 i_r_raiz_de_mandrake 1 i_r_nightshade 1 i_r_cinza_sulfurosa 1 i_r_teia_de_aranha 1 }
+  src.newitem={ i_horse_dung 1 0f3c 1 }
+  src.newitem={ i_log 1 i_board 1 01f7e 1}
+  src.newitem=i_potion_formula_21
+  src.newitem={ i_plant_potted_small 1 i_flower_potted_small 1 i_tree_small_potted_2 1 }
+ enddo
+endif
+src.new.p=<src.targ.p>
+if (<src.new.type>!=t_gold)
+ src.sysmessagered Algo de errado com a transmutacao... Tente denovo.
+endif
+src.targ.remove
+src.consume 1 <baseid>
+return 1
+
+on=@targon_ground
+src.sysmessage Alvo invalido.
+return 1
+
+
+
+// --- Poção da proteção ---
+
+[ITEMDEF i_potion_Protection]
+// This potion erects a temporary force field around you. Nobody approaching will be able to get within 1 tile of you, though you can move close to them if you wish.
+NAME=pocao violeta
+ID=i_bottle_WHITE
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_r_olho_morto_vivo, i_bottle_EMPTY
+SKILLMAKE=ALCHEMY 62.2
+
+ON=@Create
+	COLOR=0f
+	MORE1=s_Protection
+	MORE2={500 890}
+
+//A poção está muito forte. Atenuar.
+ON=@DClick
+more2=<eval <more2>/2>
+
+
+
+
+// --- veneno roxo (envenena e deixa roxo) ---
+
+[itemdef i_potion_veneno_roxo]
+ID=i_bottle_white
+NAME=pocao roxa escura
+TYPE=T_script
+TDATA1=i_bottle_empty
+
+on=@create
+color=0f
+
+on=@dclick
+if (<topobj.uid> != <src.uid>)
+ src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
+ return 1
+endif
+src.newitem i_mry_veneno_roxo
+src.act.tag.ocolor=<src.color>
+src.color=0f
+src.act.equip
+src.act.timer={30 120}
+src.sysmessagered Voce esta roxo!!!
+src.sfx 040
+src.emotered quebrou a garrafa
+src.spelleffect s_Poison 500
+src.consume 1 <baseid>
+return 1
+
+[itemdef i_mry_veneno_roxo]
+ID=i_memory
+NAME=veneno roxo
+TYPE=T_eq_script
+layer=30
+
+on=@timer
+cont.color=<tag.ocolor>
+cont.update
+remove
+return 1
+
+
+
+// --- Poção da proteção maxima ---
+
+[ITEMDEF i_potion_Protection_max]
+// This potion erects a temporary force field around you. Nobody approaching will be able to get within 1 tile of you, though you can move close to them if you wish.
+NAME=pocao da maxima protecao
+ID=i_bottle_WHITE
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_r_olho_morto_vivo, i_bottle_EMPTY
+SKILLMAKE=ALCHEMY 62.2
+
+ON=@Create
+	COLOR=0c3
+
+
+ON=@DClick
+	src.spelleffect s_Protection 650
+	src.spelleffect s_reactive_armor 750
+	src.spelleffect s_magic_reflection 1000
+	src.sysmessageblue Uma aura lhe cobre bloqueando ataques fisicos e magicos!
+	src.sfx 0216
+	src.emotered pele brilhando
+
+
+// --- Poção do usro cinzento (polimorfa com stats) ---
+
+[ITEMDEF i_potion_poly_urso]
+// Polymorpha temporariamente pra grizzly alterando algusn stats.
+NAME=pocao do urso cinzento
+ID=i_bottle_WHITE
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_r_olho_morto_vivo, i_bottle_EMPTY
+SKILLMAKE=ALCHEMY 62.2
+
+ON=@DClick
+src.f_polymorph c_bear_grizzly,30,40,30,-20
+
+
+// --- Poção mascara da morte (polimorfa pra undead e evita ataques de undead) ---
+
+[ITEMDEF i_potion_death_mask]
+// Polymorpha temporariamente pra morto e não deixa os undead atacarem.
+NAME=pocao mascara da morte
+ID=i_bottle_black
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_r_olho_morto_vivo, i_bottle_EMPTY
+SKILLMAKE=ALCHEMY 62.2
+
+ON=@DClick
+DOSWITCH <eval <src.int>/200>
+ local.body c_zombie
+ local.body c_zombie
+ local.body c_skeleton
+ local.body c_liche
+ local.body c_liche
+ENDDO
+src.f_polymorph <local.body>,30,-10,-30,0
+src.f_death_mask 30
