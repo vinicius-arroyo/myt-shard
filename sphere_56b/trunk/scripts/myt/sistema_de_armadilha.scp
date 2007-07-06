@@ -11,6 +11,8 @@
 //|||||||||||||||||||||||||||||||||
 
 [DEFNAME traps]
+//Até 100 usar script HC das magias correspondentes
+//Após 100 são armadilhas mecânicas
 trap_magic_arrow	5
 trap_fire_ball		18
 trap_poison		20
@@ -24,7 +26,8 @@ trap_saw		100
 trap_spike		101
 trap_mushroom		102
 trap_axe		103
-trap_cas		104
+trap_gas		104
+trap_spike_big		105
 
 
 //|||||||||||||||||||||||||||||||||
@@ -51,16 +54,21 @@ if (<morex>==0)
  src.dclick
  return 1
 endif
-if (<morez>==t_container)		//Se a armadilha era um cantainer
- if (<more1>==5)				//Magic Arrow
+if (<morez>==1)				//Se a armadilha era um cantainer
+ if (<more1>==5)			//Magic Arrow
   src.effect 3 i_fx_smoke_small 0 32 0
   src.sfx 0223
+  src.DAMAGESPELL s_Magic_Arrow,dam_magic|dam_pierce,<more2>,<UID>
  elif (<more1>==18)			//Fireball
   src.effect 3 i_fx_explode 0 14 0
   src.sfx 015e
+  src.DAMAGESPELL s_Fireball,dam_magic|dam_fire,<more2>,<UID>
  elif (<more1>==20)			//Poison
-  src.effect 2 i_trap_gas_3 0 24 0
+  src.effect 2 i_trap_gas_3 0 32 0
   src.sfx 022f
+  LOCAL.poison=<eval (<more2>/10)>
+  src.veneno <LOCAL.poison>
+  src.DAMAGESPELL s_Poison,dam_magic|dam_poison,<more2>,<UID>
  elif (<more1>==28)			//Fire Field
   LOCAL.time=<eval <more2>/10>
   src.f_cela_fogo <LOCAL.time>
@@ -68,31 +76,44 @@ if (<morez>==t_container)		//Se a armadilha era um cantainer
  elif (<more1>==30)			//Lighting
   src.effect 1 0 0 24 0
   src.sfx 028
+  src.DAMAGESPELL s_lightning,dam_magic|dam_energy,<more2>,<UID>
  elif (<more1>==39)			//Poison Field
   LOCAL.time=<eval <more2>/10>
   src.f_cela_veneno <LOCAL.time>
   more2=0
  elif (<more1>==43)			//Explosion
   effect 3 i_fx_explode 0 14 0
+  src.DAMAGESPELL s_explosion,dam_magic|dam_fire|dam_physical,<more2>,<UID>
   src.sfx 011b
- elif (<more1>==42)			//Energy Blast
+ elif (<more1>==42)			//Energy Bolt
   src.effect 3 036cb 0 9 0 0b90 0
   src.sfx 0213
+  src.DAMAGESPELL s_energy_bolt,dam_magic|dam_energy|dam_physical,<more2>,<UID>
  elif (<more1>==51)			//Flame Bolt
   src.effect 3 i_fire_column 0 16
   src.sfx 011b
  endif
-endif
-if (<morex> == 04fffffff)		//Carga infinita
- var.blank=
-else					//decrementa carga
- morex=<morex>-1
+
+ IF (<more1> < 100)			//Se for armadilha com efeito HC (mágico)
+  src.spelleffect <more1> <more2> <uid>	//aplica efeito hardcoded
+ ELSE
+  //FUNÇÔES DE ARMADILHAS MECÂNICAS
+ ENDIF
+elif (<morez>==t_door)			//Se a armadilha era uma porta
+ IF (<more1> < 100)			//Se for armadilha com efeito HC (mágico)
+//  src.spelleffect <more1> <more2> <uid>	//aplica efeito hardcoded
+ ELSE
+  //FUNÇÔES DE ARMADILHAS MECÂNICAS
+ ENDIF
+ENDIF					//Tipo de objeto
+if (<morex> != 04fffffff)		//Carga infinita=04fffffff
+ morex=<morex>-1			//Se não tiver carga infinita, decrementa 1.
 endif
 f_resetTrap
-src.spelleffect <more1> <more2> <uid>	//aplica efeito hardcoded
 return 1
 
 on=@step
+return 1
 if (<more1> < 100)			//Armadilhas que usam mágica
  type=<morez>
  if (<morex>==0)
@@ -139,9 +160,11 @@ if (<more1> < 100)			//Armadilhas que usam mágica
   update
  endif
  f_resetTrap
- src.spelleffect <more1> <more2> <uid>	//aplica efeito hardcoded
- return 1
+// src.spelleffect <more1> <more2> <uid>	//aplica efeito hardcoded
+ELSE
+ //POR FUNÇÔES DE ARMADILHAS MECÂNICAS
 endif
+return 1
 
 
 [TYPEDEF t_trap_active]
@@ -202,7 +225,11 @@ TYPE=t_trap_active
 //more1h tipo do dano
 //more2 som do step
 
-
+[ITEMDEF i_trap_floor]
+//armadilha de chão
+ID=01124
+TYPE=T_TRAP
+NAME=armadilha
 
 [ITEMDEF i_reset_trap]
 NAME=reset de armadilha
@@ -716,3 +743,26 @@ new.more2=022b
 new.more1l=<argv0>
 new.more1h=<argv1>
 new.p=<p>
+
+
+[FUNCTION armadilha]
+targetf armadilha_
+
+[FUNCTION armadilha_]
+//more1 spell
+//more2 força (%skill magery)
+//morex cargas (morex>04fffffff = infinito, coisa de GM)
+//morey dificuldade de desarmar/detectar (%skill detect hidden e disarm trap)
+//morez typedef original
+//morem tempo de rearme
+//link chave
+//attr_magic Se for armadilha de chão, ela pode mudar d elugar quando resetada.
+//color=026 foi detectada
+//tag.color A ultima cor da armadilha.
+argo.morez=<argo.type>
+argo.more1=<DEF.trap_magic_arrow>
+argo.more2=250
+argo.morex=04fffffff
+argo.morey=250
+argo.morem=7
+argo.type=t_trap

@@ -822,9 +822,6 @@ IF (<action> == Skill_wrestling)
   sfx 0137
   sfx 013b
  enddo
- if (<NPC>==0)
-  bark
- endif
 ELIF (<action> == Skill_Swordsmanship) || (<action> == Skill_Fencing)
  dorand 4
   sfx 0237
@@ -845,15 +842,6 @@ endif
 argn1=<eval <argn1>+<LOCAL.dano>>
 if (<argn1> <= 0)
  argn1=1
-endif
-
-///// Bloquear dano se imune
-if (<LOCAL.tipo>&<src.tag0.immune>)
- argn1=0
- DORAND 5
-  sysmessageorange <name> parece ser imune a este tipo de ataque.
-  src.emotered ileso
- ENDDO
 endif
 
 /////cansar atacante
@@ -953,10 +941,10 @@ endif
 
 /////aos damage (show counter above player head)
 if (0<npc> == 0) && (<hits> > 0)
-	SENDPACKET  0bf W11 W022 01 D<UID> B<argn1> 
+ SENDPACKET  0bf W11 W022 01 D<UID> B<argn1> 
 endif
-if (<src> > 0 ) && (0<src.npc> == 0) && (<hits> > 0)
-	SRC.SENDPACKET  0bf W11 W022 01 D<UID> B<argn1> 
+if (<src> > 0 ) && (0<src.npc> == 0) && (<hits> > 0) && (<src.body> != 0)
+ SRC.SENDPACKET  0bf W11 W022 01 D<UID> B<argn1> 
 endif
 
 //// anima
@@ -973,7 +961,7 @@ ON=@SPELLEFFECT
 //argn1=spell
 //argn2=magery skill
 
-//s_Cure
+//s_Cure e veneno
 if (<argn1>==11) && (<restest 1 i_veneno>)
  LOCAL.poisoning=<argn2>
  LOCAL.poisoning=<eval <LOCAL.poisoning>/30>
@@ -988,7 +976,7 @@ if (<argn1>==11) && (<restest 1 i_veneno>)
  return 1
 endif
 
-//s_Cure
+//s_Cure e peste
 if (<argn1>==11) && (<restest 1 i_mry_peste>)
  if (<argn2> < 1001)
   sysmessagered A cura foi muito fraca para amenizar a peste.
@@ -1011,13 +999,7 @@ endif
 
 //s_Fireball. Manter dano somente dam_magic|dam_fire, tirando o dam_physical.
 if (<argn1>==18)
- LOCAL.max=<SERV.RESOURCES.s_Fireball.EFFECT>
- LOCAL.min=<strarg <LOCAL.max>>
- LOCAL.max=<streat <LOCAL.max>>
- LOCAL.dam=<eval <LOCAL.max>-<LOCAL.min>>						//variação máxima do dano
- LOCAL.dam=<eval (<LOCAL.dam>*<src.magery>)/{900 1 1000 1 1150 1 1300 1}>		//variação do dano pela Magery de quem soltou -{0 20}%
- LOCAL.dam=<eval <LOCAL.dam>+<LOCAL.min>>						//soma o dano mínimo de novo
- DAMAGE <LOCAL.dam> dam_magic|dam_fire <src.uid>					//aplica o dano com o tipo modificado
+ DAMAGESPELL s_Fireball,dam_magic|dam_fire,<src.magery>,<src.uid>
  RETURN 1
 endif
 
