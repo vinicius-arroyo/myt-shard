@@ -149,15 +149,19 @@ else
 endif
 
 //faz
-checkResourcesAndMake
+if (!<checkResources>)
+	startCraft
+endif
 return 1
 
 //*****************************************************************************
-// checkResourcesAndMake( repeat )
+// checkResources( repeat )
 //*****************************************************************************
 //usado pelo i_faz_item e fazItem() para verificar os resources e fazer o item
 //objeto padrao deve ser o player
-[FUNCTION checkResourcesAndMake]
+//return 0 if resources available
+//return 1 of something is missing
+[FUNCTION checkResources]
 obj=<findid.i_faz_item.uid>
 
 //verifica se esta perto do tipo desejado
@@ -203,6 +207,15 @@ if (<obj.tag0.amt4>)
 	endif
 endif
 
+return 0
+
+//*****************************************************************************
+// startCraft()
+//*****************************************************************************
+//objeto padrao deve ser o player
+[FUNCTION startCraft]
+obj=<findid.i_faz_item.uid>
+
 //inicializa i_faz_item
 events +e_fazitem
 obj.morep=<p>
@@ -215,7 +228,6 @@ if (<obj.tag0.needtype>) && !(0<argv[0]>)
 	obj.target
 else
 	obj.timer=1
-	consumeResources
 endif
 
 //*****************************************************************************
@@ -411,7 +423,6 @@ if (<cont.targ.type>==<tag.needtype>)
 		timer=-1
 	else
 		timer=1
-		cont.consumeResources
 	endif
 endif
 return 1
@@ -446,7 +457,9 @@ if (<more1>)
 //fim do loop, gera resultado
 else
 	//se não houve falha gerada por movimento ou dclick
-	if !(<tag0.falha>) 
+	if !(<tag0.falha>) && !(<cont.checkResources 1>) 
+		//consome itens
+		cont.consumeResources
 		//ganha skill e verifica sucesso
 		cont.skill_gain skill_<tag.skill>
 		if (<cont.skillcheck <tag.skill> <tag.dif>> == 1)
@@ -461,7 +474,9 @@ else
   //verifica se ha mais para tentar fazer 
   more2=<more2>-1
   if (<more2>)
-		cont.checkResourcesAndMake 1
+		if (!<checkResources 1>)
+			startCraft
+		endif
 	//acabou, gera sujeira
   else
 		if !(strmatch(<tag.scrap>,))
