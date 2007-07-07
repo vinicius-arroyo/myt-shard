@@ -18,23 +18,6 @@ trico
 
 //*****************************************************************************
 //*****************************************************************************
-// EVENTs
-//*****************************************************************************
-//*****************************************************************************
-
-//*****************************************************************************
-// e_tricotando
-//*****************************************************************************
-//detecta se o player interromper o processo de manufatura clicando em outros
-//objetos
-[EVENTS e_tricotando]
-ON=@ITEMDCLICK
-findid(i_mry_trico).morep=0,0,0,0
-events -e_tricotando
-return 1
-
-//*****************************************************************************
-//*****************************************************************************
 // TYPEDEFs
 //*****************************************************************************
 //*****************************************************************************
@@ -47,18 +30,24 @@ ON=@DCLICK
 if (<topobj>!=<src.uid>)
 	src.sysmessagered A la precisa estar na sua mala
 else
+	if (<amount>>5)
+		LOCAL.amt=5
+	else
+		LOCAL.amt=<amount>
+	endif
 	obj=<src.findid.i_faz_item.uid>
 	obj.cleartags
 	obj.tag.neartype=t_roca
 	obj.tag.nearname=roca
 	obj.tag.res1=i_wool
-	obj.tag.amt1=<amount>
+	obj.tag.amt1=<LOCAL.amt>
 	obj.tag.nam1=La
 	obj.tag.skill=tailoring
 	obj.tag.dif=50
 	obj.tag.emote=fiando
-	obj.tag.delay=<eval 25-(<src.tailoring>/50)> //5 a 25
+	obj.tag.delay=<eval (25-(<src.tailoring>/50))*<LOCAL.amt>> //5 a 25
 	obj.tag.item=i_yarn_ball
+	obj.tag.amt=<LOCAL.amt>
 	obj.tag.color=<color>
 	src.fazitem
 endif
@@ -95,20 +84,28 @@ ON=@DCLICK
 if (<topobj>!=<src.uid>)
 	src.sysmessagered O algodao precisa estar na sua mala
 else
+	if (<amount>>5)
+		LOCAL.amt=5
+	else
+		LOCAL.amt=<amount>
+	endif
 	obj=<src.findid.i_faz_item.uid>
 	obj.cleartags
-	obj.tag.neartype=t_roca
-	obj.tag.nearname=roca
+	obj.tag.needtype=t_roca
+	obj.tag.need=roca
 	obj.tag.res1=i_cotton
-	obj.tag.amt1=<amount>
+	obj.tag.amt1=<LOCAL.amt>
 	obj.tag.nam1=Algodao
 	obj.tag.skill=tailoring
 	obj.tag.dif=50
 	obj.tag.emote=fiando
-	obj.tag.delay=<eval (25-(<src.tailoring>/50))*<amount>> //5 a 25
+	obj.tag.delay=<eval (25-(<src.tailoring>/50))*<LOCAL.amt>> //5 a 25
 	obj.tag.item=i_thread
-	obj.tag.amt=<eval <amount>*3>
+	obj.tag.amt=<eval <LOCAL.amt>*3>
 	obj.tag.color=<color>
+	obj.tag.f_init=iniciaRoca
+	obj.tag.f_step=animaRoca
+	obj.tag.f_end=paraRoca
 	src.fazitem
 endif
 return 1
@@ -137,82 +134,12 @@ ON=@DCLICK
 src.sysmessagered Utilize la ou algodao.
 return 1
 
-ON=@TIMER
-OBJ=<tag0.worker>
-if (!<OBJ>) || (<distance <OBJ>> >= 2) || (<more2><1) 
-	more2=0
-	dispid=0101e
-	update
-	tag.worker=0
-	return 1
-else
-	more2=<more2>-1
-	dorand (5)
-	 say rinch!
-	enddo
-	dorand (2)
-	 sfx 0184
-	 sfx 184
-	enddo
-	dispid=0101d
-	update
-	timer=1
-endif
-return 1
-
 //*****************************************************************************
 // t_tear
 //*****************************************************************************
 [TYPEDEF t_tear]
 ON=@DCLICK
 src.sysmessagered Utilize linha.
-return 1
-
-ON=@TIMER
-OBJ=<tag0.worker>
-if (!<OBJ>) || (<distance <OBJ>> >= 2) || (<more2><1) 
- more2=0
- if ( <dispid>==01063 )
- 	dispid=0105f
- elif ( <dispid>==01064 )
-  dispid=01060
- elif ( <dispid>==01065 )
- 	dispid=01061
- elif ( <dispid>==01066 )
- 	dispid=01062
- endif
- update
- tag.worker=0
- return 1
-else
- more2=<more2>-1
- dorand (2)
-  sfx 0184
-  sfx 184
- enddo
- dorand (5)
-  say clank!
- enddo
- if ( <dispid>==0105f ) || <dispid>==i_loom_upright )
- 	dispid=01063
- elif ( <dispid>==01060 )
-  dispid=01064
- elif ( <dispid>==01061 )
- 	dispid=01065
- elif ( <dispid>==01062 )
- 	dispid=01066
- elif ( <dispid>==01063 )
- 	dispid=0105f
- elif ( <dispid>==01064 )
-  dispid=01060
- elif ( <dispid>==01065 )
- 	dispid=01061
- elif ( <dispid>==01066 )
- 	dispid=01062
- endif
- update
- timer=1
-endif
 return 1
  
 //*****************************************************************************
@@ -394,7 +321,7 @@ if (<argn>==1)
  if (<tag.trico_make>==i_camisa_la) || (<tag.trico_make>==i_camisa_longa_la) || (<tag.trico_make>==i_vestido_la) || (<tag.trico_make>==i_robe_la)
   dialog=d_mp
   return 1
- elif (<tag.trico_make>==i_calsas_curtas_la) || (<tag.trico_make>==i_calsas_longas_la)
+ elif (<tag.trico_make>==i_calcas_curtas_la) || (<tag.trico_make>==i_calcas_longas_la)
   dialog=d_mc
   return 1
  else
@@ -432,6 +359,118 @@ findid(i_mry_trico).timer=1
 return 1
 
 //*****************************************************************************
+// iniciaRoca(uid_roca)
+//*****************************************************************************
+[FUNCTION iniciaRoca]
+obj=<argv[0]>
+if ( <obj.dispid>==01017 ) || ( <obj.dispid>==i_spinning_wheel )
+	obj.dispid=01016
+elif ( <obj.dispid>==0101b ) || ( <obj.dispid>==01019 )
+	obj.dispid=0101a
+elif ( <obj.dispid>==0101e ) || ( <obj.dispid>==0101c )
+	obj.dispid=0101d
+elif ( <obj.dispid>==010a6 ) || ( <obj.dispid>==010a4 )
+	obj.dispid=010a5
+endif
+obj.update
+
+//*****************************************************************************
+// animaRoca(uid_roca)
+//*****************************************************************************
+[FUNCTION animaRoca]
+obj=<argv[0]>
+if (<distance <OBJ>> < 2)
+	dorand (2)
+		sfx 0184
+		sfx 184
+	enddo
+	dorand (5)
+		obj.say rinch!
+	enddo
+endif
+obj.update
+
+//*****************************************************************************
+// paraRoca(uid_roca)
+//*****************************************************************************
+[FUNCTION paraRoca]
+obj=<argv[0]>
+if ( <obj.dispid>==01016 )
+	obj.dispid=01017
+elif ( <obj.dispid>==0101a )
+	obj.dispid=0101b
+elif ( <obj.dispid>==0101d )
+	obj.dispid=0101e
+elif ( <obj.dispid>==010a5 )
+	obj.dispid=010a6
+endif
+obj.update
+ 
+ 
+//*****************************************************************************
+// animaTear(uid_tear)
+//*****************************************************************************
+[FUNCTION animaTear]
+obj=<argv[0]>
+if (<distance <OBJ>> < 2)
+	dorand (2)
+		sfx 0184
+		sfx 184
+	enddo
+	dorand (5)
+		obj.say clank!
+	enddo
+	if ( <obj.dispid>==0105f ) || <obj.dispid>==i_loom_upright )
+		obj.dispid=01063
+		obj.link.dispid=01064
+	elif ( <obj.dispid>==01060 )
+		obj.dispid=01064
+		obj.link.dispid=01063
+	elif ( <obj.dispid>==01061 )
+		obj.dispid=01065
+		obj.link.dispid=01066
+	elif ( <obj.dispid>==01062 )
+		obj.dispid=01066
+		obj.link.dispid=01065
+	elif ( <obj.dispid>==01063 )
+		obj.dispid=0105f
+		obj.link.dispid=01060
+	elif ( <obj.dispid>==01064 )
+		obj.dispid=01060
+		obj.link.dispid=0105f
+	elif ( <obj.dispid>==01065 )
+		obj.dispid=01061
+		obj.link.dispid=01062
+	elif ( <obj.dispid>==01066 )
+		obj.dispid=01062
+		obj.link.dispid=01061
+	endif
+endif
+obj.update
+obj.link.update
+
+//*****************************************************************************
+// paraTear(uid_tear)
+//*****************************************************************************
+[FUNCTION paraTear]
+obj=<argv[0]>
+if ( <obj.dispid>==01063 )
+	obj.dispid=0105f
+	obj.link.dispid=01060
+elif ( <obj.dispid>==01064 )
+	obj.dispid=01060
+ 	obj.link.dispid=0105f
+elif ( <obj.dispid>==01065 )
+	obj.dispid=01061
+	obj.link.dispid=01062
+elif ( <obj.dispid>==01066 )
+	obj.dispid=01062
+	obj.link.dispid=01061
+endif
+obj.update
+obj.link.update
+
+//*****************************************************************************
 //*****************************************************************************
 // ITEMDEFs
 //*****************************************************************************
@@ -443,6 +482,51 @@ return 1
 [ITEMDEF i_roca]
 NAME=roca
 ID=0101e
+TYPE=t_roca
+WEIGHT=900
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Roca
+
+ON=@CREATE
+ATTR=08010
+
+//*****************************************************************************
+// i_roca_2
+//*****************************************************************************
+[ITEMDEF i_roca_2]
+NAME=roca
+ID=01017
+TYPE=t_roca
+WEIGHT=900
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Roca
+
+ON=@CREATE
+ATTR=08010
+
+//*****************************************************************************
+// i_roca_3
+//*****************************************************************************
+[ITEMDEF i_roca_3]
+NAME=roca
+ID=0101b
+TYPE=t_roca
+WEIGHT=900
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Roca
+
+ON=@CREATE
+ATTR=08010
+
+//*****************************************************************************
+// i_roca_4
+//*****************************************************************************
+[ITEMDEF i_roca_4]
+NAME=roca
+ID=010a6
 TYPE=t_roca
 WEIGHT=900
 CATEGORY=MyT - Items by Professions
@@ -592,12 +676,14 @@ if (<src.targ.type>==t_tai_corte) || (<src.targ.type>==t_tai_corte_couro)
   src.sysmessage Voce precisa de <eval <src.targ.more2>> carretel(is) de linha...
   return 1
  endif
+
  src.consume 30 i_mry_costura
  serv.newitem i_mry_costura
  new.more1=((0<src.targ.more2>*4)+4) // tempo de costura: 4+4*linhas segundos
  new.link=<src.targ.uid>
  new.equip
  new.use
+
  return 1
 //se usado em novelo
 elif (<src.targ.type>==t_yarn)
@@ -613,6 +699,7 @@ elif (<src.targ.type>==t_yarn)
   src.sysmessage Voce ainda nao domina essas tecnicas.
   return 1
  endif
+
  src.targ.amount=<src.targ.amount>-1
  src.targ.update
  if (<src.targ.amount>) < 1)
@@ -729,7 +816,7 @@ return 1
 
 ON=@timer
 if (<more> > 0)
- more1=(<more1>+(-1))
+ more1=<more1>-1
  timer=1
  dorand (7)
   cont.say *costurando*
@@ -766,7 +853,7 @@ return 1
 // i_mry_thread
 //*****************************************************************************
 [ITEMDEF i_mry_thread]
-NAME=Usando linha
+NAME=Usando Linha
 ID=i_memory
 TYPE=t_eq_script
 WEIGHT=0
@@ -790,14 +877,9 @@ if (<cont.targ.type>==t_tear)
 	obj.tag.delay=<eval 25-(<src.tailoring>/50)> //5 a 25
 	obj.tag.item=i_cloth
 	obj.tag.color=<link.color>
+	obj.tag.f_step=animaTear <cont.targ.uid>
+	obj.tag.f_end=animaTear <cont.targ.uid>
 	src.fazitem
-	cont.targ.tag.worker=<cont>
-	cont.targ.more2=<obj.tag.delay>
-	cont.targ.timer=1
-	cont.targ.link.tag.worker=<cont>
-	cont.targ.link.more2=<obj.tag.delay>
-	cont.targ.link.timer=1
-	
 	remove
 	return 1 
 elif (<cont.targ.type>==t_roca)
@@ -814,10 +896,10 @@ elif (<cont.targ.type>==t_roca)
 	obj.tag.delay=<eval 32-(<src.tailoring>/50)> //5 a 25
 	obj.tag.item=i_barbante
 	obj.tag.color=<link.color>
+	obj.tag.f_init=iniciaRoca <cont.targ.uid>
+	obj.tag.f_step=animaRoca <cont.targ.uid>
+	obj.tag.f_end=paraRoca <cont.targ.uid>
 	src.fazitem
-	cont.targ.tag.worker=<cont>
-	cont.targ.more2=<obj.tag.delay>
-	cont.targ.timer=1
 	remove
 	return 1 
 endif
@@ -848,8 +930,9 @@ TYPE=t_eq_script
 WEIGHT=0
 
 ON=@DCLICK
-morep=<cont.p>
+cont.findid(i_faz_item).morep=<cont.p>
 cont.trymedidas 1
+cont.events +e_fazitem
 return 1
 
 ON=@TIMER
@@ -865,13 +948,13 @@ if (<more1> < 1)
  return 1
 endif
 if (<more2>==0)
- if (<cont.tag.trico_make>==i_calsas_curtas_la) || (<cont.tag.trico_make>==i_calsas_longas_la)
+ if (<cont.tag.trico_make>==i_calcas_curtas_la) || (<cont.tag.trico_make>==i_calcas_longas_la)
   more2=<cont.tag.tai_mc>
  else
   more2=<cont.tag.tai_mp>
  endif
 endif
-if (<cont.p.x>!=<morex>) || (<cont.p.y>!=<morey>)
+if (<cont.p.x>!=<cont.findid(i_faz_item).morex>) || (<cont.p.y>!=<cont.findid(i_faz_item).morey>)
  cont.say *parou de tricotar*
  cont.newitem=i_trico
  cont.act.color=<color>
@@ -883,12 +966,11 @@ if (<cont.p.x>!=<morex>) || (<cont.p.y>!=<morey>)
  remove
  return 1
 endif
-cont.events +e_tricotando
 dorand (5)
  cont.say *tricotando*
 enddo
 timer=1
-more1=(<more1>+(-1))
+more1=<more1>-1
 return 1
 
 
@@ -1019,7 +1101,7 @@ ON=01efe camisas
 src.skillmenu sm_tai_camisas
 return 1
 ON=01539 calcas
-src.skillmenu sm_tai_calsas
+src.skillmenu sm_tai_calcas
 return 1
 ON=01538 saias/kilts
 src.skillmenu sm_tai_saias
@@ -1067,16 +1149,16 @@ tag.trico_make=i_camisa_longa_la
 tag.trico_maken=camisa com mangas de la
 inicia_trico
 return 1
-ON=i_calsas_curtas_la calcas curtas de la //5
+ON=i_calcas_curtas_la calcas curtas de la //5
 TESTIF=(<restest 1 i_yarn_ball>)
-tag.trico_make=i_calsas_curtas_la 
+tag.trico_make=i_calcas_curtas_la 
 tag.trico_maken=calcas curtas de la
 inicia_trico
 return 1
-ON=i_calsas_longas_la calsas longas de la //6
+ON=i_calcas_longas_la calcas longas de la //6
 TESTIF=(<restest 1 i_yarn_ball>)
-tag.trico_make=i_calsas_longas_la 
-tag.trico_maken=calsas longas de la 
+tag.trico_make=i_calcas_longas_la 
+tag.trico_maken=calcas longas de la 
 inicia_trico
 return 1
 ON=i_robe_la robe de la //7
@@ -1133,9 +1215,9 @@ src.tai_cutCloth camiseta,01f7b,1
 return 1
 
 //*****************************************************************************
-// sm_tai_calsas
+// sm_tai_calcas
 //*****************************************************************************
-[SKILLMENU sm_tai_calsas]
+[SKILLMENU sm_tai_calcas]
 O que deseja fazer?
 ON=0152e calcas curtas
 src.tai_cutCloth calcas curtas,0152e,1

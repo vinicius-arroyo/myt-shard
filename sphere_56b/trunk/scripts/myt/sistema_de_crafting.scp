@@ -58,6 +58,11 @@
 //obj.tag.wmakefurn		FLAG: faz este item pertencer ao sistema de furniture
 //obj.tag.iswpn				FLAG: faz o maxhits do item (arma) ser gerado de acordo com armslore
 
+//opções avançadas
+//obj.tag.f_init			funcao chamada quando inicia o processo (todos resources ok)
+//obj.tag.f_step			funcao chamada a cada step do processo (pode gerar animacoes diferentes)
+//obj.tag.f_end	 			funcao chamada no fim do processo
+
 //EXEMPLO
 
 //obj=<src.findid.i_faz_item.uid>
@@ -155,7 +160,7 @@ endif
 return 1
 
 //*****************************************************************************
-// checkResources( repeat )
+// checkResources()
 //*****************************************************************************
 //usado pelo i_faz_item e fazItem() para verificar os resources e fazer o item
 //objeto padrao deve ser o player
@@ -210,7 +215,7 @@ endif
 return 0
 
 //*****************************************************************************
-// startCraft()
+// startCraft( repeat )
 //*****************************************************************************
 //objeto padrao deve ser o player
 [FUNCTION startCraft]
@@ -228,6 +233,10 @@ if (<obj.tag0.needtype>) && !(0<argv[0]>)
 	obj.target
 else
 	obj.timer=1
+	
+	if !(strmatch(<obj.tag.f_init>,))
+		TRY <obj.tag.f_init> <obj.tag0.selection>
+	endif
 endif
 
 //*****************************************************************************
@@ -259,20 +268,20 @@ endif
 //OBJ é o i_faz_item que nao pode ser feito
 //objeto padrao deve ser o player
 [FUNCTION cantCraft]
-sysmessage Voce precisa de:
+sysmessagered Voce precisa de:
 	
 if !(strmatch(<obj.tag.espid>,))
-	sysmessage - <obj.tag.espname>
+	sysmessagered - <obj.tag.espname>
 endif
-	sysmessage - <eval <obj.tag0.amt1>> <obj.tag.nam1>
+	sysmessagered - <eval <obj.tag0.amt1>> <obj.tag.nam1>
 if (<obj.tag0.res2>)
-	sysmessage - <eval <obj.tag0.amt2>> <obj.tag.nam2>
+	sysmessagered - <eval <obj.tag0.amt2>> <obj.tag.nam2>
 endif
 if (<obj.tag0.res3>)
-	sysmessage - <eval <obj.tag0.amt3>> <obj.tag.nam3>
+	sysmessagered - <eval <obj.tag0.amt3>> <obj.tag.nam3>
 endif
 if (<obj.tag0.res4>)
-	sysmessage - <eval <obj.tag0.amt4>> <obj.tag.nam4>
+	sysmessagered - <eval <obj.tag0.amt4>> <obj.tag.nam4>
 endif
 
 //*****************************************************************************
@@ -422,6 +431,10 @@ if (<cont.targ.type>==<tag.needtype>)
 		cont.sysmessage Chegue mais perto.
 		timer=-1
 	else
+		tag.selection=<cont.targ.uid>
+		if !(strmatch(<tag.f_init>,))
+			TRY cont.<tag.f_init> <tag.selection>
+		endif
 		timer=1
 	endif
 endif
@@ -453,11 +466,19 @@ if (<more1>)
 			cont.emoteyellow <tag.emote>
 		enddo
 	endif
+	if !(strmatch(<tag.f_step>,))
+		TRY cont.<tag.f_step> <tag0.selection>
+	endif
 	return 1
 //fim do loop, gera resultado
 else
+
+	if !(strmatch(<tag.f_end>,))
+		TRY cont.<tag.f_end> <tag0.selection>
+	endif
+
 	//se não houve falha gerada por movimento ou dclick
-	if !(<tag0.falha>) && !(<cont.checkResources 1>) 
+	if !(<tag0.falha>) && !(<cont.checkResources>) 
 		//consome itens
 		cont.consumeResources
 		//ganha skill e verifica sucesso
@@ -469,13 +490,14 @@ else
 		endif
 	else
 		cont.sysmessageyellow Interrompido.
+		return 1
   endif
   
   //verifica se ha mais para tentar fazer 
   more2=<more2>-1
   if (<more2>)
-		if (!<checkResources 1>)
-			startCraft
+		if (!<cont.checkResources>)
+			cont.startCraft 1
 		endif
 	//acabou, gera sujeira
   else
