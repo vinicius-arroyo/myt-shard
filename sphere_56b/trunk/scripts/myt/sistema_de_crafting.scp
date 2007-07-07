@@ -186,9 +186,11 @@ if !(strmatch(<obj.tag.espid>,))
 endif 
 
 //verifica resources
-if !(<restest <obj.tag0.amt1> <obj.tag.res1>>)
-	cantCraft
-	return 1
+if (<obj.tag0.amt1>) 
+	if !(<restest <obj.tag0.amt1> <obj.tag.res1>>)
+		cantCraft
+		return 1
+	endif
 endif
 
 if (<obj.tag0.amt2>) 
@@ -246,7 +248,9 @@ endif
 //objeto padrao deve ser o player
 [FUNCTION consumeResources]
 obj=<findid.i_faz_item.uid>
-consume <obj.tag0.amt1> <obj.tag.res1>
+if (<obj.tag0.amt1>)
+	consume <obj.tag0.amt1> <obj.tag.res1>
+endif
 if (<obj.tag0.amt2>)
 	consume <obj.tag0.amt2> <obj.tag.res2>
 endif
@@ -445,14 +449,13 @@ timer=-1
 
 //caso player se mova, cancela
 if (<morex>!=<cont.p.x>) || (<morey>!=<cont.p.y>)
-	more1=0
 	more2=1
 	tag.falha=1
 endif
 
 //ainda esta no loop de animacao?
 //faz anim., sfx e emotes
-if (<more1>)
+if (<more1>) && (!<tag0.falha>)
 	more1=<more1>-1
 	timer=1
 	dorand (3)
@@ -473,10 +476,6 @@ if (<more1>)
 //fim do loop, gera resultado
 else
 
-	if !(strmatch(<tag.f_end>,))
-		TRY cont.<tag.f_end> <tag0.selection>
-	endif
-
 	//se não houve falha gerada por movimento ou dclick
 	if !(<tag0.falha>) && !(<cont.checkResources>) 
 		//consome itens
@@ -488,26 +487,29 @@ else
 		else
 			cont.sysmessageyellow Falhou em construir o item.
 		endif
+
+		//verifica se ha mais para tentar fazer 
+		more2=<more2>-1
+		if (<more2>)
+			if (!<cont.checkResources>)
+				cont.startCraft 1
+			endif
+		//acabou, gera sujeira
+		else
+			if !(strmatch(<tag.scrap>,))
+				serv.newitem <tag.scrap>
+				new.p=<cont.p>
+				new.timer {5 10}
+				new.attr= 012
+			endif
+		endif
 	else
 		cont.sysmessageyellow Interrompido.
-		return 1
   endif
-  
-  //verifica se ha mais para tentar fazer 
-  more2=<more2>-1
-  if (<more2>)
-		if (!<cont.checkResources>)
-			cont.startCraft 1
-		endif
-	//acabou, gera sujeira
-  else
-		if !(strmatch(<tag.scrap>,))
-			serv.newitem <tag.scrap>
-			new.p=<cont.p>
-			new.timer {5 10}
-			new.attr= 012
-		endif
-  endif
+
+	if !(strmatch(<tag.f_end>,))
+		TRY cont.<tag.f_end> <tag0.selection>,<more1>
+	endif
 endif
 return 1
 
