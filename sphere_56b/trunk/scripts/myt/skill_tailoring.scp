@@ -10,8 +10,6 @@
 //*****************************************************************************
 
 //TODO:
-//os itens consumidos pelo sistema de craft nao sao necessariamente os itens
-//selecionados para manufatura.
 
 //TAGS usadas:
 //tag.tai_material	//uid do material usado (pano,linha,etc)
@@ -43,11 +41,11 @@ else
 	endif
 	obj=<src.findid.i_faz_item.uid>
 	obj.cleartags
-	obj.tag.neartype=t_roca
-	obj.tag.nearname=roca
-	obj.tag.res1=i_wool
+	obj.tag.needtype=t_roca
+	obj.tag.need=roca
+	obj.tag.uid1=<uid>
 	obj.tag.amt1=<LOCAL.amt>
-	obj.tag.nam1=La
+	obj.tag.nam1=<name>
 	obj.tag.skill=tailoring
 	obj.tag.dif=20
 	obj.tag.emote=fiando
@@ -55,6 +53,9 @@ else
 	obj.tag.item=i_yarn_ball
 	obj.tag.amt=<LOCAL.amt>
 	obj.tag.color=<color>
+	obj.tag.f_init=iniciaRoca
+	obj.tag.f_step=animaRoca
+	obj.tag.f_end=paraRoca	
 	src.fazitem
 endif
 return 1
@@ -99,9 +100,9 @@ else
 	obj.cleartags
 	obj.tag.needtype=t_roca
 	obj.tag.need=roca
-	obj.tag.res1=i_cotton
+	obj.tag.uid1=<uid>
 	obj.tag.amt1=<LOCAL.amt>
-	obj.tag.nam1=Algodao
+	obj.tag.nam1=<name>
 	obj.tag.skill=tailoring
 	obj.tag.dif=18
 	obj.tag.emote=fiando
@@ -219,9 +220,9 @@ endif
 REF1=<src.ctag.tai_material>
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.res1=i_cloth
+obj.tag.uid1=<REF1.uid>
 obj.tag.amt1=1
-obj.tag.nam1=Pano
+obj.tag.nam1=<REF1.name>
 obj.tag.skill=tailoring
 obj.tag.dif=50
 obj.tag.emote=cortando pano
@@ -243,9 +244,9 @@ return 1
 REF1=<src.ctag.tai_material>
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.res1=i_hide
+obj.tag.uid1=<REF1.uid>
 obj.tag.amt1=1
-obj.tag.nam1=Couro
+obj.tag.nam1=<REF1.name>
 obj.tag.skill=tailoring
 obj.tag.dif=50
 obj.tag.emote=cortando couro
@@ -291,12 +292,12 @@ return 1
 // tai_fazBandagemDe( uid_tecido )
 //*****************************************************************************
 [FUNCTION tai_fazBandagemDe]
-OBJ=<argv[0]>
+REF1=<argv[0]>
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.res1=<OBJ.baseid>
+obj.tag.uid1=<REF1.uid>
 obj.tag.amt1=1
-obj.tag.nam1=<OBJ.name>
+obj.tag.nam1=<REF1.name>
 obj.tag.skill=tailoring
 obj.tag.dif=1
 obj.tag.emote=cortando pano
@@ -304,7 +305,7 @@ obj.tag.sfx=0248
 obj.tag.delay=<eval 11-(<src.tailoring>/100)> //5 a 25
 obj.tag.item=i_bandage
 obj.tag.amt={3 5}
-obj.tag.color=<OBJ.color>
+obj.tag.color=<REF1.color>
 src.fazitem
 
 //*****************************************************************************
@@ -346,17 +347,17 @@ new.link=<src.uid>
 new.cont=<src.uid>
 new.more1=<eval 1060-<tailoring>> //tempo: 60 a 1600
 new.more2=<argv[0]>
-//new.more2=<more2>//medida
 if (<argv[0]>==i_calcas_curtas_la) || (<argv[0]>==i_calcas_longas_la)
 	new.morex=<tag.tai_mc>
 else
 	new.morex=<tag.tai_mp>
 endif
+REF1.amount=<REF1.amount>-1
+if (!<REF1.amount>)
+	REF1.remove
+endif
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.res1=i_yarn_ball
-obj.tag.amt1=1
-obj.tag.nam1=la
 obj.tag.skill=tailoring
 obj.tag.dif=1
 obj.tag.emote=tricotando
@@ -366,7 +367,7 @@ obj.tag.color=<new.color>
 obj.tag.more2=<new.morex>
 obj.tag.f_end=tricoInterrompido <new.uid>,
 src.fazitem
-
+update
 //*****************************************************************************
 // tricoInterrompido(uid_trico,nada,tempo_restante)
 //*****************************************************************************
@@ -380,7 +381,7 @@ if (!<argv[2]>)
 	
 	//impede que o item seja criado novamente
 	obj=<findid.i_faz_item.uid>
-	obj.cleartags
+	obj.tag.abort=1
 endif
 
 //*****************************************************************************
@@ -663,11 +664,11 @@ TARGET Tirar as medidas de quem?
 return 1
 
 ON=@TARGON_GROUND
-src.sysmessagered Alvo invalido.
+src.sysmessagered Tire medidas de pessoas.
 return 1
 
 ON=@TARGON_ITEM
-src.sysmessagered Alvo invalido.
+src.sysmessagered Tire medidas de pessoas.
 return 1
 
 ON=@TARGON_CHAR
@@ -720,7 +721,7 @@ if (!<src.tag0.tai_mc>) || (!<src.tag0.tai_mp>)
 	return 1
 endif
 
-TARGET Costurar o que, la ou couro?
+TARGET Costurar o que, pano, la ou couro?
 return 1
 
 ON=@TARGON_ITEM
@@ -733,7 +734,7 @@ endif
 if (<src.targ.type>==t_tai_corte) || (<src.targ.type>==t_tai_corte_couro)
 	obj=<src.findid.i_faz_item.uid>
 	obj.cleartags
-	obj.tag.res1=<src.targ.baseid>
+	obj.tag.uid1=<src.targ.uid>
 	obj.tag.amt1=1
 	obj.tag.nam1=<src.targ.name>
 	obj.tag.res2=i_thread
@@ -764,15 +765,15 @@ elif (<src.targ.type>==t_yarn)
 	src.skillmenu sm_trico
 	return 1
 endif
-src.sysmessagered Alvo invalido.
+src.sysmessagered Costure somente pano, la ou couro.
 return 1
 
 ON=@TARGON_CHAR
-src.sysmessagered Alvo invalido.
+src.sysmessagered Costure somente pano, la ou couro.
 return 1
 
 ON=@TARGON_GROUND
-src.sysmessagered Alvo invalido.
+src.sysmessagered Costure somente pano, la ou couro.
 return 1
 
 //*****************************************************************************
@@ -797,9 +798,6 @@ if (<link>!=<src.uid>)
 endif
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.res1=i_yarn_ball
-obj.tag.amt1=1
-obj.tag.nam1=la
 obj.tag.skill=tailoring
 obj.tag.dif=1
 obj.tag.emote=tricotando
@@ -840,14 +838,15 @@ if (<src.targ.type>==t_cloth)
 		src.ctag.tai_material=<src.targ>
 		src.skillmenu=sm_tesoura
 	endif
-endif
-if (<src.targ.type>==t_leather)
+elif (<src.targ.type>==t_leather)
 	if (<src.tailoring> < 560)
 		src.sysmessagered Voca ainda nao domina essas tecnicas.
 	else
 		src.ctag.tai_material=<src.targ>
 		src.skillmenu sm_tai_couro
 	endif
+else
+	src.sysmessagered Corte apenas pano ou couro.
 endif
 remove
 return 1
@@ -885,9 +884,9 @@ if (<cont.targ.type>==t_tear)
 	obj.cleartags
 	obj.tag.neartype=t_tear
 	obj.tag.nearname=tear
-	obj.tag.res1=i_thread
+	obj.tag.uid1=<link>
 	obj.tag.amt1=6
-	obj.tag.nam1=linhas
+	obj.tag.nam1=<link.name>
 	obj.tag.skill=tailoring
 	obj.tag.dif=22
 	obj.tag.emote=tecendo
@@ -904,9 +903,9 @@ elif (<cont.targ.type>==t_roca)
 	obj.cleartags
 	obj.tag.neartype=t_roca
 	obj.tag.nearname=roca
-	obj.tag.res1=i_thread
+	obj.tag.uid1=<link>
 	obj.tag.amt1=5
-	obj.tag.nam1=linhas
+	obj.tag.nam1=<link.name>
 	obj.tag.skill=tailoring
 	obj.tag.dif=5
 	obj.tag.emote=fiando
@@ -920,17 +919,17 @@ elif (<cont.targ.type>==t_roca)
 	remove
 	return 1 
 endif
-cont.sysmessagered Alvo invalido.
+src.sysmessagered Use a linha no tear ou na roca.
 remove
 return 1 
 
 ON=@TARGON_CHAR
- cont.sysmessagered Alvo invalido.
+ src.sysmessagered Use a linha no tear ou na roca.
  remove
  return 1
 
 ON=@TARGON_GROUND
- cont.sysmessagered Alvo invalido.
+ src.sysmessagered Use a linha no tear ou na roca.
  remove
  return 1
 

@@ -27,6 +27,7 @@
 //obj.tag.res1 [2,3,4]	id da materia prima 1,2,3,4
 //obj.tag.amt1 [2,3,4]	quantidade da materia prima 1,2,3,4
 //obj.tag.nam1 [2,3,4]	nome da materia prima 1,2,3,4
+//obj.tag.uid1				uid da materia prima 1, usado no lugar do res1
 //obj.tag.needtype		tipo do item que eh pedido no inicio do processo
 //obj.tag.need				nome do item que eh pedido no inicio do processo
 //obj.tag.devolute		id do item a ser criado no momento da coleta da materia prima
@@ -62,6 +63,7 @@
 //obj.tag.f_init			funcao chamada quando inicia o processo (todos resources ok)
 //obj.tag.f_step			funcao chamada a cada step do processo (pode gerar animacoes diferentes)
 //obj.tag.f_end	 			funcao chamada no fim do processo
+//obj.tag.abort				aborta repeticoes (mais itens) se diferente de 0
 
 //EXEMPLO
 
@@ -187,9 +189,17 @@ endif
 
 //verifica resources
 if (<obj.tag0.amt1>) 
-	if !(<restest <obj.tag0.amt1> <obj.tag.res1>>)
-		cantCraft
-		return 1
+	if !(<obj.tag0.uid1>)
+		if !(<restest <obj.tag0.amt1> <obj.tag.res1>>)
+			cantCraft
+			return 1
+		endif
+	else
+		REF1=<obj.tag0.uid1>
+		if (<REF1.amount><<obj.tag0.amt1>)
+			cantCraft
+			return 1			
+		endif
 	endif
 endif
 
@@ -231,7 +241,7 @@ obj.tag.falha=0
 
 //pede pelo tipo necessario se for a primeira vez
 if (<obj.tag0.needtype>) && !(0<argv[0]>)
-	sysmessage Selecionar <obj.tag.need>:
+	sysmessageyellow Selecionar <obj.tag.need>:
 	obj.target
 else
 	obj.timer=1
@@ -249,7 +259,15 @@ endif
 [FUNCTION consumeResources]
 obj=<findid.i_faz_item.uid>
 if (<obj.tag0.amt1>)
-	consume <obj.tag0.amt1> <obj.tag.res1>
+	if (<obj.tag0.uid1>)
+		REF1=<obj.tag.uid1>
+		REF1.amount=<REF1.amount>-<obj.tag.amt1>
+		if (!<REF1.amount>)
+			REF1.remove
+		endif
+	else
+		consume <obj.tag0.amt1> <obj.tag.res1>
+	endif
 endif
 if (<obj.tag0.amt2>)
 	consume <obj.tag0.amt2> <obj.tag.res2>
@@ -263,8 +281,8 @@ endif
 if !(strmatch(<obj.tag.devolute>,))
 	serv.newitem <obj.tag.devolute>
 	new.cont=<findlayer.layer_pack.uid>
-	update
 endif
+update
 
 //*****************************************************************************
 // cantCraft
@@ -420,19 +438,19 @@ NAME=Fazendo item
 LAYER=layer_special
 
 ON=@TARGON_CHAR
-cont.sysmessage Alvo invalido.
+cont.sysmessagered Alvo invalido.
 timer=-1
 return 1
 
 ON=@TARGON_GROUND
-cont.sysmessage Alvo invalido.
+cont.sysmessagered Alvo invalido.
 timer=-1
 return 1
 
 ON=@TARGON_ITEM
 if (<cont.targ.type>==<tag.needtype>)
 	if (<cont.targ.distance> >= 2)
-		cont.sysmessage Chegue mais perto.
+		cont.sysmessagered Chegue mais perto.
 		timer=-1
 	else
 		tag.selection=<cont.targ.uid>
@@ -441,7 +459,9 @@ if (<cont.targ.type>==<tag.needtype>)
 		endif
 		timer=1
 	endif
+	return 1
 endif
+cont.sysmessagered Alvo invalido.
 return 1
 
 ON=@TIMER
@@ -476,8 +496,17 @@ if (<more1>) && (!<tag0.falha>)
 //fim do loop, gera resultado
 else
 
+	if !(strmatch(<tag.f_end>,))
+		TRY cont.<tag.f_end> <tag0.selection>,<more1>
+	endif
+
+	if (<tag0.falha>)
+		cont.sysmessageyellow Interrompido.
+		return 1
+	endif
+	
 	//se não houve falha gerada por movimento ou dclick
-	if !(<tag0.falha>) && !(<cont.checkResources>) 
+	if !(<cont.checkResources>)
 		//consome itens
 		cont.consumeResources
 		//ganha skill e verifica sucesso
@@ -487,7 +516,11 @@ else
 		else
 			cont.sysmessageyellow Falhou em construir o item.
 		endif
+	else
+		return 1
+	endif
 
+	if !(<tag0.abort>)
 		//verifica se ha mais para tentar fazer 
 		more2=<more2>-1
 		if (<more2>)
@@ -504,11 +537,7 @@ else
 			endif
 		endif
 	else
-		cont.sysmessageyellow Interrompido.
-  endif
-
-	if !(strmatch(<tag.f_end>,))
-		TRY cont.<tag.f_end> <tag0.selection>,<more1>
+		cleartags
 	endif
 endif
 return 1
