@@ -1,7 +1,7 @@
 //*****************************************************************************
 //*****************************************************************************
 //
-// SKILL TAILORING 
+// SKILL HEALING 
 //
 //	Finnegan
 //	UsMarine (vinicius.arroyo at gmail.com)
@@ -17,21 +17,8 @@
 // - Healer deve estar ao lado do ferido
 // - Ferido deve estar ferido...
 // - Ferido nao pode estar sendo curado por outro healer
-// - Healer cura (Healing/2)% + Rand(5)+1 Hitpoints do ferido
-//     Ex: Healing 50, Ferido tem Str 80
-//         Healing/2 = 25% dos Hitpoints; 25% de 80 = 20
-//         Healer vai curar de 21 a 25 pontos do ferido
-//     Obs: O maximo (Healing 100/Str do ferido 100) curavel eh 55 Hitpoints
-//          O minimo curavel (Healing 0) eh 1 Hitpoint
-//          Todos os pontos "curaveis" estao sujeitos a teste de skill
-// - A dificuldade do teste de skill eh a % de ferimentos dividido por 4
-//     Ex: Ferido tem 80 de Str e esta com 25 hitpoints
-//         diff = ((1-(25/80))*100)/4 = 17 de dificuldade
-// - Healer estiver curando a si proprio tem um incremento de 20% na % de ferimentos
-//     Ex anterior (modificacao entre colchetes):
-//         diff = ((1-(25/80))*100) [* 1,2] /4 = 20 de dificuldade
-// - Chance de sucesso calculado com curva-sino para cada ponto curado.
-// - Para cada ponto curado a dificuldade aumenta em 1
+// - Healer cura de 1 a 6 hits por segundo dependendo do skill, durante 2 a 12
+//		segundos.
 // - Ambos healer e ferido devem permanacer parados
 // - Ambos nao podem estar em warmode
 // - Ambos nao podem receber ataque algum
@@ -85,15 +72,13 @@ ON=@TARGON_CHAR
         RETURN 1
     ENDIF
     SERV.NEWITEM i_mry_bandagem
-    NEW.MORE1=<EVAL ((<SRC.HEALING>*<SRC.TARG.STR>)/2000)+RAND(5)+1>
-    NEW.MORE2=<EVAL ((<SRC.TARG.STR>-<SRC.TARG.HITS>)*100)/<SRC.TARG.STR>>
+    NEW.MORE1=<R2,<eval 2+(<SRC.HEALING>/100)>> //2 a 12 segundos
+    NEW.MORE2=<eval 1+(<SRC.HEALING>/160)>	//1 a 6 hits de healing
     IF ( <SRC.UID> == <SRC.TARG.UID> )
-        NEW.MORE2=<EVAL <NEW.MORE2>+(<NEW.MORE2>/5)>
         NEW.MOREY=1
     ELSE
         NEW.MOREY=0
     ENDIF
-    NEW.MORE2=<EVAL <NEW.MORE2>/4>
     NEW.MOREX=0
     NEW.LINK=<SRC.UID>
     NEW.TIMER=1
@@ -103,6 +88,7 @@ ON=@TARGON_CHAR
     SRC.TAG.BANDMEM=<NEW.UID>
     SRC.TAG.BANDX=<SRC.P.X>
     SRC.TAG.BANDY=<SRC.P.Y>
+//    SRC.SAY HEAL: max <NEW.MORE2> por <NEW.MORE1>s
     IF ( !<NEW.MOREY> )
         SRC.TARG.SYSMESSAGEGREEN Seus ferimentos estao sendo tratados.
         SRC.TARG.EVENTS +e_bandagem
@@ -187,16 +173,17 @@ ON=@TIMER
 	ELIF ( ((<CONT.FLAGS> & statf_stone) || (<CONT.FLAGS> & statf_dead)) && !<MOREY> )
 		LINK.SYSMESSAGERED O paciente perdeu a consciencia.
 	ELIF ( <CONT.HITS> < <CONT.STR> )
-		IF ( <LINK.SKILLCHECK HEALING <MORE2>> )
-			CONT.HITS=<CONT.HITS>+1
+		LINK.SKILL_GAIN SKILL_HEALING
+		
+		CONT.HITS=<CONT.HITS>+<R0,<MORE2>>
+		IF (<CONT.HITS>>=<CONT.STR>)
+			CONT.HITS=<CONT.STR>
+		ELSE
 			MORE1=<MORE1>-1
-			MORE2=<MORE2>+1
 			IF ( <MORE1> )
 				TIMER=1
 				RETURN 1
 			ENDIF
-		ELSE
-			LINK.SKILL_GAIN HEALING
 		ENDIF
   ENDIF
   
