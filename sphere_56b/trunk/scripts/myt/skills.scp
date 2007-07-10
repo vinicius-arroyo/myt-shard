@@ -26,7 +26,12 @@
 //TODO:
 
 //TAGS usadas:
-
+//CTAG.skill_ts								//timestamp da proxima vez q um skill pode ser usado
+//CTAG.skill_spam							//contador de infracoes. qntas vezes passou o limite de skill/segundo
+//CTAG.skill_blocked					//ha limite de skill ativo no char
+//CTAG.skill_maxSkillValue		//valor maximo que uma skill pode chegar (depende do tempo online)	
+//CTAG.skill_maxIncrease			//maximo de skill que pode ser ganha de uma vez (depende do skillsum)
+//TAG.skill_<name>						//contador secundario de cada skill. sempre que atinge o limite incrementa a skill real
 //*****************************************************************************
 //*****************************************************************************
 // DEFNAMEs
@@ -110,6 +115,19 @@ LOCAL.amnt=<OBJ.<DEF.<argv[0]>>>
 
 //sysmessage [SKILL] Skill: <argv[0]>::<eval <LOCAL.amnt>>
 
+//verifica se ha spam de skill em andamento (max 1 skill por segundo)
+if (<CTAG0.skill_ts>><SERV.time>)
+	serv.log <account>: <argv[0]> SPAM
+	CTAG.skill_ts=<eval <SERV.time>+10>
+	CTAG.skill_spam=<CTAG0.skill_spam>+1
+	if (<CTAG.skill_spam>>1)
+		OBJ.detem 1800,Abuso de skills.
+	endif
+	return 1
+endif
+CTAG.skill_ts=<eval <SERV.time>+10>
+CTAG.skill_spam=0
+
 //se a skill nao pode subir mais devido ao limite por tempo
 if ( <LOCAL.amnt> >= <CTAG.skill_maxSkillValue> )
 //  sysmessage [SKILL] Habilidade bloqueada
@@ -117,22 +135,23 @@ if ( <LOCAL.amnt> >= <CTAG.skill_maxSkillValue> )
 	if ( <LOCAL.amnt> > <CTAG.skill_maxSkillValue> )
 		TRY <DEF.<argv[0]>> <CTAG.skill_maxSkillValue>
 	endif
+	serv.log <account>: <argv[0]> bloqueada
   return 1
 endif
 
 //define valor limiar para incremento de skill
 //aumente o valor para skills usadas muito rapidamente, como sword
 doswitch <DEF.<argv[0]>>
-LOCAL.threshold=100	// SKILL_ALCHEMY		=0
+LOCAL.threshold=200	// SKILL_ALCHEMY		=0
 LOCAL.threshold=100	// SKILL_ANATOMY		=1
-LOCAL.threshold=100	// SKILL_ANIMALLORE	=2
+LOCAL.threshold=1000	// SKILL_ANIMALLORE	=2
 LOCAL.threshold=1000	// SKILL_ITEMID	=3
 LOCAL.threshold=100	// SKILL_ARMSLORE		=4
 LOCAL.threshold=100	// SKILL_Parrying		=5
 LOCAL.threshold=100	// SKILL_Begging		=6
 LOCAL.threshold=100	// SKILL_Blacksmithing	=7
 LOCAL.threshold=100	// Skill_Bowcraft		=8
-LOCAL.threshold=100	// SKILL_PEACEMAKING	=9
+LOCAL.threshold=1000	// SKILL_PEACEMAKING	=9
 LOCAL.threshold=100	// Skill_Camping		=10
 LOCAL.threshold=100	// Skill_Carpentry		=11
 LOCAL.threshold=100	// SKILL_CARTOGRAPHY	=12
@@ -145,13 +164,13 @@ LOCAL.threshold=100	// Skill_Fishing		=18
 LOCAL.threshold=100	// Skill_Forensics		=19
 LOCAL.threshold=100	// Skill_Herding		=20
 LOCAL.threshold=100	// Skill_Hiding		=21
-LOCAL.threshold=100	// SKILL_PROVOCATION	=22
+LOCAL.threshold=1000	// SKILL_PROVOCATION	=22
 LOCAL.threshold=100	// Skill_Inscription	=23
 LOCAL.threshold=100	// Skill_LockPicking		=24
 LOCAL.threshold=1000	// Skill_Magery		=25
 LOCAL.threshold=100	// Skill_MagicResistance	=26
 LOCAL.threshold=100	// Skill_Tactics		=27
-LOCAL.threshold=100	// Skill_Snooping		=28
+LOCAL.threshold=2000	// Skill_Snooping		=28
 LOCAL.threshold=100	// Skill_Musicianship	=29
 LOCAL.threshold=100	// SKILL_POISONING		=30
 LOCAL.threshold=1000	// Skill_Archery		=31
@@ -169,7 +188,7 @@ LOCAL.threshold=1000	// Skill_Fencing		=42
 LOCAL.threshold=1000	// Skill_Wrestling		=43
 LOCAL.threshold=1000	// SKILL_LUMBERJACKING	=44
 LOCAL.threshold=1000	// SKILL_MINING		=45
-LOCAL.threshold=100	// SKILL_MEDITATION	=46
+LOCAL.threshold=2000	// SKILL_MEDITATION	=46
 LOCAL.threshold=100	// SKILL_STEALTH		=47
 LOCAL.threshold=100	// SKILL_REMOVETRAP	=48
 LOCAL.threshold=100	// SKILL_Necromancy	=49
@@ -192,7 +211,10 @@ LOCAL.inc=<eval <DEF.bonusIncrease>+<LOCAL.inc>+<TAG0.<argv[0]>>>
 if ( <LOCAL.inc> > <LOCAL.threshold> )
   LOCAL.inc=<LOCAL.inc>-<LOCAL.threshold>
   TRY <DEF.<argv[0]>> <EVAL <LOCAL.amnt> + 0.1>
+  serv.log <account>: <argv[0]> subiu
 //  sysmessage [SKILL] Subindo: <DEF.<argv[0]>> <EVAL <LOCAL.amnt> + 0.1>
+else
+	serv.log <account>: <argv[0]>
 endif
 
 //salva incrementos
