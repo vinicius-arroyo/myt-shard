@@ -712,7 +712,7 @@ src.act.timer=30
 src.act.use
 return 1
 
-//(tempo,motivo)
+//(tempo,motivo,jailer)
 [FUNCTION detem]
 if (<restest 1 i_mry_GM_jail>)
 	sysmessagered Infracao detectada. Prisao aumentada em 10 minutos.
@@ -734,6 +734,18 @@ dorand (4)
  go=5305,1173
  go=5305,1163
 enddo
+
+if (<DB.connected>)
+	REF1=<argv[2]>
+	if (<REF1>)
+		LOCAL.u=<REF1>
+		LOCAL.n=<REF1.account>
+	else
+		LOCAL.u=0
+		LOCAL.n=Servidor
+	endif
+	DB.EXECUTE "INSERT INTO jail SET timestamp=NOW(),uidJailed=<eval <uid>>,jailed='<account>',duration=<eval <argv[0]>>,reason='<argv[1]>',uidJailer=<eval <LOCAL.u>>,jailer='<LOCAL.n>'"
+endif
 
 [PLEVEL 2]
 prender
@@ -784,6 +796,7 @@ if (0<tag.tempo>!=0)
  src.targ.tag.arp_jail_time=<tag.tempo>
  src.targ.tag.jail_motivo
 endif
+remove
 src.dialog d_prender
 return 1
 
@@ -865,11 +878,12 @@ return 1
 
 on=5
 //close
+
 return 1
 
 on=6
 //prende
-src.targ.detem <src.targ.tag.arp_jail_time>,<argtxt[1]>
+src.targ.detem <src.targ.tag.arp_jail_time>,<argtxt[1]>,<src>
 return 1
 
 [FUNCTION mensagem]
