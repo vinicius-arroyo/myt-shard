@@ -63,6 +63,7 @@
 //obj.tag.f_init			funcao chamada quando inicia o processo (todos resources ok)
 //obj.tag.f_step			funcao chamada a cada step do processo (pode gerar animacoes diferentes)
 //obj.tag.f_end	 			funcao chamada no fim do processo
+//obj.tag.f_done 			funcao chamada no fim do processo com o item gerado ou a falha
 //obj.tag.abort				aborta repeticoes (mais itens) se diferente de 0
 
 //EXEMPLO
@@ -350,6 +351,11 @@ endif
 //usado pelo i_faz_item quando vai gerar o item final
 //objeto padrao deve ser o i_faz_item
 [FUNCTION generateItem] 
+
+if (<tag.item><=1)
+	return 1
+endif
+
 //cria item com caracteristicas desejadas
 serv.newitem=<tag.item>
 if (<tag0.more1l>)
@@ -551,8 +557,14 @@ else
 		cont.skill_gain skill_<tag.skill>
 		if (<cont.skillcheck <tag.skill> <tag.dif>> == 1)
 			generateItem
+			LOCAL.u=1,<new>
 		else
-			cont.sysmessageyellow Falhou em construir o item.
+			cont.sysmessageyellow Falhou.
+			LOCAL.u=0,0
+		endif
+
+		if !(strmatch(<tag.f_done>,))
+			TRY cont.<tag.f_done> <LOCAL.u>
 		endif
 	else
 		return 1
