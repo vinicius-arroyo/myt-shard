@@ -80,14 +80,7 @@ ON=@EnvironChange
 	fame=10
 	return 0
 
-[EVENTS e_mage_phaser]
-on=@SpellCast
-if (<mana> > 25) && (!<eval {0 4}>)
- OBJ=<MEMORYFINDTYPE.memory_war_targ.link>
- movenear <OBJ.UID> 2
- EFFECT 3 i_fx_smoke 0 16 0
-endif
-return 1
+
 
 [EVENTS e_NPC_immune]
 on=@GetHit
@@ -131,158 +124,59 @@ EVENTS +e_NPC_aggravate
 tag0.regendam <eval <argv0>>
 EVENTS +e_NPC_regendam
 
-[DEFNAME undead_cast]
-dark_gift		01
-death_harm		02
-death_bolt		03
-death_curse		04
-infestation		05
-fear_paralyze		06
-death_poison_field	07
-in_putrefus		08
-summon_undead		09
-death_confusion		10
+[EVENTS e_changeling]
+//NPC que se transforma no player que avistar
+on=@NPCActFight
+if (!<src.npc>)
+ NPC_CHANGELING <src.uid>
+endif
+
+on=@Death
+FOR layer 0 25
+ findlayer.<local.layer>.remove
+ENDFOR
+color=05b
+
+[FUNCTION NPC_CHANGELING]
+obj=<argv0>
+body=<obj.body>
+str=<obj.str>
+hits=<obj.str>
+dex=<obj.dex>
+int=<obj.int>
+mana=<obj.int>
+color=<obj.color>
+for layer 1 24
+ findlayer.<local.layer>.remove
+ local.item=<obj.findlayer.<local.layer>.baseid>
+ local.color=<obj.findlayer.<local.layer>.color>
+ local.mor=<obj.findlayer.<local.layer>.more1>
+ local.mor2=<obj.findlayer.<local.layer>.more2>
+ serv.newitem=<local.item>
+ new.attr=010
+ new.color=<local.color>
+ new.more1=<local.mor>
+ new.more2=<local.mor2>
+ new.cont=<uid>
+ENDFOR
+DORAND 5
+ say=@026 So pode haver um de mim!
+ say=@026 Ah! Impostor! Morra!
+ say=@026 Ola, mim! Morra!
+ say=@026 Conheco alguem identico a voce...
+ say=@026 Como se atreve a me imitar! So pode haver um!
+enddo
+FOR skill 0 54
+ <local.skill>=<src.<local.skill>>
+ENDFOR
+attack <src.uid>
+
 
 [EVENTS e_caster_warrior]
 
-[EVENTS e_caster_undead]
-on=@SpellCast
-if (<NPC_CanCast>)
- OBJ=<MEMORYFINDTYPE.memory_war_targ.link>
- DORAND <eval <magery>/50>
-  undead_cast 1, <obj.uid>	//Magery 5.0
-  undead_cast 1, <obj.uid>
-  undead_cast 1, <obj.uid>
-  undead_cast 1, <obj.uid>
-  undead_cast 2, <obj.uid>
-  undead_cast 2, <obj.uid>	//Magery 30.0
-  undead_cast 2, <obj.uid>
-  undead_cast 3, <obj.uid>
-  undead_cast 3, <obj.uid>
-  undead_cast 3, <obj.uid>	//Magery 50.0
-  undead_cast 4, <obj.uid>
-  undead_cast 4, <obj.uid>
-  undead_cast 5, <obj.uid>
-  undead_cast 5, <obj.uid>
-  undead_cast 6, <obj.uid>	//Magery 75.0
-  undead_cast 6, <obj.uid>
-  undead_cast 7, <obj.uid>
-  undead_cast 8, <obj.uid>
-  undead_cast 9, <obj.uid>
-  undead_cast 10, <obj.uid>	//Magery 100.0
-  undead_cast 1, <obj.uid>
-  undead_cast 2, <obj.uid>
-  undead_cast 3, <obj.uid>
-  undead_cast 4, <obj.uid>
-  undead_cast 5, <obj.uid>	//Magery 125.0
-  undead_cast 6, <obj.uid>
-  undead_cast 7, <obj.uid>
-  undead_cast 8, <obj.uid>
-  undead_cast 9, <obj.uid>
-  undead_cast 10, <obj.uid>	//Magery 150.0
-  undead_cast 4, <obj.uid>
-  undead_cast 4, <obj.uid>
-  undead_cast 4, <obj.uid>
-  undead_cast 5, <obj.uid>
-  undead_cast 5, <obj.uid>	//Magery 175.0
-  undead_cast 6, <obj.uid>
-  undead_cast 7, <obj.uid>
-  undead_cast 8, <obj.uid>
-  undead_cast 9, <obj.uid>
-  undead_cast 10, <obj.uid>	//Magery 200.0
- ENDDO
-endif
-return 1
-
-[FUNCTION undead_cast]
-//argv0		magia
-//argv1		alvo
-local.difcast=<eval (<argv0>*100)-{10 50}>
-if (!<skilltest Magery <local.difcast>>)
- effect 3 i_fx_smoke_small 0 16 0
- sfx {04f 1 0227 1 0191 1}
- spell_delay {10 35}
- return 1
-endif
-OBJ=<argv1>
-if (<argv0>==dark_gift) && (<mana> > 5)
- say=@026 mortis funi
- sfx 0fe
- OBJ.EFFECT 0 036e4 4 24 1 08ad
- LOCAL.DAM=<eval (<magery>/300) + {0 3} +1>
- OBJ.DAMAGE <LOCAL.DAM> dam_magic|dam_cold|dam_poison <UID>
- mana=<mana>-5
- spell_delay 17
-elif (<argv0>==fear_paralyze) && (<mana> > 25)
- sfx 0103
- OBJ=<UID>
- emotered gargalha
- FORPLAYERS <eval (<magery>/166)+2>
-  if (<skilltest MagicResistance <obj.magery>>)
-   emotered resistiu
-  else
-   local.timer=<eval <obj.magery>/100>
-   stun <local.timer>
-   emotered medo
-  endif
- ENDFOR
- mana=<mana>-25
- spell_delay 32
-elif (<argv0>==infestation) && (<mana> > 20)
- say=@026 infestus
- FOR <eval <magery>/200>
-  OBJ=<f_summon_creature c_rato_sepultura,15>
-  obj.movenear <uid> {1 2}
- ENDFOR 
- mana=<mana>-15
- spell_delay 75
-elif (<argv0>==death_bolt) && (<mana> > 15)
- say=@026 mortalia ominus
- sfx 015e
- OBJ.EFFECT 3 03789 4 16 1 08ad
- LOCAL.DAM=<eval (<magery>/150) + {0 5} +1>
- OBJ.DAMAGE <LOCAL.DAM> dam_magic|dam_cold|dam_poison <UID>
- mana=<mana>-15
- spell_delay 22
-elif (<argv0>==death_harm) && (<mana> > 7)
- say=@026 injuris
- sfx 01fb
- OBJ.EFFECT 3 i_fx_curse 0 16 0
- LOCAL.DAM=<eval {0 (<magery>/250)} +6>
- OBJ.DAMAGE <LOCAL.DAM> dam_magic|dam_poison <UID>
- mana=<mana>-7
- spell_delay 33
-elif (<argv0>==death_curse) && (<mana> > 7)
- say=@026 malektu
- OBJ.f_spl_curse <Magery>
- mana=<mana>-7
- spell_delay 33
-elif (<argv0>==death_poison_field) && (<mana> > 15)
- say=@026 venomus carceris
- OBJ.f_cela_veneno <eval <Magery>/75>
- mana=<mana>-15
- spell_delay 100
-elif (<argv0>==in_putrefus) && (<mana> > 20)
- say=@026 in putrefus et
- OBJ.f_spl_polymorph {c_zombie 6 c_skeleton 1}, <Magery>
- mana=<mana>-20
- spell_delay 37
- in_putrefus
-elif (<argv0>==death_confusion) && (<mana> > 20)
- say=@026 conturbatis
- OBJ.f_spl_confusion <Magery>
- mana=<mana>-20
- spell_delay 5
- in_putrefus
-elif (<argv0>==death_confusion) && (<mana> > 25)
- say=@026 Kal Xen
- f_spl_summon_undead <Magery>
- mana=<mana>-25
- spell_delay 35
-endif
 
 [FUNCTION NPC_CanCast]
-if (<restest i_npc_spell_delay 1>)
+if (<restest i_npc_spell_delay 1>) || (<tag0.spell_delay>)
  RETURN 0
 else
  RETURN 1
@@ -316,7 +210,6 @@ new.link <uid>
 new.cont <obj>
 serv.newitem i_mry_summon
 new.more2 <argv1>
-say <argv1>
 new.link <uid>
 new.cont <obj>
 new.timer 1
@@ -349,238 +242,3 @@ endif
 timer=1
 return 1
 
-[FUNCTION f_spl_curse]
-if (!<argn>)
- local.skill 500
- local.timer 30
-else
- local.timer <eval <argn>/16>
- local.skill <argn>
-endif
-//modstats de -5 a -25
-local.modstr=-<eval {5 (<local.skill>/40)}>
-local.moddex=-<eval {5 (<local.skill>/40)}>
-local.modint=-<eval {5 (<local.skill>/40)}>
-serv.newitem i_spl_curse
-new.timer <local.timer>
-new.morex=<local.modstr>
-new.morey=<local.moddex>
-new.morez=<local.modint>
-new.equip
-new.timer=<local.timer>
-effect 3 i_fx_curse 0 16 0
-sfx 01fa
-
-[FUNCTION f_spl_polymorph]
-if (0<argv1>==0)
- local.skill 500
- local.timer 30
-else
- local.timer <eval <argv1>/16>
- local.skill <argv1>
-endif
-local.body=<argv0>
-if (!<serv.resources.<local.body>>)
- local.body=c_zombie
-else
- local.body=<argv0>
-endif
-//modstats de -5 a -25
-local.modstr=-<eval {5 (<local.skill>/40)}>
-local.moddex=-<eval {5 (<local.skill>/40)}>
-local.modint=-<eval {5 (<local.skill>/40)}>
-serv.newitem i_spl_polymorph
-new.morex=<local.modstr>
-new.morey=<local.moddex>
-new.morez=<local.modint>
-new.more1=<local.body>
-new.equip
-new.timer=<local.timer>
-effect 3 i_fx_curse 0 16 0 017d
-sfx 01fa
-
-[FUNCTION f_polymorph]
-//f_polymorph <body> <tempo> <str> <dex> <int>
-if (0<argv1>==0)
- local.timer 30
-else
- local.timer <argv1>
-endif
-local.body=<argv0>
-if (!<serv.resources.<local.body>>)
- local.body=c_zombie
-else
- local.body=<argv0>
-endif
-local.modstr=<argv2>
-local.moddex=<argv3>
-local.modint=<argv4>
-serv.newitem i_spl_polymorph
-new.morex=<local.modstr>
-new.morey=<local.moddex>
-new.morez=<local.modint>
-new.more1=<local.body>
-new.equip
-new.timer=<local.timer>
-effect 3 i_fx_curse 0 16 0 017d
-sfx 01fa
-
-[ITEMDEF i_spl_curse]
-ID=i_rune_curse
-name=curse
-type=t_eq_script
-layer=layer_special
-
-on=@create
-attr=02
-
-on=@equip
-cont.modstr=<cont.modstr>+<morex>
-cont.moddex=<cont.moddex>+<morey>
-cont.modint=<cont.modint>+<morez>
-
-on=@timer
-cont.modstr=<cont.modstr>-<morex>
-cont.moddex=<cont.moddex>-<morey>
-cont.modint=<cont.modint>-<morez>
-remove
-return 1
-
-[ITEMDEF i_spl_polymorph]
-ID=i_rune_polymorph
-name=polymorph
-type=t_eq_script
-layer=layer_special
-
-on=@create
-attr=022
-
-on=@equip
-cont.modstr=<cont.modstr>+<morex>
-cont.moddex=<cont.moddex>+<morey>
-cont.modint=<cont.modint>+<morez>
-IF (<cont.findlayer.layer_hair.UID>)
- tag.hair=<cont.findlayer.layer_hair.ID>
- tag.haircolor=<cont.findlayer.layer_hair.color>
- tag.hairtimer=<cont.findlayer.layer_hair.timer>
-endif
-IF (<cont.findlayer.layer_beard.UID>)
- tag.beard=<cont.findlayer.layer_beard.ID>
- tag.beardcolor=<cont.findlayer.layer_hair.color>
- tag.beardtimer=<cont.findlayer.layer_hair.timer>
-endif
-color=<cont.color>
-local.body <cont.body>
-cont.body <more1>
-more1=<local.body>
-cont.update
-
-on=@timer
-cont.modstr=<eval <cont.modstr>-<morex>>
-cont.moddex=<eval <cont.moddex>-<morey>>
-cont.modint=<eval <cont.modint>-<morez>>
-cont.color=<color>
-cont.body=<more1>
-IF (<tag0.hair>)
- serv.newitem <tag.hair>
- new.color=<tag.haircolor>
- new.timer=<tag.hairtimer>
-ENDIF
-IF (<tag0.beard>)
- serv.newitem <tag.hair>
- new.color=<tag.beardcolor>
- new.timer=<tag.beardtimer>
-ENDIF
-cont.update
-cont.effect 3 i_fx_curse 0 16 0 017d
-cont.sfx 01fa
-remove
-return 1
-
-[FUNCTION f_spl_confusion]
-if (!0<argn>)
- LOCAL.skill={400 600}
-else
- LOCAL.skill=<argn>
-endif
-serv.newitem i_spl_confusion
-new.more2 = <eval <LOCAL.skill>/75>
-new.equip
-sfx 01fb
-EFFECT 3 i_fx_curse 0 16 0
-
-[ITEMDEF i_spl_confusion]
-ID=i_rune_curse
-name=insanity
-type=t_eq_script
-layer=layer_special
-
-on=@create
-attr=022
-more2=5
-
-on=@equip
-cont.flags=<cont.flags>|0400000		//Hallu
-timer 3
-cont.sysmessagegreen Voce se sente muito estranho.
-
-on=@timer
-IF (<more2> >=0 )
- DORAND 5
-  cont.msay louco
-  cont.stun 3
-  cont.msay louco
-  cont.msay sentidos
-  cont.f_vomita
- enddo
- more2=<more2>-1
- timer={2 4}
- cont.update
-else
- cont.flags=<cont.flags>&~0400000	//Tira hallu
- cont.update
- cont.sysmessagegreen Voce se sente melhor
- remove
-endif
-return 1
-
-[FUNCTION f_spl_summon_undead]
-if (!0<argn>)
- local.skill={400 600}
-else
- local.skill=<argn>
-endif
-local.undead={c_zombie 16 c_skeleton 10 c_skeleton_w_axe 8 c_skeleton_w_sword 8 c_grim_reaper 4 c_zumbi_superior 4 c_spectre 1}
-local.rand =<eval {0 (<local.skill>/300)}>
-FOR <local.rand>
- f_summon_creature <eval <local.undead>>,30
-ENDFOR
-return 1
-
-[FUNCTION f_death_mask]
-//simplesmente equipa um i_spl_death_mask
-if (0<argv1>==0)
- local.timer 30
-else
- local.timer <argv0>
-endif
-serv.newitem i_spl_death_mask
-new.equip
-new.timer=<local.timer>
-effect 3 i_fx_curse 0 16 0 017d
-sfx 01fa
-
-[ITEMDEF i_spl_death_mask]
-ID=i_rune_poison
-name=death mask
-type=t_eq_script
-layer=layer_special
-
-on=@equip
-timer 1
-cont.sysmessagegreen Voce se sente todo dormente, como um defunto.
-
-on=@timer
-cont.sysmessagegreen Voce volta ao seu estado natural de ser vivo.
-remove
-return 1
