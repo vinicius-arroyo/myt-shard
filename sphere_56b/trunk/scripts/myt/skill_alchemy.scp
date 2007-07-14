@@ -1,39 +1,63 @@
-  ////////////////////////////////////////////////////////////////
- /////                 TYPEDEFS                    /////
-////////////////////////////////////////////////////////////////
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL ALCHEMY
+//
+//	Mestre Galthar
+//	UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//TAGS usadas:
+
+//REAGENTES (máscaras - more2)
+//i_r_perola_negra    =0001
+//i_r_musgo_sangue    =0002
+//i_r_alho            =0004
+//i_r_ginseng         =0008
+//i_r_raiz_de_mandrake=0010
+//i_r_nightshade      =0020
+//i_r_cinza_sulfurosa =0040
+//i_r_teia_de_aranha  =0080
+//i_r_asa_morcego     =0100
+//i_r_olho_morto_vivo =0200
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_reagente
+//*****************************************************************************
 [TYPEDEF t_reagente]
-on=@dclick
-if (<src.alchemy> < 10)
- src.sysmessage Skill negada.
- return 1
-endif
-checkalc
-src.sysmessage Utilize o almofariz para usa-lo.
+ON=@DCLICK
+src.sysmessageyellow Utilize o almofariz.
 return 1
 
+//*****************************************************************************
+// t_tubo
+//*****************************************************************************
 [TYPEDEF t_tubo]
-on=@dclick
-if (<src.alchemy> < 10)
- src.sysmessage Skill negada.
- return 1
-endif
-src.checkalc
-src.sysmessage Utilize o almofariz para enche-lo.
+ON=@DCLICK
+src.sysmessageyellow Utilize o almofariz.
 return 1
 
-on=@step
+ON=@STEP
 src.emotered quebrou a vidraria
 sfx 040
 remove
 return 1
 
+//*****************************************************************************
+// t_tubo_cheio
+//*****************************************************************************
 [TYPEDEF t_tubo_cheio]
-on=@dclick
-if (<src.alchemy> < 10)
- src.sysmessage Skill negada.
- return 1
-endif
-src.checkalc
+ON=@DCLICK
 src.newitem=i_alc_tubo_cheio
 src.act.link=<uid>
 src.act.tag.reag=<tag.reag>
@@ -41,22 +65,19 @@ src.act.equip
 src.act.use
 return 1
 
-on=@step
+ON=@STEP
 src.emotered quebrou a vidraria
 sfx 040
 remove
 return 1
 
+//*****************************************************************************
+// t_almofariz
+//*****************************************************************************
 [TYPEDEF t_almofariz]
-on=@dclick
-if (<src.alchemy> < 10)
- src.sysmessage Skill negada.
- return 1
-endif
-src.flags=<src.flags>&~statf_War
-src.checkalc
+ON=@DCLICK
 if !(<src.restest i_tubo>)
- src.sysmessage Voce nao tem um tubo vazio.
+ src.sysmessagered Voce nao tem um tubo vazio.
  return 1
 endif
 src.newitem=i_alc_almofariz
@@ -65,14 +86,17 @@ src.act.equip
 src.act.use
 return 1
 
+//*****************************************************************************
+// t_espiriteira
+//*****************************************************************************
 [TYPEDEF t_espiriteira]
-on=@dclick
+ON=@DCLICK
 if (<cont>)
  return 1
 endif
-if (<more1>==0)
- if (<more2>==0)
-  src.sysmessage A vela se acabou...
+if (!<more1>) //se apagado
+ if (!<more2>) //se NAO tem carga
+  src.sysmessageyellow A vela se acabou...
   remove
   return 1
  endif
@@ -80,9 +104,9 @@ if (<more1>==0)
  dispid=i_heating_stand_lit
  sfx=054
  update
- more2=(<more2>+(-1))
+ more2=<more2>-1
  return 1
-elif (<more1>==1)
+else	//se aceso
  more1=0
  dispid=i_heating_stand
  sfx=02b
@@ -91,7 +115,7 @@ elif (<more1>==1)
 return 1
 
 ON=@PICKUP_GROUND
-if (<more1>==1)
+if (<more1>) //se aceso
  more1=0
  dispid=i_heating_stand
  sfx=02b
@@ -102,23 +126,19 @@ ON=@DROPON_GROUND
 timer=12*60*60
 return 1
 
-on=@timer
+ON=@TIMER
 timer=12*60*60
 return 1
 
+//*****************************************************************************
+// t_destilador
+//*****************************************************************************
 [TYPEDEF t_destilador]
-on=@dclick
-if (<src.alchemy> < 10)
- src.sysmessage Skill negada.
+ON=@DCLICK
+if (!<more2>) //vazio
+ src.sysmessagered Utilize um tubo cheio.
  return 1
-endif
-src.flags=<src.flags>&~statf_War
-src.checkalc
-if (<more2>=0) //vazio
- src.sysmessage Utilize um tubo cheio para usa-lo.
- return 1
-endif
-if (<more2> >= 1) //cheio ou com destilado pronto
+else //cheio ou com destilado pronto
  src.newitem=i_alc_destilador
  src.act.link=<uid>
  src.act.equip
@@ -126,25 +146,21 @@ if (<more2> >= 1) //cheio ou com destilado pronto
  return 1
 endif
 
-on=@step
+ON=@STEP
 src.emotered quebrou a vidraria
 sfx 040
 remove
 return 1
 
+//*****************************************************************************
+// t_balao
+//*****************************************************************************
 [TYPEDEF t_balao]
-on=@dclick
-if (<src.alchemy> < 10)
- src.sysmessage Skill negada.
+ON=@DCLICK
+if (!<more2>) //vazio
+ src.sysmessagered Utilize um tubo cheio.
  return 1
-endif
-src.flags=<src.flags>&~statf_War
-src.checkalc
-if (<more2>=0) //vazio
- src.sysmessage Utilize um tubo cheio para usa-lo.
- return 1
-endif
-if (<more2> >= 1) //cheio ou com borra pronto
+else //cheio ou com borra pronto
  src.newitem=i_alc_balao
  src.act.link=<uid>
  src.act.equip
@@ -152,25 +168,21 @@ if (<more2> >= 1) //cheio ou com borra pronto
  return 1
 endif
 
-on=@step
+ON=@STEP
 src.emotered quebrou a vidraria
 sfx 040
 remove
 return 1
 
+//*****************************************************************************
+// t_misturador
+//*****************************************************************************
 [TYPEDEF t_misturador]
-on=@dclick
-if (<src.alchemy> < 10)
- src.sysmessage Skill negada.
+ON=@DCLICK
+if (!<more2>) //vazio
+ src.sysmessagered Utilize um tubo cheio.
  return 1
-endif
-src.flags=<src.flags>&~statf_War
-src.checkalc
-if (<more2>=0) //vazio
- src.sysmessage Utilize um tubo cheio para usa-lo.
- return 1
-endif
-if (<more2> >= 1) //com um ou dois compostos
+else //com um ou dois compostos
  src.newitem=i_alc_misturador
  src.act.link=<uid>
  src.act.equip
@@ -178,1108 +190,200 @@ if (<more2> >= 1) //com um ou dois compostos
  return 1
 endif
 
-on=@step
+ON=@STEP
 src.emotered quebrou a vidraria
 sfx 040
 remove
 return 1
 
-  ////////////////////////////////////////////////////////////////
- /////                          ITEMDEFS                    /////
-////////////////////////////////////////////////////////////////
-
-[ITEMDEF i_r_perola_negra]
-NAME=perola negra
-DEFNAME=i_r_perola_negra
-ID=i_reag_black_pearl
-TYPE=t_reagente
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Pérola negra
-
-on=@create
-more1=001
-
-[ITEMDEF i_r_musgo_sangue]
-NAME=musgo sangue
-DEFNAME=i_r_musgo_sangue
-ID=i_reag_blood_moss
-TYPE=t_reagente
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Musgo sangue
-
-on=@create
-more1=002
-
-[ITEMDEF i_r_alho]
-NAME=alho
-DEFNAME=i_r_alho
-ID=i_reag_garlic
-TYPE=t_reagente
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Alho
-
-on=@create
-more1=004
-
-[ITEMDEF i_r_ginseng]
-NAME=ginseng
-DEFNAME=i_r_ginseng
-ID=i_reag_ginseng
-TYPE=t_reagente
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=ginseng
-
-on=@create
-more1=008
-
-[ITEMDEF i_r_raiz_de_mandrake]
-NAME=raiz de mandrake
-DEFNAME=i_r_raiz_de_mandrake
-ID=i_reag_mandrake_root
-TYPE=t_reagente
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Mandrake root
-
-on=@create
-more1=010
-
-[ITEMDEF i_r_nightshade]
-NAME=nightshade
-DEFNAME=i_r_nightshade
-ID=i_reag_nightshade
-TYPE=t_reagente
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Nightshade
-
-on=@create
-more1=020
-
-[ITEMDEF i_r_cinza_sulfurosa]
-NAME=cinza sulfurosa
-DEFNAME=i_r_cinza_sulfurosa
-ID=i_reag_sulfur_ash
-TYPE=t_reagente
-SKILLMAKE=MINING 20.0
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Cinza sulfurosa
-
-on=@create
-more1=040
-
-[ITEMDEF 0f8d]
-NAME=teia de aranha
-DEFNAME=i_r_teia_de_aranha
-//ID=i_reag_spider_silk
-TYPE=t_reagente
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Teia de aranha
-
-on=@create
-more1=080
-
-[ITEMDEF 0f78]
-//i_reag_BATWING
-DEFNAME=i_r_asa_morcego
-name=asa de morcego
-TYPE=t_reagente
-VALUE=3
-PILE=1
-WEIGHT=.1
 
 
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Asa de morcego
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
 
-on=@create
-more1=0100
-
-[ITEMDEF 0f87]
-// Eye of Newt
-NAME=olho de morto-vivo
-DEFNAME=i_r_olho_morto_vivo
-TYPE=t_reagente
-VALUE=3
-PILE=1
-WEIGHT=.1
-
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Olho de morto-vivo
-
-on=@create
-more1=0200
-
-[ITEMDEF i_tubo]
-NAME=tubo de ensaio
-ID=i_vial_empty
-TYPE=t_tubo
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=tubo de ensaio
-
-[ITEMDEF i_tubo_cheio]
-NAME=BUG!
-ID=i_vial_empty
-TYPE=t_tubo_cheio
-
-[ITEMDEF i_almofariz]
-NAME=almofariz
-ID=i_mortar_pestle
-TYPE=t_almofariz
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Almofariz
-
-[ITEMDEF i_destilador]
-NAME=destilador
-ID=i_beaker2_empty
-TYPE=t_destilador
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Destilador
-
-[ITEMDEF i_balao]
-NAME=balao
-ID=0182d
-TYPE=t_balao
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Balão
-
-[ITEMDEF i_espiriteira]
-NAME=espiriteira
-ID=i_heating_stand
-TYPE=t_espiriteira
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Espiriteira
-
-on=@create
-more1=0
-more2={10 15}
-attr=04000
-
-[ITEMDEF i_misturador]
-NAME=misturador
-ID=0183a
-TYPE=t_misturador
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Alchemist
-DESCRIPTION=Misturador
-
-  ////////////////////////////////////////////////////////////////
- /////                          MEMORYES                    /////
-////////////////////////////////////////////////////////////////
-
-[ITEMDEF i_alc_almofariz]
-NAME=Usando Almofariz
-ID=i_memory
-TYPE=t_eq_script
-LAYER=30
-
-on=@create
-attr=04000
-
-on=@dclick
-TARGET Selecione o reagente
-return 1
-
-on=@targon_item
- if (<cont.targ.type> != t_reagente)
-  cont.sysmessage Isto nao e um reagente
-  remove
-  return 1
- endif
- cont.freeze
- more1=<cont.targ.more1>
- cont.tag.reag=<cont.targ.name>
- cont.consume 1 i_tubo
- cont.targ.amount=(<cont.targ.amount>+(-1))
- if (<cont.targ.amount> >= 1000) || (<cont.targ.amount> < 01)
-  cont.targ.remove
- endif
- cont.targ.update
- cont.tag.timer={7 14}
- timer=1
- return 1
- 
-on=@timer
- if (<cont.tag.timer> >=1 )
-  cont.tag.timer=(<cont.tag.timer>+(-1))
-  alc_falhar 1
-  cont.clspk
-  DORAND (5)
-   cont.emotegreen misturando <cont.tag.reag>
-   sfx 578
-   sfx 578
-  ENDDO
-  timer=1  
-  return 1
- else
-  sfx 0240
-  cont.alc_subir 1
-  cont.newitem=i_tubo_cheio
-  cont.act.more1=<more1>
-  cont.act.more2=00
-  cont.act.name=extrato de <cont.tag.reag>
-  cont.act.cont <link.findlayer(21).uid>
-  cont.act.find_color
-  cont.tag.timer=
-  cont.tag.reag=
-  cont.emotegreen terminou
-  cont.unfreeze
-  remove
-  return 1
- endif
-
-[ITEMDEF i_alc_tubo_cheio]
-NAME=Usando tubo cheio
-ID=i_memory
-TYPE=t_eq_script
-LAYER=30
-
-on=@dclick
-TARGET Selecione o outro recipiente
-return 1
-
-on=@targon_item
-if (<cont.targ.type>==t_destilador)
- if (<link.more2>!=0)
-  cont.sysmessage Voce nao pode destilar isso.
-  remove
-  return 1
- endif
- if (<cont.targ.more2>!=0)
-  cont.sysmessage Ja esta sendo usado.
-  remove
-  return 1
- endif
- sfx 0240
- cont.newitem=i_tubo
- cont.act.bounce
- cont.targ.more1=<link.more1>
- cont.targ.more2=1
- if (<cont.targ.more1>==01) //bp
-  cont.targ.dispid=i_beaker2_blue
-  cont.targ.update
- elif (<cont.targ.more1>==02) //bm
-  cont.targ.dispid=i_beaker2_red
-  cont.targ.update
- elif (<cont.targ.more1>==04) //g
-  cont.targ.dispid=i_beaker2_teal
-  cont.targ.update
- elif (<cont.targ.more1>==08) //g
-  cont.targ.dispid=i_beaker2_red
-  cont.targ.update
- elif (<cont.targ.more1>==010) //mr
-  cont.targ.dispid=i_beaker2_red
-  cont.targ.update
- elif (<cont.targ.more1>==020) //ns
-  cont.targ.dispid=01837
-  cont.targ.update
- elif (<cont.targ.more1>==040) //sa
-  cont.targ.dispid=01837
-  cont.targ.update
- elif (<cont.targ.more1>==080) //ss
-  cont.targ.dispid=i_beaker2_blue
-  cont.targ.update
- elif (<cont.targ.more1>==0100) //am
-  cont.targ.dispid=i_beaker2_blue
-  cont.targ.update
- elif (<cont.targ.more1>==0200) //om
-  cont.targ.dispid=i_beaker2_blue
-  cont.targ.update
- endif
- cont.targ.name=destilador (<link.name>)
- link.amount=(<link.amount>+(-1))
- link.update
- if (<link.amount><1)
-  link.remove
- endif
- remove
- return 1
-endif
-if (<cont.targ.type>==t_balao)
- if (<link.more2>!=0)
-  cont.sysmessage Voce nao pode preparar isso.
-  remove
-  return 1
- endif
- if (<cont.targ.more2>!=0)
-  cont.sysmessage Ja esta sendo usado.
-  remove
-  return 1
- endif
- sfx 0240
- cont.newitem=i_tubo
- cont.act.bounce
- cont.targ.more1=<link.more1>
- cont.targ.more2=1
- if (<cont.targ.more1>==01) //bp
-  cont.targ.dispid=0182a
-  cont.targ.update
- elif (<cont.targ.more1>==02) //bm
-  cont.targ.dispid=0182c
-  cont.targ.update
- elif (<cont.targ.more1>==04) //g
-  cont.targ.dispid=0182b
-  cont.targ.update
- elif (<cont.targ.more1>==08) //gi
-  cont.targ.dispid=0182b
-  cont.targ.update
- elif (<cont.targ.more1>==010) //mr
-  cont.targ.dispid=0182c
-  cont.targ.update
- elif (<cont.targ.more1>==020) //ns
-  cont.targ.dispid=0182a
-  cont.targ.update
- elif (<cont.targ.more1>==040) //sa
-  cont.targ.dispid=0182b
-  cont.targ.update
- elif (<cont.targ.more1>==080) //ss
-  cont.targ.dispid=0182a
-  cont.targ.update
- elif (<cont.targ.more1>==0100) //bw
-  cont.targ.dispid=0182c
-  cont.targ.update
- elif (<cont.targ.more1>==0200) //om
-  cont.targ.dispid=0182a
-  cont.targ.update
- endif
- cont.targ.name=balao (<link.name>)
- link.amount=(<link.amount>+(-1))
- link.update
- if (<link.amount><1)
-  link.remove
- endif
- remove
- return 1
-endif
-if (<cont.targ.type>==t_misturador)
-if (<cont.alchemy> < 65.0)
- cont.sysmessage Voce nao tem experiencia para fazer isso.
- remove
- return 1
-endif
- if (<link.more2>==0)
-  cont.sysmessage Extratos sao muito impuros para serem misturados.
-  remove
-  return 1
- endif
- if (<link.more2>==3)
-  cont.sysmessage Voce nao pode misturar isso.
-  remove
-  return 1
- endif
- if (<cont.targ.more2>==2)
-  cont.sysmessage Nao pode adicionar um terceiro produto
-  remove
-  return 1
- endif
-// if (<link.more1> == <cont.targ.more1>)
-//  cont.sysmessage Nao convem misturar dois produtos de mesma base.
-//  remove
-//  return 1
-// endif
- sfx 0240
- cont.newitem=i_tubo
- cont.act.bounce
- cont.targ.more1=(<cont.targ.more1>|<link.more1>)
- cont.targ.more2=(<cont.targ.more2>+1)
- if (<link.more1>==01) //bp
-  cont.targ.dispid=01839
-  cont.targ.update
- elif (<link.more1>==02) //bm
-  cont.targ.dispid=01838
-  cont.targ.update
- elif (<cont.targ.more1>==04) //g
-  cont.targ.dispid=01839
-  cont.targ.update
- elif (<cont.targ.more1>==08) //g
-  cont.targ.dispid=01838
-  cont.targ.update
- elif (<cont.targ.more1>==010) //mr
-  cont.targ.dispid=01839
-  cont.targ.update
- elif (<cont.targ.more1>==020) //ns
-  cont.targ.dispid=01838
-  cont.targ.update
- elif (<cont.targ.more1>==040) //sa
-  cont.targ.dispid=01839
-  cont.targ.update
- elif (<cont.targ.more1>==080) //ss
-  cont.targ.dispid=01838
-  cont.targ.update
- elif (<cont.targ.more1>==0100) //bw
-  cont.targ.dispid=01839
-  cont.targ.update
- elif (<cont.targ.more1>==0200) //om
-  cont.targ.dispid=01839
-  cont.targ.update
- else
-  cont.tag.dispid={01839 1 01838 1}
- endif
- cont.targ.name=misturador
- link.amount=(<link.amount>+(-1))
- link.update
- if (<link.amount><1)
-  link.remove
- endif
- remove
- return 1
-endif
-if (<cont.targ.type>==t_potion_empty)
- sfx 0240
- cont.tag.alc_more1=<link.more1>
- cont.tag.alc_more2=<link.more2>
- link.amount=(<link.amount>+(-1))
- link.update
- if (<link.amount><1)
-  link.remove
- endif
- cont.targ.amount=(<cont.targ.amount>+(-1))
- cont.targ.update
- if (<cont.targ.amount><1)
-  cont.targ.remove
- endif
- cont.faz_pocao
- remove
- return 1
-endif
-
-[ITEMDEF i_alc_destilador]
-NAME=Usando destilador
-ID=i_memory
-TYPE=t_eq_script
-LAYER=30
-
-on=@create
-attr=04000
-
-on=@dclick
-if (<link.more2>==01)
- TARGET Selecione a espiriteira
- return 1
-elif (<link.more2>==02)
- TARGET Selecione outro recipiente
- return 1
-endif
-
-on=@targon_item
-if (<link.more2>==1)
- if (<cont.targ.type>==t_espiriteira)
-  if (<cont.targ.cont>)
-   cont.sysmessage Nao pode usar a espiriteira ai.
-   remove
-   return 1
-  endif
-  if (<cont.targ.more1>==0)
-   cont.sysmessage Acenda a espiriteira.
-   remove
-   return 1
-  endif
-  link.p=<CONT.targ.p>
-  link.emotered aquecendo
-  tag.reag=<link.tag.reag>
-  more1=<link.more1>
-  cont.tag.timer {10 20}
-  cont.freeze
-  timer=1
-  return 1
- else
-  cont.sysmessage Selecione uma espiriteira acesa.
-  remove
-  return 1
- endif
-elif (<link.more2>==2)
- if (<cont.targ.type>==t_tubo)
-  sfx 0240
-  link.more2=0
-  link.dispid=i_beaker2_empty
-  link.update
-  link.name=destilador
-  cont.targ.amount=(<cont.targ.amount>+(-1))
-  cont.targ.update
-  if (<cont.targ.amount><1)
-   cont.targ.remove
-  endif
-  cont.newitem=i_tubo_cheio
-  cont.act.more1=<link.more1>
-  cont.act.more2=2
-  cont.act.find_name destilado
-  cont.act.cont=<cont.findlayer(21).uid>
-  cont.act.find_color
-  cont.act.update
-  return 1
-endif
-
-on=@timer
- if (<cont.tag.timer> >= 1)
-  cont.tag.timer=(<cont.tag.timer>+(-1))
-  alc_falhar 2
-  cont.clspk
-  link.clspk
-  DORAND (5)
-   cont.emotegreen destilando
-   link.emoteyellow aquecendo
-   sfx 024
-  ENDDO
-  timer=1  
-  return 1
- else
-  cont.alc_subir 2
-  link.more2=2
-  cont.emotegreen destilou
-  link.find_name
-  cont.unfreeze
-  remove
-  return 1
- endif
-
-[ITEMDEF i_alc_balao]
-NAME=Usando balao
-ID=i_memory
-TYPE=t_eq_script
-LAYER=30
-
-on=@create
-attr=04000
-
-on=@dclick
-if (<link.more2>==01)
- TARGET Selecione a espiriteira
- return 1
-elif (<link.more2>==02)
- TARGET Selecione outro recipiente
- return 1
-endif
-
-on=@targon_item
-if (<link.more2>==1)
- if (<cont.targ.type>==t_espiriteira)
-  if (<cont.targ.cont>)
-   cont.sysmessage Nao pode usar a espiriteira ai.
-   remove
-   return 1
-  endif
-  if (<cont.targ.more1>==0)
-   cont.sysmessage Acenda a espiriteira.
-   remove
-   return 1
-  endif
-  link.p=<CONT.targ.p>
-  link.emoteyellow aquecendo
-  tag.reag=<link.tag.reag>
-  more1=<link.more1>
-  cont.tag.timer {10 20}
-  cont.freeze
-  timer=1
-  return 1
- else
-  cont.sysmessage Selecione uma espiriteira acesa.
-  remove
-  return 1
- endif
-elif (<link.more2>==2)
- if (<cont.targ.type>==t_tubo)
-  sfx 0240
-  link.more2=0
-  link.dispid=0182d
-  link.update
-  link.name=balao
-  cont.targ.amount=(<cont.targ.amount>+(-1))
-  if (<cont.targ.amount><1)
-   cont.targ.remove
-  endif
-  cont.newitem=i_tubo_cheio
-  cont.act.more1=<link.more1>
-  cont.act.more2=1
-  cont.act.find_name borra
-  cont.act.cont=<cont.findlayer(21).uid>
-  cont.act.find_color
-  cont.act.update
-  return 1
-endif
-
-on=@timer
- if (<cont.tag.timer> >= 1)
-  cont.tag.timer=(<cont.tag.timer>+(-1))
-  alc_falhar 3
-  cont.clspk
-  link.clspk
-  DORAND (5)
-   cont.emotegreen preparando
-   link.emoteyellow aquecendo
-   sfx 020
-  ENDDO
-  timer=1  
-  return 1
- else
-  cont.alc_subir 3
-  link.more2=2
-  cont.clspk
-  cont.emotegreen terminou
-  link.find_name
-  cont.unfreeze
-  remove
-  return 1
- endif
-
-
-[ITEMDEF i_alc_misturador]
-NAME=Usando balao
-ID=i_memory
-TYPE=t_eq_script
-LAYER=30
-
-on=@create
-attr=04000
-
-on=@dclick
-if (<cont.alchemy> < 65.0)
- cont.sysmessagered Voce nao tem experiencia para fazer isso.
- remove
- return 1
-endif
-if (<link.more2><02)
- cont.sysmessagegreen Coloque dois produtos para usar.
- remove
- return 1
-elif (<link.more2>==02)
- TARGET Selecione a espiriteira
- return 1
-elif (<link.more2>==03)
- TARGET Selecione outro recipiente
- return 1
-endif
-
-on=@targon_item
-if (<link.more2>==2)
- if (<cont.targ.type>==t_espiriteira)
-  if (<cont.targ.cont>)
-   cont.sysmessage Nao pode usar a espiriteira ai.
-   remove
-   return 1
-  endif
-  if (<cont.targ.more1>==0)
-   cont.sysmessage Acenda a espiriteira.
-   remove
-   return 1
-  endif
-  link.p=<CONT.targ.p>
-  link.emoteyellow aquecendo
-  cont.tag.timer {10 20}
-  cont.freeze
-  timer=1
-  return 1
- else
-  cont.sysmessagegreen Selecione uma espiriteira acesa.
-  remove
-  return 1
- endif
-elif (<link.more2>==3)
- if (<cont.targ.type>==t_tubo)
-  sfx 0240
-  link.more2=0
-  link.dispid=0183a
-  link.update
-  link.name=misturador
-  cont.targ.amount=(<cont.targ.amount>+(-1))
-  if (<cont.targ.amount><1)
-   cont.targ.remove
-  endif
-  cont.targ.update
-  cont.newitem=i_tubo_cheio
-  cont.act.more1=<link.more1>
-  cont.act.more2=3
-  cont.act.find_name
-  cont.act.cont=<cont.findlayer(21).uid>
-  cont.act.find_color
-  cont.act.update
-  link.more1=0
-  return 1
-endif
-
-on=@timer
- if (<cont.tag.timer> >= 1)
-  cont.tag.timer=(<cont.tag.timer>+(-1))
-  alc_falhar 4
-  DORAND (20)
-   cont.emotegreen tenso
-   cont.emotegreen preparando
-   cont.emotegreen preparando
-   link.emoteyellow aquecendo
-   link.emoteyellow aquecendo
-   link.say @028 click!
-   sfx 050
-   sfx 020
-   sfx 050
-   sfx 024
-  ENDDO
-  timer=1  
-  return 1
- else
-  cont.alc_subir 3
-  link.more2=3
-  cont.clspk
-  cont.emotegreen terminou
-  link.find_name
-  cont.unfreeze
-  remove
-  return 1
- endif
-
-  ////////////////////////////////////////////////////////////////
- /////                         FUNCTIONS                    /////
-////////////////////////////////////////////////////////////////
-
-
+//*****************************************************************************
+// find_color
+//*****************************************************************************
 [function find_color]
-if (<more1>==1)
+if (<more1><2)
  color=0f
- update
-elif (<more1> >= 2) && (<more1> < 4)
+elif (<more1> < 4)
  color=028
- update
-elif (<more1> >= 4) && (<more1> < 8)
+elif (<more1> < 8)
  color=047e
- update
-elif (<more1> >= 8) && (<more1> < 10)
+elif (<more1> < 10)
  color=032
- update
-elif (<more1> >= 10) && (<more1> < 20)
+elif (<more1> < 20)
  color=02c
- update
-elif (<more1> >= 20) && (<more1> < 40)
+elif (<more1> < 40)
  color=016d
- update
-elif (<more1> >= 40) && (<more1> < 80)
+elif (<more1> < 80)
  color=09a
- update
-elif (<more1> >= 80) && (<more1> < 100)
+elif (<more1> < 100)
  color=03c1
- update
-elif (<more1> >= 100) && (<more1> < 200)
+elif (<more1> < 200)
  color=03be
- update
-elif (<more1> >= 200)
+else
  color=034
- update
 endif
+update
 return 1
 
+//*****************************************************************************
+// find_name
+//*****************************************************************************
 [function find_name]
-// destiladoes
-if (<type>=t_destilador) && (<more1>=01)
- name= destilador (destilado de perola negra)
- update
-elif (<type>=t_destilador) && (<more1>=02)
- name= destilador (destilado de musgo sangue)
- update
-elif (<type>=t_destilador) && (<more1>=04)
- name= destilador (destilado de alho)
- update
-elif (<type>=t_destilador) && (<more1>=08)
- name= destilador (destilado de ginseng)
- update
-elif (<type>=t_destilador) && (<more1>=010)
- name= destilador (destilado de raiz de mandrake)
- update
-elif (<type>=t_destilador) && (<more1>=020)
- name= destilador (destilado nightshade)
- update
-elif (<type>=t_destilador) && (<more1>=040)
- name= destilador (destilado de cinza sulforoza)
- update
-elif (<type>=t_destilador) && (<more1>=080)
- name= destilador (destilado de teia de aranha)
- update
-elif (<type>=t_destilador) && (<more1>=0100)
- name= destilador (destilado de asa de morcego)
- update
-elif (<type>=t_destilador) && (<more1>=0200)
- name= destilador (destilado de olho de morto-vivo)
- update
-// tubos com extrato
-elif (<type>=t_tubo_cheio) && (<more1>=01) && (<more2>=01)
- name= <args> de perola negra
- update
-elif (<type>=t_tubo_cheio) && (<more1>=02) && (<more2>=01)
- name= <args> de musgo sangue
- update
-elif (<type>=t_tubo_cheio) && (<more1>=04) && (<more2>=01)
- name= <args> de alho
- update
-elif (<type>=t_tubo_cheio) && (<more1>=08) && (<more2>=01)
- name= <args> de ginseng
- update
-elif (<type>=t_tubo_cheio) && (<more1>=010) && (<more2>=01)
- name= <args> de raiz de mandrake
- update
-elif (<type>=t_tubo_cheio) && (<more1>=020) && (<more2>=01)
- name= <args> de nightshade
- update
-elif (<type>=t_tubo_cheio) && (<more1>=040) && (<more2>=01)
- name= <args> de cinza sulforoza
- update
-elif (<type>=t_tubo_cheio) && (<more1>=080) && (<more2>=01)
- name= <args> de teia de aranha
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0100) && (<more2>=01)
- name= <args> de asa de morcego
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0200) && (<more2>=01)
- name= <args> de olho de morto-vivo
- update
-// tubos com borra
-elif (<type>=t_tubo_cheio) && (<more1>=01) && (<more2>=02)
- name= <args> de perola negra
- update
-elif (<type>=t_tubo_cheio) && (<more1>=02) && (<more2>=02)
- name= <args> de musgo sangue
- update
-elif (<type>=t_tubo_cheio) && (<more1>=04) && (<more2>=02)
- name= <args> de alho
- update
-elif (<type>=t_tubo_cheio) && (<more1>=08) && (<more2>=02)
- name= <args> de ginseng
- update
-elif (<type>=t_tubo_cheio) && (<more1>=010) && (<more2>=02)
- name= <args> de raiz de mandrake
- update
-elif (<type>=t_tubo_cheio) && (<more1>=020) && (<more2>=02)
- name= <args> de nightshade
- update
-elif (<type>=t_tubo_cheio) && (<more1>=040) && (<more2>=02)
- name= <args> de cinza sulforoza
- update
-elif (<type>=t_tubo_cheio) && (<more1>=080) && (<more2>=02)
- name= <args> de teia de aranha
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0100) && (<more2>=02)
- name= <args> de asa de morcego
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0200) && (<more2>=02)
- name= <args> de olho de morto-vivo
- update
-//tubos com mistura simples
-elif (<type>=t_tubo_cheio) && (<more1>=01) && (<more2>=03)
- name= composto de perola negra
- update
-elif (<type>=t_tubo_cheio) && (<more1>=02) && (<more2>=03)
- name= <args> de musgo sangue
- update
-elif (<type>=t_tubo_cheio) && (<more1>=04) && (<more2>=03)
- name= composto de alho
- update
-elif (<type>=t_tubo_cheio) && (<more1>=08) && (<more2>=03)
- name= composto de ginseng
- update
-elif (<type>=t_tubo_cheio) && (<more1>=010) && (<more2>=03)
- name= composto de raiz de mandrake
- update
-elif (<type>=t_tubo_cheio) && (<more1>=020) && (<more2>=03)
- name= composto de nightshade
- update
-elif (<type>=t_tubo_cheio) && (<more1>=040) && (<more2>=03)
- name= composto de cinza sulforoza
- update
-elif (<type>=t_tubo_cheio) && (<more1>=080) && (<more2>=03)
- name= composto de teia de aranha
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0100) && (<more2>=03)
- name= composto de asa de morcego
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0200) && (<more2>=03)
- name= composto de olho de morto-vivo
- update
-// borra
-elif (<type>=t_balao) && (<more1>=01)
- name= balao (borra de perola negra)
- update
-elif (<type>=t_balao) && (<more1>=02)
- name= balao (borra de musgo sangue)
- update
-elif (<type>=t_balao) && (<more1>=04)
- name= balao (borra de alho)
- update
-elif (<type>=t_balao) && (<more1>=08)
- name= balao (borra de ginseng)
- update
-elif (<type>=t_balao) && (<more1>=010)
- name= balao (borra de raiz de mandrake)
- update
-elif (<type>=t_balao) && (<more1>=020)
- name= balao (borra nightshade)
- update
-elif (<type>=t_balao) && (<more1>=040)
- name= balao (borra de cinza sulforoza)
- update
-elif (<type>=t_balao) && (<more1>=080)
- name= balao (borra de teia de aranha)
- update
-elif (<type>=t_balao) && (<more1>=0100)
- name= balao (borra de asa de morcego)
- update
-elif (<type>=t_balao) && (<more1>=0200)
- name= balao (borra de olho de morto-vivo)
- update
-//############################
-//##    MISTURAS EM TUBO    ##
-//############################
-elif (<type>=t_tubo_cheio) && (<more1>=03) && (<more2>=03)
- name= solucao rubra escura
- update
-elif (<type>=t_tubo_cheio) && (<more1>=05) && (<more2>=03)
- name= solucao negra
- update
-elif (<type>=t_tubo_cheio) && (<more1>=06) && (<more2>=03)
- name= solucao rubra
- update
-elif (<type>=t_tubo_cheio) && (<more1>=09) && (<more2>=03)
- name= composto de Deniz
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0a) && (<more2>=03)
- name= composto benigno
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0c) && (<more2>=03)
- name= composto de Belline
- update
-elif (<type>=t_tubo_cheio) && (<more1>=011) && (<more2>=03)
- name= sulucao alpha
- update
-elif (<type>=t_tubo_cheio) && (<more1>=012) && (<more2>=03)
- name= solucao raiz-de-fungo
- update
-elif (<type>=t_tubo_cheio) && (<more1>=014) && (<more2>=03)
- name= composto raiz forte
- update
-elif (<type>=t_tubo_cheio) && (<more1>=018) && (<more2>=03)
- name= composto de raizes
- update
-elif (<type>=t_tubo_cheio) && (<more1>=021) && (<more2>=03)
- name= solucao sombra de perola
- update
-elif (<type>=t_tubo_cheio) && (<more1>=022) && (<more2>=03)
- name= solucao sombra de musgo
- update
-elif (<type>=t_tubo_cheio) && (<more1>=024) && (<more2>=03)
- name= composto de Flamarion
- update
-elif (<type>=t_tubo_cheio) && (<more1>=028) && (<more2>=03)
- name= composto dos sonhos
- update
-elif (<type>=t_tubo_cheio) && (<more1>=030) && (<more2>=03)
- name= solucao de Pulliani
- update
-elif (<type>=t_tubo_cheio) && (<more1>=041) && (<more2>=03)
- name= solucao da chama
- update
-elif (<type>=t_tubo_cheio) && (<more1>=042) && (<more2>=03)
- name= composto maligno
- update
-elif (<type>=t_tubo_cheio) && (<more1>=044) && (<more2>=03)
- name= solucao Ohmega
- update
-elif (<type>=t_tubo_cheio) && (<more1>=048) && (<more2>=03)
- name= composto de Tearina
- update
-elif (<type>=t_tubo_cheio) && (<more1>=050) && (<more2>=03)
- name= sulucao de cinzadrake
- update
-elif (<type>=t_tubo_cheio) && (<more1>=060) && (<more2>=03)
- name= solucao fogo-da-noite
- update
-elif (<type>=t_tubo_cheio) && (<more1>=081) && (<more2>=03)
- name= composto de Simn
- update
-elif (<type>=t_tubo_cheio) && (<more1>=082) && (<more2>=03)
- name= solucao sangue-de-aranha
- update
-elif (<type>=t_tubo_cheio) && (<more1>=084) && (<more2>=03)
- name= solucao veneno de aranha
- update
-elif (<type>=t_tubo_cheio) && (<more1>=088) && (<more2>=03)
- name= composto 88
- update
-elif (<type>=t_tubo_cheio) && (<more1>=090) && (<more2>=03)
- name= solucao de aranha velha
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0a0) && (<more2>=03)
- name= composto da aranha noturna
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0c0) && (<more2>=03)
- name= solucao da teia de ouro
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0101) && (<more2>=03)
- name= solucao vida voadora
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0102) && (<more2>=03)
- name= composto de Vividus
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0104) && (<more2>=03)
- name= solucao de Anelion
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0108) && (<more2>=03)
- name= composto carnigolein
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0110) && (<more2>=03)
- name= solucao de Hulier
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0120) && (<more2>=03)
- name= composto sucarinus
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0140) && (<more2>=03)
- name= solucao asa-morta
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0180) && (<more2>=03)
- name= solucao asa de aranha
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0201) && (<more2>=03)
- name= liquido olho-marinho
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0202) && (<more2>=03)
- name= solucao de Anelion II
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0204) && (<more2>=03)
- name= liquido ardente
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0208) && (<more2>=03)
- name= ministrado de Sofia
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0210) && (<more2>=03)
- name= composto firiudiplutal
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0220) && (<more2>=03)
- name= solucao venen'Olhos
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0240) && (<more2>=03)
- name= ministrado metoroidal
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0280) && (<more2>=03)
- name= mistura de teia de aranha com olho de morto-vivo
- update
-elif (<type>=t_tubo_cheio) && (<more1>=0300) && (<more2>=03)
- name= coisa viscosa
- update
-else
- name= mistura
+
+if (<type>=t_misturador)
+	if (<more1>=0001)
+	 return composto de perola negra
+	elif (<more1>=0002)
+	 return composto de musgo sangue
+	elif (<more1>=0004)
+	 return composto de alho
+	elif (<more1>=0008)
+	 return composto de ginseng
+	elif (<more1>=0010)
+	 return composto de raiz de mandrake
+	elif (<more1>=0020)
+	 return composto de nightshade
+	elif (<more1>=0040)
+	 return composto de cinza sulforoza
+	elif (<more1>=0080)
+	 return composto de teia de aranha
+	elif (<more1>=0100)
+	 return composto de asa de morcego
+	elif (<more1>=0200)
+	 return composto de olho de morto-vivo
+	endif
 endif
- return 1
 
+if (<more1>=0001)
+ return perola negra
+elif (<more1>=0002)
+ return musgo sangue
+elif (<more1>=0004)
+ return alho
+elif (<more1>=0008)
+ return ginseng
+elif (<more1>=0010)
+ return raiz de mandrake
+elif (<more1>=0020)
+ return nightshade
+elif (<more1>=0040)
+ return cinza sulforoza
+elif (<more1>=0080)
+ return teia de aranha
+elif (<more1>=0100)
+ return asa de morcego
+elif (<more1>=0200)
+ return olho de morto-vivo
+ 
+elif (<more1>=03)
+ return solucao rubra escura
+elif (<more1>=05)
+ return solucao negra
+elif (<more1>=06)
+ return solucao rubra
+elif (<more1>=09)
+ return composto de Deniz
+elif (<more1>=0a)
+ return composto benigno
+elif (<more1>=0c)
+ return composto de Belline
+elif (<more1>=011)
+ return sulucao alpha
+elif (<more1>=012)
+ return solucao raiz-de-fungo
+elif (<more1>=014)
+ return composto raiz forte
+elif (<more1>=018)
+ return composto de raizes
+elif (<more1>=021)
+ return solucao sombra de perola
+elif (<more1>=022)
+ return solucao sombra de musgo
+elif (<more1>=024)
+ return composto de Flamarion
+elif (<more1>=028)
+ return composto dos sonhos
+elif (<more1>=030)
+ return solucao de Pulliani
+elif (<more1>=041)
+ return solucao da chama
+elif (<more1>=042)
+ return composto maligno
+elif (<more1>=044)
+ return solucao Ohmega
+elif (<more1>=048)
+ return composto de Tearina
+elif (<more1>=050)
+ return sulucao de cinzadrake
+elif (<more1>=060)
+ return solucao fogo-da-noite
+elif (<more1>=081)
+ return composto de Simn
+elif (<more1>=082)
+ return solucao sangue-de-aranha
+elif (<more1>=084)
+ return solucao veneno de aranha
+elif (<more1>=088)
+ return composto 88
+elif (<more1>=090)
+ return solucao de aranha velha
+elif (<more1>=0a0)
+ return composto da aranha noturna
+elif (<more1>=0c0)
+ return solucao da teia de ouro
+elif (<more1>=0101)
+ return solucao vida voadora
+elif (<more1>=0102)
+ return composto de Vividus
+elif (<more1>=0104)
+ return solucao de Anelion
+elif (<more1>=0108)
+ return composto carnigolein
+elif (<more1>=0110)
+ return solucao de Hulier
+elif (<more1>=0120)
+ return composto sucarinus
+elif (<more1>=0140)
+ return solucao asa-morta
+elif (<more1>=0180)
+ return solucao asa de aranha
+elif (<more1>=0201)
+ return liquido olho-marinho
+elif (<more1>=0202)
+ return solucao de Anelion II
+elif (<more1>=0204)
+ return liquido ardente
+elif (<more1>=0208)
+ return ministrado de Sofia
+elif (<more1>=0210)
+ return composto firiudiplutal
+elif (<more1>=0220)
+ return solucao venen'Olhos
+elif (<more1>=0240)
+ return ministrado metoroidal
+elif (<more1>=0280)
+ return mistura de teia de aranha com olho de morto-vivo
+elif (<more1>=0300)
+ return coisa viscosa	
+else
+ return mistura
+endif
+update
+return 1
 
+//*****************************************************************************
+// alc_falhar
+//*****************************************************************************
 [function alc_falhar]
 if (<argn>==1)
- if ({1 <eval (<cont.alchemy>) /(11)>} == 1) || (<cont.flags>&statf_War) || (<cont.flags>&080000000)
+ if ({1 <eval (<cont.alchemy>) /(11)>} == 1) || (<cont.flags>&statf_war) || (<cont.flags>&statf_onhorse)
   cont.alc_subir 1
   cont.clspk
   cont.say * falhou *
@@ -1290,7 +394,7 @@ if (<argn>==1)
   return 1
  endif
 elif (<argn>==2)
- if ({1 <eval (<cont.alchemy>) /(10)>} == 1) || (<cont.flags>&statf_War) || (<cont.flags>&080000000)
+ if ({1 <eval (<cont.alchemy>) /(10)>} == 1) || (<cont.flags>&statf_war) || (<cont.flags>&statf_onhorse)
   cont.alc_subir 1
   cont.clspk
   cont.say * falhou *
@@ -1308,7 +412,7 @@ elif (<argn>==2)
   return 1
  endif
 elif (<argn>==3)
- if ({0 <eval (<cont.alchemy>) /(8)>} == 1) || (<cont.flags>&statf_War) || (<cont.flags>&080000000)
+ if ({0 <eval (<cont.alchemy>) /(8)>} == 1) || (<cont.flags>&statf_war) || (<cont.flags>&statf_onhorse)
   cont.alc_subir 1
   cont.clspk
   cont.emotegreen falhou 
@@ -1325,7 +429,7 @@ elif (<argn>==3)
   return 1
  endif
 elif (<argn>==4)
- if ({1 <eval (<cont.alchemy>) /(13)>} <= 1) || (<cont.flags>&statf_War) || (<cont.flags>&080000000)
+ if ({1 <eval (<cont.alchemy>) /(13)>} <= 1) || (<cont.flags>&statf_war) || (<cont.flags>&statf_onhorse)
   cont.alc_subir 1
   cont.clspk
   cont.emotegreen falhou
@@ -1345,36 +449,41 @@ elif (<argn>==4)
  endif
 endif
 
+//*****************************************************************************
+// alc_subir
+//*****************************************************************************
 [function alc_subir]
 skill_gain skill_alchemy
 return 1
 
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
 [function freeze]
 flags=(<flags>|04)
 update
 return 1
 
+//*****************************************************************************
+// unfreeze
+//*****************************************************************************
 [function unfreeze]
 flags=(<flags>&~04)
 update
 return 1
 
+//*****************************************************************************
+// clspk
+//*****************************************************************************
 [FUNCTION clspk]
 say
 say
 say
 
-
+//*****************************************************************************
+// checkalc
+//*****************************************************************************
 [function checkalc]
-if (<src.alchemy> < 10)
- src.sysmessage Skill negada.
- src.findid(i_alc_almofariz).remove
- src.findid(i_alc_destilador).remove
- src.findid(i_alc_tubo_cheio).remove
- src.findid(i_alc_balao).remove
- src.findid(i_alc_misturador).remove
- return 1
-endif
 src.consume 10 i_alc_almofariz
 src.consume 10 i_alc_destilador
 src.consume 10 i_alc_tubo_cheio
@@ -1382,129 +491,103 @@ src.consume 10 i_alc_balao
 src.consume 10 i_alc_misturador
 return 1
 
+//*****************************************************************************
+// faz_pocao
+//*****************************************************************************
 [function faz_pocao]
- if (<src.tag.alc_more1>==01)
+ if (<argv[0]>==01)
   src.newitem=i_bottle_red
   src.act.name=pocao rubra
-  src.act.bounce
- elif (<src.tag.alc_more1>==02)
+  
+ elif (<argv[0]>==02)
   src.newitem=i_bottle_blue
   src.act.name=pocao azul
-  src.act.bounce
- elif (<src.tag.alc_more1>==03) 
+ elif (<argv[0]>==03) 
   src.newitem=i_potion_magic_reflection
-  src.tag.alc_more2=1
-  src.act.bounce
- elif (<src.tag.alc_more1>==04)
+  LOCAL.m=1
+ elif (<argv[0]>==04)
   src.newitem=i_bottle_orange
   src.act.name=pocao alaranjada
-  src.act.bounce
- elif (<src.tag.alc_more1>==05)
+ elif (<argv[0]>==05)
   src.newitem=i_potion_death_mask
   src.act.name=pocao mascara da morte
-  src.act.bounce
- elif (<src.tag.alc_more1>==08)
+ elif (<argv[0]>==08)
   src.newitem=i_bottle_yellow
   src.act.name=pocao amarela
-  src.act.bounce
- elif (<src.tag.alc_more1>==09)
+ elif (<argv[0]>==09)
   src.newitem=i_bottle_yellow
   src.act.name=pocao amarela
-  src.act.bounce
- elif (<src.tag.alc_more1>==0c)
+ elif (<argv[0]>==0c)
   src.newitem=i_bottle_orange
   src.act.name=pocao alaranjada
-  src.act.bounce
- elif (<src.tag.alc_more1>==010)
+ elif (<argv[0]>==010)
   src.newitem=i_bottle_white
   src.act.name=pocao alva
-  src.act.bounce
- elif (<src.tag.alc_more1>==011) && (strmatch(<src.tag.raca>,Elfo))
+ elif (<argv[0]>==011) && (strmatch(<src.tag.raca>,Elfo))
   src.newitem=i_potion_morvor
-  src.tag.alc_more2=1
-  src.act.bounce
- elif (<src.tag.alc_more1>==012)
+  LOCAL.m=1
+ elif (<argv[0]>==012)
   src.newitem=i_bottle_red
   src.act.name=pocao rubra
-  src.act.bounce
- elif (<src.tag.alc_more1>==014) && (<src.alchemy> >= 780)
+ elif (<argv[0]>==014) && (<src.alchemy> >= 780)
   src.newitem=i_potion_encolher
-  src.tag.alc_more2=1
-  src.act.bounce
- elif (<src.tag.alc_more1>==018) && (strmatch(<src.tag.raca>,Orc))
+  LOCAL.m=1
+ elif (<argv[0]>==018) && (strmatch(<src.tag.raca>,Orc))
   src.newitem=i_potion_furor
-  src.tag.alc_more2=1
-  src.act.bounce
- elif (<src.tag.alc_more1>==020)
+  LOCAL.m=1
+ elif (<argv[0]>==020)
   src.newitem=i_bottle_green
   src.act.name=pocao verde
-  src.act.bounce
- elif (<src.tag.alc_more1>==021)
+ elif (<argv[0]>==021)
   src.newitem=i_potion_veneno_roxo
   src.act.name=pocao roxa escura
-  src.act.bounce
- elif (<src.tag.alc_more1>==022)
+ elif (<argv[0]>==022)
   src.newitem=i_bottle_white
   src.act.name=pocao alva
-  src.act.bounce
- elif (<src.tag.alc_more1>==028) && (strmatch(<src.tag.raca>,Humano))
+ elif (<argv[0]>==028) && (strmatch(<src.tag.raca>,Humano))
   src.newitem=i_potion_formula_21
-  src.tag.alc_more2=1
-  src.act.bounce
- elif (<src.tag.alc_more1>==040)
+  LOCAL.m=1
+ elif (<argv[0]>==040)
   src.newitem=i_bottle_purple
   src.act.name=pocao rozea
-  src.act.bounce
- elif (<src.tag.alc_more1>==041)
+ elif (<argv[0]>==041)
   src.newitem=i_bottle_purple
   src.act.name=pocao rozea
-  src.act.bounce
- elif (<src.tag.alc_more1>==042)
+ elif (<argv[0]>==042)
   src.newitem=i_bottle_blue
   src.act.name=pocao azul
-  src.act.bounce
- elif (<src.tag.alc_more1>==048) && (<src.alchemy> >= 925)
+ elif (<argv[0]>==048) && (<src.alchemy> >= 925)
   src.newitem=i_potion_sopro_de_fogo
-  src.tag.alc_more2=1
-  src.act.bounce
- elif (<src.tag.alc_more1>==060)
+  LOCAL.m=1
+ elif (<argv[0]>==060)
   src.newitem=i_potion_explosao_terrestre
-  src.tag.alc_more2=1
-  src.act.bounce
- elif (<src.tag.alc_more1>==080)
+  LOCAL.m=1
+ elif (<argv[0]>==080)
   src.newitem=i_bottle_black
   src.act.name=pocao negra
-  src.act.bounce
- elif (<src.tag.alc_more1>==084)
-  src.newitem=i_potion_invis
+ elif (<argv[0]>==084)
+, src.newitem=i_potion_invis
   src.act.name=pocao negra
-  src.tag.alc_more2=1
-  src.act.bounce
- elif (<src.tag.alc_more1>==090)
+  LOCAL.m=1
+ elif (<argv[0]>==090)
   src.newitem=i_potion_poly_urso
   src.act.name=pocao do urso cinzento
-  src.tag.alc_more2=1
-  src.act.bounce
- elif (<src.tag.alc_more1>==0c0)
+  LOCAL.m=1
+ elif (<argv[0]>==0c0)
   src.newitem=i_bottle_black
   src.act.name=pocao negra
-  src.act.bounce
- elif (<src.tag.alc_more1>==0100)
+ elif (<argv[0]>==0100)
   src.newitem=i_potion_mana
   src.act.name=pocao prateada
-  src.act.bounce
- elif (<src.tag.alc_more1>==0101)
+ elif (<argv[0]>==0101)
   src.newitem=i_potion_poly_galinha
   src.act.name=pocao da coragem
-  src.act.bounce
- elif (<src.tag.alc_more1>==0200)
+ elif (<argv[0]>==0200)
   src.newitem=i_potion_Protection
   src.act.name=pocao violeta
-  src.act.bounce
- elif (<src.tag.alc_more1>==0202)
+ elif (<argv[0]>==0202)
   src.newitem=i_potion_Protection_max
   src.act.name=pocao azulada
-  src.act.bounce
  else
   src.sysmessage Essa pocao nao parece ter utilidade alguma.
   src.newitem i_tubo
@@ -1513,14 +596,15 @@ return 1
   src.act.bounce
   return 1
 endif
+src.act.bounce
 //src.act.more2=(<eval (<src.tag.alc_more2>*50) +50>)
-doswitch <src.tag.alc_more2>
+doswitch <LOCAL.m>
  src.act.name=<src.act.name> fraca
  src.act.name=<src.act.name>
  src.act.name=<src.act.name> concentrada
  src.act.name=<src.act.name> forte
 enddo
-doswitch <src.tag.alc_more2>
+doswitch <LOCAL.m>
  src.act.more2=890
  src.act.more2=1000
  src.act.more2=1500
@@ -1529,10 +613,11 @@ enddo
 
 src.newitem=i_tubo
 src.act.bounce
-src.tag.alc_more1=
-src.tag.alc_more2=
 return 1
 
+//*****************************************************************************
+// explode
+//*****************************************************************************
 [function explode]
 sfx 011d
 cont.newitem=i_fx_explosion_2
@@ -1541,18 +626,9 @@ cont.act.timer=2
 cont.act.attr=02
 cont.damage {10 15} 0010 <cont.uid>
 
-
-
-
-
-
-
-
-  ////////////////////////////////////////////////////////////////
- /////                           EXTRAS                     /////
-////////////////////////////////////////////////////////////////
-
-
+//*****************************************************************************
+// ALQUIMIANOW
+//*****************************************************************************
 [FUNCTION ALQUIMIANOW]
 src.newitem=i_tubo
 src.act.amount=5
@@ -1612,6 +688,823 @@ src.newitem=i_r_teia_de_aranha
 src.act.amount=30
 src.act.bounce
 
-  ////////////////////////////////////////////////////////////////
- /////                   Itens em teste                     /////
-////////////////////////////////////////////////////////////////
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - Reagentes
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_r_perola_negra
+//*****************************************************************************
+[ITEMDEF i_r_perola_negra]
+NAME=perola negra
+DEFNAME=i_r_perola_negra
+ID=i_reag_black_pearl
+TYPE=t_reagente
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Pérola negra
+
+ON=@CREATE
+more1=001
+
+//*****************************************************************************
+// i_r_musgo_sangue
+//*****************************************************************************
+[ITEMDEF i_r_musgo_sangue]
+NAME=musgo sangue
+DEFNAME=i_r_musgo_sangue
+ID=i_reag_blood_moss
+TYPE=t_reagente
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Musgo sangue
+
+ON=@CREATE
+more1=002
+
+//*****************************************************************************
+// i_r_alho
+//*****************************************************************************
+[ITEMDEF i_r_alho]
+NAME=alho
+DEFNAME=i_r_alho
+ID=i_reag_garlic
+TYPE=t_reagente
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Alho
+
+ON=@CREATE
+more1=004
+
+//*****************************************************************************
+// i_r_ginseng
+//*****************************************************************************
+[ITEMDEF i_r_ginseng]
+NAME=ginseng
+DEFNAME=i_r_ginseng
+ID=i_reag_ginseng
+TYPE=t_reagente
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=ginseng
+
+ON=@CREATE
+more1=008
+
+//*****************************************************************************
+// i_r_raiz_de_mandrake
+//*****************************************************************************
+[ITEMDEF i_r_raiz_de_mandrake]
+NAME=raiz de mandrake
+DEFNAME=i_r_raiz_de_mandrake
+ID=i_reag_mandrake_root
+TYPE=t_reagente
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Mandrake root
+
+ON=@CREATE
+more1=010
+
+//*****************************************************************************
+// i_r_nightshade
+//*****************************************************************************
+[ITEMDEF i_r_nightshade]
+NAME=nightshade
+DEFNAME=i_r_nightshade
+ID=i_reag_nightshade
+TYPE=t_reagente
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Nightshade
+
+ON=@CREATE
+more1=020
+
+//*****************************************************************************
+// i_r_cinza_sulfurosa
+//*****************************************************************************
+[ITEMDEF i_r_cinza_sulfurosa]
+NAME=cinza sulfurosa
+DEFNAME=i_r_cinza_sulfurosa
+ID=i_reag_sulfur_ash
+TYPE=t_reagente
+SKILLMAKE=MINING 20.0
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Cinza sulfurosa
+
+ON=@CREATE
+more1=040
+
+//*****************************************************************************
+// i_r_teia_de_aranha
+//*****************************************************************************
+[ITEMDEF 0f8d]
+NAME=teia de aranha
+DEFNAME=i_r_teia_de_aranha
+//ID=i_reag_spider_silk
+TYPE=t_reagente
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Teia de aranha
+
+ON=@CREATE
+more1=080
+
+//*****************************************************************************
+// i_r_asa_morcego
+//*****************************************************************************
+[ITEMDEF 0f78]
+//i_reag_BATWING
+DEFNAME=i_r_asa_morcego
+name=asa de morcego
+TYPE=t_reagente
+VALUE=3
+PILE=1
+WEIGHT=.1
+
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Asa de morcego
+
+ON=@CREATE
+more1=0100
+
+//*****************************************************************************
+// i_r_olho_morto_vivo
+//*****************************************************************************
+[ITEMDEF 0f87]
+// Eye of Newt
+NAME=olho de morto-vivo
+DEFNAME=i_r_olho_morto_vivo
+TYPE=t_reagente
+VALUE=3
+PILE=1
+WEIGHT=.1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Olho de morto-vivo
+
+ON=@CREATE
+more1=0200
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - Acessorios/Ferramentas
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_tubo
+//*****************************************************************************
+[ITEMDEF i_tubo]
+NAME=tubo de ensaio
+ID=i_vial_empty
+TYPE=t_tubo
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=tubo de ensaio
+
+//*****************************************************************************
+// i_tubo_cheio
+//*****************************************************************************
+[ITEMDEF i_tubo_cheio]
+NAME=BUG!
+ID=i_vial_empty
+TYPE=t_tubo_cheio
+
+//*****************************************************************************
+// i_almofariz
+//*****************************************************************************
+[ITEMDEF i_almofariz]
+NAME=almofariz
+ID=i_mortar_pestle
+TYPE=t_almofariz
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Almofariz
+
+//*****************************************************************************
+// i_destilador
+//*****************************************************************************
+[ITEMDEF i_destilador]
+NAME=destilador
+ID=i_beaker2_empty
+TYPE=t_destilador
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Destilador
+
+//*****************************************************************************
+// i_balao
+//*****************************************************************************
+[ITEMDEF i_balao]
+NAME=balao
+ID=0182d
+TYPE=t_balao
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Balão
+
+//*****************************************************************************
+// i_espiriteira
+//*****************************************************************************
+[ITEMDEF i_espiriteira]
+NAME=espiriteira
+ID=i_heating_stand
+TYPE=t_espiriteira
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Espiriteira
+
+ON=@CREATE
+more1=0
+more2={10 15}
+attr=attr_can_decay
+
+//*****************************************************************************
+// i_misturador
+//*****************************************************************************
+[ITEMDEF i_misturador]
+NAME=misturador
+ID=0183a
+TYPE=t_misturador
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Misturador
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - Memories
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_alc_almofariz
+//*****************************************************************************
+[ITEMDEF i_alc_almofariz]
+NAME=Usando Almofariz
+ID=i_memory
+TYPE=t_eq_script
+LAYER=layer_special
+
+ON=@CREATE
+attr=attr_can_decay
+
+ON=@DCLICK
+TARGET Selecione o reagente
+return 1
+
+ON=@TARGON_ITEM
+ if (<cont.targ.type> != t_reagente)
+  cont.sysmessagered Use o almofariz em reagentes.
+  remove
+  return 1
+ endif
+ cont.freeze
+ more1=<cont.targ.more1>
+ cont.tag.reag=<cont.targ.name>
+ cont.consume 1 i_tubo
+ cont.targ.amount=<eval <cont.targ.amount>-1>
+ if (<cont.targ.amount> < 01)
+  cont.targ.remove
+ endif
+ cont.targ.update
+ more2=<R7,14>
+ timer=1
+ return 1
+ 
+ON=@TARGON_CANCEL
+remove
+return 1
+
+ON=@TIMER
+ if (<more2>)
+  more2=<more2>-1
+  alc_falhar 1
+  cont.clspk
+  DORAND (5)
+   cont.emotegreen misturando <cont.tag.reag>
+   sfx 578
+   sfx 578
+  ENDDO
+  timer=1  
+  return 1
+ else
+  sfx 0240
+  cont.alc_subir 1
+  cont.newitem=i_tubo_cheio
+  cont.act.more1=<more1>
+  cont.act.more2=00
+  cont.act.name=extrato de <cont.tag.reag>
+  cont.act.cont <link>
+  cont.act.find_color
+  cont.tag.timer=
+  cont.tag.reag=
+  cont.emotegreen terminou
+  cont.unfreeze
+  remove
+  return 1
+ endif
+
+//*****************************************************************************
+// i_alc_tubo_cheio
+//*****************************************************************************
+[ITEMDEF i_alc_tubo_cheio]
+NAME=Usando tubo cheio
+ID=i_memory
+TYPE=t_eq_script
+LAYER=layer_special
+
+ON=@DCLICK
+TARGET Selecione o outro recipiente
+return 1
+
+ON=@TARGON_CANCEL
+remove
+return 1
+
+ON=@TARGON_ITEM
+if (<cont.targ.type>==t_destilador)
+ if (<link.more2>!=0)//se reagente do tubo nao for extrato
+  cont.sysmessage Voce nao pode destilar isso.
+  remove
+  return 1
+ endif
+ if (<cont.targ.more2>!=0)
+  cont.sysmessage Ja esta sendo usado.
+  remove
+  return 1
+ endif
+ sfx 0240
+ cont.newitem=i_tubo
+ cont.act.bounce
+ cont.targ.more1=<link.more1>
+ cont.targ.more2=1
+ if (<cont.targ.more1>==01) //bp
+  cont.targ.dispid=i_beaker2_blue
+ elif (<cont.targ.more1>==02) //bm
+  cont.targ.dispid=i_beaker2_red
+ elif (<cont.targ.more1>==04) //g
+  cont.targ.dispid=i_beaker2_teal
+ elif (<cont.targ.more1>==08) //g
+  cont.targ.dispid=i_beaker2_red
+ elif (<cont.targ.more1>==010) //mr
+  cont.targ.dispid=i_beaker2_red
+ elif (<cont.targ.more1>==020) //ns
+  cont.targ.dispid=01837
+ elif (<cont.targ.more1>==040) //sa
+  cont.targ.dispid=01837
+ elif (<cont.targ.more1>==080) //ss
+  cont.targ.dispid=i_beaker2_blue
+ elif (<cont.targ.more1>==0100) //am
+  cont.targ.dispid=i_beaker2_blue
+ elif (<cont.targ.more1>==0200) //om
+  cont.targ.dispid=i_beaker2_blue
+ endif
+ cont.targ.name=destilador (<link.name>)
+ cont.targ.update
+ link.amount=<link.amount>-1
+ link.update
+ if (<link.amount><1)
+  link.remove
+ endif
+ remove
+ return 1
+endif
+if (<cont.targ.type>==t_balao)
+ if (<link.more2>!=0)
+  cont.sysmessage Voce nao pode preparar isso.
+  remove
+  return 1
+ endif
+ if (<cont.targ.more2>!=0)
+  cont.sysmessage Ja esta sendo usado.
+  remove
+  return 1
+ endif
+ sfx 0240
+ cont.newitem=i_tubo
+ cont.act.bounce
+ cont.targ.more1=<link.more1>
+ cont.targ.more2=1
+ if (<cont.targ.more1>==01) //bp
+  cont.targ.dispid=0182a
+ elif (<cont.targ.more1>==02) //bm
+  cont.targ.dispid=0182c
+ elif (<cont.targ.more1>==04) //g
+  cont.targ.dispid=0182b
+ elif (<cont.targ.more1>==08) //gi
+  cont.targ.dispid=0182b
+ elif (<cont.targ.more1>==010) //mr
+  cont.targ.dispid=0182c
+ elif (<cont.targ.more1>==020) //ns
+  cont.targ.dispid=0182a
+ elif (<cont.targ.more1>==040) //sa
+  cont.targ.dispid=0182b
+ elif (<cont.targ.more1>==080) //ss
+  cont.targ.dispid=0182a
+ elif (<cont.targ.more1>==0100) //bw
+  cont.targ.dispid=0182c
+ elif (<cont.targ.more1>==0200) //om
+  cont.targ.dispid=0182a
+ endif
+ cont.targ.name=balao (<link.name>)
+ cont.targ.update
+ link.amount=<link.amount>-1
+ link.update
+ if (<link.amount><1)
+  link.remove
+ endif
+ remove
+ return 1
+endif
+if (<cont.targ.type>==t_misturador)
+ if (<cont.alchemy> < 65.0)
+  cont.sysmessage Voce nao tem experiencia para fazer isso.
+  remove
+  return 1
+ endif
+ if (<link.more2>==0)
+  cont.sysmessage Extratos sao muito impuros para serem misturados.
+  remove
+  return 1
+ endif
+ if (<link.more2>==3)
+  cont.sysmessage Voce nao pode misturar isso.
+  remove
+  return 1
+ endif
+ if (<cont.targ.more2>==2)
+  cont.sysmessage Nao pode adicionar um terceiro produto
+  remove
+  return 1
+ endif
+ sfx 0240
+ cont.newitem=i_tubo
+ cont.act.bounce
+ cont.targ.more1=<cont.targ.more1>|<link.more1>
+ cont.targ.more2=<cont.targ.more2>+1
+ if (<link.more1>==01) //bp
+  cont.targ.dispid=01839
+ elif (<link.more1>==02) //bm
+  cont.targ.dispid=01838
+ elif (<cont.targ.more1>==04) //g
+  cont.targ.dispid=01839
+ elif (<cont.targ.more1>==08) //g
+  cont.targ.dispid=01838
+ elif (<cont.targ.more1>==010) //mr
+  cont.targ.dispid=01839
+ elif (<cont.targ.more1>==020) //ns
+  cont.targ.dispid=01838
+ elif (<cont.targ.more1>==040) //sa
+  cont.targ.dispid=01839
+ elif (<cont.targ.more1>==080) //ss
+  cont.targ.dispid=01838
+ elif (<cont.targ.more1>==0100) //bw
+  cont.targ.dispid=01839
+ elif (<cont.targ.more1>==0200) //om
+  cont.targ.dispid=01839
+ else
+  cont.tag.dispid={01839 1 01838 1}
+ endif
+ cont.targ.name=misturador
+ cont.targ.update
+ link.amount=<link.amount>-1
+ link.update
+ if (<link.amount><1)
+  link.remove
+ endif
+ remove
+ return 1
+endif
+if (<cont.targ.type>==t_potion_empty)
+ sfx 0240
+ cont.faz_pocao <link.more1>,<link.more2>
+ link.amount=<link.amount>-1
+ link.update
+ if (<link.amount><1)
+  link.remove
+ endif
+ cont.targ.amount=<cont.targ.amount>-1
+ cont.targ.update
+ if (<cont.targ.amount><1)
+  cont.targ.remove
+ endif
+ remove
+ return 1
+endif
+
+//*****************************************************************************
+// i_alc_destilador
+//*****************************************************************************
+[ITEMDEF i_alc_destilador]
+NAME=Usando destilador
+ID=i_memory
+TYPE=t_eq_script
+LAYER=layer_special
+
+ON=@CREATE
+attr=attr_can_decay
+
+ON=@DCLICK
+if (<link.more2>==01)
+ TARGET Selecione a espiriteira
+ return 1
+elif (<link.more2>==02)
+ TARGET Selecione outro recipiente
+ return 1
+endif
+
+ON=@TARGON_CANCEL
+remove
+return 1
+
+//link=deslitador
+ON=@TARGON_ITEM
+if (<link.more2>==1)
+ if (<cont.targ.type>==t_espiriteira)
+  if (<cont.targ.cont>)
+   cont.sysmessage Nao pode usar a espiriteira ai.
+   remove
+   return 1
+  endif
+  if (<cont.targ.more1>==0)
+   cont.sysmessage Acenda a espiriteira.
+   remove
+   return 1
+  endif
+  link.p=<CONT.targ.p>
+  link.emotered aquecendo
+  tag.reag=<link.tag.reag>
+  more1=<link.more1>
+  more2=<R10,20>
+  cont.freeze
+  timer=1
+  return 1
+ else
+  cont.sysmessage Selecione uma espiriteira acesa.
+  remove
+  return 1
+ endif
+elif (<link.more2>==2)
+ if (<cont.targ.type>==t_tubo)
+  sfx 0240
+  link.more2=0
+  link.dispid=i_beaker2_empty
+  link.update
+  link.name=destilador
+  cont.targ.amount=<cont.targ.amount>-1
+  cont.targ.update
+  if (<cont.targ.amount><1)
+   cont.targ.remove
+  endif
+  cont.newitem=i_tubo_cheio
+  cont.act.more1=<link.more1>
+  cont.act.more2=2
+  cont.act.name=destilado de <cont.act.find_name>
+  cont.act.find_name destilado
+  cont.act.cont=<cont>
+  cont.act.find_color
+  cont.act.update
+  return 1
+endif
+
+ON=@TIMER
+ if (<more2>)
+  more2=<more2>-1
+  alc_falhar 2
+  cont.clspk
+  link.clspk
+  DORAND (5)
+   cont.emotegreen destilando
+   link.emoteyellow aquecendo
+   sfx 024
+  ENDDO
+  timer=1  
+  return 1
+ else
+  cont.alc_subir 2
+  link.more2=2
+  cont.emotegreen destilou
+  link.name=destilador (destilado de <link.find_name>)
+  cont.unfreeze
+  remove
+  return 1
+ endif
+
+//*****************************************************************************
+// i_alc_balao
+//*****************************************************************************
+[ITEMDEF i_alc_balao]
+NAME=Usando balao
+ID=i_memory
+TYPE=t_eq_script
+LAYER=layer_special
+
+ON=@CREATE
+attr=attr_can_decay
+
+ON=@DCLICK
+if (<link.more2>==01)
+ TARGET Selecione a espiriteira
+ return 1
+elif (<link.more2>==02)
+ TARGET Selecione outro recipiente
+ return 1
+endif
+
+ON=@TARGON_CANCEL
+remove
+return 1
+
+ON=@TARGON_ITEM
+if (<link.more2>==1)
+ if (<cont.targ.type>==t_espiriteira)
+  if (<cont.targ.cont>)
+   cont.sysmessage Nao pode usar a espiriteira ai.
+   remove
+   return 1
+  endif
+  if (<cont.targ.more1>==0)
+   cont.sysmessage Acenda a espiriteira.
+   remove
+   return 1
+  endif
+  link.p=<CONT.targ.p>
+  link.emoteyellow aquecendo
+  tag.reag=<link.tag.reag>
+  more1=<link.more1>
+  more2=<R10,20>
+  cont.freeze
+  timer=1
+  return 1
+ else
+  cont.sysmessage Selecione uma espiriteira acesa.
+  remove
+  return 1
+ endif
+elif (<link.more2>==2)
+ if (<cont.targ.type>==t_tubo)
+  sfx 0240
+  link.more2=0
+  link.dispid=0182d
+  link.update
+  link.name=balao
+  cont.targ.amount=<cont.targ.amount>-1
+  if (<cont.targ.amount><1)
+   cont.targ.remove
+  endif
+  cont.newitem=i_tubo_cheio
+  cont.act.more1=<link.more1>
+  cont.act.more2=1
+  cont.act.name=borra de <cont.act.find_name>
+  cont.act.cont=<cont>
+  cont.act.find_color
+  cont.act.update
+  return 1
+endif
+
+ON=@TIMER
+ if (<more2>)
+  more2=<more2>-1
+  alc_falhar 3
+  cont.clspk
+  link.clspk
+  DORAND (5)
+   cont.emotegreen preparando
+   link.emoteyellow aquecendo
+   sfx 020
+  ENDDO
+  timer=1  
+  return 1
+ else
+  cont.alc_subir 3
+  link.more2=2
+  cont.clspk
+  cont.emotegreen terminou
+  link.name=balao (borra de <link.find_name>)
+  cont.unfreeze
+  remove
+  return 1
+ endif
+
+
+//*****************************************************************************
+// i_alc_misturador
+//*****************************************************************************
+[ITEMDEF i_alc_misturador]
+NAME=Usando balao
+ID=i_memory
+TYPE=t_eq_script
+LAYER=layer_special
+
+ON=@CREATE
+attr=attr_can_decay
+
+ON=@DCLICK
+if (<cont.alchemy> < 65.0)
+ cont.sysmessagered Voce nao tem experiencia para fazer isso.
+ remove
+ return 1
+endif
+if (<link.more2><02)
+ cont.sysmessagegreen Coloque dois produtos para usar.
+ remove
+ return 1
+elif (<link.more2>==02)
+ TARGET Selecione a espiriteira
+ return 1
+elif (<link.more2>==03)
+ TARGET Selecione outro recipiente
+ return 1
+endif
+
+ON=@TARGON_CANCEL
+remove
+return 1
+
+ON=@TARGON_ITEM
+if (<link.more2>==2)
+ if (<cont.targ.type>==t_espiriteira)
+  if (<cont.targ.cont>)
+   cont.sysmessage Nao pode usar a espiriteira ai.
+   remove
+   return 1
+  endif
+  if (<cont.targ.more1>==0)
+   cont.sysmessage Acenda a espiriteira.
+   remove
+   return 1
+  endif
+  link.p=<CONT.targ.p>
+  link.emoteyellow aquecendo
+  more2=<R10,20>
+  cont.freeze
+  timer=1
+  return 1
+ else
+  cont.sysmessagegreen Selecione uma espiriteira acesa.
+  remove
+  return 1
+ endif
+elif (<link.more2>==3)
+ if (<cont.targ.type>==t_tubo)
+  sfx 0240
+  link.more2=0
+  link.dispid=0183a
+  link.update
+  link.name=misturador
+  cont.targ.amount=<cont.targ.amount>-1
+  if (<cont.targ.amount><1)
+   cont.targ.remove
+  endif
+  cont.targ.update
+  cont.newitem=i_tubo_cheio
+  cont.act.more1=<link.more1>
+  cont.act.more2=3
+  cont.act.name=<link.find_name>
+  cont.act.cont=<cont>
+  cont.act.find_color
+  cont.act.update
+  link.more1=0
+  return 1
+endif
+
+ON=@TIMER
+ if (<more2>)
+  more2=<more2>-1
+  alc_falhar 4
+  DORAND (20)
+   cont.emotegreen tenso
+   cont.emotegreen preparando
+   cont.emotegreen preparando
+   link.emoteyellow aquecendo
+   link.emoteyellow aquecendo
+   link.say @028 click!
+   sfx 050
+   sfx 020
+   sfx 050
+   sfx 024
+  ENDDO
+  timer=1  
+  return 1
+ else
+  cont.alc_subir 3
+  link.more2=3
+  cont.clspk
+  cont.emotegreen terminou
+  link.name=misturador (<link.find_name>)
+  cont.unfreeze
+  remove
+  return 1
+ endif
+
+[EOF]

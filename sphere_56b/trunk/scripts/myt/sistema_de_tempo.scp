@@ -350,17 +350,16 @@ return 1
 return <VAR.temperature>+<region.tag0.modtemp>
 
 //*****************************************************************************
-// temp_check( uid )
+// temp_check()
 //*****************************************************************************
 //'calcula' quantidade de roupa e temperatura de onde UID está.
 //compara com valores pre-estabelecidos para saber se UID está com muito frio,
 //frio, normal ou calor
 [FUNCTION temp_check]
-obj=<uid>
 
-if (<obj.tag0.no_clima>==1) || (<obj.flags>&statf_indoors)
- obj.findid.i_mry_clima.more1=0
- obj.findid.i_mry_clima.more2=0
+if (<tag0.no_clima>==1) || (<flags>&statf_indoors)
+ findid.i_mry_clima.more1=0
+ findid.i_mry_clima.more2=0
  return 1
 endif
 
@@ -368,49 +367,53 @@ LOCAL.temp=<eval <temp_get>>
 
 //'calcula' quantidade de roupa
 LOCAL.cloth=0
-if (<obj.findlayer.layer_shoes.type>==t_clothing) || (<obj.findlayer.layer_shoes.type>==t_armor_leather)
- LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.layer_shoes.weight>)
+if (<findlayer.layer_shoes.type>==t_clothing) || (<findlayer.layer_shoes.type>==t_armor_leather)
+ LOCAL.cloth=(<LOCAL.cloth>+<findlayer.layer_shoes.weight>)
 endif
-if (<obj.findlayer.layer_pants.type>==t_clothing)
- LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.layer_pants.weight>)
+if (<findlayer.layer_pants.type>==t_clothing)
+ LOCAL.cloth=(<LOCAL.cloth>+<findlayer.layer_pants.weight>)
 endif
-if (<obj.findlayer.layer_shirt.type>==t_clothing) || (<obj.findlayer.layer_shirt.type>==t_armor_leather)
- LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.layer_shirt.weight>)
+if (<findlayer.layer_shirt.type>==t_clothing) || (<findlayer.layer_shirt.type>==t_armor_leather)
+ LOCAL.cloth=(<LOCAL.cloth>+<findlayer.layer_shirt.weight>)
 endif
-if (<obj.findlayer.layer_gloves.type>==t_clothing) || (<obj.findlayer.layer_gloves.type>==t_armor_leather)
- LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.layer_gloves.weight>)
+if (<findlayer.layer_gloves.type>==t_clothing) || (<findlayer.layer_gloves.type>==t_armor_leather)
+ LOCAL.cloth=(<LOCAL.cloth>+<findlayer.layer_gloves.weight>)
 endif
-if (<obj.findlayer.layer_tunic.type>==t_clothing)
- LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.layer_tunic.weight>)
+if (<findlayer.layer_tunic.type>==t_clothing)
+ LOCAL.cloth=(<LOCAL.cloth>+<findlayer.layer_tunic.weight>)
 endif
-if (<obj.findlayer.layer_pack.type>==t_clothing)
- LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.layer_pack.weight>)
+if (<findlayer.layer_pack.type>==t_clothing)
+ LOCAL.cloth=(<LOCAL.cloth>+<findlayer.layer_pack.weight>)
 endif
-if (<obj.findlayer.layer_robe.type>==t_clothing)
- LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.layer_robe.weight>)
+if (<findlayer.layer_robe.type>==t_clothing)
+ LOCAL.cloth=(<LOCAL.cloth>+<findlayer.layer_robe.weight>)
 endif
-if (<obj.findlayer.layer_skirt.type>==t_clothing)
- LOCAL.cloth=(<LOCAL.cloth>+<obj.findlayer.layer_skirt.weight>)
+if (<findlayer.layer_skirt.type>==t_clothing)
+ LOCAL.cloth=(<LOCAL.cloth>+<findlayer.layer_skirt.weight>)
 endif
 //assumindo nivel de roupa de 0 a 400, permite 400/20 graus de protecao
 LOCAL.cloth=<eval <LOCAL.cloth>/20>
 
 //adiciona protecao devido a calor proximo
-if (<obj.isneartype t_fire 1>) || (<obj.isneartype t_forge 1>)
+if (<isneartype t_fire 1>) || (<isneartype t_forge 1>)
  LOCAL.cloth=<LOCAL.cloth>+3
-endif
-
-if (0<argn1> > 0 )
- sysmessage temp: <eval <LOCAL.temp>> cloth: <eval <LOCAL.cloth>>
 endif
 
 //decide efeito
 if ( <LOCAL.temp> < <eval <DEF.tBodyMin2>-<LOCAL.cloth>> )
- obj.temp_effect 3
+ LOCAL.f=3
 elif ( <LOCAL.temp> < <eval <DEF.tBodyMin1>-<LOCAL.cloth>> )
- obj.temp_effect 2
+ LOCAL.f=2
 elif ( <LOCAL.temp> > <eval <DEF.tBodyMax1>-<LOCAL.cloth>> )
- obj.temp_effect 1
+ LOCAL.f=1
+else 
+ LOCAL.f=0
+endif
+
+temp_effect <LOCAL.f>
+
+if (0<argn1> > 0 )
+ say temp: <eval <LOCAL.temp>> cloth: <eval <LOCAL.cloth>> e:<LOCAL.f>
 endif
 
 //sysmessage [CLIMA] T:<eval <LOCAL.temp>> R:<eval <LOCAL.cloth>> <eval <DEF.tBodyMin2>-<LOCAL.cloth>> <eval <DEF.tBodyMin1>-<LOCAL.cloth>> <eval <DEF.tBodyMax1>-<LOCAL.cloth>>
@@ -423,41 +426,40 @@ endif
 //2 = frio
 //3 = muito frio
 [FUNCTION temp_effect] 
-obj=<uid>
-if (<obj.isgm>)
+if (<isgm>)
  return
 endif
 if (0<argn>==1)
- if (<obj.stam> >= 5)
-  obj.stam=<obj.stam>//-{1 3}
+ if (<stam> >= 5)
+  stam=<stam>//-{1 3}
  endif
- DORAND 3
-  obj.sysmessagegreen Voce esta se sentindo cancado devido ao calor.
-  obj.emotered sua
+ DORAND 5
+  sysmessagegreen Voce esta se sentindo cancado devido ao calor.
+  emotered sua
  ENDDO
 elif (0<argn>==2)
- if (<obj.hits> >= 10)  && (<obj.stam> > 5)
-  obj.stam=<obj.stam>//-{2 4}
- elif (<obj.hits> < 10)  && (<obj.stam> > 5)
-  obj.stam=<obj.stam>//-{1 2}
- else //(<obj.stam>==0)
-  obj.hits=<obj.hits>//-{2 5}
+ if (<hits> >= 10)  && (<stam> > 5)
+  stam=<obj.stam>//-{2 4}
+ elif (<hits> < 10)  && (<stam> > 5)
+  stam=<stam>//-{1 2}
+ else //(<stam>==0)
+  hits=<hits>//-{2 5}
  endif
- DORAND 3
-  obj.sysmessagegreen Voce esta sentindo frio. Abrigue-se.
-  obj.emotered treme
+ DORAND 5
+  sysmessagegreen Voce esta sentindo frio. Abrigue-se.
+  emotered treme
  ENDDO
 elif (0<argn>==3)
- obj.hits=<obj.hits>//-{2 5}
- obj.stam=<obj.stam>//-{1 3}
- DORAND 3
-  obj.sysmessagered Seus membros estao congelando de frio! Voce vai morrer!
-  obj.sysmessagegreen Voce esta sentindo MUITO frio. Abrigue-se.
-  obj.emotered treme muito
+ hits=<hits>//-{2 5}
+ stam=<stam>//-{1 3}
+ DORAND 5
+  sysmessagered Seus membros estao congelando de frio! Voce vai morrer!
+  sysmessagegreen Voce esta sentindo MUITO frio. Abrigue-se.
+  emotered treme muito
  ENDDO
 endif
-if (<obj.stam> < 0) || (<obj.stam> > 900)
- obj.stam=0
+if (<stam> < 0) || (<stam> > 900)
+ stam=0
 endif
 
 //*****************************************************************************
