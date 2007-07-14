@@ -128,17 +128,6 @@ return 1
 // t_balao
 //*****************************************************************************
 [TYPEDEF t_balao]
-ON=@DCLICK
-if (!<more2>) //vazio
- src.sysmessagered Utilize um tubo cheio.
- return 1
-else //cheio ou com borra pronto
- src.newitem=i_alc_balao
- src.act.link=<uid>
- src.act.equip
- src.act.use
- return 1
-endif
 
 ON=@STEP
 src.emotered quebrou a vidraria
@@ -465,7 +454,6 @@ say
 // checkalc
 //*****************************************************************************
 [function checkalc]
-src.consume 10 i_alc_balao
 src.consume 10 i_alc_misturador
 return 1
 
@@ -636,26 +624,40 @@ endif
 update
 
 //*****************************************************************************
-// dest_step( destilador )
+// recpt_step( recipiente )
 //*****************************************************************************
 //anima destilador em uso
-[FUNCTION dest_step]
+[FUNCTION recpt_step]
 obj=<argv[0]>
-DORAND (4)
-	obj.emotered aquecendo
-	obj.sfx 024
-ENDDO
-
+if (<obj.type>==t_destilador)
+	DORAND (5)
+		obj.link.emoteyellow destilando
+		obj.emotered aquecendo
+		obj.sfx 024
+	ENDDO
+elif (<obj.type>==t_balao)
+	DORAND (5)
+		obj.link.emoteyellow preparando
+		obj.emotered aquecendo
+		obj.sfx 020
+	ENDDO
+endif
 //*****************************************************************************
-// dest_end( destilador, sucesso, nada )
+// recpt_end( recipiente, sucesso, nada )
 //*****************************************************************************
 //termina destilacao
-[FUNCTION dest_end]
+[FUNCTION recpt_end]
 obj=<argv[0]>
 if (<argv[1]>)
-	obj.more2=2 //pronto
-	obj.name=destilador (destilado de <obj.find_name>)
-	obj.link.emotegreen destilou
+	if (<obj.type>==t_destilador)
+		obj.more2=2 //pronto
+		obj.name=destilador (destilado de <obj.find_name>)
+		obj.link.emotegreen destilou
+	elif (<obj.type>==t_balao)
+		obj.more2=2 //pronto
+		obj.name=balao (borra de <obj.find_name>)
+		obj.link.emotegreen terminou
+	endif
 else
   if (<R1,4>==1)
 		obj.link.emotered quebrou a vidraria
@@ -664,15 +666,98 @@ else
   else
 		obj.more1=0 //vazio
 		obj.more2=0 //vazio
-		obj.name=destilador
-		obj.dest_setaCor
 		obj.link.emotegreen falhou
+
+		if (<obj.type>==t_destilador)
+			obj.name=destilador
+			obj.dest_setaCor
+		elif (<obj.type>==t_balao)
+			obj.name=balao
+			obj.balao_setaCor
+		endif
   endif
 endif
 
 //impede uso do .fazitem
 obj=<findid.i_faz_item.uid>
 obj.tag.abort=1
+
+//*****************************************************************************
+// alc_recptDclick
+//*****************************************************************************
+//funcao do dclick dos recipientes de alquimia (destilador,balao)
+[FUNCTION alc_recptDclick]
+ if (!<more2>) //vazio
+ 	src.sysmessageyellow Utilize um tubo cheio.
+ elif (<more2>==01)//com algo para destilar/aquecer
+ 	src.sysmessageyellow Selecione a espiriteira
+ 	TARGET
+ elif (<more2>==02)//com destilado/borra
+ 	src.sysmessageyellow Selecione outro recipiente
+ 	TARGET
+ endif
+
+//*****************************************************************************
+// alc_recptTarget
+//*****************************************************************************
+//funcao do target dos recipientes de alquimia (destilador,balao)
+[FUNCTION alc_recptTarget]
+if (<more2>==1)//com algo para destilar/aquecer
+	if (<src.targ.type>==t_espiriteira)
+		if (<src.targ.cont>)
+			src.sysmessageyellow Nao pode usar a espiriteira ai.
+			return 1
+		elif (!<src.targ.more1>)//espiriteira apagada?
+			src.sysmessageyellow Acenda a espiriteira.
+			return 1
+		elif (<src.targ.distance>>1)//muito longe?
+			src.sysmessageyellow Chegue mais perto.
+			return 1
+		endif
+		p=<src.targ.p>
+		link=<src>
+		obj=<src.findid.i_faz_item.uid>
+		obj.cleartags
+		obj.tag.skill=alchemy
+		obj.tag.dif=55
+		obj.tag.delay=<eval 20-(<src.alchemy>/100)> //10 a 20
+		obj.tag.item=1 
+		obj.tag.f_step=recpt_step <uid>,
+		obj.tag.f_done=recpt_end <uid>,
+		src.fazitem		
+		return 1
+	else
+		src.sysmessageyellow Selecione uma espiriteira acesa.
+		return 1
+	endif
+elif (<more2>==2)//com destilado/borra
+	if (<src.targ.type>==t_tubo)
+		src.targ.decrement
+//		src.despeja_tubo 1
+		sfx 0240
+  	serv.newitem i_tubo
+		new.more1=<more1>
+		more1=0//vazio
+		more2=0//vazio
+
+		if (<type>==t_destilador)
+			new.more2=2 //destilado
+			new.name=destilado de <NEW.find_name>
+			name=destilador
+			dest_setaCor
+		elif (<type>==t_balao)
+			new.more2=3 //borra
+			new.name=borra de <NEW.find_name>
+			name=balao
+			balao_setaCor
+		endif
+
+		new.color=<new.get_color>
+		new.cont=<src>
+		new.update
+
+		return 1
+endif
 
 //*****************************************************************************
 // balao_setaCor
@@ -699,6 +784,8 @@ elif (<more1>==0100)	//bw
 	dispid=0182c
 elif (<more1>==0200)	//om
 	dispid=0182a
+else
+	dispid=0182d
 endif
 update
 
@@ -1127,68 +1214,12 @@ SUBSECTION=Alchemist
 DESCRIPTION=Destilador
 
 ON=@DCLICK
-if (!<more2>) //vazio
-	src.sysmessageyellow Utilize um tubo cheio.
-	return 1
-elif (<more2>==01)//com algo para destilar
-	src.sysmessageyellow Selecione a espiriteira
-	TARGET
-	return 1
-elif (<more2>==02)//com destilado
-	src.sysmessageyellow Selecione outro recipiente
-	TARGET
-	return 1
-endif
+alc_recptDclick
+return 1
 
 ON=@TARGON_ITEM
-if (<more2>==1)//com algo para destilar
-	if (<src.targ.type>==t_espiriteira)
-		if (<src.targ.cont>)
-			src.sysmessageyellow Nao pode usar a espiriteira ai.
-			return 1
-		elif (!<src.targ.more1>)//espiriteira apagada?
-			src.sysmessageyellow Acenda a espiriteira.
-			return 1
-		elif (<src.targ.distance>>1)//muito longe?
-			src.sysmessageyellow Chegue mais perto.
-			return 1
-		endif
-		p=<src.targ.p>
-		link=<src>
-		obj=<src.findid.i_faz_item.uid>
-		obj.cleartags
-		obj.tag.skill=alchemy
-		obj.tag.dif=55
-		obj.tag.emote=destilando
-		obj.tag.delay=<eval 20-(<src.alchemy>/100)> //10 a 20
-		obj.tag.item=1 
-		obj.tag.f_step=dest_step <uid>,
-		obj.tag.f_done=dest_end <uid>,
-		src.fazitem		
-		return 1
-	else
-		src.sysmessageyellow Selecione uma espiriteira acesa.
-		return 1
-	endif
-elif (<more2>==2)//com destilado
-	if (<src.targ.type>==t_tubo)
-		src.targ.decrement
-//		src.despeja_tubo 1
-		sfx 0240
-  	serv.newitem i_tubo
-  	new.more1=<more1>
-		new.more2=2 //destilado
-		new.name=destilado de <NEW.find_name>
-		new.color=<new.get_color>
-		new.cont=<src>
-		new.update
-
-		more1=0//vazio
-		more2=0//vazio
-		name=destilador
-		dest_setaCor
-		return 1
-endif
+alc_recptTarget
+return 1
 
 //*****************************************************************************
 // i_balao
@@ -1200,6 +1231,14 @@ TYPE=t_balao
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Alchemist
 DESCRIPTION=Balão
+
+ON=@DCLICK
+alc_recptDclick
+return 1
+
+ON=@TARGON_ITEM
+alc_recptTarget
+return 1
 
 //*****************************************************************************
 // i_espiriteira
@@ -1233,105 +1272,6 @@ DESCRIPTION=Misturador
 // ITEMDEFs - Memories
 //*****************************************************************************
 //*****************************************************************************
-
-//*****************************************************************************
-// i_alc_balao
-//*****************************************************************************
-[ITEMDEF i_alc_balao]
-NAME=Usando balao
-ID=i_memory
-TYPE=t_eq_script
-LAYER=layer_special
-
-ON=@CREATE
-attr=attr_can_decay
-
-ON=@DCLICK
-if (<link.more2>==01)
- src.sysmessageyellow Selecione a espiriteira
- TARGET
- return 1
-elif (<link.more2>==02)
- src.sysmessageyellow Selecione outro recipiente
- TARGET
- return 1
-endif
-
-ON=@TARGON_CANCEL
-remove
-return 1
-
-ON=@TARGON_ITEM
-if (<link.more2>==1)
- if (<cont.targ.type>==t_espiriteira)
-  if (<cont.targ.cont>)
-   cont.sysmessage Nao pode usar a espiriteira ai.
-   remove
-   return 1
-  endif
-  if (<cont.targ.more1>==0)
-   cont.sysmessage Acenda a espiriteira.
-   remove
-   return 1
-  endif
-  link.p=<CONT.targ.p>
-  link.emoteyellow aquecendo
-  tag.reag=<link.tag.reag>
-  more1=<link.more1>
-  more2=<R10,20>
-  cont.freeze
-  timer=1
-  return 1
- else
-  cont.sysmessage Selecione uma espiriteira acesa.
-  remove
-  return 1
- endif
-elif (<link.more2>==2)
- if (<cont.targ.type>==t_tubo)
-  sfx 0240
-  link.more2=0
-  link.dispid=0182d
-  link.update
-  link.name=balao
-  cont.targ.amount=<cont.targ.amount>-1
-  if (<cont.targ.amount><1)
-   cont.targ.remove
-  endif
-  cont.newitem=i_tubo_cheio
-  cont.act.more1=<link.more1>
-  cont.act.more2=1
-  cont.act.name=borra de <cont.act.find_name>
-  cont.act.cont=<cont>
-  cont.act.find_color
-  cont.act.update
-  return 1
-endif
-
-ON=@TIMER
- if (<more2>)
-  more2=<more2>-1
-  alc_falhar 3
-  cont.clspk
-  link.clspk
-  DORAND (5)
-   cont.emotegreen preparando
-   link.emoteyellow aquecendo
-   sfx 020
-  ENDDO
-  timer=1  
-  return 1
- else
-  cont.alc_subir 3
-  link.more2=2
-  cont.clspk
-  cont.emotegreen terminou
-  link.name=balao (borra de <link.find_name>)
-  cont.unfreeze
-  remove
-  return 1
- endif
-
 
 //*****************************************************************************
 // i_alc_misturador
