@@ -83,6 +83,9 @@
 [PLEVEL 1]
 fazitem
 
+[DEFNAME craft_system]
+statf_cantcraft 		080d50432 //statf_onhorse|statf_hidden|statf_hallucinating|statf_fly|statf_stone|statf_hasshield|statf_polymorph|statf_war|statf_sleeping|statf_dead
+
 //*****************************************************************************
 //*****************************************************************************
 // EVENTs
@@ -96,6 +99,12 @@ fazitem
 //objetos
 [EVENTS e_fazitem]
 ON=@ITEMDCLICK
+//simula movimento do player movendo a referencia
+findid(i_faz_item).morep=0,0,0,0
+events -e_fazitem
+return 0
+
+ON=@GETHIT
 //simula movimento do player movendo a referencia
 findid(i_faz_item).morep=0,0,0,0
 events -e_fazitem
@@ -307,6 +316,35 @@ if (<obj.tag0.res4>)
 endif
 
 //*****************************************************************************
+// craftAborted
+//*****************************************************************************
+//objeto padrao deve ser o player
+[FUNCTION craftAborted]
+if (<flags>&statf_onhorse)
+	sysmessageyellow Nao pode fazer isso estando em uma montaria.
+elif (<flags>&statf_hidden)
+	sysmessageyellow Nao pode fazer isso escondido.
+elif (<flags>&statf_hallucinating)
+	sysmessageyellow Nao pode fazer isso tendo alucinacoes.
+elif (<flags>&statf_fly)
+	sysmessageyellow Nao pode fazer isso correndo/voando.
+elif (<flags>&statf_stone)
+	sysmessageyellow Nao pode fazer isso petrificado.
+elif (<flags>&statf_hasshield)
+	sysmessageyellow Nao pode fazer isso com escudo na mao.
+elif (<flags>&statf_polymorph)
+	sysmessageyellow Nao pode fazer isso estando em outra forma.
+elif (<flags>&statf_war)
+	sysmessageyellow Nao pode fazer isso em luta.	
+elif (<flags>&statf_sleeping)
+	sysmessageyellow Nao pode fazer isso dormindo.	
+elif (<flags>&statf_dead)
+	sysmessageyellow Nao pode fazer isso morto.	
+else
+	sysmessageyellow Interrompido.
+endif
+
+//*****************************************************************************
 // generateItem
 //*****************************************************************************
 //usado pelo i_faz_item quando vai gerar o item final
@@ -468,7 +506,7 @@ ON=@TIMER
 timer=-1
 
 //caso player se mova, cancela
-if (<morex>!=<cont.p.x>) || (<morey>!=<cont.p.y>)
+if (<morex>!=<cont.p.x>) || (<morey>!=<cont.p.y>) || (<cont.flags>&statf_cantcraft)
 	more2=1
 	tag.falha=1
 endif
@@ -501,7 +539,7 @@ else
 	endif
 
 	if (<tag0.falha>)
-		cont.sysmessageyellow Interrompido.
+		cont.craftAborted
 		return 1
 	endif
 	

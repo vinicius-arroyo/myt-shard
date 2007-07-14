@@ -53,7 +53,7 @@ else
 	obj.tag.skill=tailoring
 	obj.tag.dif=1
 	obj.tag.emote=fiando
-	obj.tag.delay=<eval (21-(<src.tailoring>/50))*<LOCAL.amt>> //1 a 21 por lã
+	obj.tag.delay=<eval (23-(<src.tailoring>/50))*<LOCAL.amt>> //3 a 23 por lã
 	obj.tag.item=i_yarn_ball
 	obj.tag.amt=<LOCAL.amt>
 	obj.tag.color=<color>
@@ -76,16 +76,6 @@ return 1
 // t_thread - linha
 //*****************************************************************************
 [TYPEDEF t_thread]
-ON=@DCLICK
-if (<topobj>!=<src.uid>)
- src.sysmessagered A linha precisa estar na sua mala
-else
- serv.newitem i_mry_thread
- new.cont=<src.uid>
- new.link=<uid>
- src.dclick <new.uid>
-endif
-return 1
 
 //*****************************************************************************
 // t_cotton - algodão
@@ -110,7 +100,7 @@ else
 	obj.tag.skill=tailoring
 	obj.tag.dif=1
 	obj.tag.emote=fiando
-	obj.tag.delay=<eval (21-(<src.tailoring>/50))*<LOCAL.amt>> //1 a 21 por algodão
+	obj.tag.delay=<eval (23-(<src.tailoring>/50))*<LOCAL.amt>> //3 a 23 por algodão
 	obj.tag.item=i_thread
 	obj.tag.amt=<eval <LOCAL.amt>*3>
 	obj.tag.color=<color>
@@ -707,9 +697,35 @@ SUBSECTION=Tailor
 DESCRIPTION=Tesoura de costura
 
 ON=@DCLICK
-src.newitem=i_mry_tesoura
-src.act.equip
-src.act.use
+TARGET Selecione pano ou couro.
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.type>==t_cloth)
+	if (<src.tailoring> < 500)
+		tai_fazBandagemDe <src.targ>
+	else
+		src.ctag.tai_material=<src.targ>
+		src.skillmenu=sm_tesoura
+	endif
+elif (<src.targ.type>==t_leather)
+	if (<src.tailoring> < 560)
+		src.sysmessagered Voca ainda nao domina essas tecnicas.
+	else
+		src.ctag.tai_material=<src.targ>
+		src.skillmenu sm_tai_couro
+	endif
+else
+	src.sysmessagered Corte apenas pano ou couro.
+endif
+return 1
+
+ON=@TARGON_CHAR
+src.sysmessagered Corte apenas pano ou couro.
+return 1
+
+ON=@TARGON_GROUND
+src.sysmessagered Corte apenas pano ou couro.
 return 1
 
 //*****************************************************************************
@@ -820,131 +836,78 @@ src.fazitem
 src.emoteyellow continua a tricotar
 return 1
 
-//*****************************************************************************
-//*****************************************************************************
-// ITEMDEFs - Memories
-//*****************************************************************************
-//*****************************************************************************
 
 //*****************************************************************************
-// i_mry_tesoura
+// i_thread
 //*****************************************************************************
-[ITEMDEF i_mry_tesoura]
-NAME=Usando Tesoura
-ID=i_memory
-TYPE=t_eq_script
-WEIGHT=0
-LAYER=30
+[ITEMDEF 0fa0]
+DEFNAME=i_thread
+RESOURCES=1 i_flax_bundle
+TYPE=T_THREAD
+DYE=1
+WEIGHT=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Spool of Thread
+NAME=linha%s%
+DUPELIST=0fa1
 
 ON=@DCLICK
-TARGET Selecione pano ou couro.
-return 1
-
-ON=@TARGON_ITEM
-if (<src.targ.type>==t_cloth)
-	if (<src.tailoring> < 500)
-		tai_fazBandagemDe <src.targ>
-	else
-		src.ctag.tai_material=<src.targ>
-		src.skillmenu=sm_tesoura
-	endif
-elif (<src.targ.type>==t_leather)
-	if (<src.tailoring> < 560)
-		src.sysmessagered Voca ainda nao domina essas tecnicas.
-	else
-		src.ctag.tai_material=<src.targ>
-		src.skillmenu sm_tai_couro
-	endif
+if (<topobj>!=<src.uid>)
+ src.sysmessagered A linha precisa estar na sua mala
 else
-	src.sysmessagered Corte apenas pano ou couro.
+ TARGET Selecione roca ou tear.
 endif
-remove
-return 1
-
-ON=@TARGON_CHAR
-src.sysmessagered Corte apenas pano ou couro.
-remove
-return 1
-
-ON=@TARGON_GROUND
-src.sysmessagered Corte apenas pano ou couro.
-remove
-return 1
-
-ON=@TARGON_CANCEL
-remove
-return 1
-
-//*****************************************************************************
-// i_mry_thread
-//*****************************************************************************
-[ITEMDEF i_mry_thread]
-NAME=Usando Linha
-ID=i_memory
-TYPE=t_eq_script
-WEIGHT=0
-
-ON=@DCLICK
-TARGET Selecione roca ou tear.
 return 1
 
 ON=@TARGON_ITEM
-if (<cont.targ.type>==t_tear)
+if (<src.targ.type>==t_tear)
 	obj=<src.findid.i_faz_item.uid>
 	obj.cleartags
 	obj.tag.neartype=t_tear
 	obj.tag.nearname=tear
-	obj.tag.uid1=<link>
+	obj.tag.uid1=<uid>
 	obj.tag.amt1=6
-	obj.tag.nam1=<link.name>
+	obj.tag.nam1=<name>
 	obj.tag.skill=tailoring
 	obj.tag.dif=5
 	obj.tag.emote=tecendo
-	obj.tag.delay=<eval 21-(<src.tailoring>/50)> //1 a 21
+	obj.tag.delay=<eval 23-(<src.tailoring>/50)> //3 a 23
 	obj.tag.item=i_cloth
-	obj.tag.color=<link.color>
-	obj.tag.f_step=animaTear <cont.targ.uid>,
-	obj.tag.f_end=animaTear <cont.targ.uid>,
+	obj.tag.color=<color>
+	obj.tag.f_step=animaTear <src.targ.uid>,
+	obj.tag.f_end=animaTear <src.targ.uid>,
 	src.fazitem
-	remove
 	return 1 
-elif (<cont.targ.type>==t_roca)
+elif (<src.targ.type>==t_roca)
 	obj=<src.findid.i_faz_item.uid>
 	obj.cleartags
 	obj.tag.neartype=t_roca
 	obj.tag.nearname=roca
-	obj.tag.uid1=<link>
+	obj.tag.uid1=<uid>
 	obj.tag.amt1=5
-	obj.tag.nam1=<link.name>
+	obj.tag.nam1=<name>
 	obj.tag.skill=tailoring
 	obj.tag.dif=5
 	obj.tag.emote=fiando
-	obj.tag.delay=<eval 21-(<src.tailoring>/50)> //1 a 21
+	obj.tag.delay=<eval 23-(<src.tailoring>/50)> //3 a 23
 	obj.tag.item=i_barbante
-	obj.tag.color=<link.color>
-	obj.tag.f_init=iniciaRoca <cont.targ.uid>,
-	obj.tag.f_step=animaRoca <cont.targ.uid>,
-	obj.tag.f_end=paraRoca <cont.targ.uid>,
+	obj.tag.color=<color>
+	obj.tag.f_init=iniciaRoca <src.targ.uid>,
+	obj.tag.f_step=animaRoca <src.targ.uid>,
+	obj.tag.f_end=paraRoca <src.targ.uid>,
 	src.fazitem
-	remove
 	return 1 
 endif
 src.sysmessagered Use a linha no tear ou na roca.
-remove
 return 1 
 
 ON=@TARGON_CHAR
  src.sysmessagered Use a linha no tear ou na roca.
- remove
  return 1
 
 ON=@TARGON_GROUND
  src.sysmessagered Use a linha no tear ou na roca.
- remove
- return 1
-
-ON=@TARGON_CANCEL
- remove
  return 1
 
 //*****************************************************************************
@@ -976,13 +939,13 @@ Medida do peito
 
 [DIALOG d_mp BUTTON]
 ON=1
-if (<src.ctag.tai_mp>>1)
-	src.ctag.tai_mp=<eval <src.ctag.tai_mp>-1>
+if (<src.ctag0.tai_mp>>1)
+	src.ctag.tai_mp=<eval <src.ctag0.tai_mp>-1>
 endif
 src.dialog=d_mp
 ON=2
-if (<src.ctag.tai_mp><100)
-	src.ctag.tai_mp=<eval <src.ctag.tai_mp>+1>
+if (<src.ctag0.tai_mp><100)
+	src.ctag.tai_mp=<eval <src.ctag0.tai_mp>+1>
 endif
 src.dialog=d_mp
 ON=3
@@ -1013,13 +976,13 @@ Medida da cintura
 
 [DIALOG d_mc BUTTON]
 ON=1
-if (<src.ctag.tai_mc>>1)
-	src.ctag.tai_mc=<eval <src.ctag.tai_mc>-1>
+if (<src.ctag0.tai_mc>>1)
+	src.ctag.tai_mc=<eval <src.ctag0.tai_mc>-1>
 endif
 src.dialog=d_mc
 ON=2
-if (<src.ctag.tai_mc><100)
-	src.ctag.tai_mc=<eval <src.ctag.tai_mc>+1>
+if (<src.ctag0.tai_mc><100)
+	src.ctag.tai_mc=<eval <src.ctag0.tai_mc>+1>
 endif
 src.dialog=d_mc
 ON=3

@@ -75,16 +75,6 @@ return 1
 // t_almofariz
 //*****************************************************************************
 [TYPEDEF t_almofariz]
-ON=@DCLICK
-if !(<src.restest i_tubo>)
- src.sysmessagered Voce nao tem um tubo vazio.
- return 1
-endif
-src.newitem=i_alc_almofariz
-src.act.link=<src.uid>
-src.act.equip
-src.act.use
-return 1
 
 //*****************************************************************************
 // t_espiriteira
@@ -203,6 +193,42 @@ return 1
 // FUNCTIONs
 //*****************************************************************************
 //*****************************************************************************
+
+//*****************************************************************************
+// almof_end( timer )
+//*****************************************************************************
+[FUNCTION almof_end]
+sfx 0240
+if (<argv[0]>)
+  serv.newitem i_tubo
+  new.cont=<uid>
+endif
+
+//*****************************************************************************
+// get_color
+//*****************************************************************************
+[function get_color]
+if (<more1><2)
+ return 0f
+elif (<more1> < 4)
+  return 028
+elif (<more1> < 8)
+ return 047e
+elif (<more1> < 10)
+ return 032
+elif (<more1> < 20)
+ return 02c
+elif (<more1> < 40)
+ return 016d
+elif (<more1> < 80)
+ return 09a
+elif (<more1> < 100)
+ return 03c1
+elif (<more1> < 200)
+ return 03be
+else
+ return 034
+endif
 
 //*****************************************************************************
 // find_color
@@ -891,6 +917,44 @@ CATEGORY=MyT - Items by Professions
 SUBSECTION=Alchemist
 DESCRIPTION=Almofariz
 
+ON=@DCLICK
+if (<topobj>!=<src.uid>)
+	src.sysmessagered O almofariz precisa estar na sua mala
+	return 1
+endif
+TARGET Selecione o reagente
+return 1
+
+
+ON=@TARGON_ITEM
+if (<src.targ.type> != t_reagente)
+	src.sysmessagered Use o almofariz em reagentes.
+	return 1
+endif
+
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.uid1=<src.targ.uid>
+obj.tag.amt1=1
+obj.tag.nam1=<src.targ.name>
+obj.tag.res2=i_tubo
+obj.tag.amt2=1
+obj.tag.nam2=tubo de ensaio vazio
+obj.tag.skill=alchemy
+obj.tag.dif=30
+obj.tag.emote=misturando <src.targ.name>
+obj.tag.sfx=578
+obj.tag.delay=<eval 13-(<src.alchemy>/100)> //3 a 13
+obj.tag.item=i_tubo_cheio
+obj.tag.color=<src.targ.get_color>
+obj.tag.more1=<src.targ.more1>
+obj.tag.more2=0
+obj.tag.name=extrato de <src.targ.name>
+obj.tag.f_end=almof_end
+src.fazitem
+
+return 1
+ 
 //*****************************************************************************
 // i_destilador
 //*****************************************************************************
@@ -945,74 +1009,6 @@ DESCRIPTION=Misturador
 // ITEMDEFs - Memories
 //*****************************************************************************
 //*****************************************************************************
-
-//*****************************************************************************
-// i_alc_almofariz
-//*****************************************************************************
-[ITEMDEF i_alc_almofariz]
-NAME=Usando Almofariz
-ID=i_memory
-TYPE=t_eq_script
-LAYER=layer_special
-
-ON=@CREATE
-attr=attr_can_decay
-
-ON=@DCLICK
-TARGET Selecione o reagente
-return 1
-
-ON=@TARGON_ITEM
- if (<cont.targ.type> != t_reagente)
-  cont.sysmessagered Use o almofariz em reagentes.
-  remove
-  return 1
- endif
- cont.freeze
- more1=<cont.targ.more1>
- cont.tag.reag=<cont.targ.name>
- cont.consume 1 i_tubo
- cont.targ.amount=<eval <cont.targ.amount>-1>
- if (<cont.targ.amount> < 01)
-  cont.targ.remove
- endif
- cont.targ.update
- more2=<R7,14>
- timer=1
- return 1
- 
-ON=@TARGON_CANCEL
-remove
-return 1
-
-ON=@TIMER
- if (<more2>)
-  more2=<more2>-1
-  alc_falhar 1
-  cont.clspk
-  DORAND (5)
-   cont.emotegreen misturando <cont.tag.reag>
-   sfx 578
-   sfx 578
-  ENDDO
-  timer=1  
-  return 1
- else
-  sfx 0240
-  cont.alc_subir 1
-  cont.newitem=i_tubo_cheio
-  cont.act.more1=<more1>
-  cont.act.more2=00
-  cont.act.name=extrato de <cont.tag.reag>
-  cont.act.cont <link>
-  cont.act.find_color
-  cont.tag.timer=
-  cont.tag.reag=
-  cont.emotegreen terminou
-  cont.unfreeze
-  remove
-  return 1
- endif
 
 //*****************************************************************************
 // i_alc_tubo_cheio
