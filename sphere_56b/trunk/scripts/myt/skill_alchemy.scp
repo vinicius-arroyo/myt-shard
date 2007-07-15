@@ -12,6 +12,8 @@
 //TODO:
 
 //TAGS usadas:
+//tag.espiriteira			indica a espiriteira q o recipiente esta em cima
+//tag.raca
 
 //REAGENTES (máscaras - more2)
 //i_r_perola_negra    =0001
@@ -24,6 +26,11 @@
 //i_r_teia_de_aranha  =0080
 //i_r_asa_morcego     =0100
 //i_r_olho_morto_vivo =0200
+
+[DEFNAME alch]
+alch_dif_t_destilador	55
+alch_dif_t_balao			55
+alch_dif_t_misturador	70
 
 //*****************************************************************************
 //*****************************************************************************
@@ -69,9 +76,18 @@ return 1
 //*****************************************************************************
 [TYPEDEF t_almofariz]
 
+[FUNCTION apagaEspiriteira]
+more1=0
+dispid=i_heating_stand
+sfx=02b
+more2=<timer>
+timer=-1
+update
+
 //*****************************************************************************
 // t_espiriteira
 //*****************************************************************************
+//link é quem está em cima
 [TYPEDEF t_espiriteira]
 ON=@DCLICK
 link=<src>
@@ -80,34 +96,29 @@ if (<cont>)
 	return 1
 endif
 if (!<more1>) //se apagado
- more1=1
- dispid=i_heating_stand_lit
- sfx=054
- timer=<more2>
+	if (<more2>>0) //se tem carga
+		more1=1
+		dispid=i_heating_stand_lit
+		sfx=054
+		timer=<more2>
+		update
+	else
+		src.sysmessageyellow A vela acabou.
+	endif
 else	//se aceso
- more1=0
- dispid=i_heating_stand
- sfx=02b
- more2=<timer>
- timer=-1
+	apagaEspiriteira
 endif
-update
+
 return 1
 
 ON=@PICKUP_GROUND
 if (<more1>) //se aceso
- more1=0
- dispid=i_heating_stand
- sfx=02b
- more2=<timer>
- timer=-1
+	apagaEspiriteira
 endif
 
 ON=@TIMER
-if (<link>) && (<link.distance <uid>> < 5)
-	link.sysmessagered A vela se acabou...
-endif
-remove
+emotered apagou
+apagaEspiriteira
 return 1
 
 //*****************************************************************************
@@ -444,6 +455,14 @@ return 1
 //anima destilador em uso
 [FUNCTION recpt_step]
 obj=<argv[0]>
+ref1=<obj.tag.espiriteira>
+//verifica se apagou a espiriteira ou se moveu
+if (!<ref1.more1>) || (<obj.p.x>!=<ref1.p.x>) || (<obj.p.y>!=<ref1.p.y>)
+	ref1=<findid.i_faz_item.uid>
+	ref1.tag.falha=1
+	return 1
+endif
+
 if (<obj.type>==t_destilador)
 	DORAND (5)
 		obj.link.emoteyellow destilando
@@ -557,12 +576,18 @@ if (<more2>==1) || (<more2>==6) //com algo para destilar/aquecer/misturar
 			src.sysmessageyellow Chegue mais perto.
 			return 1
 		endif
+		//se ja tiver algo na espiriteira, tira antes.
+		if (<src.targ.link>) && (<src.targ.link.topobj>!=<src>)
+			src.targ.link.bounce
+		endif
 		p=<src.targ.p>
+		src.targ.link=<uid>
 		link=<src>
+		tag.espiriteira=<src.targ>
 		obj=<src.findid.i_faz_item.uid>
 		obj.cleartags
 		obj.tag.skill=alchemy
-		obj.tag.dif=55
+		obj.tag.dif=<eval <DEF.alch_dif_<type>>>
 		obj.tag.delay=<eval 20-(<src.alchemy>/100)> //10 a 20
 		obj.tag.item=1 
 		obj.tag.f_step=recpt_step <uid>,
@@ -603,9 +628,11 @@ elif (<more2>==2) || (<more2>==7)//com destilado/borra/mistura
 		new.color=<new.get_color>
 		new.cont=<src>
 		new.update
-
-		return 1
+	else
+		src.sysmessageyellow Selecione um tubo vazio.
+	endif
 endif
+return 1
 
 //*****************************************************************************
 // dest_setaCor
