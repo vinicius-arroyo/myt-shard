@@ -4,22 +4,54 @@ on=@NPCActFight
 if (<CAN>&MT_RUN)
  if (<magery> == 0) && (<distance <src.uid>> > 2) && (<NPCCanCharge>)
   f_NPC_AI_Charge 1
- elif (<magery> == 0) && (<distance <src.uid>> < 2)
+ elif (<magery> == 0) && (<distance <src.uid>> < 2) && (<tag0.charge>==1)
   f_NPC_AI_Charge 2
  endif
+endif
+
+on=@Hit
+IF (<CAN>&MT_USEHANDS)
+ //Tenho poção de stam? Preciso usar? Posso usar?
+ if (<restest 1 i_bottle_red>) && (<stam> < <eval <maxstam>/3>) && (<NPC>!=brain_undead) && (RAND(<INT>) > 25)
+  LOCAL.timer=<eval {1 3}>
+  timerf <LOCAL.timer>,f_NPC_AI_Use,i_bottle_red,1
+ endif
+ENDIF
+
+on=@GetHit
+IF (<CAN>&MT_USEHANDS)
+ //Tenho poção de heal? Preciso usar? Posso usar?
+ if (<restest 1 i_bottle_yellow>) && (<hits> < <eval <maxhits>/3>) && (<NPC>!=brain_undead) && (RAND(<INT>) > 25)
+  LOCAL.timer=<eval {1 3}>
+  timerf <LOCAL.timer>,f_NPC_AI_Use,i_bottle_yellow,1
+ //Tenho poção de cure? Preciso usar? Posso usar?
+ elif (<restest 1 i_bottle_orange>) && (ispoisoned) && (<NPC>!=brain_undead) && (RAND(<INT>) > 25)
+  LOCAL.timer=<eval {1 3}>
+  timerf <LOCAL.timer>,f_NPC_AI_Use,i_bottle_orange,1
+ endif
+ENDIF
+
+
+[FUNCTION f_NPC_AI_Use]
+findid.<argv0>.use
+if (<argv1>)
+ findid.<argv0>.remove
 endif
 
 [FUNCTION f_NPC_AI_Charge]
 if (<argn>==1)
  moddex=<moddex>+100
  tag.HasCharge=1
+ tag.Charge=1
  LOCAL.timer=<eval {30 60}>
  timerf <LOCAL.timer>,f_NPC_AI_Charge
 elif (<argn>==2)
  moddex=<moddex>-100
+ tag.charge=0
 else
  tag.HasCharge=0
 endif
+RETURN 1
 
 [FUNCTION NPCCanCharge]
 if (<tag0.HasCharge>==1)
