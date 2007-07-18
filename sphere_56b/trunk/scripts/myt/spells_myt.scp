@@ -1,0 +1,275 @@
+//*************************************************************
+//*************************************************************
+//
+//		Spells especiais da MyT
+//		     Galthar 2007
+//
+//*************************************************************
+
+//*************************************************************
+//		FUNCTIONS GERAIS DE SPELL
+//*************************************************************
+
+//Se PCs podem castar.
+//CanAdvCast <mana> <skilldif> <delay> <tag.mag>
+[FUNCTION CanAdvCast]
+if (<restest i_npc_spell_delay 1>) || (<tag0.spell_delay>)
+ sysmessagered Voce ainda nao se recuperou da ultima magia.
+ RETURN 0
+elif (<mana> < <argv0>)
+ sysmessagered Pouca mana...
+ RETURN 0
+ENDIF
+//gasta mana
+mana=<mana>-<argn0>
+//delay na spell
+spell_delay <argv2>
+if (!<skilltest <Magery> <argv1>>)
+ cast_fizzle
+ RETURN 0
+endif
+ RETURN 1
+endif
+
+[FUNCTION CalcMagery]
+//<ARGN0> splt_xxx
+
+
+//Falha uma magia
+[FUNCTION cast_fizzle]
+local.timer=<eval {1 2}>
+timerf <local.timer>,effect,3,i_fx_smoke_small,0,32
+timerf <local.timer>,sfx,0208
+
+//Casta uma magia numa criatura/objeto
+[FUNCTION TargCast]
+sysmessage Selecione o alvo...
+targetf TargCast_ <argv0>,<argv1>,<argv2>
+
+[FUNCTION TargCast_]
+try argo.<argv0>,<argv1>,<argv2>
+
+//Previne castar magias por <argn> decimos de segundo
+[FUNCTION spell_delay]
+serv.newitem i_npc_spell_delay
+new.timerd <argn>
+new.cont <uid>
+
+[ITEMDEF i_npc_spell_delay]
+ID=01810
+NAME=spell delay
+TYPE=t_eq_script
+LAYER=LAYER_SPECIAL
+
+on=@timer
+remove
+return 1
+
+//Se NPCs podem castar
+[FUNCTION NPC_CanCast]
+if (<restest i_npc_spell_delay 1>) || (<tag0.spell_delay>)
+ RETURN 0
+else
+ RETURN 1
+endif
+
+//*************************************************************
+//		FUNCTIONS DE SPELLS GENERICAS
+//*************************************************************
+
+[FUNCTION f_summon_creature]
+newnpc <argv0>
+act.p <p>
+obj <act.uid>
+serv.newitem i_memory
+new.color memory_ipet
+new.more1 04
+new.more2 <serv.time>
+new.morep <p>
+new.link <uid>
+new.cont <obj>
+serv.newitem i_mry_summon
+new.more2 <argv1>
+new.link <uid>
+new.cont <obj>
+new.timer 1
+obj.effect 3 i_fx_sparkle 0 16 0 0a1
+sfx 0fb
+return <obj.uid>
+
+
+[ITEMDEF i_mry_summon]
+ID=i_rune_summon_creature
+name=summoned
+type=t_eq_script
+layer=layer_special
+
+on=@create
+attr=020
+
+on=@timer
+more2=<more2>-1
+if (<more2> <= 0) || (!<link.uid>)
+ serv.newitem i_fx_vortex_full
+ new.attr=02
+ new.timerd 16
+ cont.sfx 020c
+ new.color 0a1
+ new.p=<cont.p>
+ cont.remove
+ remove
+endif
+timer=1
+return 1
+
+[FUNCTION f_spl_polymorph]
+if (0<argv1>==0)
+ local.skill 500
+ local.timer 30
+else
+ local.timer <eval <argv1>/16>
+ local.skill <argv1>
+endif
+local.body=<argv0>
+if (!<serv.resources.<local.body>>)
+ local.body=c_zombie
+else
+ local.body=<argv0>
+endif
+// Já estou polymorphado? Se sim, aumente o tempo apenas.
+if (<restest 1 i_spl_polymorph>)
+ findid.i_spl_polymorph.timer=<findid.i_spl_polymorph.timer>+<local.timer>
+ effect 3 i_fx_curse 0 16 0 017d
+ sfx 01fa
+ return 1
+endif
+//modstats de -5 a -25
+local.modstr=-<eval {5 (<local.skill>/40)}>
+local.moddex=-<eval {5 (<local.skill>/40)}>
+local.modint=-<eval {5 (<local.skill>/40)}>
+serv.newitem i_spl_polymorph
+new.morex=<local.modstr>
+new.morey=<local.moddex>
+new.morez=<local.modint>
+new.more1=<local.body>
+new.equip
+new.timer=<local.timer>
+effect 3 i_fx_curse 0 16 0 017d
+sfx 01fa
+
+[FUNCTION f_polymorph]
+//f_polymorph <body> <tempo> <str> <dex> <int>
+if (0<argv1>==0)
+ local.timer 30
+else
+ local.timer <argv1>
+endif
+local.body=<argv0>
+if (!<serv.resources.<local.body>>)
+ local.body=c_zombie
+else
+ local.body=<argv0>
+endif
+// Já estou polymorphado? Se sim, aumente o tempo apenas.
+if (<restest 1 i_spl_polymorph>)
+ findid.i_spl_polymorph.timer=<findid.i_spl_polymorph.timer>+<local.timer>
+ effect 3 i_fx_curse 0 16 0 017d
+ sfx 01fa
+ return 1
+endif
+local.modstr=<argv2>
+local.moddex=<argv3>
+local.modint=<argv4>
+serv.newitem i_spl_polymorph
+new.morex=<local.modstr>
+new.morey=<local.moddex>
+new.morez=<local.modint>
+new.more1=<local.body>
+src.equip <new.UID>
+new.timer=<local.timer>
+effect 3 i_fx_curse 0 16 0 017d
+sfx 01fa
+
+[ITEMDEF i_spl_polymorph]
+ID=i_rune_polymorph
+name=polymorph
+type=t_eq_script
+layer=layer_special
+
+on=@create
+attr=022
+
+on=@equip
+cont.modstr=<cont.modstr>+<morex>
+cont.moddex=<cont.moddex>+<morey>
+cont.modint=<cont.modint>+<morez>
+IF (<cont.findlayer.layer_hair.UID>)
+ tag.hair=<cont.findlayer.layer_hair.ID>
+ tag.haircolor=<cont.findlayer.layer_hair.color>
+ tag.hairtimer=<cont.findlayer.layer_hair.timer>
+endif
+IF (<cont.findlayer.layer_beard.UID>)
+ tag.beard=<cont.findlayer.layer_beard.ID>
+ tag.beardcolor=<cont.findlayer.layer_hair.color>
+ tag.beardtimer=<cont.findlayer.layer_hair.timer>
+endif
+color=<cont.color>
+local.body <cont.body>
+cont.body <more1>
+more1=<local.body>
+cont.update
+
+on=@timer
+cont.modstr=<eval <cont.modstr>-<morex>>
+cont.moddex=<eval <cont.moddex>-<morey>>
+cont.modint=<eval <cont.modint>-<morez>>
+cont.color=<color>
+cont.body=<more1>
+IF (<tag0.hair>)
+ serv.newitem <tag.hair>
+ new.color=<tag.haircolor>
+ new.timer=<tag.hairtimer>
+ENDIF
+IF (<tag0.beard>)
+ serv.newitem <tag.beard>
+ new.color=<tag.beardcolor>
+ new.timer=<tag.beardtimer>
+ENDIF
+cont.update
+cont.effect 3 i_fx_curse 0 16 0 017d
+cont.sfx 01fa
+remove
+return 1
+
+[FUNCTION f_field_sparce]
+//f_field_sparce <item>, <ammount>, <raio>, <tempo>
+if (strmatch(<argv0>,))
+ LOCAL.item=i_balao
+else
+ LOCAL.item=<argv0>
+endif
+if (strmatch(<argv1>,))
+ LOCAL.amt=5
+else
+ LOCAL.amt=<argv1>
+endif
+if (strmatch(<argv2>,))
+ LOCAL.radius=5
+else
+ LOCAL.radius=<argv2>
+endif
+if (strmatch(<argv3>,))
+ LOCAL.timer=<eval {10 20}>
+else
+ LOCAL.timer=<argv3>
+endif
+OBJ=<UID>
+FOR ammount 1 <LOCAL.amt>
+ serv.newitem <eval {<LOCAL.item>}>
+ new.p=<OBJ.p.x>,<eval <OBJ.p.y>+1>, <OBJ.p.z>
+ new.movenear <OBJ.uid> <eval {1 <LOCAL.radius>}>
+ new.link=<obj.uid>
+ new.timerf <LOCAL.timer>,remove
+ new.update
+ENDFOR
+

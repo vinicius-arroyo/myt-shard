@@ -1,67 +1,12 @@
 //***********************************************************
-//		SPELL EARTHQUAKE
-//***********************************************************
-
-[FUNCTION f_spl_eathquake]
-SERV.NEWITEM i_spl_earthquake
-NEW.MORE1=<magery>
-NEW.p=<p>
-NEW.LINK=<UID>
-new.timerd 1
-sfx 022d
-TIMERF 2,SFX,022e
-
-[FUNCTION f_spl_earthquake_rumble]
-SERV.NEWITEM {01b01 01b08}
-NEW.ATTR=012
-NEW.TIMER=3
-NEW.MOVENEAR <UID> 12
-NEW.UPDATE
-DORAND 12
- NEW.SAY pom
- NEW.SAY pum
- NEW.SAY pla
- NEW.SAY planc
- NEW.SAY plin
- NEW.SAY bom!
- NEW.SAY bum!
- NEW.SAY Bam!
- NEW.SAY Crash!
- NEW.SAY Cram!
- NEW.SAY TRAN!
- NEW.SAY TRATAN!
- NEW.SAY CABUM!
-ENDDO
-
-[ITEMDEF i_spl_earthquake]
-id=01b01
-NAME=Earthquake
-TYPE=t_script
-
-on=@timer
-if (<more2> <= 15)
- f_spl_earthquake_rumble
- more2=<MORE2>+1
- timerd 1
-else
- OBJ=<UID>
- FORCHARS 12
-  sfx 011e
-  damagespell s_Earthquake, DAM_PHYSICAL, <OBJ.MORE1>, <OBJ.LINK>
-  if (<hits> > 0) && (!<NPC>)
-   sleep
-   morte_equip <UID>
-  endif
- ENDFOR
- remove
-endif
-return 1
-
-//***********************************************************
 //		SPELL SUMMON ANIMAL
 //***********************************************************
 [FUNCTION f_spl_summon_animal]
-LOCAL.DIF=<EVAL <magery>/100>
+IF (<argv0>)
+ LOCAL.DIF=<EVAL <argv0>/100>
+else
+ LOCAL.DIF=<EVAL <magery>/100>
+ENDIF
 IF (<LOCAL.DIF> > 10)
  LOCAL.DIF=10
 endif
@@ -96,39 +41,135 @@ elif (<LOCAL.DIF>==10)
  f_summon_creature <local.animal2>,47
 endif
 
-//***********************************************************
-//		SPELL STALAGMITE
-//***********************************************************
-[FUNCTION f_spl_stalagmite]
-SERV.NEWITEM i_spl_stalagmite
-new.dispid={08e1 1 08e0 1 08e7 1}
-new.p=<p>
-new.z=<new.z>-10
-new.timerd 1
-sfx 022d
-SRC.DAMAGE <eval {3 8}> DAM_PHYSICAL
 
-[ITEMDEF i_spl_stalagmite]
-ID=08e1
-TYPE=t_script
+
+//***********************************************************
+//		SPELL ANIMALFORM
+//***********************************************************
+[FUNCTION f_spl_animal_form]
+IF (<argv0>)
+ LOCAL.Skill=<argv0>
+ELSE
+ LOCAL.Skill=<magery>
+ENDIF
+//Que tempo?
+LOCAL.time=<eval {1 (<LOCAL.Skill>/6)}>
+LOCAL.time=<eval {<LOCAL.time> (<LOCAL.Skill>/6)}>	//Gausseana acoxambrada
+//Que corpo?
+LOCAL.dif=<eval {4 (<LOCAL.Skill>/100)}>
+LOCAL.dif=<eval {<LOCAL.dif> (<LOCAL.Skill>/100)}>	//Gausseana acoxambrada
+//Pressetar para cachorro se o teste deu 50.0
+LOCAL.body c_dog
+LOCAL.MODSTR=5
+LOCAL.MODDEX=5
+LOCAL.MODINT=-15
+if (<local.dif> == 5)
+ LOCAL.body c_wolf
+ LOCAL.MODSTR=5
+ LOCAL.MODDEX=10
+ LOCAL.MODINT=-15
+ELIF (<local.dif> == 6)
+ LOCAL.body c_wolf_white
+ LOCAL.MODSTR=10
+ LOCAL.MODDEX=10
+ LOCAL.MODINT=-15
+ELIF (<local.dif> == 7)
+ LOCAL.body c_goat
+ LOCAL.MODSTR=10
+ LOCAL.MODDEX=15
+ LOCAL.MODINT=-15
+ELIF (<local.dif> == 8)
+ LOCAL.body c_panther
+ LOCAL.MODSTR=15
+ LOCAL.MODDEX=20
+ LOCAL.MODINT=-20
+ELIF (<local.dif> == 9)
+ LOCAL.body c_bear_brown
+ LOCAL.MODSTR=20
+ LOCAL.MODDEX=20
+ LOCAL.MODINT=-20
+ELIF (<local.dif> == 10)
+ LOCAL.body c_bear_grizzly
+ LOCAL.MODSTR=25
+ LOCAL.MODDEX=20
+ LOCAL.MODINT=-20
+ELIF (<local.dif> > 10)		//Teste maior que 100.0
+ LOCAL.body {c_bear_grizzly 1 c_bear_brown 1 c_panther 1}
+ LOCAL.MODSTR=30
+ LOCAL.MODDEX=25
+ LOCAL.MODINT=-25
+ENDIF
+f_polymorph <LOCAL.body>,<LOCAL.time>,<LOCAL.modstr>,<LOCAL.moddex>,<LOCAL.modint>
+
+
+//***********************************************************
+//		SPELL PLANTA CARNIVORA
+//***********************************************************
+//Sumona planta carnivora no lugar do player.
+//Não deixa o player andar, mas pode usar magias, lutar e usar skills.
+[FUNCTION f_spl_planta_carnivora]
+IF (!<argv0>
+ LOCAL.skill=500
+ELSE
+ LOCAL.skill=<argv0>
+ENDIF
+LOCAL.timer=<eval (<LOCAL.skill>/22)+15>
+LOCAL.str=<eval (<LOCAL.skill>/17)+20>
+serv.newnpc c_corpser
+new.p=<p>
+new.str=<LOCAL.str>
+new.hits=<LOCAL.str>
+new.invis 0
+new.events +e_spl_planta_carnivora
+OBJ=<new.uid>
+serv.newitem i_mry_summon
+new.more2 <LOCAL.timer>
+new.link <uid>
+new.cont <obj>
+new.timer 1
+obj.anim 12
+obj.timerf 2,attack,<uid>
+f_cela_imovel <LOCAL.timer>
+
+//***********************************************************
+//		SPELL ENTANGLE
+//***********************************************************
+
+[FUNCTION f_spl_entangle]
+//f_field_sparce <item>, <ammount>, <raio>, <tempo>
+if (strmatch(<argv0>,))
+ LOCAL.skill=500
+endif
+LOCAL.amt=<eval {3 (<LOCAL.skill>/100)}>
+LOCAL.timer=<eval {10 (<LOCAL.skill>/40)}>
+f_field_sparce i_spl_entangle, <LOCAL.amt>, 2, <LOCAL.timer>
+
+[ITEMDEF i_spl_entangle]
+ID=0c8d
+NAME=galhos emaranhados
+
+on=@create
+timerd=<eval {3 12}>
 
 on=@timer
-if (<more2> <=10)
- more2=<more2>+1
- nudgeup 1
- timerd 1
-else
- timerf 15,remove
+DISPID={0d3f 0d40}
+timerd=<eval {3 12}>
+DORAND 12
+ sfx 04f
+ sfx 048
+ sfx 0191
+ENDDO
+color=colors_green
+if (!<more1>) && (!RAND(4))
+ movenear <link> 2
 endif
+update
 return 1
 
 on=@step
-SRC.DAMAGE <eval {2 5}> DAM_PHYSICAL
+if (!<more1>)
+ src.stun <eval {3 7}>
+ more1=1
+endif
 
-//***********************************************************
-//		SPELL SUMMON EARTH ELEMENTAL
-//***********************************************************
-[FUNCTION f_spl_summon_elem_earth]
-LOCAL.timer=<eval <magery>/67>		//0 a 15 segundos
-f_summon_creature c_elem_earth,<LOCAL.timer>
 [EOF]
