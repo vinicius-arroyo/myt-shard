@@ -5,13 +5,30 @@
 //		     Galthar 2007
 //
 //*************************************************************
+[DEFNAME d_magias]
+spl_harm	01
+spl_resist	02
+spl_help	04
+spl_mry		08
+spl_missil	010
+
+splt_vida	01
+splt_agua	02
+splt_materia	04
+splt_ar		08
+splt_fogo	010
+splt_morte	020
+splt_terra	040
+splt_energia	080
+
+
 
 //*************************************************************
 //		FUNCTIONS GERAIS DE SPELL
 //*************************************************************
 
 //Se PCs podem castar.
-//CanAdvCast <mana> <skilldif> <delay> <tag.mag>
+//CanAdvCast <mana> <skilldif> <delay> <splt_xxx>
 [FUNCTION CanAdvCast]
 if (<restest i_npc_spell_delay 1>) || (<tag0.spell_delay>)
  sysmessagered Voce ainda nao se recuperou da ultima magia.
@@ -34,6 +51,25 @@ endif
 [FUNCTION CalcMagery]
 //<ARGN0> splt_xxx
 
+[f_skillPerMag]
+//Retorna %skill corrigido pelo tag.mag (ajustado no dialog d_magia)
+//<argv0> = skill
+//<argv1> = tag.mag
+LOCAL.percent=<eval ((10*<argv1>)+50)>
+LOCAL.skill=<eval ((<argv0>*<LOCAL.percent>)/100)>
+RETURN <eval <LOCAL.skill>>
+
+[f_manaPerMag]
+//Retorna custo em mana corrigido pelo tag.mag (ajustado no dialog d_magia)
+//<argv0> = mana
+//<argv1> = tag.mag
+IF (<argv1> <= 5)
+ LOCAL.percent=<eval ((10*<argv1>)+50)>
+ELSE
+ LOCAL.percent=<eval (20*<argv1>)>
+ENDIF
+LOCAL.mana=<eval ((<argv0>*<LOCAL.percent>)/100)>
+RETURN <eval <LOCAL.mana>>
 
 //Falha uma magia
 [FUNCTION cast_fizzle]
@@ -78,6 +114,9 @@ endif
 //*************************************************************
 
 [FUNCTION f_summon_creature]
+//Conjura uma criatura por um periodo de tempo ao ordens do mago
+//<argv0> = criatura
+//<argv1> = tempo (segundos)
 newnpc <argv0>
 act.p <p>
 obj <act.uid>
@@ -123,6 +162,9 @@ timer=1
 return 1
 
 [FUNCTION f_spl_polymorph]
+//Polymorph undead. Tira stats
+//<argv0> = body
+//<argv1> = skill
 if (0<argv1>==0)
  local.skill 500
  local.timer 30
@@ -158,7 +200,8 @@ effect 3 i_fx_curse 0 16 0 017d
 sfx 01fa
 
 [FUNCTION f_polymorph]
-//f_polymorph <body> <tempo> <str> <dex> <int>
+//Polymorph genérico
+//f_polymorph <body> <tempo> <modstr> <moddex> <modint>
 if (0<argv1>==0)
  local.timer 30
 else
@@ -242,6 +285,7 @@ remove
 return 1
 
 [FUNCTION f_field_sparce]
+//Cria um campo de <item>s ao redor do SRC.
 //f_field_sparce <item>, <ammount>, <raio>, <tempo>
 if (strmatch(<argv0>,))
  LOCAL.item=i_balao
@@ -272,4 +316,3 @@ FOR ammount 1 <LOCAL.amt>
  new.timerf <LOCAL.timer>,remove
  new.update
 ENDFOR
-
