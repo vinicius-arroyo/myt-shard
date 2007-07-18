@@ -215,16 +215,25 @@ if ( <LOCAL.amount> != <OBJ.amount> )
 	OBJ.amount = <LOCAL.amount>
 endif
 
+//create player vendorbox if doesnt exist
+REF1=<src.findlayer.layer_vendor_extra.uid>
+if (!<REF1>)
+	SERV.NEWITEM i_bankbox
+	NEW.layer=layer_vendor_extra
+	NEW.cont=<SRC>
+	REF1=<NEW>
+endif
+
 //remove from players bag and place it inside a new bag in the vendor bankbox
 //this prevents stacking items
 SERV.NEWITEM i_bag
-NEW.cont=<findlayer.layer_bankbox.uid>
+NEW.cont=<REF1>
 NEW.name=<OBJ.name>
 OBJ.cont=<NEW>
 OBJ.removefromview
 
 //insert item into DB
-DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <SRC.uid>>,idItem=<eval <OBJ>>,quantity=<eval <OBJ.amount>>,price=<eval <argv[1]>>,playerName='<SRC.TAG.name>',itemType=<eval <TAG.vendor_type>>"
+DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <SRC>>,idItem=<eval <OBJ>>,quantity=<eval <OBJ.amount>>,price=<eval <argv[1]>>,playerName='<SRC.TAG.name>',itemType=<eval <TAG.vendor_type>>"
 
 SRC.UPDATE
 
@@ -282,23 +291,25 @@ if ( <LOCAL.amount> != <OBJ.amount> )
 	//acerta quantidade que sera comprada
 	OBJ.amount = <LOCAL.amount>
 
+	//entrega item ao player comprador
+	OBJ.bounce
+	
 	//atualiza lista de vendas
 	DB.EXECUTE "UPDATE vendorItems SET idItem=<eval <NEW>>, quantity=<eval <NEW.amount>> WHERE id=<eval <LOCAL.id>>"
 
 else
-
-	//remove item da lista de vendas (e duplicatas caso haja... nunca se sabe)
-	DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>> OR idItem=<eval <OBJ>>"
+	//salva bag de 'protecao'
+	REF1=<OBJ.cont>
+	
+	//entrega item ao player comprador
+	OBJ.bounce
 
 	//remove bag de 'protecao'
-	OBJ=<OBJ.cont>
-	OBJ.remove
+	REF1.remove
 	
-	OBJ=<argv[0]>
+	//remove item da lista de vendas (e duplicatas caso haja... nunca se sabe)
+	DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>>"
 endif
-
-//entrega item ao player comprador
-OBJ.bounce
 
 if ( <LOCAL.totalPrice> >= vendor_minFeePrice )
 	LOCAL.fee=<eval (<LOCAL.totalPrice>*vendor_fee)/100>
@@ -348,16 +359,16 @@ LOCAL.itemType 	= <DB.ROW.itemType>
 LOCAL.playerName = <DB.ROW.playerName>
 
 //remove item da lista de vendas (e duplicatas caso haja... nunca se sabe)
-DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>> OR idItem=<eval <OBJ>>"
+DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>>"
 
-//remove bag de 'protecao'
-OBJ=<OBJ.cont>
-OBJ.remove
-
-OBJ=<argv[0]>
+//salva bag de 'protecao'
+REF1=<OBJ.cont>
 
 //entrega item ao player 
 OBJ.bounce
+
+//remove bag de 'protecao'
+REF1.remove
 
 SAY Aqui esta, volte sempre.
 
@@ -455,7 +466,7 @@ return 1
 //remove dados do vendedor do banco
 [FUNCTION vendor_removeVendor]
 if ( <DB.connected> )
-	DB.EXECUTE "DELETE FROM vendorItems WHERE idVendor=<eval <argv[0]>>"
+	DB.EXECUTE "UPDATE vendorItems SET idVendor=0 WHERE idVendor=<eval <argv[0]>>"
 endif
 return 1
 
@@ -594,6 +605,27 @@ elif ( <SRC.CTAG0.vendor_op>==3 )
 		dialog d_vendor_items
 	endif
 endif
+
+//*****************************************************************************
+// f_onchar_delete
+//*****************************************************************************
+// This function is called before client is going to delete a character.
+// SRC  --> char being deleted
+// ARGO --> the client deleting the character
+// RETURN
+//	  0 --> normal action (delete char)
+//	  1 --> denyes deletion
+[FUNCTION f_onchar_delete]
+if ( <DB.connected> )
+	//remove char itens on deletion
+	DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer=<eval <SRC>>"
+endif
+
+//*****************************************************************************
+// openVendorBox
+//*****************************************************************************
+[FUNCTION openVendorBox]
+findlayer.layer_vendor_extra.open
 
 //*****************************************************************************
 //*****************************************************************************
