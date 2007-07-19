@@ -1,3 +1,89 @@
+//more1	tempo de duracao do oleo
+//more2 se precisa verificar topobj
+[TYPEDEF t_luz_oleo]
+ON=@CLICK
+if (<timer><=0)
+	if (<more1><=0)
+		message <name> (sem oleo)
+		return 1
+	elif (<more1> > 600)
+		message <name>
+		return 1
+	else
+		message <name> (pouco oleo)
+		return 1
+	endif
+else
+	if (<timer> > 600)
+		message <name>
+		return 1
+	else
+		message <name> (pouco oleo)
+		return 1
+	endif
+endif
+
+ON=@CLIENTTOOLTIP
+if (<timer><=0)
+	if (<more1><=0)
+		f_sendTooltip <name>,Sem oleo.
+		return 1
+	elif (<more1> < 600)
+		f_sendTooltip <name>,O oleo esta acabando.
+		return 1
+	endif
+else
+	if (<timer> < 600)
+		f_sendTooltip <name>,O oleo esta acabando.
+		return 1
+	endif
+endif
+
+ON=@DCLICK
+if (<src.distance <uid>>>2)
+	src.sysmessageyellow Chegue mais perto.
+	return 1
+elif (<more2>) && (<topobj>!=<src>)
+	src.sysmessageyellow Somente acende/apaga em sua posse.
+	return 1
+endif
+
+//se apagado
+if (<timer><=0)
+	if (<more1><=0)
+		src.sysmessageyellow Voce precisa colocar mais oleo para acender
+		id=<TDATA3>
+		update
+		return 1
+	else
+		timer=<more1>
+		emotered acende
+		sfx 0225
+		id=<TDATA4>
+		if (<more2>)
+			equip
+		endif
+		update
+		return 1
+	endif
+else
+	emotered apaga
+	sfx 0226
+	id=<TDATA3>
+	more1=<timer>
+	timer=-1
+	update
+endif
+return 1
+
+ON=@TIMER
+emotered apaga
+sfx 0226
+dispid=<TDATA3>
+more1=0
+timer=-1
+update
+return 1
 
   //---------------------------------------//
  // sistema de catalisadores   por:Silver //
@@ -143,6 +229,10 @@ ENDIF
 ON=@CLICK
 MESSAGE <name> (<more>)
 RETURN 1
+
+ON=@CLIENTTOOLTIP
+f_sendTooltip <name>, Porcoes: <more>
+return 1
 
 [itemdef i_pilha_madeira1]
 NAME=pilha de madeira (pequena)
@@ -301,67 +391,19 @@ return 1
 [ITEMDEF 0b21]
 //lamp post empty
 DEFNAME=i_lamppost1
-TYPE=T_LIGHT_OUT
+TYPE=t_luz_oleo
 NAME=poste de metal
-TDATA3=i_lamppost1_lit
+TDATA3=i_lamppost1
+TDATA4=i_lamppost1_lit
 RESOURCES=1 I_CANDLE, 20 i_ingot_iron, 2 I_SAND
 CATEGORY=MyT - Decoration - Lightsources
 SUBSECTION=Lamps
 DESCRIPTION=Lamp Post (unlit)
 
-ON=@Create
-color=00b11
-MOREZ=1
-more1=0 //vai determinar se tem oleo ou não
-more2=0 //vai guardar o valor do timer, que quando chegar a 0 quer dizer que acabou o oleo
-
-on=@click
-if (<more1>==0)
-  message <name> (sem oleo)
-return 1
-elif (<more2> > 600)
-  message <name>
-return 1
-else
-  message <name> (pouco oleo)
-return 1
-endif
-return 1
-
-
-on=@dclick
-if (<more1>==0)
-	src.sysmessage Voce precisa colocar mais oleo para acender a lanterna
-return 1
-else
-	if (<topobj.uid>!=<src.uid>)
-	  message * acende *
-          sfx 0225
-	  src.newitem=i_lamppost1_lit
-	  src.act.timer=<more2>
-	  src.act.p=<p>
-	  src.update
-          remove
-	return 1
-	else
-	  message * acende *
-          sfx 0225
-	  src.newitem=i_lamppost1_lit
-	  src.act.timer=<more2>
-	  src.act.equip
-	  src.update
-          remove
-	return 1
-	endif
-return 1
-endif
-return 1
-
-
 [ITEMDEF 0b20]
 //lamp post
 DEFNAME=i_lamppost1_lit
-TYPE=T_LIGHT_LIT
+TYPE=t_luz_oleo
 NAME=poste de metal
 TDATA3=i_lamppost1
 TDATA4=i_lamppost1_lit
@@ -370,111 +412,24 @@ CATEGORY=MyT - Decoration - Lightsources
 SUBSECTION=Lamps
 DESCRIPTION=Lamp Post
 
-ON=@Create
-color=00b11
-MOREZ=1
-
-on=@click
-if (<timer> > 600)
-  message <name> 
-return 1
-else
-  message <name> (pouco oleo)
-return 1
-endif
-return 1
-
-
-on=@dclick
-	if (<topobj.uid>!=<src.uid>)
-	  sfx 0226
-	  src.newitem=i_lamppost3
-	  src.act.more1=1
-	  src.act.more2=<timer>
-	  src.act.p=<p>
-	  src.update
-          remove
-          message * apaga *
-	return 1
-	else
-          sfx 0226
-	  src.newitem=i_lamppost3
-	  src.act.more1=1
-	  src.act.more2=<timer>
-	  src.act.equip
-	  src.update
-          remove
-          message * apaga *
-	return 1
-	endif
-return 1
-
-
 
 [ITEMDEF 0b23]
 //lamp post unlit
 DEFNAME=i_lamppost2
-TYPE=T_LIGHT_OUT
+TYPE=t_luz_oleo
 NAME=poste simples
-TDATA3=i_lamppost2_lit
+TDATA3=i_lamppost2
+TDATA4=i_lamppost2_lit
 RESOURCES=1 I_CANDLE, 20 i_ingot_iron, 2 I_SAND
 CATEGORY=MyT - Decoration - Lightsources
 SUBSECTION=Lamps
 DESCRIPTION=Lamp Post (Unlit)
 
-ON=@Create
-color=00b11
-MOREZ=1
-more1=0 //vai determinar se tem oleo ou não
-more2=0 //vai guardar o valor do timer, que quando chegar a 0 quer dizer que acabou o oleo
-
-on=@click
-if (<more1>==0)
-  message <name> (sem oleo)
-return 1
-elif (<more2> > 600)
-  message <name>
-return 1
-else
-  message <name> (pouco oleo)
-return 1
-endif
-return 1
-
-
-on=@dclick
-if (<more1>==0)
-	src.sysmessage Voce precisa colocar mais oleo para acender a lanterna
-return 1
-else
-	if (<topobj.uid>!=<src.uid>)
-	  message * acende *
-          sfx 0225
-	  src.newitem=i_lamppost2_lit
-	  src.act.timer=<more2>
-	  src.act.p=<p>
-	  src.update
-          remove
-	return 1
-	else
-	  message * acende *
-          sfx 0225
-	  src.newitem=i_lamppost2_lit
-	  src.act.timer=<more2>
-	  src.act.equip
-	  src.update
-          remove
-	return 1
-	endif
-return 1
-endif
-return 1
-
 [ITEMDEF 0b22]
 //lamp post
 DEFNAME=i_lamppost2_lit
 NAME=poste simples
-TYPE=T_LIGHT_LIT
+TYPE=t_luz_oleo
 TDATA3=i_lamppost2
 TDATA4=i_lamppost2_lit
 RESOURCES=i_lamppost2
@@ -482,110 +437,23 @@ CATEGORY=MyT - Decoration - Lightsources
 SUBSECTION=Lamps
 DESCRIPTION=Lamp Post (lit)
 
-ON=@Create
-color=00b11
-MOREZ=1
-
-on=@click
-if (<timer> > 600)
-  message <name> 
-return 1
-else
-  message <name> (pouco oleo)
-return 1
-endif
-return 1
-
-
-on=@dclick
-	if (<topobj.uid>!=<src.uid>)
-	  message * apaga *
-          sfx 0226
-	  src.newitem=i_lamppost2
-	  src.act.more1=1
-	  src.act.more2=<timer>
-	  src.act.p=<p>
-	  src.update
-          remove
-	return 1
-	else
-          message * apaga *
-          sfx 0226
-	  src.newitem=i_lamppost2
-	  src.act.more1=1
-	  src.act.more2=<timer>
-	  src.act.equip
-	  src.update
-          remove
-	return 1
-	endif
-return 1
-
 [ITEMDEF 0b25]
 //fancy lamp post unlit
 DEFNAME=i_lamppost3
-TYPE=T_LIGHT_OUT
+TYPE=t_luz_oleo
 NAME=poste ornado
-TDATA3=i_lamppost3_lit
+TDATA3=i_lamppost3
+TDATA4=i_lamppost3_lit
 RESOURCES=1 I_CANDLE, 25 i_ingot_iron, 4 I_SAND
 CATEGORY=MyT - Decoration - Lightsources
 SUBSECTION=Lamps
 DESCRIPTION=Lamp Post (Fancy Unlit)
 
-ON=@Create
-color=00b11
-MOREZ=1
-more1=0 //vai determinar se tem oleo ou não
-more2=0 //vai guardar o valor do timer, que quando chegar a 0 quer dizer que acabou o oleo
-
-on=@click
-if (<more1>==0)
-  message <name> (sem oleo)
-return 1
-elif (<more2> > 600)
-  message <name>
-return 1
-else
-  message <name> (pouco oleo)
-return 1
-endif
-return 1
-
-
-on=@dclick
-if (<more1>==0)
-	src.sysmessage Voce precisa colocar mais oleo para acender a lanterna
-return 1
-else
-	if (<topobj.uid>!=<src.uid>)
-	  message * acende *
-          sfx 0225
-	  src.newitem=i_lamppost3_lit
-	  src.act.timer=<more2>
-	  src.act.p=<p>
-	  src.update
-          remove
-	return 1
-	else
-	  message * acende *
-          sfx 0225
-	  src.newitem=i_lamppost3_lit
-	  src.act.timer=<more2>
-	  src.act.equip
-	  src.update
-          remove
-	return 1
-	endif
-return 1
-endif
-return 1
-
-
 [ITEMDEF 0b24]
 //lamp post fancy lit
 DEFNAME=i_lamppost3_lit
 NAME=poste ornado 
-TYPE=T_LIGHT_LIT
+TYPE=t_luz_oleo
 TDATA3=i_lamppost3
 TDATA4=i_lamppost3_lit
 RESOURCES=i_lamppost3
@@ -593,165 +461,37 @@ CATEGORY=MyT - Decoration - Lightsources
 SUBSECTION=Lamps
 DESCRIPTION=Lamp Post (Fancy Lit)
 
-ON=@Create
-MOREZ=1
-color=00b11
-
-on=@click
-if (<timer> > 600)
-  message <name> 
-return 1
-else
-  message <name> (pouco oleo)
-return 1
-endif
-return 1
-
-
-on=@dclick
-	if (<topobj.uid>!=<src.uid>)
-	  message * apaga *
-          sfx 0226
-	  src.newitem=i_lamppost3
-	  src.act.more1=1
-	  src.act.more2=<timer>
-	  src.act.p=<p>
-	   src.update
-          remove
-	return 1
-	else
-          message * apaga *
-          sfx 0226
-	  src.newitem=i_lamppost3
-	  src.act.more1=1
-	  src.act.more2=<timer>
-	  src.act.equip
-	   src.update
-          remove
-	return 1
-	endif
-return 1
-
 [ITEMDEF 0a15]
 DEFNAME=i_lantern_lit
 DEFNAME2=i_lanterna_acesa
 name= Lanterna de oleo acesa
 RESOURCES=i_lantern
-TYPE=T_LIGHT_LIT
+TYPE=t_luz_oleo
 TDATA3=i_lantern
-TDATA4=i_lantern
+TDATA4=i_lantern_lit
 WEIGHT=2
-
 DUPELIST=0a16,0a17,0a1a,0a1b,0a1c,0a22,0a23,0a24
+LAYER=layer_light
 
-ON=@Create
-MOREZ=1
-
-on=@click
-if (<timer> > 600)
-  message <name> 
-return 1
-else
-  message <name> (pouco oleo)
-return 1
-endif
-return 1
-
-
-on=@dclick
-	if (<src.targ.distance> > 1) && (<src.targ.uid>!=<src.uid>) && (<src.targ.topobj.uid> !=<src.uid>)
- 		src.sysmessage Chegue mais perto.
- 		return 1
-	endif
-	if (<topobj.uid>!=<src.uid>)
-	  src.message * apaga *
-          sfx 0226
-	  src.newitem=i_lantern
-	  src.act.more1=1
-	  src.act.more2=<timer>
-	  src.act.p=<p>
-	   src.update
-          remove
-	return 1
-	else
-          src.message * apaga *
-          sfx 0226
-	  src.newitem=i_lantern
-	  src.act.more1=1
-	  src.act.more2=<timer>
-	  src.act.equip
-	   src.update
-          remove
- 	  endif
-return 1
-
+ON=@CREATE
+more2=1
 
 [ITEMDEF 0a18]
 DEFNAME=i_lantern
 DEFNAME2=i_lanterna
-name=Lanterna de oleo
-TYPE=T_LIGHT_OUT
-TDATA3=i_lantern_lit
+NAME=Lanterna de oleo
+TYPE=t_luz_oleo
+TDATA3=i_lantern
+TDATA4=i_lantern_lit
 WEIGHT=2
 DUPELIST=0a1d,0a25
-
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Tinker
 DESCRIPTION=Lanterna
+LAYER=layer_light
 
-ON=@Create
-MOREZ=1
-more1=0 //vai determinar se tem oleo ou não
-more2=0 //vai guardar o valor do timer, que quando chegar a 0 quer dizer que acabou o oleo
-
-on=@click
-
-
-if (<more1>==0)
-  message <name> (sem oleo)
-return 1
-elif (<more2> > 600)
-  message <name>
-return 1
-else
-  message <name> (pouco oleo)
-return 1
-endif
-return 1
-
-
-on=@dclick
-if (<src.targ.distance> > 1) && (<src.targ.uid>!=<src.uid>) && (<src.targ.topobj.uid> !=<src.uid>)
- 		src.sysmessage Chegue mais perto.
- 		return 1
-	endif
-if (<more1>==0)
-	src.sysmessage Voce precisa colocar mais oleo para acender a lanterna
-return 1
-else
-	if (<topobj.uid>!=<src.uid>)
-	  src.message * acende *
-          sfx 0225
-	  src.newitem=i_lantern_lit
-	  src.act.timer=<more2>
-	  src.act.p=<p>
-	   src.update
-          return 1
-	  remove
-	return 1
-	else
-	  src.message * acende *
-          sfx 0225
-	  src.newitem=i_lantern_lit
-	  src.act.timer=<more2>
-	  src.act.equip
-	   src.update
-          remove
-          return 1
-	endif
-return 1
-endif
-return 1
+ON=@CREATE
+more2=1
 
 
 [ITEMDEF 0fb1]
@@ -762,7 +502,6 @@ WEIGHT=500
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Blacksmith
 DESCRIPTION=forja 
-
 
 on=@create
 color=03e4
