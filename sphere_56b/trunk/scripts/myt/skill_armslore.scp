@@ -14,9 +14,74 @@
 
 //*****************************************************************************
 //*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+[DEFNAME armslore_msg]
+arml_dam1= Nao parece nem um pouco perigoso.
+arml_dam2= Pode machucar alguem um pouco.
+arml_dam3= Causa pouco dano.
+arml_dam4= Causa um dano razoavel.
+arml_dam5= Causa um dano consideravel.
+arml_dam6= E uma arma perigosa.
+arml_dam7= Causa um dano grande.
+arml_dam8= Causa um dano mortal.
+arml_dam9= E mortal.
+arml_dam10= E extremamente mortal.
+arml_dam11= E sobrenatural.
+ 
+arml_arm1= Nao oferece protecao.
+arml_arm2= Pode proteger um pouco.
+arml_arm3= Protege pouco.
+arml_arm4= Oferece uma protecao razoavel.
+arml_arm5= Oferece uma protecao consideravel.
+arml_arm6= Protege bem.
+arml_arm7= Protege muito bem.
+arml_arm8= E uma excelente protecao.
+arml_arm9= E quase a melhor protecao.
+arml_arm10= Te faz quase invencivel.
+arml_arm11= Tem uma protecao sobrenatural
+
+arml_dur1= quebrando.
+arml_dur2= em boas condicoes.
+arml_dur3= perfeito.
+
+//*****************************************************************************
+//*****************************************************************************
 // FUNCTIONs
 //*****************************************************************************
 //*****************************************************************************
+
+//*****************************************************************************
+// sk_armslore - armslore skill
+//*****************************************************************************
+[FUNCTION sk_armslore]
+
+ if (<src.targ.canseelos> == 0)
+  src.sysmessagered Seu alvo esta fora da linha de visao.
+  return 1
+ elif (!<src.targ.isweapon>) && (!<src.targ.isarmor>)
+  src.sysmessagered Use arms lore em armas ou armaduras.
+  return 1
+ elif (<src.findid.i_armslore_mry>)
+  src.sysmessagered Voce ainda nao pode analisar outro item.
+  return 1
+ endif
+
+ src.emoteyellow Observando <src.targ.name>
+ src.newitem i_armslore_mry
+ NEW.more=<eval 11-(<src.armslore>/100)>
+  
+ if ( <NEW.more> <= 0 )
+  NEW.more=1
+ endif
+ 
+ NEW.link=<src.targ>
+ NEW.cont=<src>
+ NEW.timer=1
+
+ return 1	
+endif
 
 //*****************************************************************************
 // f_weaponTargetItem
@@ -32,7 +97,9 @@ endif
 //*****************************************************************************
 //mostra tooltip de armas de acordo com armslore
 [FUNCTION f_weaponTooltip]
-
+if (!<maxhits>)
+	serv.log ALOOOW: <name> <type> <uid> <src>
+endif
 //gm ve tudo
 if (<src.gm>)
 	LOCAL.e=0
@@ -330,6 +397,79 @@ return 1
 [TYPEDEF t_armor_leather]
 ON=@CLIENTTOOLTIP
 f_armorTooltip
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+[ITEMDEF i_armslore_mry]
+id=i_deed
+name=Armslore Memory
+type=t_eq_script
+layer=layer_special
+weight=0
+
+ON=@TIMER
+
+// Se estiver fora de visao
+if (<cont.canseelos <link>> == 0)
+	link.sysmessageyellow Seu alvo esta fora da linha de visao.
+	remove
+	return 1
+endif 
+
+// Se for perturbado ou estiver incapacitado:
+if (<cont.f_isDisturbed>)
+	cont.sysmessageyellow Voce nao esta em condicoes de analisar nada.
+	remove
+	return 1
+endif
+
+//loop de animacao
+if (<more>)
+	more=<more>-1
+	timer=1
+	return 1 
+endif
+
+LOCAL.d=<eval (<link.dam.lo>+<link.dam.hi>)/2>
+LOCAL.a=<eval (<link.armor.lo>+<link.armor.hi>)/2>
+if ( <cont.armslore> < 30.0 )
+	LOCAL.dam=<eval ((<LOCAL.d>/25)*5)+2>
+	LOCAL.armor=<eval ((<LOCAL.a>/25)*5)+2>
+elif ( <cont.armslore> < 70.0 )
+	LOCAL.dam=<eval ((<LOCAL.d>/10)*2)+1>
+	LOCAL.armor=<eval ((<LOCAL.d>/10)*2)+1>
+else
+	LOCAL.dam=<eval (<LOCAL.d>/5)+1>
+	LOCAL.armor=<eval (<LOCAL.d>/5)+1>
+endif
+if ( <LOCAL.dam> > 11 )
+	LOCAL.dam = 11
+endif
+if ( <LOCAL.armor> > 11 )
+	LOCAL.armor = 11
+endif
+
+if (<link.isweapon>)
+	LOCAL.t=<link.name>: <DEF.arml_dam<eval <LOCAL.dam>>>
+else
+	LOCAL.t=<link.name>: <DEF.arml_arm<eval <LOCAL.armor>>>
+endif
+
+LOCAL.h=<eval ((<link.hits>*3)/<link.maxhits>)+1>
+
+if ( <LOCAL.h> > 3 )
+  LOCAL.h = 3
+endif
+
+cont.sysmessagegreen <LOCAL.t> Esta <DEF.arml_dur<eval <LOCAL.h>>>
+
+cont.skill_gain skill_armslore
+remove
 return 1
 
 [EOF]
