@@ -1,3 +1,18 @@
+//////////////////////////////////////////////////////////////////
+//			Mystical tales Shard			//
+//		    Events de NPCs ligados a AI			//
+//			Galthar 07/2007				//
+//								//
+//								//
+//////////////////////////////////////////////////////////////////
+
+//Definições de poderes de monstros
+[DEFNAME  MONSTERPOW]
+MONSTERPOW_MANADRAIN_FAR	01
+MONSTERPOW_MANADRAIN		02
+MONSTERPOW_MEDUSA		04
+MONSTERPOW_CHILL		08
+
 [EVENTS e_PvM]
 //CAHRGE - NPCs que podem correr, correm contra o player.
 on=@NPCActFight
@@ -9,6 +24,19 @@ if (<CAN>&MT_RUN)
  endif
 endif
 
+//////////////////////////////
+//	PODERES DE MONTROS (a distância)
+//////////////////////////////
+IF (<NPCCanPower>) && (<tag0.MONSTERPOW>)
+//Mana Drain Far
+//Drena mana de todos os players da tela
+ if (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_MANADRAIN_FAR>) && (RAND(<eval <INT>*250>) < <FOCUS>)
+  f_NPC_AI_PowerDelay 3
+  f_NPC_POW_Manadrain_Far
+ endif
+ENDIF//////////////FIM PODERES DE MONSTROS
+
+
 on=@Hit
 IF (<CAN>&MT_USEHANDS)
  //Tenho poção de stam? Preciso usar? Posso usar?
@@ -17,6 +45,20 @@ IF (<CAN>&MT_USEHANDS)
   timerf <LOCAL.timer>,f_NPC_AI_Use,i_bottle_red,1
  endif
 ENDIF
+
+//////////////////////////////
+//	PODERES DE MONTROS (de perto)
+//////////////////////////////
+IF (<NPCCanPower>) && (<tag0.MONSTERPOW>)
+//Chill
+//Efeito de clima frio. Talvez congele.
+ if (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_CHILL>) && (RAND(<eval <INT>*100>) < <FOCUS>)
+  f_NPC_AI_PowerDelay 6
+  src.f_NPC_POW_Chill <Focus>
+ endif
+ENDIF//////////////FIM PODERES DE MONSTROS
+
+
 
 on=@GetHit
 IF (<CAN>&MT_USEHANDS)
@@ -50,8 +92,12 @@ elif (<argn>==2)
  tag.charge=0
 else
  tag.HasCharge=0
+ if (<tag0.charge>)
+  tag.charge=0
+  moddex=<moddex>-100
+ endif
 endif
-RETURN 1
+
 
 [FUNCTION NPCCanCharge]
 if (<tag0.HasCharge>==1)
@@ -59,6 +105,72 @@ if (<tag0.HasCharge>==1)
 else
  return 1
 endif
+
+[FUNCTION MONSTER_POWER]
+tag0.MONSTERPOW=<eval <tag0.MONSTERPOW>|<argv0>>
+
+[FUNCTION f_NPC_AI_PowerDelay]
+if (<argn>)
+ tag0.HasPower=1
+ timerf <argn>,f_NPC_AI_PowerDelay
+else
+ tag0.HasPower
+endif
+
+[FUNCTION NPCCanPower]
+if (<tag0.HasPower>==1)
+ return 0
+else
+ return 1
+endif
+
+[FUNCTION f_NPC_POW_Manadrain_Far]
+LOCAL.mana=<eval {0 <f_rangeValue 5,25,<Focus>>}+5>
+LOCAL.range=<f_rangeValue 6,16,<Focus>>
+OBJ=<UID>
+LOCAL.did=0
+FORPLAYERS 6
+ IF (<mana> > <LOCAL.mana>)
+  mana=<mana>-<LOCAL.mana>
+ ELSE
+  mana=0
+ ENDIF
+ effect 3 i_fx_sparkle_2 0 16 0 01f
+ OBJ.mana=<obj.mana>+<LOCAL.mana>
+ cry
+ sysmessagered Sua energia esta sendo sugada!
+ LOCAL.did=1
+ENDFOR
+IF (<LOCAL.did>)
+ effect 3 i_fx_heal_effect 0 16 0
+ emoteyellow suga
+ sfx 0209
+ENDIF
+
+
+[FUNCTION f_NPC_POW_Chill]
+LOCAL.skill=<eval {0 <argn>}>
+IF (<LOCAL.SKILL> <= 600)
+ sysmessagegreen Voce esta sentindo frio.
+ emotegreen frio
+ LOCAL.losestam=<eval {0 2}>
+ELIF (<LOCAL.skill> <= 950)
+ sysmessagegreen VOCE ESTA QUASE CONGELANDO DE FRIO!
+ emotegreen muito frio
+ LOCAL.losestam=<eval {1 3}>
+ELSE
+ local.timer=<eval {0 <f_rangeValue 5,25,<local.skill>>}+5>
+ emotered congelou
+ stonned <local.timer>
+ sysmessagegreen Voce congelou de tanto frio!
+ RETURN 1
+ENDIF
+IF (<stam> > 3)
+ stam=<stam>-<LOCAL.losestam>
+ENDIF
+damage <LOCAL.losestam> dam_cold
+RETURN 0
+
 
 [EVENTS e_Undead]
 on=@NPCLookAtChar
