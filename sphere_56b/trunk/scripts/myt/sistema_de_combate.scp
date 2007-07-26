@@ -191,7 +191,6 @@ return 1
 // @HIT
 //*************************************
 ON=@HIT
-
 //MORE1H = maxItemHits
 //MORE1L = itemHits
 
@@ -277,10 +276,10 @@ endif
 
 //quando o atacado for um player ou npc
 if (({1 2400} <= <eval <LOCAL.esquiva>>)
- if (<NPC>==0) // se não for NPC...
+ if (<NPC>==0) && (<action> != Skill_Archery) // se não for NPC e nem desvia-se de flechas como o Neo...
   sysmessageyellow <src.name> esquiva-se de seu golpe!
  endif
- if (<src.NPC>==0) // Se o defensor não for NPC...
+ if (<src.NPC>==0) && (<action> != Skill_Archery) // Se o defensor não for NPC e nem desvia-se de flechas como o Neo......
   src.sysmessageyellow Voce consegue se esquivar do golpe!
  endif
  //som e animação
@@ -310,36 +309,22 @@ endif
 //ARMAS ENVENENADAS
 //MORE2=020
 //MOREX=carga de veneno
-
 //Se a arma na HAND1 estiver envenenada // && (<src.npc>!=12)
-if (<findlayer.layer_hand1.more2>==20)
+if (<argo.more2>==20)
  if (<swordsmanship> <= {1 2000}) || (<fencing> <= {1 2000}) || (<poisoning> <= {1 1300})
   if (<src.restest 1 i_veneno>==0)
    src.spelleffect s_poison, 300
   endif
-  findlayer.layer_hand1.morex=<findlayer.layer_hand1.morex>-1
-  if (<findlayer.layer_hand1.morex> == 0) || (<findlayer.layer_hand1.morex> >= 1000)
-   findlayer.layer_hand1.more2=0
-   findlayer.layer_hand1.name <findlayer.layer_hand1.tag.name>
+  argo.morex=<argo.morex>-1
+  if (<argo.morex> == 0) || (<argo.morex> >= 1000)
+   argo.more2=0
+   if !(strmatch(<argo.tag.name>,)
+    argo.name <argo.tag.name>
+   endif
   endif
  endif
- 
-//Se a arma na HAND2 estiver envenenada // && (<src.npc>!=12)
-elif (<findlayer.layer_hand2.more2>==20) 
- if (<swordsmanship> <= {1 2000}) || (<fencing> <= {1 2000}) || (<poisoning> <= {1 1300})
-  if (<src.restest 1 i_veneno>==0)
-   src.spelleffect s_poison, 300
-  endif
-  findlayer.layer_hand2.morex=<findlayer.layer_hand2.morex>-1
-  if (<findlayer.layer_hand2.morex> == 0) || (<findlayer.layer_hand2.morex> >= 1000)
-   findlayer.layer_hand2.more2=0
-   findlayer.layer_hand2.name <findlayer.layer_hand2.tag.name>
-  endif
- endif
-endif
-
 //Se a arma na HAND1 estiver encantada com Flamestrike
-if (<argo.more2>==51)
+elif (<argo.more2>==51)
  src.effect 2 i_fire_column 0 32 0
  LOCAL.dam_fire = <eval {5 10}>
  src.damage <LOCAL.dam_fire> dam_fire <uid>
@@ -347,12 +332,18 @@ if (<argo.more2>==51)
  if (<argo.morex>==0)
   argo.more2=0
  endif
-endif
-
 //Se a arma na HAND1 estiver encantada com Bless
-if (<argo.more2>==17)
+elif (<argo.more2>==17)
  src.effect 2 i_fx_heal_effect 0 32 0
  src.spelleffect s_bless <tactics> <UID>
+ argo.morex=<argo.morex>-1
+ if (<argo.morex>==0)
+  argo.more2=0
+ endif
+//Se a arma na HAND1 estiver encantada com Paralyse
+elif (<argo.more2>==38) && !(RAND(6))
+ src.effect 2 i_fx_heal_effect 0 32 0 09c
+ src.stun <eval {3 6}>
  argo.morex=<argo.morex>-1
  if (<argo.morex>==0)
   argo.more2=0
@@ -772,35 +763,29 @@ endif
 //Danificar armas /////////////////////////////
 ///////////////////////////////////////////////
 
-if (<findlayer.layer_hand1.type>==t_weapon_axe) || (<findlayer.layer_hand1.type>==t_weapon_fence) || (<findlayer.layer_hand1.type>==t_weapon_sword) || (<findlayer.layer_hand1.type>==t_weapon_mace_crook) || (<findlayer.layer_hand1.type>==t_weapon_mace_pick) || (<findlayer.layer_hand1.type>==t_weapon_mace_staff) || (<findlayer.layer_hand1.type>==t_weapon_mace_smith) || (<findlayer.layer_hand1.type>==t_weapon_mace_sharp)
- if (<npc>==0)
-  findlayer.layer_hand1.more1l=<findlayer.layer_hand1.more1l>-{0 1}
-  if (<findlayer.layer_hand1.more1l> > 08000 )
-   if (<NPC>==0) // se não for NPC...
-    sysmessageorange Sua arma foi destruida!
-   endif
-   if (<src.NPC>==0) // Se o defensor não for NPC...
-    src.sysmessageorange A arma de <src.name> foi destruida!
-   endif
-   findlayer.layer_hand1.remove
+
+
+if (<NPC>==0) && (<action> != Skill_Wrestling)
+ argo.more1l=<argo.more1l>-{0 1}
+ if (<argo.more1l> > 08000 ) || (<argo.more1l> < 1 )
+  sysmessageorange Sua arma foi destruida!
+  if (<src.NPC>==0) // Se o defensor não for NPC...
+   src.sysmessageorange A arma de <src.name> foi destruida!
+  endif
+  argo.remove
+ endif
+ if (<action> == Skill_Archery)
+  argo.morey=<argo.morey>-{0 2 1 1}
+  if (<argo.morey>==0)
+   argo.cont=<findlayer.layer_pack>
+   sysmessageorange O barbante do seu arco se partiu!
+   emoteorange barbante quebrou
+   argo.name=<argo.tag.name>
+   argo.update
   endif
  endif
 endif
 
-if (<findlayer.layer_hand2.type>==t_weapon_axe) || (<findlayer.layer_hand2.type>==t_weapon_fence) || (<findlayer.layer_hand2.type>==t_weapon_sword) || (<findlayer.layer_hand2.type>==t_weapon_mace_crook) || (<findlayer.layer_hand2.type>==t_weapon_mace_pick) || (<findlayer.layer_hand2.type>==t_weapon_mace_staff) || (<findlayer.layer_hand2.type>==t_weapon_mace_smith) || (<findlayer.layer_hand2.type>==t_weapon_mace_sharp)
- if (<NPC>==0)
-  findlayer.layer_hand2.more1l=<findlayer.layer_hand2.more1l>-{0 1}
-  if (<findlayer.layer_hand2.more1l> > 08000 )
-   if (<NPC>==0) // se não for NPC...
-    sysmessageorange Sua arma foi destruida!
-   endif
-   if (<src.NPC>==0) // Se o defensor não for NPC...
-    src.sysmessageorange A arma de <src.name> foi destruida!
-   endif
-   findlayer.layer_hand2.remove
-  endif
- endif
-endif
 
 
 
