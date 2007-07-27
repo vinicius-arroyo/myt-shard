@@ -1,35 +1,27 @@
-// Sistema de Cadeia alimentar Myt 
-// Por Silver 
-// Ultima edição em 17/12/04
-// Agradecimentos a Lerkur (lerkur@trigun.com)
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE CADEIA ALIMENTAR por
+//	Silver
+//	UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
 //
 // Adicionar isso as animais:
-// DESIRES=i_monster_marker
 // TEVENTS=e_marker_init
 //
-// TAG.ANIMAL=1 / carnivoro grande porte
-// TAG.ANIMAL=2	/ carnivoro médio porte
-// TAG.ANIMAL=3	/ carnivoro pequeno porte
-// TAG.ANIMAL=4 / herbivoro grande
-// TAG.ANIMAL=5 / herbivoro médio 
-// TAG.ANIMAL=6 / herbivoro pequeno
-// 
+// TAGS
+// tag.animal=1  carnivoro grande porte
+// tag.animal=2	 carnivoro médio porte
+// tag.animal=3	 carnivoro pequeno porte
+// tag.animal=4  herbivoro grande
+// tag.animal=5  herbivoro médio 
+// tag.animal=6  herbivoro pequeno
+// tag.ca_eat		 id body que o npc ira comer
 
-[DEFNAME NPC_AI_System_Options]
-npcai_opt_customcombat 00 //Use Kell's custom combat system (Boolean)
-npcai_opt_eatcorpse 00 //Allows for some NPCs to eat corpses to gain power (Boolean)
-npcai_opt_chasewants 00 //Causes NPC's to move toward any items they want (Boolean)
-
-[DEFNAME Race_Flags]
-//Herbivoros
-racef_herbg 000100000 //herbivoro grande  
-racef_herbm 000200000 //herbivoro medio
-racef_herbp 000300000 //herbivoro pequeno
-
-//Carnivoros 
-racef_gcarnivoro 000400000 // Carnivoros Grande porte
-racef_mcarnivoro 000500000 // Carnivoros medios
-racef_pcarnivoro 000600000 // Carnivoros menores
+[DEFNAME calimentar]
+ca_fome	10
 
 //*****************************************************************************
 //*****************************************************************************
@@ -38,403 +30,132 @@ racef_pcarnivoro 000600000 // Carnivoros menores
 //*****************************************************************************
 
 //*****************************************************************************
-// e_chase_items
+// e_calimentar
 //*****************************************************************************
-[EVENTS e_chase_items]
-ON=@NPCSeeWantItem
-IF ( (<FLAGS>&statf_war) )
-RETURN 1
-ENDIF
-VAR.DifX=<EVAL (<ACT.P.X>-<P.X>)>
-VAR.DifY=<EVAL (<ACT.P.Y>-<P.Y>)>
-IF ( ((<EVAL <VAR.DifX>>)>(0)) )
-IF ( ((<EVAL <VAR.DifY>>)>(0)) )
-WALK SE
-ELIF ( ((<EVAL <VAR.DifY>>)<(0)) )
-WALK NE
-ELSE
-WALK E
-ENDIF
-ELIF ( ((<EVAL <VAR.DifX>>)<(0)) )
-IF ( ((<EVAL <VAR.DifY>>)>(0)) )
-WALK SW
-ELIF ( ((<EVAL <VAR.DifY>>)<(0)) )
-WALK NW
-ELSE
-WALK W
-ENDIF
-ELSE
-IF ( ((<EVAL <VAR.DifY>>)>(0)) )
-WALK S
-ELIF ( ((<EVAL <VAR.DifY>>)<(0)) )
-WALK N
-ENDIF
-ENDIF
-RETURN 0
+[EVENTS e_calimentar]
 
-//*****************************************************************************
-// e_eatcorpse
-//*****************************************************************************
-[EVENTS e_eatcorpse]
-ON=@ItemStep
-IF ( (<ACT.BASEID>==i_corpse) && !((<FLAGS>)&(statf_war)) ) && (!<act.link.dex>)
-emotered comendo
-IF ((0<SRC.TAG.ANIMAL>) == 1 )		// Se é carnivoro de grande porte
-	Src.FOOD=<Src.FOOD>+10
-ELIF ((0<SRC.TAG.ANIMAL>) == 2 )
-	Src.FOOD=<Src.FOOD>+20
-ELSE	
-	Src.FOOD=<Src.FOOD>+30
-ENDIF
-Serv.newitem i_blood_pool_large
-New.p=<src.p>
-sfx 03c
-New.attr=attr_decay|attr_move_never
-New.timer=15
-UPDATE
-ACT.REMOVE 
-ENDIF
-RETURN 1
+ON=@DEATHCORPSE
+f_gmLog <name> died <argo.name>
+argo.tag.animal=<tag.animal>
 
-//*****************************************************************************
-// e_resist_infight
-//*****************************************************************************
-[EVENTS e_resist_infight]
+//default: npc
+//src: (n)pc being looked
+ON=@NPCLookAtChar
+
+//f_gmLog <name> see <src.name>/<act.name>/<argo.name>/<src.act.name>/<argo.act.name>
+
+//desiste do alvo se em warmode
+if (<flags>&statf_war)
+//	f_gmLog <name> ignorewar <src.name>:
+	return 0
+//ou se alvo nao for animal
+elif !( 0<src.tag.animal> )
+//	f_gmLog <name> tags <src.name>:
+	return 0
+//consigo ver?
+elif !( (0<src.canseelos>) )
+//	f_gmLog <name> los <src.name>:
+	return 0
+//se sou um pet comportado
+elif ( (0<memoryfindtype(memory_ipet)>) )
+//	f_gmLog <name> pet <src.name>:
+	return 0
+endif
+
+//se for carnivoro, tiver maior porte que o alvo, nao estiver 'cheio' e for mais forte
+if ( <tag.animal> < 4 ) && ( <tag.animal> < <src.tag.animal> ) && (<food> < <def.ca_fome>) && (<str> >= <src.str>)
+	f_gmLog <name> atacando <src.name> <src.tag.animal>
+	attack <src>
+	if (<R0,100> < <src.int>)
+		src.attack <uid>
+	endif
+//se mesmo porte (aliado) e aliado precisando de ajuda (e vivo)
+elif  ( <tag.animal>==<src.tag.animal> ) && (<src.flags>&statf_war) && (0<src.hits>) ) 
+	f_gmLog <name> ajudando <src.name> <src.tag.animal>
+	attack <src.memoryfindtype.memory_fight.link>
+//else
+//	f_gmLog <name> ignorando <src.name> <str>/<src.str>
+endif
+return 0
+
+//corpses me interessam se for carnivoro
+ON=@NPCLOOKATITEM
+
+//f_gmLog <name> vendo <argo.name>	
+if (<flags>&statf_war)
+	return 0 //ignora se em warmode
+elif ( <argo.type> != t_corpse )
+	return 0 //ignora se nao for corpse
+elif ( <argo.link.dex> )
+	return 0 //ignora body de players
+elif ( <tag.animal> > 3 )
+	return 0 //ignora se for herbivoro
+elif (<food> > <def.ca_fome>)
+	return 0 //ignora se nao tiver com fome
+elif (0<tag.ca_eat>) && (0<tag.ca_eat>!=<argo>)
+	return 0 //ignora se ja estiver indo atras de outro
+elif (<argo.distance> >= 2)
+	tag.ca_eat=<argo>
+	f_npcRunStepToUid <argo>,1
+	f_gmLog <name> seguindo corpse <argo.name>
+	return 0
+else
+//	f_gmLog <name> comendo corpse <argo.name>	
+	tag.ca_eat=0
+	emotered comendo
+	if ((0<tag.animal>) == 1 )		// se é carnivoro de grande porte
+		food=<food>+10
+	elif ((0<tag.animal>) == 2 )
+		food=<food>+20
+	else	
+		food=<food>+30
+	endif
+	serv.newitem i_blood_pool_large
+	new.p=<p>
+	sfx 03c
+	new.attr=attr_decay|attr_move_never
+	new.timer=15
+	update
+	argo.remove 	
+endif
+return 0
+
+//src:player
+//default:npc
+ON=@NPCSEENEWPLAYER
+if (<memoryfindtype(memory_ipet)>)
+	return 0
+//se carnivoro de grande porte e com fome, ataca player
+elif (<tag.animal>==1) && ( <food> < 20 )
+	f_gmLog <name> atacando player <src.name> f:<food>
+	attack <src>
+endif
+return 1
+
+ON=@CLICK
+if ( ((0<memoryfindtype(memory_ipet).link>)==(<src.uid>)) )
+	message <name> [companheiro]
+	return 1
+endif
+return 0
+
+ON=@CLIENTTOOLTIP
+if ( ((0<memoryfindtype(memory_ipet).link>)==(<src.uid>)) )
+	f_sendtooltip <name>,companheiro
+else
+	f_sendtooltipData <name>
+endif
+return 1
 
 //*****************************************************************************
 // e_marker_init
 //*****************************************************************************
+//mantido por compatibilidade com sistema antigo
 [EVENTS e_marker_init]
 ON=@EnvironChange
-IF !(0<SRC.TAG.NPCAI.Marker>)
-SRC.f_determine_race
-ENDIF
+SRC.EVENTS +e_calimentar
 SRC.EVENTS -e_marker_init
 RETURN 0
-
-//*****************************************************************************
-// e_click_recognition
-//*****************************************************************************
-[EVENTS e_click_recognition]
-ON=@Click
-IF ( ((0<MEMORYFINDTYPE(MEMORY_IPET).LINK>)==(<SRC.UID>)) )
-MESSAGE [Companheiro]
-ELIF ( ((0<SRC.TAG.NPCAI.Enemy>)&(0<TAG.NPCAI.Race>)) || ((0<TAG.NPCAI.Enemy>)&(0<SRC.TAG.NPCAI.Race>)) ) //If clicked (N)PC is an enemy
-MESSAGE [Inimigo Racial]
-ELIF ( ((0<TAG.NPCAI.Ally>)&(0<SRC.TAG.NPCAI.Race>)) || ((0<SRC.TAG.NPCAI.Ally>)&(0<TAG.NPCAI.Race>)) ) //If clicked (N)PC is an ally
-MESSAGE [Raça Aliada]
-ENDIF
-RETURN 0 // Display name
-
-//*****************************************************************************
-// e_attack_npcs_hate
-//*****************************************************************************
-[EVENTS e_attack_npcs_hate]
-ON=@NPCSeeWantItem 				//Vejo algo que quero.
-IF ( <ACT.ID>==i_monster_marker) 				
-//ID  da larg worldgem,i_monster_marker
-	IF !( (0<ACT.LINK.CanSeeLOS>) )
-		RETURN 1
-	ENDIF
-	IF ( <ACT.LINK.UID>==<SRC.UID> ) 		//Vi a mim mesmo.
-		RETURN 1 					//Fazer nada
-	ENDIF
-	IF ( (0<SRC.MEMORYFINDTYPE(MEMORY_IPET)>) )
-		RETURN 1
-	ENDIF
-	
-
-IF ( ( (0<SRC.TAG.NPCAI.ENEMY>) == (0<ACT.LINK.TAG.NPCAI.RACE>))||( 0<SRC.TAG.NPCAI.ENEMY2> == (0<ACT.LINK.TAG.NPCAI.RACE>) )||((0<SRC.TAG.NPCAI.ENEMY3>) == (0<ACT.LINK.TAG.NPCAI.RACE>) )||((0<SRC.TAG.NPCAI.ENEMY4>) == (0<ACT.LINK.TAG.NPCAI.RACE>) )||((0<SRC.TAG.NPCAI.ENEMY5>) == (0<ACT.LINK.TAG.NPCAI.RACE>) ) )//Se vi alguem da raca que odeio
-
-		IF (<SRC.FOOD> < 90)
-			
-SRC.AttackNPC
-		RETURN 1
-		ENDIF
-	
-		RETURN 1
-	ENDIF
-RETURN 1
-
-//
-ELIF ( ((0<SRC.TAG.NPCAI.Ally>) & (0<ACT.LINK.TAG.NPCAI.Race>)) || 	((0<ACT.LINK.TAG.NPCAI.Ally>)&(0<SRC.TAG.NPCAI.Race>)) ) 
-
-// Se sou aliado da raça do outro que vi
-		
-	IF ( (<ACT.LINK.FLAGS>&statf_war) && (0<ACT.LINK.ACT.HITS>) ) 
-		//Se meu aliado está em combate e vivo
-			
-				SRC.AssistAlly
-		RETURN 1
-		ENDIF
-	RETURN 1
-	ENDIF
-ELSE ( (0<SRC.TAG.NPCAI.RACE>) == (0<ACT.LINK.TAG.NPCAI.Race>) )	
-	//Se vi alguem de minha raça  		
-		say cai ak dentro
-		IF ( (<ACT.LINK.FLAGS>&statf_war) && (0<ACT.LINK.ACT.HITS>) ) 
-				//Se esta em combate e vivo
-				SRC.AssistAlly
-				RETURN 1
-		ENDIF
-	ENDIF
-RETURN 1
-ENDIF
-RETURN 1 //Não sei a diferença de retornar 1 ou 0 
-
-
-ON=@NPCSeeNewPlayer
-IF ( (0<MEMORYFINDTYPE(MEMORY_IPET)>) )
-RETURN 1
-ENDIF
-IF ( (0<TAG.NPCAI.Enemy>)&(0<SRC.TAG.NPCAI.Race>) )
-	IF ( <src.food> < 20 )
-		AttackPC
-		RETURN 1
-	ELSE
-		RETURN 1
-	ENDIF
-RETURN 1
-ENDIF
-
-//*****************************************************************************
-//*****************************************************************************
-// FUNCTIONs
-//*****************************************************************************
-//*****************************************************************************
-
-//*****************************************************************************
-// setgcarnivoro
-//*****************************************************************************
-// TIPO CARNIVORO grande porte
-// TAG.ANIMAL = 1
-[FUNCTION setgcarnivoro]
-TAG.NPCAI.Race=<EVAL racef_gcarnivoro>
-TAG.NPCAI.Ally=((0<TAG.NPCAI.Ally>)|<EVAL racef_gcarnivoro>) 
-TAG.NPCAI.Enemy=((0<TAG.NPCAI.Enemy>)|<EVAL racef_herbg>)
-TAG.NPCAI.Enemy2=((0<TAG.NPCAI.Enemy2>)|<EVAL racef_herbm>)
-TAG.NPCAI.Enemy3=((0<TAG.NPCAI.Enemy3>)|<EVAL racef_mcarnivoro>)
-TAG.NPCAI.Enemy4=((0<TAG.NPCAI.Enemy4>)|<EVAL racef_pcarnivoro>)
-TAG.NPCAI.EatCorpse=1
-TAG.NPCAI.chasewants=1
-TAG.NPCAI.Rank=(-1)
-TAG.NPCAI.FighterType=1
-
-//*****************************************************************************
-// setmcarnivoro
-//*****************************************************************************
-// TIPO CARNIVORO Médio
-// TAG.ANIMAL = 2
-[FUNCTION setmcarnivoro]
-TAG.NPCAI.Race=<EVAL racef_mcarnivoro>
-TAG.NPCAI.Ally=((0<TAG.NPCAI.Ally>)|<EVAL racef_mcarnivoro>) 
-TAG.NPCAI.Enemy=((0<TAG.NPCAI.Enemy2>)|<EVAL racef_herbm>)
-TAG.NPCAI.Enemy2=((0<TAG.NPCAI.Enemy3>)|<EVAL racef_herbp>)
-TAG.NPCAI.Enemy3=((0<TAG.NPCAI.Enemy4>)|<EVAL racef_pcarnivoro>)
-TAG.NPCAI.EatCorpse=1
-TAG.NPCAI.chasewants=1
-TAG.NPCAI.Rank=(-1)
-TAG.NPCAI.FighterType=1
-
-//*****************************************************************************
-// setpcarnivoro
-//*****************************************************************************
-// TIPO CARNIVORO Pequeno
-// TAG.ANIMAL = 3
-[FUNCTION setpcarnivoro]
-TAG.NPCAI.Race=<EVAL racef_pcarnivoro>
-TAG.NPCAI.Ally=((0<TAG.NPCAI.Ally>)|<EVAL racef_pcarnivoro>) 
-TAG.NPCAI.Enemy=((0<TAG.NPCAI.Enemy>)|<EVAL racef_herbp>)
-TAG.NPCAI.EatCorpse=1
-TAG.NPCAI.chasewants=1
-TAG.NPCAI.Rank=(-1)
-TAG.NPCAI.FighterType=1
-
-//*****************************************************************************
-// setherbg
-//*****************************************************************************
-// Tipo Herbívoro grande  
-// TAG.ANIMAL = 4
-[FUNCTION setherbg]
-//TAG.NPCAI.Ally=((0<TAG.NPCAI.Ally>)|<EVAL racef_herbg>) 
-TAG.NPCAI.Race=<EVAL racef_herbg>
-TAG.NPCAI.Rank=(-1)
-//TAG.NPCAI.Enemy=((0<TAG.NPCAI.Enemy>)|<EVAL racef_herbg>)
-//TAG.NPCAI.EatCorpse=1
-
-//*****************************************************************************
-// setherbm
-//*****************************************************************************
-// Tipo Herbívoro médio
-// TAG.ANIMAL = 5
-[FUNCTION setherbm]
-//TAG.NPCAI.Ally=((0<TAG.NPCAI.Ally>)|<EVAL racef_herbm>) 
-TAG.NPCAI.Race=<EVAL racef_herbm>
-TAG.NPCAI.Rank=(-1)
-//TAG.NPCAI.Enemy=((0<TAG.NPCAI.Enemy>)|<EVAL racef_herbm>)
-//TAG.NPCAI.EatCorpse=1
-
-//*****************************************************************************
-// setherbp
-//*****************************************************************************
-// Tipo Herbívoro pequeno 
-// TAG.ANIMAL = 6
-[FUNCTION setherbp]
-//TAG.NPCAI.Ally=((0<TAG.NPCAI.Ally>)|<EVAL racef_herbp>) 
-TAG.NPCAI.Race=<EVAL racef_herbp>
-TAG.NPCAI.Rank=(-1)
-//TAG.NPCAI.Enemy=((0<TAG.NPCAI.Enemy>)|<EVAL racef_herbp>)
-//TAG.NPCAI.EatCorpse=1
-
-//*****************************************************************************
-// f_determine_race
-//*****************************************************************************
-[FUNCTION f_determine_race]
-ResetRace
-IF ( <NPC> )
-NEWITEM i_monster_marker //Create the marker
-ACT.P=<P> //Set the marker at the NPC's feet
-ACT.Z=(-70) //Put the marker out of sight
-ACT.LINK=<UID> //Make the NPC the marker's link
-TAG.NPCAI.Marker=<ACT.UID> //Make a tag on the NPC to reference the marker if need be
-ENDIF
-IF ( (<NPC>==BRAIN_ANIMAL) || (<NPC>==BRAIN_MONSTER) ) 
-	IF (0<src.TAG.ANIMAL>==1)
-		setgcarnivoro
-	Elif ((0<src.TAG.ANIMAL>)==2)
-		setmcarnivoro
-	Elif ((0<src.TAG.ANIMAL>)==3)
-		setpcarnivoro
-	Elif ((0<src.TAG.ANIMAL>)==4)
-		setherbg
-	Elif ((0<src.TAG.ANIMAL>)==5)
-		setherbm
-	Else
-		setherbp
-	ENDIF
-ENDIF
-SetBasics
-TAG.NPCAI.OrigHome=<P>
-
-//*****************************************************************************
-// SetBasics
-//*****************************************************************************
-[FUNCTION SetBasics]
-EVENTS +e_combat
-EVENTS +e_click_recognition
-
-IF !( (0<TAG.NPCAI.ONPC>) )
-	IF ( (<NPC>==1) || (<NPC>==2) || (<NPC>==10) || (<NPC>==13) )
-		TAG.NPCAI.ONPC=<NPC>
-//		NPC=14 //Setting NPC to 14 keeps them from attacking 		//when not wanted
-	ENDIF
-ENDIF
-IF ( (0<FINDLAYER(41).LINK.HITS>) && !(<NPC>==11) )
-	TAG.NPCAI.Race=<FINDLAYER(41).LINK.TAG.NPCAI.Race>
-	TAG.NPCAI.Rank=<EVAL((<FINDLAYER(41).LINK.TAG.NPCAI.Rank>)-(1))>
-	TAG.NPCAI.Enemy=<FINDLAYER(41).LINK.TAG.NPCAI.Enemy>
-	TAG.NPCAI.Enemy2=<FINDLAYER(41).LINK.TAG.NPCAI.Enemy2>
-	TAG.NPCAI.Enemy3=<FINDLAYER(41).LINK.TAG.NPCAI.Enemy3>
-	TAG.NPCAI.Enemy4=<FINDLAYER(41).LINK.TAG.NPCAI.Enemy4>
-	TAG.NPCAI.Enemy5=<FINDLAYER(41).LINK.TAG.NPCAI.Enemy5>
-	TAG.NPCAI.Ally=<FINDLAYER(41).LINK.TAG.NPCAI.Ally>
-	TAG.NPCAI.ResistInfight=<FINDLAYER(41).LINK.ISEVENT.e_resist_infight>
-	KARMA=<FINDLAYER(41).LINK.KARMA>
-	FAME=<FINDLAYER(41).LINK.FAME>
-ENDIF
-IF !( <NPC> )
-	RETURN 0
-ENDIF
-IF ( (0<TAG.NPCAI.Enemy>) )
-	EVENTS +e_attack_npcs_hate
-ENDIF
-IF !( 0<TAG.NPCAI.Ally> )
-	TAG.NPCAI.Ally=0
-ENDIF
-IF ( (0<TAG.NPCAI.ResistInfight>) || (0<TAG.NPCAI.ImmuneInfight>) )
-	EVENTS +e_resist_infight
-	TAG.NPCAI.ResistInfight=
-ENDIF
-IF ( (0<TAG.NPCAI.chasewants>) == 1)
-	EVENTS +e_chase_items
-ENDIF
-IF ( (0<TAG.NPCAI.EatCorpse>) == 1)
-	EVENTS +e_eatcorpse
-ENDIF
-
-
-//*****************************************************************************
-// ResetRace
-//*****************************************************************************
-[FUNCTION ResetRace]
-TAG.NPCAI.Race=00
-TAG.NPCAI.Ally=00
-TAG.NPCAI.Enemy=00
-TAG.NPCAI.Enemy2=00
-TAG.NPCAI.Enemy3=00
-TAG.NPCAI.Enemy4=00
-TAG.NPCAI.Enemy5=00
-TAG.NPCAI.FighterType=00
-TAG.NPCAI.ResistInfight=00
-TAG.NPCAI.Rank=00
-TAG.NPCAI.EatCorpse=00
-IF ( (0<TAG.NPCAI.ONPC>) )
-NPC=<TAG.NPCAI.ONPC>
-TAG.NPCAI.ONPC=
-ENDIF
-IF ( (<EVAL npcai_opt_customcombat>) )
-EVENTS -e_combat
-ENDIF
-EVENTS -e_attack_npcs_hate
-EVENTS -e_resist_infight
-EVENTS -e_click_recognition
-IF ( (<EVAL npcai_opt_chasewants>) )
-EVENTS -e_chase_items
-ENDIF
-IF ( (<EVAL npcai_opt_eatcorpse>) )
-EVENTS -e_eatcorpse
-ENDIF
-
-//*****************************************************************************
-// AttackNPC
-//*****************************************************************************
-[FUNCTION AttackNPC]
-IF ( (<SRC.FIXACTION>==(skill_magery)) || (<SRC.FINDLAYER(layer_spell_summon)>) || (<FLAGS>& statf_pet) )
-RETURN 0
-ENDIF
-IF ( ((0<SRC.TAG.NPCAI.FighterType>)==0) || (0<SRC.TAG.NPCAI.MakeFight>) || (<SRC.ACT.LINK.FLAGS>& statf_war) || ((0<SRC.ACT.LINK.TAG.NPCAI.FighterType>)!=0) )
-SRC.TAG.NPCAI.MakeFight= //Clear MakeFight tag
-SRC.ACT.LINK.NEWITEM i_attackcue_mem //Create a memory item to trigger the attack with
-SRC.ACT.LINK.ACT.LINK=<SRC.UID> //Set the link to the target for .ATTACK (Happens to be SRC)
-SRC.ACT.LINK.ACT.CONT=<SRC.ACT.LINK.UID> //Equip (sort of) the memory item on the spotted NPC
-SRC.ACT.LINK.ACT.REMOVE //Remove memory and trigger @UnEquip
-ELIF ( (<SRC.HITS>)>(<SRC.ACT.LINK.HITS>) ) //One in three chance
-SRC.TAG.NPCAI.MakeFight=1 //Fight anyway
-SRC.AttackNPC
-ENDIF
-
-//*****************************************************************************
-// AttackPC
-//*****************************************************************************
-[FUNCTION AttackPC]
-IF ( (<SRC.FIXACTION>!=(skill_magery)) && (!(<SRC.FLAGS>&statf_invul)) && !(<SRC.FINDLAYER(layer_spell_summon)>) && !(<FLAGS>& statf_pet) )
-SRC.NEWITEM i_attackcue_mem //Create a memory item to trigger the attack with
-SRC.ACT.LINK=<UID> //Set the link to the target for .ATTACK (Happens to be SRC)
-SRC.ACT.CONT=<SRC.UID> //Equip (sort of) the memory item on the spotted NPC
-SRC.ACT.REMOVE //Remove memory and trigger @UnEquip
-ENDIF
-
-//*****************************************************************************
-// AssistAlly
-//*****************************************************************************
-[FUNCTION AssistAlly]
-IF ( (<SRC.FIXACTION>!=(skill_magery)) && !(<SRC.FINDLAYER(layer_spell_summon)>) && !(<FLAGS>&statf_pet) )
-SRC.ACT.LINK.ACT.NEWITEM i_attackcue_mem //Create a memory item to trigger the attack with
-SRC.ACT.LINK.ACT.ACT.LINK=<SRC.UID> //Set the link to the target for .ATTACK (Happens to be SRC)
-SRC.ACT.LINK.ACT.ACT.CONT=<SRC.ACT.LINK.ACT.UID> //Equip (sort of) the memory item on the spotted NPC
-SRC.ACT.LINK.ACT.ACT.REMOVE //Remove memory and trigger @UnEquip
-ENDIF 
-
 
 //*****************************************************************************
 //*****************************************************************************
@@ -445,6 +166,7 @@ ENDIF
 //*****************************************************************************
 // 01f13
 //*****************************************************************************
+//mantido por compatibilidade com sistema antigo
 [ITEMDEF 01f13]
 DEFNAME=i_monster_marker
 NAME=Monster Marker
@@ -456,28 +178,5 @@ DESCRIPTION=Monster Marker
 
 ON=@Create
 ATTR=04082
-TIMERD=1
-
-ON=@Timer
-IF ( 0<LINK.HITS> ) //Make sure link exists and is alive
-	P=<LINK.P>
-	Z=(-70) //Set Z to a level that the player cannot see
-	REMOVEFROMVIEW
-	TIMER=5 //Reset the timer so it will fire again
-	RETURN 1 //Do not decay
-ELSE
-	RETURN 0 //Do decay
-ENDIF
-
-//*****************************************************************************
-// i_attackcue_mem
-//*****************************************************************************
-[ITEMDEF i_attackcue_mem]
-ID=i_memory
-TYPE=t_eq_script
-NAME=Attack Cue
-
-ON=@UnEquip
-SRC.ACT.LINK.ATTACK //Cause the linked NPC to attack the SRC one
 
 [EOF]
