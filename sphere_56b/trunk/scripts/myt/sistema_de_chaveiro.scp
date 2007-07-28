@@ -151,7 +151,7 @@ if (<src.targ.distance> > 1)
    src.sysmessage Chegue mais perto.
    target Selecione a porta ou o container para trancar com este cadeado.
 return 1
-elif (<src.targ.type>==t_armadilha_container) || (<src.targ.type>==t_armadilha_porta)
+elif (<src.targ.type>==t_trap)
    src.targ.use
 return 1
 elif (<src.targ.type>==t_door_locked) || (<src.targ.type>==t_container_locked)
@@ -641,11 +641,14 @@ if (<src.targ.distance> > 1)
    src.sysmessage Chegue mais perto.
    target Selecione a porta ou o container com fechadura ou cadeado.
 return 1
-elif (<src.targ.type>==t_armadilha_container) || (<src.targ.type>==t_armadilha_porta)
+elif (<src.targ.type>==t_trap)
    src.targ.use
 return 1
 elif (<src.targ.type>==t_door) || (<src.targ.type>==t_container)
    src.sysmessage isto nao esta trancado.
+return 1
+elif !(<src.targ.attr>&attr_stolen)
+   src.sysmessage Esta fechadura eh absurdamente complexa para sua habilidade.
 return 1
 elif (<src.targ.type>==t_door_locked) || (<src.targ.type>==t_container_locked)
 	if (strmatch(<src.targ.tag.fechadura>,complexa))
@@ -714,11 +717,14 @@ if (<src.targ.distance> > 1)
    src.sysmessage Chegue mais perto.
    target Selecione a porta ou o container com fechadura ou cadeado.
 return 1
-elif (<src.targ.type>==t_armadilha_container) || (<src.targ.type>==t_armadilha_porta)
+elif (<src.targ.type>==t_trap)
    src.targ.use
 return 1
 elif (<src.targ.type>==t_door) || (<src.targ.type>==t_container)
    src.sysmessage isto nao esta trancado.
+return 1
+elif !(<src.targ.attr>&attr_stolen)
+   src.sysmessage Esta fechadura eh muito absurdamente complexa para sua habilidade.
 return 1
 elif (<src.targ.type>==t_door_locked) || (<src.targ.type>==t_container_locked)
    if (<src.lockpicking> < 50.0)
@@ -787,7 +793,7 @@ endif
 		cont.sysmessage Voce gira a micha para destravar a trava oposta enquanto mantem a trava principal e secundaria abertas.
 	endif
 	ganho_skill_lockpick
-	cont.say LOOP!  	// DEBUG
+//	cont.say LOOP!  	// DEBUG
 if (strmatch(<link.tag.fechadura>,cadeado)) && (<more2>>=10)
   dorand <eval (101 + (-((<cont.lockpicking>)/(10))))/(5) >
      begin
@@ -797,13 +803,7 @@ if (strmatch(<link.tag.fechadura>,cadeado)) && (<more2>>=10)
 	cont.act.cont=<cont> 	// bug do bounce
 	cont.act.more2=1   	// quebra o cadeado, tornando-o inutilizável
 	link.link=04fffffff	// tira o link da porta
-	if (<link.type>==t_door_locked)
-		link.type=t_door
-		link.update
-	elif (<link.type>==t_container_locked)
-		link.type=t_container
-		link.update
-	endif
+	f_unlock <link>		// troca o type, testa se precisa retrancar, põe o timer pra trancar.
 	ganho_skill_lockpick_fim
 	link.tag.fechadura=	// apaga a tag da fechadura
 	sfx 511
@@ -815,20 +815,12 @@ if (strmatch(<link.tag.fechadura>,cadeado)) && (<more2>>=10)
 	remove
 	return 1
      end
-
   enddo
 elif (strmatch(<link.tag.fechadura>,simples)) && (<more2>>=20)
   dorand <eval (131 + (-((<cont.lockpicking>)/(10))))/(4) >
      begin
 	cont.message *Conseguiu abrir a fechadura*
-	if (<link.type>==t_door_locked)
-		link.type=t_door
-		link.update
-		link.use
-	elif (<link.type>==t_container_locked)
-		link.type=t_container
-		link.update
-		link.use
+	f_unlock <link.uid>
 	endif
 	sfx 511
 	ganho_skill_lockpick_fim
@@ -839,20 +831,12 @@ elif (strmatch(<link.tag.fechadura>,simples)) && (<more2>>=20)
 	remove
 	return 1
      end
-
   enddo
 elif (strmatch(<link.tag.fechadura>,normal)) && (<more2>>=40)
   dorand <eval (141 + (-((<cont.lockpicking>)/(10))))/(3) >
      begin
 	cont.message *Conseguiu abrir a fechadura*
-	if (<link.type>==t_door_locked)
-		link.type=t_door
-		link.update
-		link.use
-	elif (<link.type>==t_container_locked)
-		link.type=t_container
-		link.update
-		link.use
+	f_unlock <link.uid>
 	endif
 	sfx 511
 	ganho_skill_lockpick_fim
@@ -863,22 +847,12 @@ elif (strmatch(<link.tag.fechadura>,normal)) && (<more2>>=40)
 	remove
 	return 1
      end
-
-
   enddo
 elif (strmatch(<link.tag.fechadura>,complexa)) && (<more2>>=60)
   dorand <eval (151 + (-((<cont.lockpicking>)/(10))))/(2) >
      begin
 	cont.message *Conseguiu abrir a fechadura*
-	if (<link.type>==t_door_locked)
-		link.type=t_door
-		link.update
-		link.use
-	elif (<link.type>==t_container_locked)
-		link.type=t_container
-		link.update
-		link.use
-	endif
+	f_unlock <link.uid>
 	sfx 511
 	ganho_skill_lockpick_fim
 	remove
@@ -952,5 +926,127 @@ return 1
 endif
 return 1
 
+[FUNCTION f_unlock]
+//Destranca a porta/container e retranca de for attr_owned
+obj=<argn>
+if (<obj.attr>&attr_owned)		//É público. Precisa retrancar.
+ serv.newitem i_lockpick_reset
+ new.tag.type=<obj.type>
+ new.tag.fechadura=<obj.tag.fechadura>
+ new.link=<obj.uid>
+ new.timer=60*35		//35 minutos pra retrancar ou até um GM dar dclick na Worldgem Bit
+ new.p=<obj.p>
+ new.update
+// new.emotered <obj.name> em <new.p>
+endif
+if (<obj.type>==t_door_locked)
+ obj.type=t_door
+elif (<obj.type>==t_container_locked)
+ obj.type=t_container
+endif
+obj.update
+
+[ITEMDEF i_lockpick_reset]
+NAME=reset de tranca
+ID=i_worldgem_bit
+TYPE=t_script
+
+on=@create
+attr=092
+color=015
+
+on=@timer
+if !(STRMATCH(<tag.fechadura>,))	//Tinha fechadura?
+ link.tag.fechadura=<tag.fechadura>	//Repor fechadura
+endif
+link.type=<tag.type>
+//link.emotered tranca
+link.update
+remove
+return 1
+
+on=@dclick
+src.sysmessage <link.name> trancado(a).
+timerd 1
+return 1
+
+[PLEVEL 2]
+fechadura
+
+[FUNCTION fechadura]
+src.sysmessage Selecione porta/container:
+targetf _fechadura
+
+[FUNCTION _fechadura]
+obj=<argo>
+if (<obj.type>!=t_door) && (<obj.type>!=t_door_locked) && (<obj.type>!=t_container) && (<obj.type>!=t_container_locked)
+ sysmessageyellow Apenas portas ou containeres.
+ return 1
+endif
+cTAG.trancaUID=<obj.uid>
+if (STRMATCH(<obj.tag.fechadura>,))	//Não tem tranca?
+ cTAG.trancaTipo=Nenhuma
+else
+ cTAG.trancaTipo=<obj.tag.fechadura>
+endif
+menu m_gm_tranca
+
+[MENU m_gm_tranca]
+(MyT] Tranca de <UID.<cTAG.trancaUID>.name> [MyT)
+on=0 Tipo de fechadura: <cTAG.trancaTipo>
+if (STRMATCH(<cTAG.trancaTipo>,Nenhuma)
+ cTAG.trancaTipo=cadeado
+elif (STRMATCH(<cTAG.trancaTipo>,cadeado)
+ cTAG.trancaTipo=simples
+elif (STRMATCH(<cTAG.trancaTipo>,simples)
+ cTAG.trancaTipo=normal
+elif (STRMATCH(<cTAG.trancaTipo>,normal)
+ cTAG.trancaTipo=complexa
+elif (STRMATCH(<cTAG.trancaTipo>,complexa)
+ cTAG.trancaTipo=Nenhuma
+endif
+menu m_gm_tranca
+
+on=0 Auto-Rearmavel: <QVAL <UID.<cTAG.trancaUID>.attr>&attr_owned ? Sim : Nao>
+IF (<UID.<cTAG.trancaUID>.attr>&attr_owned)
+ UID.<cTAG.trancaUID>.attr=<UID.<cTAG.trancaUID>.attr>&~attr_owned
+else
+ UID.<cTAG.trancaUID>.attr=<UID.<cTAG.trancaUID>.attr>|attr_owned
+endif
+menu m_gm_tranca
+
+on=0 Lockpick permitido: <QVAL <UID.<cTAG.trancaUID>.attr>&attr_stolen ? Sim : Nao>
+IF (<UID.<cTAG.trancaUID>.attr>&attr_stolen)
+ UID.<cTAG.trancaUID>.attr=<UID.<cTAG.trancaUID>.attr>&~attr_stolen
+else
+ UID.<cTAG.trancaUID>.attr=<UID.<cTAG.trancaUID>.attr>|attr_stolen
+endif
+menu m_gm_tranca
+
+on=0 Gerar chave
+if (STRMATCH(<cTAG.trancaTipo>,Nenhuma)
+ sysmessageyellow Sem fechadura.
+elif (STRMATCH(<cTAG.trancaTipo>,cadeado)
+ serv.newitem=i_key_rusty
+elif (STRMATCH(<cTAG.trancaTipo>,simples)
+ serv.newitem=i_key_copper
+elif (STRMATCH(<cTAG.trancaTipo>,normal)
+ serv.newitem=i_key_iron
+elif (STRMATCH(<cTAG.trancaTipo>,complexa)
+ serv.newitem=i_key_gold
+endif
+new.more1=<cTAG.trancaUID>
+UID.<cTAG.trancaUID>.more1=<cTAG.trancaUID>
+new.attr=<new.attr>|attr_newbie
+new.bounce
+menu m_gm_tranca
+
+on=0 Aplicar tipo de fechadura
+if (STRMATCH(<cTAG.trancaTipo>,Nenhuma)
+ UID.<cTAG.trancaUID>.tag.fechadura=
+else
+ UID.<cTAG.trancaUID>.tag.fechadura=<cTAG.trancaTipo>
+endif
+sysmessagegreen A fechadura de <UID.<cTAG.trancaUID>.name> foi alterada para <cTAG.trancaTipo>.
 
 [EOF]

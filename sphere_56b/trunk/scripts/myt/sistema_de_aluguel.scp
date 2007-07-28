@@ -1,0 +1,406 @@
+//#######################################################
+//		   Mystical Tales Shard
+//	      Sistema de aluguel de containeres
+// 			 e portas
+//#######################################################
+//		Galthar, o Errante 07/2007
+//#######################################################
+//15 17 21 27
+//#######################################################
+//		      TAGS UTILIZADAS
+//
+//	TAG.PRICE	Preço em mc por dia real
+//	TAG.OWNER	Player que alugou e que paga a conta
+//	TAG.FRIENDS	Lista de UIDs separadas por ; que podem usar este item como dono (Players)
+//	TAG.TIME0	SERV.TIME do momento do aluguel.
+//	TAG.TIMEF	SERV.TIME do momento que o aluguel deve expirar.
+//	TAG.SUBITENS	UID de outros itens (containeres, portas) que obedecem a este alugúel separados por ;
+//			No caso de ser um subitem, aponta para o item do aluguel.
+//
+
+[DEFNAME rental]
+//FLAGS do objeto. Direto no FLAGS mesmo. Sem TAG.
+RENT_VACANT			01000	//Sem dono. Pode ser alugado.
+RENT_CAN_LOCKPICK		02000	//Se é permitido dar lockpick (caixa de banco)
+RENT_FRIENTS_CAN_ADD		0200	//Amigos podem chamar amigos
+RENT_FRIENDS_CAN_USE		0800	//Acesso restrito ao dono: Amigos não podem usar enquanto este flag estiver setado
+RENT_PUBLIC			040	//Qualquer um pode usar (porta de loja)
+RENT_SUBITEM			01	//Sub-item de um item alugado.
+
+[PLEVEL 2]
+alugar
+
+
+//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+//\\			    TYPEDEFs			    //\\
+//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+[TYPEDEF t_placa]
+on=@dclick
+IF (STRMATCH(<tag.name>,)
+ tag.name=<name>
+ENDIF
+MENU m_placa
+return 1
+
+
+//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+//\\			    FUNÇÕES			    //\\
+//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+
+
+//#######################################################
+// alugar <valor>
+//#######################################################
+//Abre target para alugar um item. <valor> é opcional.
+[FUNCTION alugar]
+IF (<argn>)
+ cTAG.rentPrice <argn>
+ELSE
+ cTAG.rentPrice=3
+ENDIF
+sysmessage Selecione o objeto para alugar...
+targetf _alugar
+
+[FUNCTION _alugar]
+OBJ=<ARGO>
+IF (<obj.type>!=t_door) && (<obj.type>!=t_door_locked) && (<obj.type>!=t_container) && (<obj.type>!=t_container_locked)
+ sysmessagered Apenas portas e containeres podem ser alugados
+ RETURN 0
+ENDIF
+cTAG.rentUID=<obj>
+cTAG.rentSUB=;<obj.uid>
+cTAG.rentFlags=<DEF.RENT_VACANT>
+menu m_alugar
+return 1
+
+
+//#######################################################
+// RentUpdatePrice <valor>
+//#######################################################
+//Atualiza o preço de um aluguel somando <valor>
+[FUNCTION RentUpdatePrice]
+cTAG.rentPrice=<cTAG.rentPrice>+<argn>
+if (<cTAG.rentPrice> < 0)
+ cTAG.rentPrice=1
+ sysmessageyellow Valor minimo de 1 mc
+elif (<cTAG.rentPrice> > 6500)
+ cTAG.rentPrice=6500
+ sysmessageyellow Valor maximo de 6500 mc
+endif
+MENU m_alugar
+
+
+//#######################################################
+// RentAddSub
+//#######################################################
+//Abre target e adiciona um sub-item ao aluguel
+[FUNCTION RentAddSub]
+sysmessage Slecione o sub-item do aluguel.
+targetf _RentAddSub
+
+[FUNCTION _RentAddSub]
+OBJ=<argo>
+IF (<obj.type>!=t_door) && (<obj.type>!=t_door_locked) && (<obj.type>!=t_container) && (<obj.type>!=t_container_locked) && (<obj.type>!=t_placa)
+ sysmessagered Apenas portas, containeres e placas especiais podem ser alugados
+ MENU m_alugar_2
+ RETURN 0
+ELIF (STRMATCH(*<obj.uid>*,<cTAG.rentSub>))
+ sysmessageyellow <obj.name> ja eh sub-item de <UID.<cTAG.rentUID>.name>.
+ MENU m_alugar_2
+ RETURN 0
+ENDIF
+cTAG.rentSub=<cTAG.rentSub>;<obj.uid>
+sysmessagegreen <obj.name> adicionado aos sub-itens de <UID.<cTAG.rentUID>.name>.
+MENU m_alugar_2
+
+
+//#######################################################
+// RentRemSub
+//#######################################################
+//Abre target e remove um subitem do aluguel.
+[FUNCTION RentRemSub]
+sysmessage Slecione o sub-item do aluguel.
+targetf _RentRemSub
+
+[FUNCTION _RentRemSub]
+OBJ=<argo>
+if !(STRMATCH(*<obj>*,<cTAG.rentSub>))
+ sysmessagered <obj.name> nao eh um sub-item de aluguel de <UID.<cTAG.rentUID>.name>.
+ MENU m_alugar_2
+ RETURN 0
+elif (<argo>==<cTAG.rentUID>)
+ sysmessageyellow Nao eh possivel retirar o proprio item da lista de sub-itens de aluguel.
+ MENU m_alugar_2
+ RETURN 0
+endif
+cTAG.rentSUB=<RentRemoveList <obj>,<cTAG.rentSUB>>
+sysmessagegreen <obj.name> removido dos sub-itens de aluguel de <UID.<cTAG.rentUID>.name>.
+MENU m_alugar_2
+
+
+//#######################################################
+// RentRemoveList <item> <lista>
+//#######################################################
+//Remove <item> de uma lista separada por ; em <lista>
+//e retorna <lista> sem <item>.
+//Aparentemente RETURN não funciona em funções secundárias
+[FUNCTION RentRemoveList]
+LOCAL.pat=<argv[0]>
+LOCAL.parts=<EXPLODE ;,<argv[1]>>
+_RentRemoveList <LOCAL.pat>,<LOCAL.parts>
+RETURN <var.ret>
+
+[FUNCTION _RentRemoveList]
+var.ret=
+LOCAL.lARG=<eval <argv>-1>
+FOR i 3 <LOCAL.lARG>
+LOCAL.arg=<ARGV[<LOCAL.i>]>
+ if !(strmatch(<LOCAL.arg>,<ARGV[0]>))
+  var.ret=<var.ret>;<LOCAL.arg>
+ ENDIF
+ENDFOR
+
+
+//#######################################################
+// RentIDSub
+//#######################################################
+//Mostra o com [mensagens] o item alugado e os subitens
+//Não sei pq não funciona com MESSAGE. Então usei SAY.
+[FUNCTION RentIDSub]
+LOCAL.list=<EXPLODE ;,<args>>
+SRC._RentIDSub <LOCAL.list>
+
+[FUNCTION _RentIDSub]
+LOCAL.total=<eval <ARGV>>
+OBJ=<argv[2]>
+OBJ.SAY=@036 [alugado]
+OBJ.tcolor 036
+FOR i 3 <LOCAL.total>
+ OBJ=<ARGV[<local.i>]>
+ OBJ.SAY=@044 [sub-item]
+ OBJ.tcolor 044
+ENDFOR
+sysmessagegreen Total de itens: <eval <argv>-3>
+
+[FUNCTION tcolor]
+if (<argn>)
+ tag.oColor=<color>
+ color=<argn>
+ timerf 4,tcolor
+else
+ color=<tag.oColor>
+ tag.oColor=
+endif
+
+//#######################################################
+// BankVault
+//#######################################################
+//Faz todos os i_chest_metal_brass ganharem nomes de "Cofre Noxx"
+[FUNCTION BankVault]
+if (<argn>!=<var.securecheck>) || (!<argn>)
+ sysmessage Isso mudara automaticamente o nome das i_chest_metal_brass para Corfre NoXXX.
+ var.securecheck=<eval {100 999}>
+ sysmessagered Digite '.BankVault <eval <var.securecheck>>'.
+else
+ sysmessagegreen Senha aceita.
+ LOCAL.i=1
+ FORITEMS 8
+  if (<baseid>==i_chest_metal_brass)
+   name=cofre No<eval <LOCAL.i>>
+   update
+   LOCAL.i=<eval <LOCAL.i>+1>
+  endif
+ ENDFOR
+ sysmessagegreen <eval <local.i>> cofres gerados.
+endif
+
+//#######################################################
+// RentProcFinish
+//#######################################################
+//Finaliza o processo de criação de aluguel.
+[FUNCTION RentProcFinish]
+OBJ=<cTAG.rentUID>
+say <cTAG.rentFlags>
+OBJ.attr=<OBJ.attr>|<cTAG.rentFlags>
+OBJ.TAG.SUBITENS=<cTAG.rentSUB>
+OBJ.TAG.PRICE=<cTAG.rentPrice>
+sysmessagegreen <obj.name> alugavel por <obj.tag.price> mc/dia
+
+//#######################################################
+// SignTurn
+//#######################################################
+//Muda a arte da placa
+[FUNCTION SignTurn]
+serv.newitem=<argv0>
+new.p=<p>
+new.name=<name>
+new.type=t_placa
+new.update
+remove
+src.sysmessagegreen Placa modificada.
+
+//#######################################################
+// f_aluguel
+//#######################################################
+//Chamado no on=@dclick de container e porta pelo e_mytgeral
+//Deve retornar 1 se bloqueia a ação HC ou 0 se permite
+return 0
+
+//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+//\\			    MENUS			    //\\
+//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+
+//###############
+// Menus GM
+//###############
+[MENU m_alugar]
+(MyT]Preco diario: <eval <cTAG.rentPrice>> (mc)[MyT)
+on=0 +50
+RentUpdatePrice 50
+
+on=0 +10
+RentUpdatePrice 10
+
+on=0 +5
+RentUpdatePrice 5
+
+on=0 +1
+RentUpdatePrice 1
+
+on=0 -1
+RentUpdatePrice -1
+
+on=0 -5
+RentUpdatePrice -5
+
+on=0 -10
+RentUpdatePrice -10
+
+on=0 -50
+RentUpdatePrice -50
+
+on=0 Proceguir
+MENU m_alugar_2
+
+
+//###############
+// Menus Player
+//###############
+
+[MENU m_alugar_2]
+(MyT]Condicoes do aluguel[MyT)
+on=0 Adicionar sub-itens
+RentAddSub
+
+on=0 Remover sub-itens
+RentRemSub
+
+on=0 Lockpick: <QVAL <cTAG.rentFlags>&<DEF.RENT_CAN_LOCKPICK> ? Permitido:Bloqueado>
+if (<cTAG.rentFlags>&<DEF.RENT_CAN_LOCKPICK>)
+ cTAG.rentFlags=<cTAG.rentFlags>&~<DEF.RENT_CAN_LOCKPICK>
+else
+ cTAG.rentFlags=<cTAG.rentFlags>|<DEF.RENT_CAN_LOCKPICK>
+endif
+MENU m_alugar_2
+
+on=0 Identificar sub-itens
+RentIDSub <cTAG.rentSub>
+timerf 3,MENU,m_alugar_2
+
+on=0 Terminar
+RentProcFinish
+
+[MENU m_placa]
+(MyT] O que deseja da placa? [MyT)
+on=0 Mudar a placa
+MENU m_placa_face
+
+on=0 Mudar a posicao
+FLIP
+src.sysmessagegreen Posicao da placa trocada
+
+on=0 Mudar os dizeres
+src.ctag.placaUID=<uid>
+src.dialog d_placa
+
+
+[MENU m_placa_face]
+Slecione a placa:
+on=0b95 livraria
+SignTurn 0b95
+on=0ba3 padaria
+SignTurn 0ba3
+on=0ba5 alfaiate
+SignTurn 0ba5
+on=0ba7 ferramentaria
+SignTurn 0ba7
+on=0ba9 acougue
+SignTurn 0ba7
+on=0bab casa de cura
+SignTurn 0bab
+on=0bad loja de magia
+SignTurn 0bad
+on=0baf carpintaria
+SignTurn 0baf
+on=0bb1 engenhocas
+SignTurn 0bb1
+on=0bb3 estalagem
+SignTurn 0bb3
+on=0bb5 porto
+SignTurn 0bb5
+on=0bb7 estabulo
+SignTurn 0bb7
+on=0bb9 barbeiro
+SignTurn 0bb9
+on=0bbb bardo
+SignTurn 0bbb
+on=0bbd arcos
+SignTurn 0bbd
+on=0bbf armaduras
+SignTurn 0bbf
+on=0bc1 joalheiria
+SignTurn 0b1
+on=0bc3 taberna
+SignTurn 0bc3
+on=0bc5 boticario
+SignTurn 0bc5
+on=0bc7 serralheiria
+SignTurn 0bc7
+on=0bc9 atelie
+SignTurn 0bc9
+on=0bcb armazem
+SignTurn 0bcb
+on=0bcd arcos e bestas
+SignTurn 0bcd
+on=0b0d teatro 
+SignTurn 0b0d
+on=0c43 apiario 
+SignTurn 0c43
+
+[DIALOG d_placa]
+200, 300
+PAGE 0
+resizepic 0 0 3500 356 136
+text 26 31 995 0
+text 141 10 152 1
+gumppic 39 63 1143
+textentry 59 66 220 600 1152 0 2
+button 55 97 239 240 1 0 1
+button 234 97 243 241 1 0 2
+
+[DIALOG d_placa TEXT]
+Que dizeres escrever na placa?
+-=MyT=-
+<var.blank>
+
+
+[DIALOG d_placa BUTTON]
+ON=1
+OBJ=<src.ctag.placaUID>
+obj.name = <ARGTXT[0]>
+src.sysmessagegreen A placa agora diz '<ARGTXT[0]>'.
+obj.update
+return 1
+
+ON=2
+return 1
