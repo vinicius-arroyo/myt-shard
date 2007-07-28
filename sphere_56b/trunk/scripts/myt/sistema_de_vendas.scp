@@ -165,17 +165,29 @@ SRC.CTAG.vendor_page=1
 SRC.CTAG.vendor_numItems=0
 SRC.CTAG.vendor_op=2	//NPC vende
 
+local.removedPlayer=0
+
 //varre o banco
 if ( <DB.connected> )
 	DB.QUERY "SELECT * FROM vendorItems WHERE itemType=<eval <TAG.vendor_type>> AND idVendor=<eval <uid>>"
-    if (<DB.ROW.NUMROWS> > 0)
-        for R 0 <eval <DB.ROW.NUMROWS>-1>
-		SRC.CTAG.vendor_numItems += 1
-		TRY SRC.CTAG.vendor_items<eval  (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idItem>
-		TRY SRC.CTAG.vendor_owners<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
-		TRY SRC.CTAG.vendor_prices<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.price>
-        end
-    endif
+	if (<DB.ROW.NUMROWS> > 0)
+		for R 0 <eval <DB.ROW.NUMROWS>-1>
+			REF1=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+			if (<REF1.isplayer>)
+				SRC.CTAG.vendor_numItems += 1
+				TRY SRC.CTAG.vendor_items<eval  (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idItem>
+				TRY SRC.CTAG.vendor_owners<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+				TRY SRC.CTAG.vendor_prices<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.price>
+			else
+				serv.log [VENDOR] NOT PLAYER: <REF1.uid>
+				local.removedPlayer=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+			endif
+		end
+	endif
+endif
+
+if (<LOCAL.removedPlayer>)
+	DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer=<eval <LOCAL.removedPlayer>>"
 endif
 
 SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPerPage) + 1)> 
