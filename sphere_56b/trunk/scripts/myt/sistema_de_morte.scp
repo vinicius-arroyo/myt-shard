@@ -9,7 +9,8 @@
 //*****************************************************************************
 //TODO:
 //-indicar tempo restante de desmaiio ao player
-//-permitir que ele escolha morrer ao invez de esperar.
+//-permitir que ele escolha morrer ao inves de esperar.
+//-logar no DB mortes/assassinos
 
 //A cada <max_desmaios> o player morre imediatamente, senao ele fica em estado
 //de coma. O tempo de coma depende do numero de desmaios (x 1 min). Se o nume-
@@ -20,11 +21,17 @@
 //positivos. Esses pontos tambem influenciam no tempo minimo em que o player
 //permanece como fantasma. Ao dar ress o player é transportado ao corpo.
 
+//A cada morte o player perde 1 ponto de alma. Ao serem esgotados todos os pontos
+//o char nao pode mais ressucitar.
+
 //Enquanto o player esta desmaiado, seu corpo pode ser:
 // - Arrastado por qualquer um (60% str e 40% stam)
-// - Curado por qualquer um (3 bandagens e/ou 1 pocao amarela) (healing*87% ou healing*120%)
+// - Curado por qualquer um (sistema de healing)
 // - Cortado ( perde 2 pontos de alma )
 // - Looteado ( perde 1 ponto de alma )
+
+//Enquanto o char estiver desmaiado, o espirito pode vagar nas proximidades do
+//corpo. Se ele tentar ir mais longe sera teleportado de volta.
 
 //TAGS usadas:
 //tag.morte_desmaios
@@ -34,8 +41,6 @@
 //tag.lastkillUID
 //tag.lastkillname
 //tag.pontosdealma
-//ctag.loot_corpse
-//ctag.arrastar
 //ctag.morte_corpse
 //*****************************************************************************
 
@@ -55,24 +60,43 @@ max_desmaios=5
 //*****************************************************************************
 [EVENTS e_sistema_de_morte]
 ON=@DEATH
- 
- if ( <ACT> > 0 ) && ( <ACT.NPC>==0 )
-  tag.lastkillname=<act.tag.name>
-  tag.lastkillUID=<act.uid>
-  act.tag.fpk=(<act.tag0.fpk>+1)
- endif
- 
- if (<tag0.morte_desmaios><<DEF.max_desmaios>)
-  hits=1
-  timerf 1,morte_desmaia
-  return 1
- else
-  morte_decrementaPontos 1
-  tag.morte_horario=<time>/(10)
-  tag.morte_local=<p>
-  tag.morte_desmaios=0
- endif
- return 0
+
+//marca assassino
+if ( <act> ) && ( <act.isplayer> )
+	tag.lastkillname=<act.tag.name>
+	tag.lastkillUID=<act.uid>
+	act.tag.fpk=<eval (<act.tag0.fpk>+1)>
+endif
+
+//marca a hora/local
+tag.morte_horario=<time>/(10)
+tag.morte_local=<p>
+
+//desmaia e solta espirito
+f_faint
+
+//se puder ficar desmaiado
+if (<tag0.morte_desmaios> < <DEF.max_desmaios>)
+	hits=1
+	tag.morte_desmaios=<eval <tag0.morte_desmaios>+1>
+
+	SERV.NEWITEM=i_mry_desmaio
+	NEW.link=<uid>
+	NEW.timer=<eval (60*<tag0.morte_desmaios>)>
+	NEW.equip
+
+	//indica morte apos 'timer'
+	if (<tag0.morte_desmaios> > (<DEF.max_desmaios>/2) )
+		NEW.more1=1 
+	endif
+
+	timerf 1,DIALOG,d_desmaio
+
+	sysmessageyellow Voce perdeu a consciencia !!!
+else
+	f_morre
+endif
+return 1
  
 //*****************************************************************************
 //*****************************************************************************
@@ -89,8 +113,8 @@ ON=@DCLICK
  if (<src.flags>&statf_dead)
   //somente se tiver pontos de alma
   if (<src.tag0.pontosdealma><=0)
-   message Sua alma esta fadada ao descanso eterno.
-   message Nunca mais voltara a vida
+   src.sysmessageyellow Sua alma esta fadada ao descanso eterno.
+   src.sysmessageyellow Nunca mais voltara a vida
    return 1
   endif  
 
@@ -106,11 +130,13 @@ ON=@DCLICK
   endif
   
   if (<LOCAL.ressconcluido> > <eval <time>/(10)>)
-   message Voce precisa recuperar um pouco suas forcas...
+   LOCAL.x=<eval <LOCAL.ressconcluido>-<eval <time>/(10)>>
+   src.sysmessageyellow Voce precisa recuperar um pouco suas forcas (<dlocal.x>s)...
    return 1
   else
-   src.go <src.tag.morte_local>		
-   src.morte_equip <src>
+   src.go <src.tag.morte_local>
+   src.flags=<src.flags>&~(statf_invisible|statf_invul|statf_insubstantial)
+   src.findid.i_mry_desmaio.remove
    return 0
   endif
  else
@@ -126,15 +152,11 @@ ON=@DCLICK
  //so permite vivos lootear ou mexer nos corpos de outros players
  if ( !(<src.flags>&statf_dead) && (<link>!=04fffffff) && (<link>!=<src.uid>)
   src.ctag.morte_corpse=<uid>
-  //se player escolheu lootear o corpo, deixa usar loot padrao
-  if (<src.ctag0.loot_corpse>==1)
-   src.ctag.loot_corpse=0
-   return 0
   //abre menu para player morto ou desmaiado
-  elif (<link.flags>&statf_dead)
-   src.menu=m_corpse_morto
-  else
+  if (<link.findid.i_mry_desmaio>)
    src.menu=m_corpse
+  else
+   src.menu=m_corpse_morto
   endif
   return 1
  endif
@@ -156,7 +178,18 @@ if (<link>!=04fffffff)
 else
 	f_sendTooltipData <name>
 endif
-return 1 
+
+ON=@TIMER
+//faz com que o espirito dos desmaiados estejam perto do corpo
+if (<link>!=04fffffff) && (<link.findid.i_mry_desmaio>)
+	timer=5
+	if (<link.distance <uid>> > 5)
+		link.movenear <uid> 3
+		link.sysmessageyellow Voce deve permanecer proximo de seu corpo.
+	endif
+	return 1
+endif
+return 0
 
 //*****************************************************************************
 //*****************************************************************************
@@ -165,12 +198,77 @@ return 1
 //*****************************************************************************
  
 //*****************************************************************************
+// f_faint
+//*****************************************************************************
+//faz com que o char desmaie
+[FUNCTION f_faint]
+flags=<flags>|(statf_dead|statf_invisible|statf_invul|statf_insubstantial)
+flags=<flags>&~statf_war
+
+if (<tag0.comcapuz>)
+	capuz
+endif
+serv.newitem i_corpse
+new.amount=<sex 400/401>
+new.morep=<sex 400/401>,0,<dir>
+new.link=<uid>
+new.more2=<uid>
+new.color=<color>
+new.p=<p>
+for layer 1 24
+obj=<findlayer.<local.layer>>
+if (<obj>)
+	obj.cont=<new>
+	obj.layer=<local.layer>
+endif
+endfor
+new.timer=10
+new.update
+tag.corpse=<new>
+
+serv.newitem i_deathshroud
+new.cont=<uid>
+update
+ 
+//*****************************************************************************
+// f_wakeup
+//***************************************************************************** 
+//acorda um char desmaiado
+[FUNCTION f_wakeup]
+findid.i_deathshroud.remove
+obj=<uid>
+ref1=<tag.corpse>
+forcont <ref1>
+	cont=<obj>	
+endfor
+p=<ref1.p>
+ref1.remove
+tag.corpse=
+flags=<flags>&~(statf_dead|statf_invisible|statf_invul|statf_insubstantial)
+update
+
+//*****************************************************************************
+// f_morre
+//***************************************************************************** 
+//faz com que o char fique morto
+//default: morto
+[FUNCTION f_morre]
+//nao deixa o body dar decay tao rapido
+if (<tag.corpse>)
+	uid.<tag.corpse>.timer=1800	//30 minutos de decay
+endif
+
+morte_decrementaPontos 1
+tag.morte_desmaios=0
+findid.i_mry_desmaio.remove
+sysmessageyellow Voce perdeu a ligacao com seu corpo.
+
+//*****************************************************************************
 // morte_incrementaPontos
 //*****************************************************************************
 [FUNCTION morte_incrementaPontos]
  tag.pontosdealma=<eval <tag.pontosdealma>+<argn>>
  sysmessagegreen Voce ganhou: <argn> ponto(s) de alma
- return 1
  
 //*****************************************************************************
 // morte_decrementaPontos
@@ -178,97 +276,29 @@ return 1
 [FUNCTION morte_decrementaPontos]
  tag.pontosdealma=<eval <tag.pontosdealma>-<argn>>
  sysmessagered Voce perdeu: <argn> ponto(s) alma
- return 1
  
 //*****************************************************************************
 // morte_arrastar(uid)
 //*****************************************************************************
 [FUNCTION morte_arrastar]
  NEWITEM=i_mry_arrastar
- NEW.equip
  NEW.link=<argn1>
  NEW.dclick
- return 1
- 
-//*****************************************************************************
-// morte_equip(uid)
-//*****************************************************************************
-[FUNCTION morte_equip]
- OBJ=<argn1>
-
-//põe a roupa
- OBJ.findlayer(layer_pack).findtype(t_clothing).equip
- OBJ.findlayer(layer_pack).findtype(t_clothing).equip
- OBJ.findlayer(layer_pack).findtype(t_clothing).equip
- OBJ.findlayer(layer_pack).findtype(t_clothing).equip
-//põe armors
- OBJ.findlayer(layer_pack).findtype(t_armor).equip
- OBJ.findlayer(layer_pack).findtype(t_armor).equip
- OBJ.findlayer(layer_pack).findtype(t_armor).equip
- OBJ.findlayer(layer_pack).findtype(t_armor).equip
- OBJ.findlayer(layer_pack).findtype(t_armor).equip
- OBJ.findlayer(layer_pack).findtype(t_armor).equip
- return 1
- 
-//*****************************************************************************
-// morte_desmaia
-//*****************************************************************************
-[FUNCTION morte_desmaia]
- 
- tag.morte_desmaios=<eval <tag0.morte_desmaios>+1>
- //morte_equip
- 
- NEWITEM=i_mry_desmaio
- NEW.link=<uid>
  NEW.equip
- NEW.timer=<eval (60*<tag0.morte_desmaios>)>
- if (<tag0.comcapuz>==1)
-  capuz
- endif
- if (<tag0.morte_desmaios> > (<DEF.max_desmaios>/2) )
-  //indica morte apos 'timer'
-  NEW.more1=1 
- endif
- 
-//say [MRT] estou com <tag0.morte_desmaios> desmaios <eval 60*<tag0.morte_desmaios>>
- timerf 1,DIALOG,d_desmaio
- 
- sysmessageyellow Voce perdeu a consciencia !!!
- sleep
- flags=<flags>|(statf_stone|statf_invul)
- update
- 
-  
+   
 //*****************************************************************************
 // morte_corta(uid)
 //*****************************************************************************
 [FUNCTION morte_corta]
  if (<findlayer(layer_hand1).type>==t_weapon_fence) || (<findlayer(layer_hand1).type>==t_weapon_axe) || (<findlayer(layer_hand1).type>==t_weapon_sword)	|| (<findlayer(layer_hand2).type>==t_weapon_sword) || (<findlayer(layer_hand2).type>==t_weapon_axe) || (<findlayer(layer_hand2).type>==t_weapon_fence)
-  OBJ=<argn1>
-  OBJ.link.findid.i_mry_desmaio.remove	//O dono do corpo não está mais desmaiado.
-  OBJ.link.say *assasinado* 		// para tirar o .sleep junto com o corpo do dono do corpo.
-  OBJ.link.flags=<OBJ.link.flags>&~(statf_stone|statf_invul) 	//pra tirara o flag de invul e de paralyze do dono do corpo.
-  TRYP 0 OBJ.link.tag.morte_desmaios=<DEF.max_desmaios>		//Se o dono do corpo desmaiar (.kill) denovo ele morre.
-  OBJ.link.kill				//Mata o dono do corpo.
+  OBJ=<argn>
+  OBJ.emotered assassinado
+  
+  OBJ.link.f_morre
+  OBJ.link.tag.lastkillname=<tag.name>
+  OBJ.link.tag.lastkillUID=<act.uid>
+  tag.fpk=<eval (<tag0.fpk>+1)>
  endif
- return 1
- 
-//*****************************************************************************
-// morte_cura(uid)
-//*****************************************************************************
-[FUNCTION morte_cura]
- NEWITEM i_mry_curar_corpo
- NEW.equip
- NEW.more1=0
- NEW.link=<argn1>
- if (<restest 3 i_bandage>==1)
-  NEW.more1=<eval <NEW.more1>+1>
- endif
- if (<restest 1 i_bottle_yellow>==1)
-  NEW.more1=<eval <NEW.more1>+1>
- endif
- NEW.timer=1
- return 1
  
 //*****************************************************************************
 //*****************************************************************************
@@ -279,6 +309,7 @@ return 1
 //*****************************************************************************
 // i_mry_arrastar
 //*****************************************************************************
+//more1: constante de forca/stamina
 [ITEMDEF i_mry_arrastar]
  NAME=arrastar
  id=i_deed
@@ -290,28 +321,23 @@ ON=@CREATE
  return 1
 
 ON=@DCLICK
- link.say *arrastando corpo*
- cont.ctag.arrastar= ((<cont.str>*5)+(<cont.stamina>*3))/8
+ link.emoteyellow arrastando corpo
+ more1=((<cont.str>*5)+(<cont.stamina>*3))/8
  timer=1
  return 1
  
 ON=@TIMER
- if (<eval <cont.ctag.arrastar>> > <eval RAND(100)>) && !(<cont.flags>&statf_war)
-  //arrasta corpo
+ if (<more1> > <R0,100>) && !(<cont.flags>&statf_war)
+  //arrasta corpo (e vira)
   link.p=<cont.p>
-   
-  //arrasta player se desmaiado
-  if !(<link.link.flags>&statf_dead)
-   link.link.p <cont.p>
-  endif
+  link.morep=<cont.sex 400/401>,0,<cont.dir>
    
   //sava nova posicao do corpo
   link.link.tag.morte_local=<cont.p>
   sector.allclients update
   timer=1
  else
-  cont.ctag.arrastar=
-  cont.say *largou*
+  cont.emoteyellow largou
   cont.sysmessageyellow O corpo escapou de suas maos
   remove
  endif
@@ -331,91 +357,18 @@ ON=@CREATE
 
 ON=@TIMER
  
- cont.flags=<cont.flags>&~(statf_stone|statf_invul)
- //say [MRT] ACORDEI
- //recobra consciencia se more1 != 1
+//recobra consciencia se more1 != 1
  if (<more1>!=1)
   cont.sysmessagegreen Voce recobrou a consciencia.
-  cont.flags=<cont.FLAGS>&~statf_dead
-  cont.say *hug!*
-  cont.hits=(<cont.str>/5)
-  cont.timerf 1,morte_equip,<cont>
-  cont.update
- else
-  cont.say *morreu*
-  cont.tag.morte_desmaios=<DEF.max_desmaios>
-  cont.kill
+	cont.f_wakeup
+  cont.emotegreen hug!
+else
+  uid.<cont.tag.corpse>.emotered morreu
+	cont.f_morre
  endif
  
  remove
  return 1
-
-//*****************************************************************************
-// i_mry_curar_corpo
-//*****************************************************************************
-[ITEMDEF i_mry_curar_corpo]
- id=i_deed
- name=Curando corpo
- type=t_eq_script
- layer=layer_special
-
-ON=@CREATE
- attr=attr_decay
- more2=20
-
-ON=@TIMER
- //inicializacao
- if (<more2> == 20)
-  //verifica pre-requesitos
-  if (<more1>==0)
-   cont.sysmessageyellow Voce nao tem os equipamentos necessarios...
-   remove
-   return 1
-  else
-   cont.flags=<cont.flags>|statf_freeze
-   more2=11 //1 vezes no loop
-   timer=1
-   return 1
-  endif
-
- else
-  //loop de cura
-  if (<more2> > 0) //2
-   more2=<more2>-1
-   DORAND 9
-    cont.anim 16
-    sfx 04f
-    cont.anim 19
-    sfx 04f
-    cont.say *aplicando curativos*
-    cont.anim 16
-    sfx 04f
-    sfx 04f
-    cont.anim 19
-   ENDDO
-   timer=1
-   return 1
-  //fim da cura
-  else
-   cont.consume 3 i_bandage
-   cont.consume 1 i_bottle_yellow
-   cont.skill_gain skill_healing
-   if ( (<more1>==1) && (<cont.healing> >= {0 1150}) ) || ( (<more1>==2) && (<cont.healing> >= {0 850}) ) 
-    cont.flags=(<cont.flags>&~statf_freeze)
-    cont.sysmessagegreen Seu tratamento surtiu efeito...
-    link.link.consume i_mry_desmaio
-    link.link.flags=<link.link.flags>&~(statf_stone|statf_invul)
-    link.link.say *ouf!*
-    remove
-    return 1
-   else
-    cont.sysmessageorange Seu tratamento nao surtiu efeito...
-    cont.unfreeze
-    remove
-    return 1
-   endif
-  endif
- endif
 
 //*****************************************************************************
 //*****************************************************************************
@@ -433,14 +386,9 @@ on=0 cortar garganta (perde 2 pontos de alma)
  morte_corta <ctag.morte_corpse>
  return 1
 
-on=0 curar
- morte_cura <ctag.morte_corpse>
- return 1
-
 on=0 roubar o corpo (perde 1 ponto de alma)
  src.morte_decrementaPontos 1
- ctag.loot_corpse=1
- sysmessageyellow Abra o corpo para roubar os itens.
+ uid.<ctag.morte_corpse>.open
  return 1
 
 on=0 arrastar o corpo
@@ -454,8 +402,7 @@ on=0 arrastar o corpo
                    -=Corpo Morto=-
 on=0 roubar o corpo (perde 1 ponto de alma)
  morte_decrementaPontos 1
- ctag.loot_corpse=1
- sysmessageyellow Pode abrir o corpo e roubar os itens.
+ uid.<ctag.morte_corpse>.open
  return 1
 
 on=0 arrastar o corpo
@@ -484,8 +431,8 @@ elif (<tag0.morte_desmaios>==3)
  LOCAL.l3=cuidados medicos ou morrera.
 else
  LOCAL.l1=Voce precisa de cuidados 
- LOCAL.l2=medicos ou morrera logo.
- LOCAL.l3=
+ LOCAL.l2=medicos ou morrera
+ LOCAL.l3= logo.
 endif
 
 gumppic 0 0 2080

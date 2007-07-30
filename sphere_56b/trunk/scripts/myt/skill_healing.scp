@@ -17,7 +17,11 @@
 // - Healer deve estar ao lado do ferido
 // - Ferido deve estar ferido...
 // - Ferido nao pode estar sendo curado por outro healer
-// - Healer cura de 1 a 6 hits por segundo dependendo do skill, durante 2 a 12
+//SE FERIDO ESTIVER VIVO:
+// - Healer cura de 1 a 7 hits por segundo dependendo do skill, durante 2 a 12 
+//		segundos.
+//SE FERIDO ESTIVER DESMAIADO:
+// - Healer cura de 1 a 4 hits por segundo dependendo do skill, durante 10 a 20 
 //		segundos.
 // - Ambos healer e ferido devem permanacer parados
 // - Ambos nao podem estar em warmode
@@ -26,7 +30,6 @@
 // Possiveis alteracoes futuras:
 //   Healer nao poder estar segurando nada (escudo, arma, lanterna...)
 //   Healer poder curar veneno
-//   Healer poder ajudar que estiver inconsciente
 
 // Atributos da memory
 // MORE1  - hitpoints que poderao ser curados
@@ -45,58 +48,29 @@
 //*****************************************************************************
 [TYPEDEF t_bandagem]
 ON=@DCLICK
-    IF ( <SRC.UID> != <TOPOBJ.UID> )
-        SRC.SYSMESSAGERED A bandagem precisa estar na sua mochila.
-    ELSE
-        TARGET Que paciente deseja tratar?
-    ENDIF
-RETURN 1
+if ( <src.uid> != <topobj.uid> )
+	src.sysmessageyellow A bandagem precisa estar na sua mochila.
+else
+	src.sysmessageyellow Que paciente deseja tratar?
+	target 
+endif
+return 1
 
+ON=@TARGON_ITEM
+if (<src.targ.type>==t_corpse) && (<src.targ.link.isplayer>)
+	src.f_healing <src.targ.link>
+else
+	src.sysmessageyellow Utilize a bandagem em pessoas.
+endif
+return 1
+	
 ON=@TARGON_CHAR
-    IF ( <SRC.TARG.DISTANCE> > 1 )
-        SRC.SYSMESSAGERED Paciente esta muito longe.
-        RETURN 1
-    ENDIF
-    IF ( <SRC.TARG.HITS> >= <SRC.TARG.STR> )
-        SRC.SYSMESSAGERED O paciente nao precisa de tratamento.
-        RETURN 1
-    ENDIF
-    IF ( <SRC.TARG.RESTEST 1 i_mry_bandagem> )
-        SRC.SYSMESSAGERED Este paciente ja esta sendo tratado.
-        RETURN 1
-    ENDIF
-    IF ( <SRC.RESTEST 1 i_bandage> )
-        SRC.CONSUME 1 i_bandage
-    ELSE
-        SRC.SYSMESSAGERED A bandagem parece nao estar mais na sua mochila.
-        RETURN 1
-    ENDIF
-    SERV.NEWITEM i_mry_bandagem
-    NEW.MORE1=<R2,<eval 2+(<SRC.HEALING>/100)>> //2 a 12 segundos
-    NEW.MORE2=<eval 1+(<SRC.HEALING>/160)>	//1 a 6 hits de healing
-    IF ( <SRC.UID> == <SRC.TARG.UID> )
-        NEW.MOREY=1
-    ELSE
-        NEW.MOREY=0
-    ENDIF
-    NEW.MOREX=0
-    NEW.LINK=<SRC.UID>
-    NEW.TIMER=1
-    NEW.CONT=<SRC.TARG.UID>
-    SRC.SYSMESSAGEGREEN Voce comeca a tratar os ferimentos.
-    SRC.EVENTS +e_bandagem
-    SRC.TAG.BANDMEM=<NEW.UID>
-    SRC.TAG.BANDX=<SRC.P.X>
-    SRC.TAG.BANDY=<SRC.P.Y>
-//    SRC.SAY HEAL: max <NEW.MORE2> por <NEW.MORE1>s
-    IF ( !<NEW.MOREY> )
-        SRC.TARG.SYSMESSAGEGREEN Seus ferimentos estao sendo tratados.
-        SRC.TARG.EVENTS +e_bandagem
-        SRC.TARG.TAG.BANDMEM=<NEW.UID>
-        SRC.TARG.TAG.BANDX=<SRC.TARG.P.X>
-        SRC.TARG.TAG.BANDY=<SRC.TARG.P.Y>
-    ENDIF
-RETURN 1
+if (<src.targ.isplayer>)
+	src.f_healing <src.targ>
+else
+	src.sysmessageyellow Utilize a bandagem em pessoas.
+endif
+return 1
 
 //*****************************************************************************
 //*****************************************************************************
@@ -116,9 +90,61 @@ ON=@GETHIT
 	ENDIF
 
 ON=@ITEMDCLICK
-	SYSMESSAGERED Voce nao pode fazer outra coisa durante o tratamento.
-	RETURN 1
-    
+	if (<findid.i_mry_bandagem>)
+		SYSMESSAGERED Voce nao pode fazer outra coisa durante o tratamento.
+		return 1
+	else
+		events -e_bandagem
+	endif
+	
+[FUNCTION f_healing]
+obj=<argv0>
+if !(<obj.flags>&statf_dead) && ( <distance <obj>> > 1 )
+		sysmessagered Paciente esta muito longe.
+		return 1
+elif ( <obj.hits> >= <obj.str> )
+		sysmessagered O paciente nao precisa de tratamento.
+		return 1
+elif ( <obj.restest 1 i_mry_bandagem> )
+		sysmessagered Este paciente ja esta sendo tratado.
+		return 1
+elif ( !<restest 1 i_bandage> )
+		sysmessagered A bandagem parece nao estar mais na sua mochila.
+		return 1
+endif
+
+consume 1 i_bandage
+serv.newitem i_mry_bandagem
+if (<obj.flags>&statf_dead) 
+	new.more1=<r10,<eval 10+(<healing>/100)>> //10 a 20 segundos
+	new.more2=<eval 1+(<healing>/300)>	//1 a 4 hits de healing
+else
+	new.more1=<r2,<eval 2+(<healing>/100)>> //2 a 12 segundos
+	new.more2=<eval 1+(<healing>/160)>	//1 a 7 hits de healing
+	if ( <uid> == <obj> )
+			new.morey=1
+	else
+			new.morey=0
+	endif
+endif
+new.morex=0
+new.link=<uid>
+new.timer=1
+new.cont=<obj>
+sysmessagegreen Voce comeca a tratar os ferimentos.
+events +e_bandagem
+tag.bandmem=<new.uid>
+tag.bandx=<src.p.x>
+tag.bandy=<src.p.y>
+
+if ( !<new.morey> )
+		obj.sysmessagegreen Seus ferimentos estao sendo tratados.
+		obj.events +e_bandagem
+		obj.tag.bandmem=<new.uid>
+		obj.tag.bandx=<obj.p.x>
+		obj.tag.bandy=<obj.p.y>
+endif
+
 //*****************************************************************************
 //*****************************************************************************
 // ITEMDEFs
@@ -142,6 +168,8 @@ DESCRIPTION=Clean Bandages
 //*****************************************************************************
 // i_mry_bandagem
 //*****************************************************************************
+//link: curador
+//cont: char sendo curado
 [ITEMDEF i_mry_bandagem]
 NAME=Com bandagens
 TYPE=t_eq_script
@@ -151,56 +179,76 @@ ON=@CREATE
     ATTR=attr_decay
 
 ON=@TIMER
-	IF (<LINK.P.X>!=<LINK.TAG.BANDX>) || (<LINK.P.Y>!=<LINK.TAG.BANDY>) || (<CONT.P.X>!=<CONT.TAG.BANDX>) || (<CONT.P.Y>!=<CONT.TAG.BANDY>)
-		IF ( !<MOREY> )
-			CONT.SYSMESSAGERED Deve-se permanecer parado durante o tratamento.
-		ENDIF
-		LINK.SYSMESSAGERED Deve-se permanecer parado durante o tratamento.
-	ELIF ( <MOREX>==1 )
-		IF ( !<MOREY> )
-			LINK.SYSMESSAGERED Um ataque interrompeu o tratamento.
-		ENDIF
-		CONT.SYSMESSAGERED Um ataque interrompeu o tratamento.
-	ELIF ( (<LINK.FLAGS> & statf_war) && (!<MOREY>)  )
-		LINK.SYSMESSAGERED Voce precisa relaxar para tratar o paciente.
-	ELIF ( <CONT.FLAGS> & statf_war )
-		IF ( !<MOREY> )
-			LINK.SYSMESSAGERED O paciente esta muito agitado.
-		ENDIF
-		CONT.SYSMESSAGERED Voce esta muito agitado.
-	ELIF ( ((<LINK.FLAGS> & statf_stone) || (<LINK.FLAGS> & statf_dead)) && !<MOREY> )
-		CONT.SYSMESSAGERED Quem estava lhe tratando perdeu a consciencia.
-	ELIF ( ((<CONT.FLAGS> & statf_stone) || (<CONT.FLAGS> & statf_dead)) && !<MOREY> )
-		LINK.SYSMESSAGERED O paciente perdeu a consciencia.
-	ELIF ( <CONT.HITS> < <CONT.STR> )
-		LINK.SKILL_GAIN SKILL_HEALING
+	if (<link.p.x>!=<link.tag.bandx>) || (<link.p.y>!=<link.tag.bandy>) || ( !(<cont.flags>&statf_dead) && ( (<cont.p.x>!=<cont.tag.bandx>) || (<cont.p.y>!=<cont.tag.bandy>) ) )
+		if ( !<morey> )
+			cont.sysmessagered Deve-se permanecer parado durante o tratamento.
+		endif
+		link.sysmessagered Deve-se permanecer parado durante o tratamento.
+	elif ( <morex>==1 )
+		if ( !<morey> )
+			link.sysmessagered Um ataque interrompeu o tratamento.
+		endif
+		cont.sysmessagered Um ataque interrompeu o tratamento.
+	elif ( (<link.flags> & statf_war) && (!<morey>)  )
+		link.sysmessagered Voce precisa relaxar para tratar o paciente.
+	elif ( <cont.flags> & statf_war )
+		if ( !<morey> )
+			link.sysmessagered O paciente esta muito agitado.
+		endif
+		cont.sysmessagered Voce esta muito agitado.
+	elif ( ((<link.flags> & statf_stone) || (<link.flags> & statf_dead)) && !<morey> )
+		cont.sysmessagered Quem estava lhe tratando perdeu a consciencia.
+	elif (<cont.flags>&statf_dead) && (!<cont.findid.i_mry_desmaio>)
+		link.sysmessagered Este corpo nao pode retornar a vida
+	elif ( <cont.hits> < <cont.str> )
+		link.skill_gain skill_healing
+
+		dorand 9
+			link.anim 16
+			sfx 04f
+			link.anim 19
+			sfx 04f
+			link.emoteyellow aplicando curativos
+			link.anim 16
+			sfx 04f
+			sfx 04f
+			link.anim 19
+		enddo
+
+		cont.hits=<cont.hits>+<r0,<more2>>
+		if (<cont.hits>>=<cont.str>)
+			cont.hits=<cont.str>
+		else
+			more1=<more1>-1
+			if ( <more1> )
+				timer=1
+				return 1
+			endif
+		endif
+  endif
+
+	if (!<more1>)
+		if ( !<morey> )
+			link.sysmessagegreen Voce termina de tratar o paciente.
+			link.events -e_bandagem
+			link.tag.bandmem=
+		endif
+		cont.sysmessagegreen Voce nao esta mais sendo tratado.
 		
-		CONT.HITS=<CONT.HITS>+<R0,<MORE2>>
-		IF (<CONT.HITS>>=<CONT.STR>)
-			CONT.HITS=<CONT.STR>
-		ELSE
-			MORE1=<MORE1>-1
-			IF ( <MORE1> )
-				TIMER=1
-				RETURN 1
-			ENDIF
-		ENDIF
-  ENDIF
-  
-	IF ( !<MOREY> )
-		LINK.SYSMESSAGEGREEN Voce termina de tratar o paciente.
-		LINK.EVENTS -e_bandagem
-		LINK.TAG.BANDMEM=
-	ENDIF
-	CONT.SYSMESSAGEGREEN Voce nao esta mais sendo tratado.
-	CONT.EVENTS -e_bandagem
-	CONT.TAG.BANDMEM=
+		//remove desmaio
+		cont.findid.i_mry_desmaio.more1 = 0  
+		cont.findid.i_mry_desmaio.timer = 1
+	endif
+
+	cont.events -e_bandagem
+	cont.tag.bandmem=
 	//nem sempre devolve bandagem suja
-	IF ( <R1,10><5 )
-		SERV.NEWITEM i_bandage_bloody
-		NEW.CONT=<LINK>
-	ENDIF
-	REMOVE
-RETURN 1
+	if ( <r1,10><5 )
+		serv.newitem i_bandage_bloody
+		new.cont=<link>
+	endif
+
+	remove
+return 1
 
 [EOF]
