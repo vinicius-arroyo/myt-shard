@@ -303,45 +303,26 @@ endif
 	endif
 
 //*****************************************************************************
-// f_whipe_item <DEFNAME> Remove todos os itens <DEFNAME> do world.
+// wipeObject <DEFNAME> Remove todos os itens <DEFNAME> do world.
 //*****************************************************************************
-[FUNCTION f_whipe_item]
-IF !(<ARGN>) || (<ISEMPTY <ARGS>>)
+[FUNCTION wipeObject]
+IF !(<ARGN>)
  IF (<ISEMPTY <DEF.<ARGS>>>)
-  SYSMESSAGE <ARGS> nao eh um item valido
+  SYSMESSAGE <args> nao existe.
   RETURN 0
  endif
 endif
-IF !(<SERV.ITEMDEF.<ARGS>>)
- SYSMESSAGE <ARGS> nao eh um item valido
- RETURN 0
+IF !(<ISEMPTY <ARGS>>)
+ IF !(<SERV.ITEMDEF.<ARGS>>) && !(<SERV.CHARDEF.<ARGS>>)
+  SYSMESSAGE <ARGS> nao eh um item nem criatura.
+  RETURN 0
+ endif
+ FORINSTANCES <argv[0]>
+  LOCAL.wipe=<local.wipe>+1
+  remove
+ ENDFOR
+ sysmessageorange Removidos <eval <LOCAL.wipe>> instancias de <SERV.RESOURCES.<argv[0]>.NAME>
 endif
-FORITEMS 6144 
- IF (<BaseID> == <args>)
-  REMOVE
- ENDIF
- IF (<type>==t_container) || (<type>==t_container_locked) || (<type>==t_corpse) || ((<type>==t_trap) && ((<morez>==t_container) || (<morez>==t_container_locked))) 
-  FORCONT <UID> 10
-   If (<baseid>==<DEF.<args>>)
-    Remove
-   Endif
-  endfor
- ENDIF
-ENDFOR
-allshow 1
-FORCHARS 6144
- IF (<restest 1 <args>>)
-  CONSUME 100 <args>
- ENDIF
- IF (<findlayer.layer_bankbox>)
-  FORCONT <findlayer.layer_bankbox.uid> 10
-   If (<baseid>==<DEF.<args>>)
-    Remove
-   Endif
-  endfor
- ENDIF
-ENDFOR
-allshow 0
 
 //*****************************************************************************
 //	CRY	Faz o char gritar de dor e animar (compatibilidade com 55i)
@@ -555,51 +536,4 @@ FORCLIENTS
 		sysmessageyellow <args>
 	endif
 ENDFOR
-
-//*****************************************************************************
-// f_npcRunStepToUid( uid_to_go, steps )
-//*****************************************************************************
-//npc corre em direção ao UID
-//default: NPC que ira correr
-//uid_to_go: uid alvo
-//steps numero de 'run's que ira dar em direcao ao alvo
-[FUNCTION f_npcRunStepToUid]
-REF1=<argv0>
-LOCAL.dx = <eval <REF1.p.x>-<p.x>>
-LOCAL.dy = <eval <REF1.p.y>-<p.y>>
-
-LOCAL.run=0
-if ( <LOCAL.dx> > 0 )
-	if ( <LOCAL.dy> > 0 )
-		LOCAL.run=SE
-	elif ( <LOCAL.dy> < 0 )
-		LOCAL.run=NE
-	else
-		LOCAL.run=E
-	endif
-elif ( <LOCAL.dx> < 0 )
-	if ( <LOCAL.dy> > 0 )
-		LOCAL.run=SW
-	elif ( <LOCAL.dy> < 0 )
-		LOCAL.run=NW
-	else
-		LOCAL.run=W
-	endif
-else
-	if ( <LOCAL.dy> > 0 )
-		LOCAL.run=S
-	elif ( <LOCAL.dy> < 0 )
-		LOCAL.run=N
-	endif
-endif
-
-if !( 0<LOCAL.run>==0 )
-	for R <argv1>
-		run <LOCAL.run>
-	endfor
-	return 1	
-endif
-
-return 0
-
 [EOF]

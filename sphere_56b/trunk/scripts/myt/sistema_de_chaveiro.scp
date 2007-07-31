@@ -228,7 +228,7 @@ elif (<more1>==0) && (<src.targ.baseid>==i_cadeado) && (<src.targ.link>==04FFFFF
 	src.sysmessage Agora esta chave pertence a este cadeado.
 return 1
 elif (strmatch(<src.targ.tag.fechadura>,cadeado))
-	if (<more1>==<src.targ.uid>)
+	if (<more1>==<src.targ.more1>)
 		src.emote Abrindo o cadeado
 		sfx 1451
 		src.targ.link=04fffffff	// tira o link da porta
@@ -279,7 +279,7 @@ return 1
 elif !(strmatch(<src.targ.tag.fechadura>,simples))
 	src.sysmessage Esta chave nao entra no buraco da fechadura
 return 1
-elif !(<more1> == <src.targ.uid>)
+elif !(<more1> == <src.targ.more1>)
 	src.sysmessage Esta chave nao pertence a esta fechadura
 return 1
 endif
@@ -312,7 +312,7 @@ return 1
 elif !(strmatch(<src.targ.tag.fechadura>,normal))
 	src.sysmessage Esta chave nao entra no buraco da fechadura
 return 1
-elif !(<more1> == <src.targ.uid>)
+elif !(<more1> == <src.targ.more1>)
 	src.sysmessage Esta chave nao pertence a esta fechadura
 return 1
 endif
@@ -346,7 +346,7 @@ return 1
 elif !(strmatch(<src.targ.tag.fechadura>,complexa))
 	src.sysmessage Esta chave nao entra no buraco da fechadura
 return 1
-elif !(<more1> == <src.targ.uid>)
+elif !(<more1> == <src.targ.more1>)
 	src.sysmessage Esta chave nao pertence a esta fechadura
 return 1
 endif
@@ -464,7 +464,7 @@ elif (<src.targ.distance> > 1)
    src.sysmessage Chegue mais perto.
    target 
 return 1
-elif (<src.targ.type> == t_door_lock) || (<src.targ.type> == t_container_lock)
+elif (<src.targ.type> == t_door_lock) //BUG!! || (<src.targ.type> == t_container_lock)
 	src.targ.type> == t_door
 	src.sysmessage Voce destrancou a porta.
 return 1
@@ -1005,6 +1005,8 @@ elif (STRMATCH(<cTAG.trancaTipo>,normal)
 elif (STRMATCH(<cTAG.trancaTipo>,complexa)
  cTAG.trancaTipo=Nenhuma
 endif
+UID.<cTAG.trancaUID>.tag.fechadura=<QVAL STRMATCH(<cTAG.trancaTipo>,Nenhuma)? :<cTAG.trancaTipo>>
+sysmessagegreen A fechadura de <UID.<cTAG.trancaUID>.name> foi alterada para <cTAG.trancaTipo>.
 menu m_gm_tranca
 
 on=0 Auto-Rearmavel: <QVAL <UID.<cTAG.trancaUID>.attr>&attr_owned ? Sim : Nao>
@@ -1023,30 +1025,80 @@ else
 endif
 menu m_gm_tranca
 
-on=0 Gerar chave
-if (STRMATCH(<cTAG.trancaTipo>,Nenhuma)
- sysmessageyellow Sem fechadura.
-elif (STRMATCH(<cTAG.trancaTipo>,cadeado)
- serv.newitem=i_key_rusty
-elif (STRMATCH(<cTAG.trancaTipo>,simples)
- serv.newitem=i_key_copper
-elif (STRMATCH(<cTAG.trancaTipo>,normal)
- serv.newitem=i_key_iron
-elif (STRMATCH(<cTAG.trancaTipo>,complexa)
- serv.newitem=i_key_gold
+on=0 Copiar chave (codigo: <UID.<cTAG.trancaUID>.more1>)
+LOCAL.key=<f_copykey <cTAG.trancaUID>>
+if (<LOCAL.key>)
+ sysmessageyellow Chave copiada com codigo <UID.<LOCAL.key>.more1>
+else
+ sysmessageyellow <UID.<cTAG.trancaUID>.name> nao tem uma tranca!
 endif
-new.more1=<cTAG.trancaUID>
-UID.<cTAG.trancaUID>.more1=<cTAG.trancaUID>
-new.attr=<new.attr>|attr_newbie
-new.bounce
 menu m_gm_tranca
 
-on=0 Aplicar tipo de fechadura
-if (STRMATCH(<cTAG.trancaTipo>,Nenhuma)
- UID.<cTAG.trancaUID>.tag.fechadura=
+on=0 Gerar chave (CUIDADO! Troca o codigo)
+LOCAL.key=<f_makekey <cTAG.trancaUID>>
+if (<LOCAL.key>)
+ sysmessageyellow Codigo trocado para <UID.<LOCAL.key>.more1>.
 else
- UID.<cTAG.trancaUID>.tag.fechadura=<cTAG.trancaTipo>
+ sysmessageyellow <UID.<cTAG.trancaUID>.name> nao tem uma tranca!
 endif
-sysmessagegreen A fechadura de <UID.<cTAG.trancaUID>.name> foi alterada para <cTAG.trancaTipo>.
+menu m_gm_tranca
 
+
+[FUNCTION f_makekey]
+//Faz uma chave para o container/porta de UID <argv[0]>. Também usado no sistema de aluguel e artesão.
+//Retonra a UID da chave (para efeitos bounce, p= e etc...)
+obj=<argv[0]>
+LOCAL.tranca=<obj.tag.fechadura>
+//Para se não tiver tranca.
+if (STRMATCH(<LOCAL.tranca>,))
+ return 0
+endif
+//cria a chave apropriada para a tranca
+if (STRMATCH(<LOCAL.tranca>,cadeado)
+ serv.newitem=i_key_rusty
+elif (STRMATCH(<LOCAL.tranca>,simples)
+ serv.newitem=i_key_copper
+elif (STRMATCH(<LOCAL.tranca>,normal)
+ serv.newitem=i_key_iron
+elif (STRMATCH(<LOCAL.tranca>,complexa)
+ serv.newitem=i_key_gold
+endif
+//Gera um código pra tranca.
+LOCAL.code=<eval {01000 0ffff}>
+new.more1=<LOCAL.code>
+obj.more1=<LOCAL.code>
+new.attr=<new.attr>|attr_newbie
+new.bounce
+return <new.uid>
+
+[FUNCTION f_copykey]
+//Copia uma chave a partir de um container/porta ou de outrao chave.
+//Retonra a UID da chave (para efeitos bounce, p= e etc...)
+obj=<argv[0]>
+// É uma chave? duplique.
+if (<obj.type>==t_key)
+ serv.newitem <obj.baseid>
+else
+//É um container/porta. Crie uma chave.
+ LOCAL.tranca=<obj.tag.fechadura>
+ //Para se não tiver tranca.
+ if (STRMATCH(<LOCAL.tranca>,))
+  return 0
+ endif
+ //cria a chave apropriada para a tranca
+ if (STRMATCH(<LOCAL.tranca>,cadeado)
+  serv.newitem=i_key_rusty
+ elif (STRMATCH(<LOCAL.tranca>,simples)
+  serv.newitem=i_key_copper
+ elif (STRMATCH(<LOCAL.tranca>,normal)
+  serv.newitem=i_key_iron
+ elif (STRMATCH(<LOCAL.tranca>,complexa)
+  serv.newitem=i_key_gold
+ endif
+endif
+//Copia o dodigo da tranca
+new.more1=<obj.more1>
+new.attr=<new.attr>|attr_newbie
+new.bounce
+return <new.uid>
 [EOF]

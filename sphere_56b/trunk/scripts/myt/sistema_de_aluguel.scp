@@ -23,9 +23,13 @@
 RENT_VACANT			01000	//Sem dono. Pode ser alugado.
 RENT_CAN_LOCKPICK		02000	//Se é permitido dar lockpick (caixa de banco)
 RENT_FRIENTS_CAN_ADD		0200	//Amigos podem chamar amigos
-RENT_FRIENDS_CAN_USE		0800	//Acesso restrito ao dono: Amigos não podem usar enquanto este flag estiver setado
+RENT_FRIENDS_CANT_USE		0800	//Acesso restrito ao dono: Amigos não podem usar enquanto este flag estiver setado
 RENT_PUBLIC			040	//Qualquer um pode usar (porta de loja)
 RENT_SUBITEM			01	//Sub-item de um item alugado.
+
+RENT_MAX_DAYS			15	//Maximo de dias para alugar no ato do contrato
+RENT_TOTAL_DAYS			25	//Maximo de dias para extender o aluguel (fica RENT_PERCENT_FEE% mais caro)
+RENT_PERCENT_FEE		50	//Porcentagem que fica mais caro depois de alugar por RENT_MAX_DAYS
 
 [PLEVEL 2]
 alugar
@@ -34,14 +38,78 @@ alugar
 //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
 //\\			    TYPEDEFs			    //\\
 //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
-[TYPEDEF t_placa]
+[TYPEDEF t_sign_gump]
 on=@dclick
-IF (STRMATCH(<tag.name>,)
- tag.name=<name>
+IF (<attr>&RENT_VACANT) 
+ src.act=<uid>
+ if (<src.f_aluguel>)
+  RETURN 1
+ endif
 ENDIF
-MENU m_placa
+LOCAL.can=0
+IF (<src.IsGM>)
+ LOCAL.can=1
+else
+ IF (<SRC.CanUseRented <UID>>)
+  LOCAL.can=1
+ ENDIF
+endif
+IF (<LOCAL.can>)
+ MENU m_placa
+ELSE
+ SRC.sysmessageyellow Vode nao tem permicao para mexer nesta placa.
+endif
 return 1
 
+on=@ClientTooltip
+if (<attr>&RENT_VACANT) 
+ src.f_sendTooltip <name>, Aluga-se
+ELSE
+ src.f_sendTooltipdata <name>
+endif
+return 1
+
+//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+//\\			    ITEMDEFs			    //\\
+//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+[ITEMDEF i_deed_rent]
+id=i_deed
+type=t_script
+name=Contrato de locação
+
+on=@dclick
+if (<link.more1>==<more1>) 
+ src.cTAG.rentUID=<link>
+ src.MENU m_aluguel_4
+else
+ src.sysmessageyellow Este contrato de locacao expirou.
+ remove
+endif
+return 1
+
+on=@ClientTooltip
+if (<link.more1>==<more1>) 
+ src.f_sendTooltip <name>, <link.name>
+ELSE
+ src.f_sendTooltip <name>, expirado
+endif
+return 1
+
+[ITEMDEF i_rent_timer]
+NAME=timer de aluguel
+ID=i_worldgem_bit
+TYPE=t_script
+
+on=@create
+attr=092
+color=0a6
+
+on=@timer
+timer=60*60
+IF (<link.RentCheckTime>)
+ remove
+endif
+return 1
 
 //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
 //\\			    FUNÇÕES			    //\\
@@ -63,8 +131,8 @@ targetf _alugar
 
 [FUNCTION _alugar]
 OBJ=<ARGO>
-IF (<obj.type>!=t_door) && (<obj.type>!=t_door_locked) && (<obj.type>!=t_container) && (<obj.type>!=t_container_locked)
- sysmessagered Apenas portas e containeres podem ser alugados
+IF (<obj.type>!=t_door) && (<obj.type>!=t_door_locked) && (<obj.type>!=t_container) && (<obj.type>!=t_container_locked) && (<obj.type>!=t_sign_gump)
+ sysmessagered Apenas portas, containeres e placas podem ser alugados
  RETURN 0
 ENDIF
 cTAG.rentUID=<obj>
@@ -80,7 +148,7 @@ return 1
 //Atualiza o preço de um aluguel somando <valor>
 [FUNCTION RentUpdatePrice]
 cTAG.rentPrice=<cTAG.rentPrice>+<argn>
-if (<cTAG.rentPrice> < 0)
+if (<cTAG.rentPrice> < 1)
  cTAG.rentPrice=1
  sysmessageyellow Valor minimo de 1 mc
 elif (<cTAG.rentPrice> > 6500)
@@ -89,6 +157,19 @@ elif (<cTAG.rentPrice> > 6500)
 endif
 MENU m_alugar
 
+//#######################################################
+// RentUpdateDays <valor>
+//#######################################################
+//Atualiza os dias de um aluguel somando <valor>
+[FUNCTION RentUpdateDays]
+cTAG.rentDays=<cTAG.rentDays>+<argn>
+if (<cTAG.rentDays> < 1)
+ cTAG.rentDays=1
+ sysmessageyellow Tempo minimo de aluguel: 1 dia
+elif (<cTAG.rentDays> > RENT_MAX_DAYS)
+ cTAG.rentDays=<DEF.RENT_MAX_DAYS>
+ sysmessageyellow Tempo maximo de aluguel: <EVAL RENT_MAX_DAYS> dias
+endif
 
 //#######################################################
 // RentAddSub
@@ -100,7 +181,7 @@ targetf _RentAddSub
 
 [FUNCTION _RentAddSub]
 OBJ=<argo>
-IF (<obj.type>!=t_door) && (<obj.type>!=t_door_locked) && (<obj.type>!=t_container) && (<obj.type>!=t_container_locked) && (<obj.type>!=t_placa)
+IF (<obj.type>!=t_door) && (<obj.type>!=t_door_locked) && (<obj.type>!=t_container) && (<obj.type>!=t_container_locked) && (<obj.type>!=t_sign_gump)
  sysmessagered Apenas portas, containeres e placas especiais podem ser alugados
  MENU m_alugar_2
  RETURN 0
@@ -139,6 +220,74 @@ MENU m_alugar_2
 
 
 //#######################################################
+// RentAddFriend
+//#######################################################
+//Abre target e adiciona um amigo ao aluguel
+[FUNCTION RentAddFriend]
+sysmessage Slecione o novo amigo deste aluguel.
+targetf _RentAddFriend
+
+[FUNCTION _RentAddFriend]
+OBJ=<argo>
+IF !(<obj.IsPlayer>)
+ sysmessagered <OBJ.name> nao eh um jogador valido
+ RETURN 0
+ELIF (STRMATCH(*<obj.uid>*,<UID.<cTAG.rentUID>.tag.owner>))
+ sysmessageyellow <rec_fGetName <obj.uid>> eh o principal inquilino.
+ RETURN 0
+ELIF (STRMATCH(*<obj.uid>*,<UID.<cTAG.rentUID>.tag.friends>))
+ sysmessageyellow <rec_fGetName <obj.uid>> ja eh amigo neste aluguel.
+ RETURN 0
+ENDIF
+UID.<cTAG.rentUID>.tag.friends=<UID.<cTAG.rentUID>.tag.friends>;<obj.uid>
+sysmessagegreen <rec_fGetName <obj.uid>> adicionado aos amigos de <UID.<cTAG.rentUID>.name>.
+obj.sysmessagegreen <rec_fGetName <src.uid>> adicionou-te aos amigos de <UID.<cTAG.rentUID>.name>.
+RETURN 1
+
+//#######################################################
+// RentRemFriend
+//#######################################################
+//Remove da lista o amigo <argn>
+[FUNCTION RentRemFriend]
+if (!<argv0>)
+ sysmessageyellow Ninguem para remover
+ return 0
+endif
+OBJ=<cTAG.rentUID>
+obj.tag.FRIENDS=<RentRemoveList <argv0>, <obj.tag.FRIENDS>>
+sysmessageorange <src.rec_fGetName <argv0>> removido da lista de amigos de <obj.name>!!!
+
+//#######################################################
+// RentGetFriend <n>
+//#######################################################
+//Pega o enésimo amigo do aluguel.
+[FUNCTION RentGetFriend]
+LOCAL.cont=<argn>
+LOCAL.list=<UID.<cTAG.rentUID>.tag.FRIENDS>
+LOCAL.list=<explode ;,<LOCAL.list>>
+LOCAL.list=<STRSUB 1 <eval STRLEN(<LOCAL.list>)> <LOCAL.list>>
+call _RentGetFriend <LOCAL.list>
+return <LOCAL.ret>
+
+[FUNCTION _RentGetFriend]
+LOCAL.ret=<argv[<LOCAL.cont>]>
+
+//#######################################################
+// RentFriends
+//#######################################################
+//Conta o numero de amigos
+[FUNCTION RentFriends]
+LOCAL.list=<UID.<cTAG.rentUID>.tag.FRIENDS>
+LOCAL.list=<explode ;,<LOCAL.list>>
+LOCAL.list=<STRSUB 1 <eval STRLEN(<LOCAL.list>)> <LOCAL.list>>
+call _RentFriends <LOCAL.list>
+return <LOCAL.ret>
+
+[FUNCTION _RentFriends]
+LOCAL.ret=<argv>
+
+
+//#######################################################
 // RentRemoveList <item> <lista>
 //#######################################################
 //Remove <item> de uma lista separada por ; em <lista>
@@ -155,11 +304,30 @@ var.ret=
 LOCAL.lARG=<eval <argv>-1>
 FOR i 3 <LOCAL.lARG>
 LOCAL.arg=<ARGV[<LOCAL.i>]>
- if !(strmatch(<LOCAL.arg>,<ARGV[0]>))
+ if !(strmatch(<LOCAL.arg>,<ARGV[0]>)) && (<LOCAL.arg>)
   var.ret=<var.ret>;<LOCAL.arg>
  ENDIF
 ENDFOR
 
+//#######################################################
+// RentPopFriendList <1|-1>
+//#######################################################
+//Popula a lista de amigos de um aluguel no m_aluguel_5
+//<ARGN> muda a página. Sem <argn> página 0
+[FUNCTION RentPopFriendList]
+if (!<argn>)
+ cTAG.rentPage=0
+else
+ cTAG.rentPage=<eval <cTAG.rentPage>+<argn>>
+endif
+IF (<cTAG.rentPage> <0)
+ cTAG.rentPage=0
+endif
+ctag.rentFriend1=<RentGetFriend <eval (0+<cTAG.rentPage>*5)>>
+ctag.rentFriend2=<RentGetFriend <eval (1+<cTAG.rentPage>*5)>>
+ctag.rentFriend3=<RentGetFriend <eval (2+<cTAG.rentPage>*5)>>
+ctag.rentFriend4=<RentGetFriend <eval (3+<cTAG.rentPage>*5)>>
+ctag.rentFriend5=<RentGetFriend <eval (4+<cTAG.rentPage>*5)>>
 
 //#######################################################
 // RentIDSub
@@ -173,12 +341,26 @@ SRC._RentIDSub <LOCAL.list>
 [FUNCTION _RentIDSub]
 LOCAL.total=<eval <ARGV>>
 OBJ=<argv[2]>
-OBJ.SAY=@036 [alugado]
+sysmessage=@036, Alugando <OBJ.name> voce aluga tambem:
+OBJ.SAY=@036 [alugavel]
 OBJ.tcolor 036
+LOCAL.tipo=Ì
 FOR i 3 <LOCAL.total>
  OBJ=<ARGV[<local.i>]>
- OBJ.SAY=@044 [sub-item]
- OBJ.tcolor 044
+ if (<obj.value>)
+  if (<obj.type>==t_sign_gump)
+   LOCAL.tipo=Placa
+  elif (<obj.type>==t_door) || (<obj.type>==t_door_locked)
+   LOCAL.tipo=Porta
+  elif (<obj.type>==t_container) || (<obj.type>==t_container_locked)
+   LOCAL.tipo=Container
+  else
+   LOCAL.tipo=Ì
+  endif
+  sysmessage=@044, '<local.tipo> - <OBJ.name>'
+  OBJ.SAY=@044 [sub-item]
+  OBJ.tcolor 044
+ endif
 ENDFOR
 sysmessagegreen Total de itens: <eval <argv>-3>
 
@@ -191,6 +373,40 @@ else
  color=<tag.oColor>
  tag.oColor=
 endif
+
+//#######################################################
+// RentUpdateSubItens <subitens seeparados por ;>
+//#######################################################
+//Seta flags e tags dos subitens do aluguel.
+[FUNCTION RentUpdateSubItens]
+_RentUpdateSubItens <EXPLODE ;,<ARGS>>
+
+[FUNCTION _RentUpdateSubItens]
+LOCAL.total=<eval <ARGV>>
+OBJ=<argv[2]>
+LOCAL.attr=<OBJ.ATTR>|RENT_SUBITEM
+LOCAL.SUBITENS=<OBJ.UID>
+LOCAL.code=<OBJ.more1>
+LOCAL.fechadura=<OBJ.tag.fechadura>
+FOR i 3 <LOCAL.total>
+ OBJ=<ARGV[<local.i>]>
+ if (<OBJ.IsCont>) || (<OBJ.Type>==t_door) || (<OBJ.Type>==t_door_locked) //Eh algo que usaria chave?
+  obj.more1=<LOCAL.code>	//Põe o código da chave
+  obj.tag.fechadura=<LOCAL.fechadura>
+ endif
+ OBJ.attr=<LOCAL.attr>
+ if (<obj.type>==t_sign_gump)
+  if (<obj.attr>&RENT_VACANT)
+   obj.dispid=<obj.tag.dispid>
+   obj.name=<obj.tag.name>
+  else
+   obj.tag.dispid=<obj.dispid>
+   obj.tag.name=<obj.name>
+  endif
+  obj.update 
+ endif
+ OBJ.TAG.SUBITENS=<LOCAL.SUBITENS>
+ENDFOR
 
 //#######################################################
 // BankVault
@@ -215,29 +431,206 @@ else
 endif
 
 //#######################################################
+// CanUseRented <item>
+//#######################################################
+//Checa se <I> é dono ou friend de <ITEM>
+[FUNCTION CanUseRented]
+LOCAL.user=<UID>
+obj=<argv0>
+if (<obj.attr>&RENT_PUBLIC)		//sou um sub/item de aluguel público.
+ RETURN 1
+endif
+if (<obj.attr>&RENT_SUBITEM)		//sou um subitem de aluguel
+ OBJ=<OBJ.TAG.SUBITENS>
+ENDIF
+LOCAL.friends=<OBJ.tag.OWNER>
+IF (<OBJ.attr>&RENT_FRIENDS_CANT_USE)	//amigos podem usar os itens de aluguel
+ LOCAL.friends=<LOCAL.friends>;<OBJ.tag.friends>
+endif
+IF (STRMATCH(*<LOCAL.user>*,<LOCAL.friends>))
+ RETURN 1
+ELSE
+ RETURN 0
+ENDIF
+
+
+//#######################################################
+// evalRentDays <cTAG.rentUID>
+//#######################################################
+//Retorna o número de dias que faltam para o aluguel expirar.
+[FUNCTION evalRentDays]
+obj=<ARGV0>
+LOCAL.days=<obj.tag.TIMEf>-<SERV.time>
+LOCAL.days=<LOCAL.days>/(24*60*60*10)
+RETURN <eval <LOCAL.days>>
+
+//#######################################################
+// evalRentTotalDays <cTAG.rentUID>
+//#######################################################
+//Retorna o número de dias que faltam para o aluguel expirar.
+[FUNCTION evalRentTotalDays]
+obj=<ARGV0>
+LOCAL.days=<obj.tag.TIMEf>-<obj.tag.TIME0>
+LOCAL.days=<LOCAL.days>/(24*60*60*10)
+RETURN <eval <LOCAL.days>>
+
+//#######################################################
+// rentDevoluteMoney <UID do aluguel>
+//#######################################################
+//Retorna o dinheiro em mc que o inquilino revebe se recindir o contrato
+//ARGV0 é o item alugado.
+[FUNCTION rentDevoluteMoney]
+obj=<ARGV0>
+LOCAL.money=<obj.tag.TIMEf>-<obj.tag.TIME0>
+LOCAL.money=(<LOCAL.money>/(24*60*60*10))*<obj.tag.price>
+RETURN <eval <LOCAL.money>>
+
+//#######################################################
+// rentSendMessage
+//#######################################################
+//Manda a mensagem <args> para os amigos e dono.
+[FUNCTION rentSendMessage]
+//f_sendMessage( uidPlayer, message, msgColor )
+LOCAL.msg=<ARGS>
+LOCAL.list=<tag.owner>;<tag.friends>
+LOCAL.list=<explode ;,<LOCAL.list>>
+LOCAL.list=<STRSUB 1 <eval STRLEN(<LOCAL.list>)> <LOCAL.list>>
+call _rentSendMessage <LOCAL.list>
+
+[FUNCTION _rentSendMessage]
+FOR i 0 <argv>
+ f_sendMessage <argv[<local.i>]>, Sistema de aluguel: <LOCAL.msg>, 02c
+ENDFOR
+
+//#######################################################
 // RentProcFinish
 //#######################################################
 //Finaliza o processo de criação de aluguel.
 [FUNCTION RentProcFinish]
 OBJ=<cTAG.rentUID>
-say <cTAG.rentFlags>
 OBJ.attr=<OBJ.attr>|<cTAG.rentFlags>
 OBJ.TAG.SUBITENS=<cTAG.rentSUB>
 OBJ.TAG.PRICE=<cTAG.rentPrice>
-sysmessagegreen <obj.name> alugavel por <obj.tag.price> mc/dia
+OBJ.RentUpdateSubItens <OBJ.TAG.SUBITENS>
+OBJ=<cTAG.rentUID>
+sysmessagegreen <obj.name> alugavel por <eval <obj.tag.price>> mc/dia
 
 //#######################################################
 // SignTurn
 //#######################################################
 //Muda a arte da placa
 [FUNCTION SignTurn]
+// RentRemoveList <item> <lista>
 serv.newitem=<argv0>
 new.p=<p>
 new.name=<name>
-new.type=t_placa
+new.type=t_sign_gump
+new.attr=<attr>
+if (<attr>&01) || (<tag.owner>)		//sou um subitem de aluguel.
+ if (<attr>&01)				//Subitem ou item?
+  obj=<tag.SUBITENS>
+  LOCAL.subitens=<OBJ.TAG.subitens>
+  LOCAL.subitens=<RentRemoveList <UID>,<LOCAL.subitens>>;<new.uid>
+  obj.tag.subitens=<LOCAL.subitens>
+  new.tag.subitens=<obj.uid>
+ else
+  new.tag.subitens=<tag.subitens>
+  new.tag.owner=<tag.owner>
+  new.tag.friends=<tag.friends>
+  new.tag.price=<tag.price>
+  new.tag.time0=<tag.time0>
+  new.tag.timef=<tag.timef>
+  new.tag.fechadura=<tag.fechadura>
+  new.more1=<more1>
+  new.tag.DEED=<tag.DEED>
+  UID.<tag.DEED>.link=<new.uid>
+  RentUpdateSubItens <new.tag.subitens>
+ endif
+endif
 new.update
 remove
 src.sysmessagegreen Placa modificada.
+
+//#######################################################
+// rentIWill
+//#######################################################
+//O jogador decidiu por alugar. Ele tem o dinheiro? Prcisa setar mais alguma coisa?
+[FUNCTION rentIWill]
+obj=<cTAG.rentUID>
+LOCAL.price=<eval <obj.tag.PRICE>*<cTAG.rentDays>>
+IF (<vendor_getCash <LOCAL.price>>)
+ IF (<obj.attr>&RENT_CAN_LOCKPICK)
+  MENU m_aluguel_3
+ else
+  _rentIWill <obj.UID>
+ endif
+else
+ sysmessageyellow Voce nao tem <eval <LOCAL.price>> moedas de cobre para alugar <OBJ.name>
+endif
+
+[FUNCTION _rentIWill]
+OBJ=<argv[0]>
+sysmessagegreen Voce alugou <obj.name> por <eval <cTAG.rentDays>> <QVAL <cTAG.rentDays> < 2 ? dia:dias> por <eval <LOCAL.price>> moedas de cobre.
+if (STRMATCH(<obj.tag.fechadura>,))
+ obj.tag.fechadura=simples
+endif
+obj.attr=<obj.attr>&~RENT_VACANT
+src.f_makekey <obj.uid>
+obj.tag.timef=<eval <SERV.TIME>+(<cTAG.rentDays>*24*60*60*10)>
+obj.tag.time0=<SERV.TIME>
+obj.tag.owner=<SRC.UID>
+serv.newitem i_deed_rent
+obj.tag.DEED=<new.uid>
+new.link=<obj.uid>
+new.more1=<obj.more1>
+src.new.bounce
+serv.newitem i_rent_timer
+new.link=<obj>
+new.timer=60*60
+new.p=<obj.p>
+obj.tag.timer=<new.UID>
+obj.RentUpdateSubItens <obj.tag.subitens>
+
+//#######################################################
+// rentCheckTime
+//#######################################################
+//Verifica se já passou o tempo do aluguel
+//Retorna 1 se já passou, 2 se já prorrogou e 0 se ainda falta.
+[FUNCTION rentCheckTime]
+if (<serv.time> > <tag.timef>)
+ rentReset
+ return 1
+endif
+return 0
+
+//#######################################################
+// rentReset
+//#######################################################
+//Reseta o aluguel para que outro possa alugar
+[FUNCTION rentReset]
+rentSendMessage O aluguel de <name> expirou!
+obj=<tag.deed>
+OBJ.name=Ordem de despejo
+obj=<tag.timer>
+obj.remove
+tag.friends=
+tag.owner=
+tag.time0=
+tag.timef=
+tag.deed=
+tag.timer=
+more1={01000 0ffff}
+tag.fechadura=simples
+if (<type>==t_door)
+ type t_door_locked
+elif (<type>==t_container
+ type t_container_locked
+elif (<type>==t_sign_gump)
+ name=Aluga-se
+endif
+attr=<attr>|RENT_VACANT
+RentUpdateSubItens <tag.subitens>
+
 
 //#######################################################
 // f_aluguel
@@ -245,7 +638,18 @@ src.sysmessagegreen Placa modificada.
 //Chamado no on=@dclick de container e porta pelo e_mytgeral
 //Deve retornar 1 se bloqueia a ação HC ou 0 se permite
 [FUNCTION f_aluguel]
-return 0
+IF (<SRC.ISGM>)
+ sysmessageorange Este item (<src.act.name>) esta para ser alugado!
+ sysmessageorange Para interagir, tire seu status de GM.
+ return 0
+ENDIF
+if (<src.act.attr>&RENT_SUBITEM) //Eu nao sou o alugavel. Sou o subitem.
+ cTAG.rentUID=<src.act.tag.SUBITENS>
+else
+ cTAG.rentUID=<src.act.uid>
+endif
+MENU m_aluguel_1
+return 1
 
 //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
 //\\			    MENUS			    //\\
@@ -281,12 +685,17 @@ on=0 -50
 RentUpdatePrice -50
 
 on=0 Proceguir
-MENU m_alugar_2
-
-
-//###############
-// Menus Player
-//###############
+if (<cTAG.rentPrice> < 1)
+ sysmessageyellow Nao se pode alugar de graca.
+ cTAG.rentPrice 1
+ MENU m_alugar
+elif (<cTAG.rentPrice> > 6500)
+ sysmessageyellow Preco abusivo e incompativel como sistema (max 6500 mc).
+ cTAG.rentPrice 6500
+ MENU m_alugar
+else
+ MENU m_alugar_2
+endif
 
 [MENU m_alugar_2]
 (MyT]Condicoes do aluguel[MyT)
@@ -311,6 +720,150 @@ timerf 3,MENU,m_alugar_2
 on=0 Terminar
 RentProcFinish
 
+//###############
+// Menus Player
+//###############
+
+[MENU m_aluguel_1]
+Deseja alugar <UID.<src.cTAG.rentUID>.name> por <eval <UID.<src.cTAG.rentUID>.tag.PRICE>> cobres por dia?
+on=0 Sim, vou alugar
+cTAG.rentDays=1
+MENU m_aluguel_2
+
+on=0 Deixe-me ver os itens que serao alugados junto.
+RentIDSub <UID.<src.cTAG.rentUID>.tag.subitens>
+timerf 3,MENU,m_aluguel_1
+
+[MENU m_aluguel_2]
+Durante <eval <cTAG.rentDays>> <QVAL <cTAG.rentDays> < 2? dia:dias> (<eval <cTAG.rentDays>*<UID.<src.cTAG.rentUID>.tag.PRICE>> cobres)
+on=0 +3
+RentUpdateDays 3
+MENU m_aluguel_2
+
+on=0 +1
+RentUpdateDays 1
+MENU m_aluguel_2
+
+on=0 Alugar por <eval <cTAG.rentDays>> <QVAL <cTAG.rentDays> < 2? dia:dias>
+rentIWill
+
+on=0 -1
+RentUpdateDays -1
+MENU m_aluguel_2
+
+on=0 -3
+RentUpdateDays -3
+MENU m_aluguel_2
+
+
+[MENU m_aluguel_3]
+Este item esta equipado com fechaduras simples. Gostaria de pagar mais caro e equipa-lo com felhaduras melhores?
+on=0 Fechadura normal (<eval <cTAG.rentPrice>*10> mc)
+IF (<vendor_getCash <eval <cTAG.rentPrice>*10>>)
+ UID.<cTAG.rentUID>.tag.fechadura=normal
+ _rentIWill <cTAG.rentUID>
+else
+ Sysmessageyellow Voce nao tem <eval <cTAG.rentPrice>*10> moedas de cobre
+ MENU m_aluguel_3
+endif
+
+on=0 Fechadura complexa (<eval <cTAG.rentPrice>*30> mc)
+IF (<vendor_getCash <eval <cTAG.rentPrice>*30>>)
+ UID.<cTAG.rentUID>.tag.fechadura=complexa
+ _rentIWill <cTAG.rentUID>
+else
+ Sysmessageyellow Voce nao tem <eval <cTAG.rentPrice>*30> moedas de cobre
+ MENU m_aluguel_3
+endif
+
+on=0 Nao, obrigado.
+UID.<cTAG.rentUID>.tag.fechadura=simples
+sysmessageyellow Caso mude de ideia quanto a fechadura, consulte um artesao.
+_rentIWill <cTAG.rentUID>
+
+[MENU m_aluguel_4]	//Contrato de locação.
+Contrato de locacao de <UID.<cTAG.rentUID>.name>: Restam <evalRentDays <cTAG.rentUID>> <QVAL <evalRentDays <cTAG.rentUID>> <= 1 ?dia:dias>
+
+on=0 Adicionar amigo
+SRC.rentAddFriend
+
+on=0 Visualizar/remover amigo
+RentPopFriendList 0
+MENU m_aluguel_5
+
+on=0 Amigos podem comandar: <QVAL <UID.<cTAG.rentUID>.ATTR>&RENT_FRIENDS_CANT_USE ?Nao:Sim>
+IF (<UID.<cTAG.rentUID>.ATTR>&RENT_FRIENDS_CANT_USE)
+ UID.<cTAG.rentUID>.ATTR=<UID.<cTAG.rentUID>.ATTR>&~RENT_FRIENDS_CANT_USE
+ELSE
+ UID.<cTAG.rentUID>.ATTR=<UID.<cTAG.rentUID>.ATTR>|RENT_FRIENDS_CANT_USE
+ENDIF
+MENU m_aluguel_4
+
+on=0 Mudar contrato
+LOCAL.fee=<eval RENT_PERCENT_FEE + 100>
+cTAG.rentPrice=<eval (<UID.<cTAG.rentUID>.TAG.PRICE>*<LOCAL.fee>)/100>
+MENU m_aluguel_6
+
+on=0 Visualizar itens alugados
+RentIDSub <UID.<src.cTAG.rentUID>.tag.subitens>
+
+[MENU m_aluguel_5]	//lista de amigos
+Sao <eval <src.RentFriends>> os amigos. Selecione um para remover. (pag <eval <cTAG.rentPage>+1>)
+on=0 <QVAL <cTAG.rentFriend1> ? - <src.rec_fGetName <cTAG.rentFriend1>>:Ninguem>
+src.RentRemFriend <cTAG.rentFriend1>
+on=0 <QVAL <cTAG.rentFriend2> ? - <src.rec_fGetName <cTAG.rentFriend2>>:Ninguem>
+src.RentRemFriend <cTAG.rentFriend2>
+on=0 <QVAL <cTAG.rentFriend3> ? - <src.rec_fGetName <cTAG.rentFriend3>>:Ninguem>
+src.RentRemFriend <cTAG.rentFriend3>
+on=0 <QVAL <cTAG.rentFriend4> ? - <src.rec_fGetName <cTAG.rentFriend4>>:Ninguem>
+src.RentRemFriend <cTAG.rentFriend4>
+on=0 <QVAL <cTAG.rentFriend5> ? - <src.rec_fGetName <cTAG.rentFriend5>>:Ninguem>
+src.RentRemFriend <cTAG.rentFriend5>
+
+on=0 Proxima pagina
+src.RentPopFriendList 1
+MENU m_aluguel_5
+
+on=0 Pagina anterior
+src.RentPopFriendList -1
+MENU m_aluguel_5
+
+[MENU m_aluguel_6]
+Selecione a mudanca:
+on=0 Extender prazo em 1 dia (<eval <cTAG.rentPrice>>)
+if (<eval <evalRentTotalDays <cTAG.rentUID>>+1> < RENT_TOTAL_DAYS)
+ if (<src.vendor_getCash <cTAG.rentPrice>>)
+  UID.<cTAG.rentUID>.tag.timef=<eval <UID.<cTAG.rentUID>.tag.timef>+(24*60*60*10)>
+  src.sysmessagegreen Prazo extendido em 1 dia
+ else
+  src.sysmessageyellow Voce nao tem <eval <cTAG.rentPrice>> moedas de cobre.
+ endif
+else
+ src.sysmessageyellow Tempo maximo de aluguel extendido: <eval <DEF.RENT_TOTAL_DAYS>> dias.
+endif
+MENU m_aluguel_6
+
+on=0 Extender prazo em 3 dias (<eval <cTAG.rentPrice>*3>)
+if (<eval <evalRentTotalDays <cTAG.rentUID>>+3> < RENT_TOTAL_DAYS)
+ if (<src.vendor_getCash <eval <cTAG.rentPrice>*3>>)
+  UID.<cTAG.rentUID>.tag.timef=<eval <UID.<cTAG.rentUID>.tag.timef>+(3*24*60*60*10)>
+  src.sysmessagegreen Prazo extendido em 3 dia
+ else
+  src.sysmessageyellow Voce nao tem <eval <cTAG.rentPrice>*3> moedas de cobre.
+ endif
+else
+ src.sysmessageyellow Tempo maximo de aluguel extendido: <eval <DEF.RENT_TOTAL_DAYS>> dias.
+endif
+MENU m_aluguel_6
+
+on=0 Recindir contrato (Devolve <eval <rentDevoluteMoney <cTAG.rentUID>>> mc)
+obj=<cTAG.rentUID>
+obj.rentReset
+serv.newitem i_coin_copper
+new.amount=<eval <rentDevoluteMoney <cTAG.rentUID>>>
+src.new.bounce
+return 1
+
 [MENU m_placa]
 (MyT] O que deseja da placa? [MyT)
 on=0 Mudar a placa
@@ -324,9 +877,12 @@ on=0 Mudar os dizeres
 src.ctag.placaUID=<uid>
 src.dialog d_placa
 
-
 [MENU m_placa_face]
 Slecione a placa:
+on=0bcf placa de madeira
+SignTurn 0bcf
+on=0bd1 placa de bronze
+SignTurn 0bd1
 on=0b95 livraria
 SignTurn 0b95
 on=0ba3 padaria
@@ -373,10 +929,12 @@ on=0bcb armazem
 SignTurn 0bcb
 on=0bcd arcos e bestas
 SignTurn 0bcd
-on=0b0d teatro 
-SignTurn 0b0d
+on=0c0d teatro 
+SignTurn 0c0d
 on=0c43 apiario 
 SignTurn 0c43
+on=0c09 guilda 
+SignTurn 0c09
 
 [DIALOG d_placa]
 200, 300
@@ -385,7 +943,7 @@ resizepic 0 0 3500 356 136
 text 26 31 995 0
 text 141 10 152 1
 gumppic 39 63 1143
-textentry 59 66 220 600 1152 0 2
+dtextentry 59 66 220 600 1152 0 <UID.<src.ctag.placaUID>.name>
 button 55 97 239 240 1 0 1
 button 234 97 243 241 1 0 2
 
@@ -405,3 +963,12 @@ return 1
 
 ON=2
 return 1
+
+[COMMENT f_scroll_aluguel]
+SCROLL scroll_aluguel
+
+[COMMENT scroll_aluguel]
+Atravez do contrato de locação você pode mudar as opções do seu item alugado como adicionar e remover amigos, permitir que os amigos administrem o(s) item(s) alugados, extender o prazo do aluguel ou recindir o contrato.
+Caso queira mudar de tranca ou copiar uma chave, procura um artesao. Eles são habilidosos em confeccionar trancas de porta e chaves.
+
+[EOF]
