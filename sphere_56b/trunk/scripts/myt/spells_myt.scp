@@ -12,14 +12,14 @@ spl_help	04
 spl_mry		08
 spl_missil	010
 
-splt_vida	01
-splt_agua	02
-splt_materia	04
-splt_ar		08
-splt_fogo	010
-splt_morte	020
-splt_terra	040
-splt_energia	080
+spl_vida	01
+spl_agua	02
+spl_materia	03
+spl_ar		04
+spl_fogo	05
+spl_morte	06
+spl_terra	07
+spl_energia	08
 
 
 
@@ -27,29 +27,66 @@ splt_energia	080
 //		FUNCTIONS GERAIS DE SPELL
 //*************************************************************
 
-//Se PCs podem castar.
-//CanAdvCast <mana> <skilldif> <delay> <splt_xxx>
-[FUNCTION CanAdvCast]
-if (<restest i_npc_spell_delay 1>) || (<tag0.spell_delay>)
- sysmessagered Voce ainda nao se recuperou da ultima magia.
- RETURN 0
-elif (<mana> < <argv0>)
- sysmessagered Pouca mana...
- RETURN 0
-ENDIF
-//gasta mana
-mana=<mana>-<argn0>
-//delay na spell
-spell_delay <argv2>
-if (!<skilltest <Magery> <argv1>>)
- cast_fizzle
- RETURN 0
+[FUNCTION trycast]
+//trycast <spell> <domain>
+//Nos moldes novos, tenta castar <spell> no domínio <domain>
+LOCAL.mag=<tag0.mag>
+if !(STRMATCH(<argv1>,))
+ serv.log <ACCOUNT.NAME> castando <serv.resources.<argv0>.name> usando dominio <argv1>.
+ //Penalidade por domínio oposto.
+ DOSWITCH (<DEF.<argv1>>-1)
+  LOCAL.mag=<LOCAL.mag>-(<tag0.spl_morte>+1)
+  LOCAL.mag=<LOCAL.mag>-(<tag0.spl_fogo>+1)
+  LOCAL.mag=<LOCAL.mag>-(<tag0.spl_energia>+1)
+  LOCAL.mag=<LOCAL.mag>-(<tag0.spl_terra>+1)
+  LOCAL.mag=<LOCAL.mag>-(<tag0.spl_agua>+1)
+  LOCAL.mag=<LOCAL.mag>-(<tag0.spl_vida>+1)
+  LOCAL.mag=<LOCAL.mag>-(<tag0.spl_ar>+1)
+  LOCAL.mag=<LOCAL.mag>-(<tag0.spl_materia>+1)
+ ENDDO
+ //Bônus pelo domínio
+ LOCAL.mags=(<LOCAL.mag>)+<tag0.<argv1>>
+ LOCAL.magm=(<LOCAL.mag>)-<tag0.<argv1>> 
+else
+ LOCAL.mags=<LOCAL.mag>
+ LOCAL.magm=<LOCAL.mag>
 endif
+LOCAL.magm=<f_manaPerMag <serv.resources.<argv0>.manause>, <LOCAL.magm>>
+LOCAL.mags=<f_skillPerMag <magery>, <LOCAL.mags>>
+IF (<mana> < <LOCAL.magm>)
+ sysmessageyellow Voce nao tem mana o suficiente.
+ return 1
+endif
+IF (<strarg <serv.resources.<argv0>.SKILLREQ>> > <LOCAL.mags>+75)
+ sysmessageyellow Esta alem de sua habilidade...
+ return 1
+endif
+ctag.cSkill=<LOCAL.mags>
+ctag.cMana=<LOCAL.magm>
+return 0
+
+
+[FUNCTION skillchance]
+// LOCAL.SKILL_CURR <argv0>
+// LOCAL.SKILL_REQ <argv1>
+//Obrigado, Taran! E feliz aniversário! (foi ontem...)
+LOCAL.skill_diff <eval <argv1>-<argv0>>        // Notice the +- to deal with issues
+LOCAL.skill_bell <eval randbell( <LOCAL.skill_diff>, 100 )>
+if ( <LOCAL.skill_diff> < 0 )
+    LOCAL.skill_bell <eval 1000 - <LOCAL.skill_bell>>
+endif
+return <eval <LOCAL.skill_bell>>
+
+[FUNCTION belltest]
+// <argv0> skill a testar
+// <argv1> skill requerida
+if (<eval {0 1000}> < <skillchance <argv0>,<argv1>>)
  RETURN 1
+else
+ RETURN 0
 endif
 
-[FUNCTION CalcMagery]
-//<ARGN0> splt_xxx
+
 
 [FUNCTION f_skillPerMag]
 //Retorna %skill corrigido pelo tag.mag (ajustado no dialog d_magia)
@@ -71,9 +108,14 @@ ENDIF
 LOCAL.mana=<eval ((<argv0>*<LOCAL.percent>)/100)>
 RETURN <eval <LOCAL.mana>>
 
+
 //Falha uma magia
 [FUNCTION cast_fizzle]
-local.timer=<eval {1 2}>
+if (!<argn>)
+ local.timer=<eval {1 2}>
+else
+ local.timer=<argn>
+endif
 timerf <local.timer>,effect,3,i_fx_smoke_small,0,32
 timerf <local.timer>,sfx,0208
 
@@ -85,11 +127,18 @@ targetf TargCast_ <argv0>,<argv1>,<argv2>
 [FUNCTION TargCast_]
 try argo.<argv0>,<argv1>,<argv2>
 
-//Previne castar magias por <argn> decimos de segundo
+//Testa de pode castar ou Previne castar magias por <argn> decimos de segundo
 [FUNCTION spell_delay]
-serv.newitem i_npc_spell_delay
-new.timerd <argn>
-new.cont <uid>
+IF (<ARGN>)
+ serv.newitem i_npc_spell_delay
+ new.timerd <argn>
+ new.cont <uid>
+ELIF (<findid.i_npc_spell_delay>)
+ RETURN 1
+else
+ RETURN 0
+endif
+ 
 
 [ITEMDEF i_npc_spell_delay]
 ID=01810
@@ -103,11 +152,17 @@ return 1
 
 //Se NPCs podem castar
 [FUNCTION NPC_CanCast]
-if (<restest i_npc_spell_delay 1>) || (<tag0.spell_delay>)
+if (<findid.i_npc_spell_delay>) || (<tag0.spell_delay>)
+ say Nao posso
  RETURN 0
 else
+ say Posso
  RETURN 1
 endif
+
+//Se PCs podem castar
+[FUNCTION CanCast]
+RETURN <NPC_CanCast>
 
 //*************************************************************
 //		FUNCTIONS DE SPELLS GENERICAS

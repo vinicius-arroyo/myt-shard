@@ -2,9 +2,43 @@
 //		SPELL EARTHQUAKE
 //***********************************************************
 
+[Spell 57]
+DEFNAME=s_earthquake
+NAME=Earthquake
+SOUND=snd_SPELL_EARTHQUAKE
+RUNES=IVP
+CAST_TIME=70
+RESOURCES=i_reag_blood_moss,i_reag_ginseng,i_reag_mandrake_root,i_reag_sulfur_ash
+RUNE_ITEM=i_rune_EARTHQUAKE
+SCROLL_ITEM=i_scroll_EARTHQUAKE
+FLAGS=SPELLFLAG_HARM| SPELLFLAG_RESIST
+EFFECT_ID=0
+EFFECT=30,45
+DURATION=30.0
+MANAUSE=35
+SKILLREQ=MAGERY 70.0
+// NOTE: does Earthquake use a duration?? IF so, no more then 30secs. This spell is more like an irradiating wave thus should have a set distance/time it can be effective
+INTERRUPT=100.0,100.0
+
+on=@select
+return <trycast s_earthquake,spl_earth>
+
+on=@Success
+mana=<mana>-<ctag.cMana>
+
+on=@Fail
+mana=<mana>-<ctag.cMana>
+
+on=@Effect
+IF (!<src.spell_delay>)
+ src.f_spl_earthquake <src.cTag.cSkill>
+ src.spell_delay <f_rangeValue 600, 120, <src.cTag.cSkill>>
+endif
+return 1
+
 [FUNCTION f_spl_earthquake]
 SERV.NEWITEM i_spl_earthquake
-IF (<argv0>
+IF (IsNum(<argv0>))
  NEW.MORE1=<argv0>
 ELSE
  NEW.MORE1=<magery>
@@ -43,13 +77,13 @@ NAME=Earthquake
 TYPE=t_script
 
 on=@timer
-if (<more2> <= 15)
+if (<more2> <= 8)
  f_spl_earthquake_rumble
  more2=<MORE2>+1
- timerd 1
+ timerd 2
 else
  OBJ=<UID>
- FORCHARS 12
+ FORCHARS
   sfx 011e
   damagespell s_Earthquake, DAM_PHYSICAL, <OBJ.MORE1>, <OBJ.LINK>
   if (<hits> > 0) && (!<NPC>)
@@ -64,13 +98,42 @@ return 1
 //***********************************************************
 //		SPELL STALAGMITE
 //***********************************************************
-[FUNCTION f_spl_stalagmite]
+[FUNCTION t]
+try cast 200
+
+[Spell 200]
+DEFNAME=s_stalagmite
+NAME=Stalagmite
+SOUND=022d
+RUNES=0
+CAST_TIME=15
+RESOURCES=i_reag_blood_moss,i_reag_ginseng,i_reag_mandrake_root,i_reag_sulfur_ash
+RUNE_ITEM=i_rune_EARTHQUAKE
+SCROLL_ITEM=i_scroll_EARTHQUAKE
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted
+EFFECT_ID=0
+EFFECT=3,8
+//DURATION=30.0
+MANAUSE=5
+SKILLREQ=MAGERY 35.0
+INTERRUPT=100.0,100.0
+
+on=@select
+return <trycast s_stalagmite,spl_earth>
+
+on=@Success
+mana=<mana>-<ctag.cMana>
+
+on=@Fail
+mana=<mana>-<ctag.cMana>
+
+on=@Effect
 SERV.NEWITEM i_spl_stalagmite
 new.dispid={08e1 1 08e0 1 08e7 1}
 new.p=<p.x>,<p.y>,<eval <p.z>-10>
 new.timerd 1
 sfx 022d
-DAMAGE <eval {3 8}> DAM_PHYSICAL
+DAMAGESPELL s_stalagmite, dam_physical, <src.cTAG.cSkill>, <src.uid>
 
 [ITEMDEF i_spl_stalagmite]
 ID=08e1
