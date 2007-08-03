@@ -1,0 +1,86 @@
+//Check se passa num teste de special move ou não.
+//ARGN1 = specialmove
+//ARGN2 = skill
+//ARGN3 = UID do afetado
+[FUNCTION f_SpecialMove]
+IF (0<cTAG.SPECIALMOVE>!=<argn1>) || (<NPC>)
+ return 0
+ENDIF
+IF (!<BELLTEST <Tactics>, <argn2>>) || (<R10>)
+ return 0
+endif
+DOSWITCH <argn1>
+ var.blank=
+ //1	ignoreAR
+ begin		
+  emotered inbloqueavel
+  sfx 02b2
+ end
+
+ //2	bleed
+ begin		
+  UID.<argn3>.f_sangra
+ end
+
+ //3	Concusion Blow
+ begin
+  LOCAL.greater=<QVAL <UID.<argn3>.hits> > <UID.<argn3>.mana> ? <UID.<argn3>.hits> : <UID.<argn3>.mana>>
+  LOCAL.lesser=<QVAL <UID.<argn3>.hits> < <UID.<argn3>.mana> ? <UID.<argn3>.hits> : <UID.<argn3>.mana>>
+  UID.<argn3>.damage <eval <LOCAL.greater>-<LOCAL.lesser>> 01 <UID>
+  sfx 04f4
+ end
+
+ //4	Crushing Blow
+ begin
+  sfx 051C
+  LOCAL.dano=<LOCAL.dano>+<f_rangeValue 5, 15, <tactics>>
+ end
+
+ //5	disarm
+ begin
+  OBJ=<uid.<argn3>.weapon>
+  if (!<obj>)
+   sysmessageyellow Voce nao pode desarmar seu oponente.
+   return 0
+  endif
+  OBJ.p=<p>
+  OBJ.movenear <UID> 1
+  sfx 033
+ end
+ENDDO
+return 1
+
+
+
+
+
+[FUNCTION f_sangra]
+serv.newitem i_mry_sangra
+new.more1=6
+new.equip
+
+[ITEMDEF i_mry_sangra]
+ID=0122A
+TYPE=t_eq_script
+name=Bleed Attack
+layer=LAYER_SPECIAL
+
+on=@equip
+if (<src.restest 2 <baseid>>) || (<src.BLOODCOLOR>==0ffff)
+ remove
+else
+ timerd = 1
+endif
+return 1
+
+on=@timer
+if (!<more1>)
+ remove
+else
+ cont.emotered sangrando
+ cont.damage <more1> 01
+ cont.sfx 05ab
+ more1=<more1>-1
+ timerd {8 12}
+endif
+return 1
