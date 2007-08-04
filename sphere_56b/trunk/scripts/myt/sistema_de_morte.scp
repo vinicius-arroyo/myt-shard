@@ -84,7 +84,7 @@ if (<tag0.morte_desmaios> < <DEF.max_desmaios>)
 	NEW.link=<uid>
 	NEW.equip
 	NEW.timer=<eval (60*<tag0.morte_desmaios>)>
-
+	
 	//indica morte apos 'timer'
 	if (<tag0.morte_desmaios> > (<DEF.max_desmaios>/2) )
 		NEW.more1=1 
@@ -111,39 +111,19 @@ return 1
 ON=@DCLICK
  //ressurect?
  if (<src.flags>&statf_dead)
-  //somente se tiver pontos de alma
-  if (<src.tag0.pontosdealma><=0)
-   src.sysmessageyellow Sua alma esta fadada ao descanso eterno.
-   src.sysmessageyellow Nunca mais voltara a vida
-   return 1
-  endif  
-
-  //verifica se ja passou tmepo suficiente para recuperacao
-  if (<src.tag0.pontosdealma> == 1)
-   LOCAL.ressconcluido=<eval <src.tag.morte_horario>+(60 * 15)>
-  elif (<src.tag0.pontosdealma> == 2)
-   LOCAL.ressconcluido=<eval <src.tag.morte_horario>+(60 * 10)>
-  elif (<src.tag0.pontosdealma> == 3)
-   LOCAL.ressconcluido=<eval <src.tag.morte_horario>+(60 * 5)>
-  else
-   LOCAL.ressconcluido=<eval <src.tag.morte_horario>+(60 * 2)>
-  endif
-  
-  if (<LOCAL.ressconcluido> > <eval <time>/(10)>)
-   LOCAL.x=<eval <LOCAL.ressconcluido>-<eval <time>/(10)>>
-   src.sysmessageyellow Voce precisa recuperar um pouco suas forcas (<dlocal.x>s)...
-   return 1
-  else
-   src.go <src.tag.morte_local>
-   src.flags=<src.flags>&~(statf_invisible|statf_invul|statf_insubstantial)
-   src.findid.i_mry_desmaio.remove
-   return 0
-  endif
+	f_shrine
  else
   src.sysmessageyellow Voce possui <eval <src.tag0.pontosdealma>> pontos de alma...
  endif
  return 1
- 
+
+ON=@STEP
+ //ressurect?
+ if (<src.flags>&statf_dead)
+	f_shrine
+ endif
+ return 1
+
 //*****************************************************************************
 // t_corpse
 //*****************************************************************************
@@ -181,13 +161,22 @@ endif
 
 ON=@TIMER
 //faz com que o espirito dos desmaiados estejam perto do corpo
-if (<link>!=04fffffff) && (<link.findid.i_mry_desmaio>)
-	timer=5
-	if (<link.distance <uid>> > 5)
-		link.movenear <uid> 3
-		link.sysmessageyellow Voce deve permanecer proximo de seu corpo.
+if (<link>==04fffffff)
+	return 0
+elif (<link.flags>&statf_dead))
+	//se desmaiado
+	if (<link.findid.i_mry_desmaio>)
+		timer=5
+		if (<link.distance <uid>> > 5)
+			link.movenear <uid> 3
+			link.sysmessageyellow Voce deve permanecer proximo de seu corpo.
+		endif
+		return 1
+	//se morto
+	else
+		timer=3600 //1h decay time
+		return 1
 	endif
-	return 1
 endif
 return 0
 
@@ -197,6 +186,34 @@ return 0
 //*****************************************************************************
 //*****************************************************************************
  
+[FUNCTION f_shrine]
+//somente se tiver pontos de alma
+if (<src.tag0.pontosdealma><=0)
+ src.sysmessageyellow Sua alma esta fadada ao descanso eterno.
+ src.sysmessageyellow Nunca mais voltara a vida
+ return 1
+endif  
+
+//verifica se ja passou tmepo suficiente para recuperacao
+if (<src.tag0.pontosdealma> == 1)
+ LOCAL.ressconcluido=<eval <src.tag.morte_horario>+(60 * 15)>
+elif (<src.tag0.pontosdealma> == 2)
+ LOCAL.ressconcluido=<eval <src.tag.morte_horario>+(60 * 10)>
+elif (<src.tag0.pontosdealma> == 3)
+ LOCAL.ressconcluido=<eval <src.tag.morte_horario>+(60 * 5)>
+else
+ LOCAL.ressconcluido=<eval <src.tag.morte_horario>+(60 * 2)>
+endif
+
+if (<LOCAL.ressconcluido> > <eval <time>/(10)>)
+ LOCAL.x=<eval <LOCAL.ressconcluido>-<eval <time>/(10)>>
+ src.sysmessageyellow Voce precisa recuperar um pouco suas forcas (<dlocal.x>s)...
+ return 1
+else
+ src.f_returnToLife
+ return 1
+endif
+
 //*****************************************************************************
 // f_faint
 //*****************************************************************************
@@ -217,13 +234,9 @@ new.color=<color>
 new.p=<p>
 for layer 1 24
 	obj=<findlayer.<local.layer>>
-	if (<local.layer>==layer_pack)
-		obj.f_transCont <new.uid>
-	else
-		if (<obj>)
-			obj.cont=<new>
-			obj.layer=<local.layer>
-		endif
+	if (<obj>)
+		obj.cont=<new>
+		obj.layer=<local.layer>
 	endif
 endfor
 new.timer=10
@@ -234,24 +247,19 @@ serv.newitem i_deathshroud
 new.cont=<uid>
 update
 
-//*****************************************************************************
-// f_transCont
-//***************************************************************************** 
-//Transfere as coisas do container DEFAULT para o <argv0>
-[FUNCTION f_transCont]
-forcont 10
- cont=<argv0>
+forclients
+	update
 endfor
-
+ 
 //*****************************************************************************
 // f_wakeup
 //***************************************************************************** 
-//acorda um char desmaiado
+//acorda um char desmaiado/morto
 [FUNCTION f_wakeup]
 findid.i_deathshroud.remove
 obj=<uid>
 ref1=<tag.corpse>
-forcont <ref1>
+forcont <ref1> 0
 	cont=<obj>	
 endfor
 p=<ref1.p>
@@ -261,6 +269,22 @@ flags=<flags>&~(statf_dead|statf_invisible|statf_invul|statf_insubstantial)
 update
 
 //*****************************************************************************
+// f_returnToLife
+//***************************************************************************** 
+//chama f_wakeup e mostra mensagens, assim podemos ter f_wakeup para outros
+//usos alem do sistema de morte.
+[FUNCTION f_returnToLife]
+//nao deixa o body dar decay tao rapido
+if (<tag.corpse>)
+	uid.<tag.corpse>.timer=3600	//1h de decay
+endif
+
+f_wakeup
+findid.i_mry_desmaio.remove
+sysmessagegreen Voce recobrou a consciencia.
+emotegreen hug!
+
+//*****************************************************************************
 // f_morre
 //***************************************************************************** 
 //faz com que o char fique morto
@@ -268,7 +292,7 @@ update
 [FUNCTION f_morre]
 //nao deixa o body dar decay tao rapido
 if (<tag.corpse>)
-	uid.<tag.corpse>.timer=1800	//30 minutos de decay
+	uid.<tag.corpse>.timer=3600	//1h minutos de decay
 endif
 
 morte_decrementaPontos 1
@@ -311,6 +335,8 @@ sysmessageyellow Voce perdeu a ligacao com seu corpo.
   OBJ.link.tag.lastkillname=<tag.name>
   OBJ.link.tag.lastkillUID=<act.uid>
   tag.fpk=<eval (<tag0.fpk>+1)>
+ else 
+ 	sysmessageyellow Precisa de algo cortante na mao.
  endif
  
 //*****************************************************************************
@@ -372,15 +398,11 @@ ON=@TIMER
  
 //recobra consciencia se more1 != 1
  if (<more1>!=1)
-  cont.sysmessagegreen Voce recobrou a consciencia.
-	cont.f_wakeup
-  cont.emotegreen hug!
-else
+	cont.f_returnToLife
+ else
   uid.<cont.tag.corpse>.emotered morreu
 	cont.f_morre
  endif
- 
- remove
  return 1
 
 //*****************************************************************************
