@@ -23,6 +23,21 @@ SMO10_SKILL		750			//Movig shoot
 SMO11_SKILL		750			//Paralyzing blow
 SMO12_SKILL		500			//Shadow strike
 SMO13_SKILL		800			//Whirlwind attack
+
+SMO0_NAME		Nenhum
+SMO1_NAME		Armor Ignore
+SMO2_NAME		Bleed Attack
+SMO3_NAME		Concussion Blow
+SMO4_NAME		Crushing Blow
+SMO5_NAME		Disarm
+SMO6_NAME		Dismount
+SMO7_NAME		Double Strike
+SMO8_NAME		Infecting
+SMO9_NAME		Mortal Strike
+SMO10_NAME		Movig Shoot
+SMO11_NAME		Paralyzing Blow
+SMO12_NAME		Shadow Strike
+SMO13_NAME		Whirlwind Attack
 					
 SMO1_MANA		10			//IgnoreAR
 SMO2_MANA		20			//Bleed attack
@@ -51,7 +66,7 @@ SMO9_FUNC		f_sm_mortalStrike 	//mortal strike
 SMO10_FUNC		f_sm_movingShoot	//Movig shoot
 SMO11_FUNC		f_sm_paralyzingBlow 	//Paralyzing blow
 SMO12_FUNC		f_shadowStrike		//Shadow strike
-SMO13_FUNC		f_whirlwindAttack	//Whirlwind attack
+SMO13_FUNC		0//f_whirlwindAttack	//Whirlwind attack
 
 
 
@@ -68,7 +83,7 @@ IF (!<BELLTEST <Tactics>, <DEF.SMO<eval <tag0.specialmove>>_SKILL>>)
  return 0
 endif
 IF (<f_consumeMana <DEF.SMO<eval <tag0.specialmove>>_MANA>>)
-// f_clrSpecialMove
+ sysmessageblue Movimento especial: <DEF.SMO<eval <tag0.specialmove>>_NAME>!
  return <tag0.specialmove>
 ENDIF
 return 0
@@ -77,12 +92,11 @@ return 0
 //Ignora a armadura do oponente
 [FUNCTION f_sm_ignoreAR]
 emotered inbloqueavel
-sysmessageblue Movimento especial: Ignore armor!
 sfx 02b2
 return 0
 //O resto é feito no e_combat
 
-//Faz o DEFAULT sangrar 6 segndos perdendo primeiro 6 hits, depois 5...
+//Faz SRC sangrar 6 segndos perdendo primeiro 6 hits, depois 5...
 [FUNCTION f_sm_bleed]
 IF (<src.BLOODCOLOR>==0ffff)
  sysmessageyellow Seu oponente nao tem sangue...
@@ -92,7 +106,6 @@ serv.newitem i_mry_sm_bleed
 new.more1=6
 new.link=<UID>
 src.equip <new>
-sysmessageblue Movimento especial: Bleed attack!
 return 0
 
 [ITEMDEF i_mry_sm_bleed]
@@ -121,7 +134,7 @@ else
 endif
 return 1
 
-//Aumenta o dano do ataque na diferensa dos hits e mana de UID.<argn>
+//Aumenta o dano do ataque na diferensa dos hits e mana de SRC
 //Nunca maior que 30
 [FUNCTION f_sm_concussionBlow]
 LOCAL.dam=<eval <src.hits>-<src.mana>>
@@ -133,17 +146,15 @@ ENDIF
 sfx 04f4
 src.emotered abalado
 say <EVAL <LOCAL.dam>>
-sysmessageblue Movimento especial: Concussion Blow!
 return <eval <LOCAL.dam>>
 
 //Aumenta o dano em até 30 hits dependendo do tactics
 [FUNCTION f_sm_crushingBlow]
 emotered bate forte
 sfx 051C
-sysmessageblue Movimento especial: Crushing Blow!
 return <eval <tactics>/33>
 
-//Desarma DEFAULT e põe a culpa em UID.<ARGN1>
+//Desarma SRC e põe a culpa em DEFAULT
 [FUNCTION f_sm_disarm]
 //say <weapon.layer>
 OBJ=<src.weapon>
@@ -155,44 +166,40 @@ OBJ.p=<p>
 OBJ.movenear <UID> 1
 sfx 033
 src.emotered desarmado
-sysmessageblue Movimento especial: Disarm!
 return 0
 
-//Desmonta o DEFAULT e põe a culpa em UID.<ARGN1>
+//Desmonta o SRC e põe a culpa em DEFAULT
 [FUNCTION f_sm_dismount]
 if (<src.findlayer(layer_horse)>)
  OBJ=<src.findlayer(layer_horse).more2> //salva o cavalo
  src.emotered cai
  src.dismount
  LOCAL.dam=<eval {5 10}>
- sysmessageblue Movimento especial: Dismount!
- OBJ.DAMAGE <local.dam> dam_god <UID.<argn1>>	//ferir o cavalo
+ OBJ.DAMAGE <local.dam> dam_god <UID>	//ferir o cavalo
  return <LOCAL.dam>	//Aumenta o dano de 5 a 10
 endif
 sysmessageyellow Seu alvo nao esta montado...
 return 0
 
+//Repete o dano depois de 1 segundo
 [FUNCTION f_sm_doubleStrike]
 emotered ataque duplo
-sysmessageblue Movimento especial: Double Strike!
 timerf 1,bark,2
 RETURN 0
 //O resto é feito no e_combat
 
-//Caso a arma esteja envenenada, envenena o triplo.
+//Caso a arma esteja envenenada, envenena com skill 100.0
 [FUNCTION f_sm_infecting]
 IF (<weapon.more2>!=20)
  sysmessageyellow Sua arma nao esta envenenada...
  return 0
 endif
 sfx 0199
-sysmessageblue Movimento especial: Infecting!
 return 0
 //O resto é feito no e_combat
 
 //Previde o alvo de poder ser curado por certo tempo.
 [FUNCTION f_sm_mortalStrike]
-sysmessageblue Movimento especial: Mortal Strike!
 SFX 051C
 LOCAL.time=<f_rangeValue 5,15 <tactics>>
 serv.newitem i_mry_sm_mortalStrike
@@ -223,7 +230,6 @@ return 1
 
 //Permite andar atirando por 10 a 15 segundos.
 [FUNCTION f_sm_movingShoot]
-sysmessageblue Movimento especial: Moving Shoot!
 sfx 0fA
 serv.newitem i_mry_sm_moving_shoot
 equip <new>
@@ -249,11 +255,11 @@ cont.sysmessagered Voce nao pode atirar em movimento.
 remove
 return 1
 
-//Paraliza DEFAULT por 3 a 7 segundos e põe a culpa em UID.<argn>
+//Paraliza SRC por 3 a 7 segundos e põe a culpa em DEFAULT
 [FUNCTION f_sm_paralyzingBlow]
-sysmessageblue Movimento especial: Paralyzing Blow!
 sfx 0525
 src.stun <eval {3 7}>
+src.emotered paralizado
 
 //Cancela o special move.
 [FUNCTION f_clrSpecialMove]
@@ -263,7 +269,8 @@ ENDIF
 tag.specialmove=0
 
 
-//Tenta consumir <argn> mana. Se tiver o suficiente retorna 1. Se não tiver, nãoconsome e retorna 0.
+//Tenta consumir <argn> mana. Se tiver o suficiente retorna 1.
+//Se não tiver, não consome e retorna 0.
 [FUNCTION f_consumeMana]
 IF (<IsGM>)
  return 1
@@ -273,6 +280,7 @@ ELIF (<mana> >= <argn>)
 ENDIF
 return 0
 
+//Evita poder ser curado por quaisquer meios
 [EVENTS e_mortalStrike]
 ON=@SPELLEFFECT
 if (<argn1>==4) || (<argn1>==11)
