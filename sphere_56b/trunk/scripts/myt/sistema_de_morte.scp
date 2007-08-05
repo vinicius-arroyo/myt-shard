@@ -72,12 +72,14 @@ endif
 tag.morte_horario=<time>/(10)
 tag.morte_local=<p>
 
+//aos fade to black
+sendpacket 02C 0
+
 //desmaia e solta espirito
 f_faint
 
 //se puder ficar desmaiado
 if (<tag0.morte_desmaios> < <DEF.max_desmaios>)
-	hits=1
 	tag.morte_desmaios=<eval <tag0.morte_desmaios>+1>
 
 	SERV.NEWITEM=i_mry_desmaio
@@ -226,8 +228,8 @@ if (<tag0.comcapuz>)
 	capuz
 endif
 serv.newitem i_corpse
-new.amount=<sex 400/401>
-new.morep=<sex 400/401>,0,<dir>
+new.amount=<body>
+new.morep=<body>,0,<dir>
 new.link=<uid>
 new.more2=<uid>
 new.color=<color>
@@ -243,6 +245,8 @@ new.timer=10
 new.update
 tag.corpse=<new>
 
+//body de morto
+body=<body>+2
 serv.newitem i_deathshroud
 new.cont=<uid>
 update
@@ -256,6 +260,7 @@ endfor
 //***************************************************************************** 
 //acorda um char desmaiado/morto
 [FUNCTION f_wakeup]
+body=<obody>
 findid.i_deathshroud.remove
 obj=<uid>
 ref1=<tag.corpse>
@@ -265,6 +270,10 @@ endfor
 p=<ref1.p>
 ref1.remove
 tag.corpse=
+if (<hits> <= 0)
+	hits=1
+endif
+
 flags=<flags>&~(statf_dead|statf_invisible|statf_invul|statf_insubstantial)
 update
 
@@ -318,11 +327,11 @@ sysmessageyellow Voce perdeu a ligacao com seu corpo.
 // morte_arrastar(uid)
 //*****************************************************************************
 [FUNCTION morte_arrastar]
- NEWITEM=i_mry_arrastar
+ SERV.NEWITEM=i_mry_arrastar
  NEW.link=<argn1>
- NEW.dclick
  NEW.equip
-   
+ NEW.dclick
+    
 //*****************************************************************************
 // morte_corta(uid)
 //*****************************************************************************
@@ -360,20 +369,23 @@ ON=@CREATE
  return 1
 
 ON=@DCLICK
+ //calcula tempo de arrasto (0 a 20 segundos)
+ more1=((<cont.str>*5)+(<cont.stamina>*3))/40
  cont.emoteyellow arrastando corpo
- more1=((<cont.str>*5)+(<cont.stamina>*3))/8
  timer=1
  return 1
  
 ON=@TIMER
- if (<more1> > <R0,100>) && !(<cont.flags>&statf_war) && (<link.flags>&statf_dead)
+ if (<more1> > 0) && !(<cont.flags>&statf_war) && (<link.link.flags>&statf_dead)
+  cont.stam=<cont.stam>-4
+  more1=<more1>-1
   //arrasta corpo (e vira)
   link.p=<cont.p>
-  link.morep=<cont.sex 400/401>,0,<cont.dir>
-   
+  link.morep=<link.amount>,0,<cont.dir>
+  link.update
+  
   //sava nova posicao do corpo
   link.link.tag.morte_local=<cont.p>
-  sector.allclients update
   timer=1
  else
   cont.emoteyellow largou
