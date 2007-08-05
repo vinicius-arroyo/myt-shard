@@ -195,10 +195,16 @@ ON=@HIT
 //MORE1L = itemHits
 
 ///////////////////////////////////////////////
+////////////Tentar usar Special Move///////////
+///////////////////////////////////////////////
+
+LOCAL.specialmove=<f_trySpecialMove>
+
+///////////////////////////////////////////////
 ////////////Tentar aparar com escudo///////////
 ///////////////////////////////////////////////
 
-if (<src.findlayer.layer_hand2.type>==t_shield) && (!<f_SpecialMove 1, 300>)
+if (<src.findlayer.layer_hand2.type>==t_shield) && (<LOCAL.specialmove>!=1)
  LOCAL.escudo=<src.parrying>/2
  if ({1 1000} <= <LOCAL.escudo>) && (RAND(<src.tag0.agr>)==0)
    if (<NPC>==0) // se não for NPC...
@@ -280,8 +286,8 @@ IF (<action> == Skill_Archery)
  LOCAL.esquiva=<eval <LOCAL.esquiva>/3>
 ENDIF
 
-//quando o atacado for um player ou npc
-if (({1 2400} <= <eval <LOCAL.esquiva>>)
+//quando o atacado for um player ou npc e não estiver usando Special Move
+if (({1 2400} <= <eval <LOCAL.esquiva>>) && (!<LOCAL.specialmove>)
  if (<NPC>==0) && (<action> != Skill_Archery) // se não for NPC e nem desvia-se de flechas como o Neo...
   sysmessageyellow <src.name> esquiva-se de seu golpe!
  endif
@@ -308,7 +314,7 @@ endif
 // Se eu for um animal venenoso e a minha presa não está envenenada...
 if (<poisoning> >= 300) && (<NPC>!=0) && (!<src.ispoisoned>)
  if ({1 1000} < <poisoning>) && (RAND(4)==0)
-  src.veneno <eval <poisoning>/10>
+  src.veneno <poisoning>
   emotered morde profundamente
  endif
 endif
@@ -320,7 +326,12 @@ endif
 if (<argo.more2>==20)
  if (<swordsmanship> <= {1 2000}) || (<fencing> <= {1 2000}) || (<poisoning> <= {1 1300})
   if (<src.restest 1 i_veneno>==0)
-   src.spelleffect s_poison, 300
+   IF (<local.specialmove>!=8)
+    src.veneno <eval <argo.more2>/17>
+   ELSE
+    src.veneno 1000
+    f_gmLog [SPECIAL MOVES] <tag.name>: Infecting aplicado com sucesso.
+   ENDIF
   endif
   argo.morex=<argo.morex>-1
   if (<argo.morex> == 0) || (<argo.morex> >= 1000)
@@ -431,7 +442,7 @@ endif
 ///////////////////////////////////////////////
 //Aplicando correção de dano por AR////////////
 ///////////////////////////////////////////////
-IF (!<f_SpecialMove 1, 800>)
+IF (<LOCAL.specialmove>!=1)	//Não permite se usando IgnoreAR
  LOCAL.AR_LO=<src.ac>/6
  LOCAL.AR_HI=<src.ac>/3
  LOCAL.dano=<LOCAL.dano>-{<eval <LOCAL.AR_LO>> <eval <LOCAL.AR_HI>>}
@@ -798,11 +809,7 @@ endif
 ///////////////////////////////////////////////
 //////////Aplicar special moves////////////////
 ///////////////////////////////////////////////
-f_specialMove 2,750,<src.uid>
-f_specialMove 3,630,<src.uid>
-call f_specialMove 4,300,<src.uid>
-f_specialMove 5,800,<src.uid>
-
+try LOCAL.dano=<LOCAL.dano>+<<DEF.SMO<eval <LOCAL.specialmove>>_FUNC>>
 
 ///////////////////////////////////////////////
 /////////////Produtos finais///////////////////
@@ -866,6 +873,17 @@ endif
 
 ///// Transfere e aplica dano
 src.damage <argn1> <LOCAL.tipo> <uid>
+
+///// Double strike?
+IF (<LOCAL.specialmove>==7)
+ src.timerf 1,damage,<argn1>,<LOCAL.tipo>,<uid>
+ENDIF
+
+///// Remove Special Moves
+if (<LOCAL.specialmove>)
+ f_clrSpecialMove
+endif
+
 
 ///// Marca assassino (sistema de morte)
 //if (<argn1> >= <src.hits>)
@@ -1030,15 +1048,16 @@ endif
 // @USERSPECIALMOVE
 //*************************************
 ON=@USERSPECIALMOVE
-CTAG.SPECIALMOVE=<argn1>
-serv.log <tag.name> [SPECIAL MOVE] <account.name> usa SM <eval <argn1>>
+tag.specialmove=<argn1>
+f_gmLog [SPECIAL MOVES] <account.name> usa SM <eval <tag0.specialmove>>
 
 //*************************************
 // @ITEMUNEQUIP
 //*************************************
 ON=@ITEMUNEQUIP
-if (<act.isweapon>) && (!<npc>)
-	CTAG0.SPECIALMOVE=
+//Cancela o special move se desequipar a arma
+IF (<f_isWeapon <act>>)
+ f_clrSpecialMove
 endif
 
 //*****************************************************************************
@@ -1122,12 +1141,12 @@ if (<src.targ.BaseID>==i_arrow)
    src.targ.cont <src.findlayer.layer_pack.uid>
    src.consume 5 <src.targ.baseid>
    src.act=0
-   src.newitem i_poison_arrow
+   src.newitem i_arrow_poison
    src.act.amount 5
    src.act.bounce
   else
    src.act=0
-   src.newitem i_poison_arrow
+   src.newitem i_arrow_poison
    src.act.amount <src.targ.amount>
    src.act.bounce
    src.targ.cont <src.findlayer.layer_pack.uid>
@@ -1135,7 +1154,7 @@ if (<src.targ.BaseID>==i_arrow)
    src.sysmessage Voce envenenou as flechas.
   endif
  else
-  cont.sysmessage Voce falhou em tentar envenenar as flechas.
+  cont.sysmessagered Voce falhou em tentar envenenar as flechas.
   link.remove
   src.newitem i_bottle_empty
   src.act.bounce
@@ -1215,7 +1234,7 @@ on=@create
 timer=5
 
 on=@timer
-if (<more2> == 0) || (<more2> >= 4000) || (<cont.flags>&statf_dead)
+if (<more2> <= 0) || (<more2> >= 4000) || (<cont.flags>&statf_dead)
  cont.sysmessagegreen O efeito do veneno esta passando
  cont.flags=<cont.flags>&~statf_poisoned
  cont.update
@@ -1226,30 +1245,26 @@ else
   remove
   return 1
  endif
- more2=<more2>-1
  LOCAL.dano=<eval {1 <eval <more2>/7>}>
  if (<LOCAL.dano> > 15)
   LOCAL.dano=15
  endif
  cont.damage <LOCAL.dano> dam_poison
- if (<more2> <= 20) && ({0 15}==1)
-  cont.emotegreen regurgita
-  cont.newitem 0122a
-  cont.act.p=<cont.p>
-  cont.act.name vomito
-  cont.act.timer {5 10}
-  cont.act.attr attr_decay|attr_move_never
-  cont.act.color 04ec
- elif (<more2> >= 30) && ({0 20}==1)
-  cont.stun {3 7}
- elif (<more2> > 40)
+ if (<more2> >= 40)
+  if (!<R10>)
+   cont.stun {3 7}
+  endif
+  cont.emotegreen parece pessimo
+  more2=<more2>-{2 5}
+ elif (<more2> > 30)
   cont.emotegreen muito doente
-  more2=<more2>-{3 5}
+  more2=<more2>-{1 4}
  elif (<more2> > 15)
   cont.emotegreen doente
     more2=<more2>-{0 3}
  else
   cont.emotegreen um pouco doente
+  more2=<more2>-{0 3}
  endif
  timer {3 7}
  return 1
@@ -1282,8 +1297,6 @@ ctag.roll=<eval (<tag0.agr>*24)+70>
 src.dialog d_estrategia
 return 1
 
-[FUNCTION shield]
-
 [FUNCTION ispoisoned]
 if (<restest 1 i_veneno>)	//testa se está envenenado
  return 1			//se está, retorna 1
@@ -1294,13 +1307,15 @@ endif
 [FUNCTION veneno]
 if (!<ispoisoned>)		//testa se está envenenado
  serv.newitem i_veneno
- new.more2 <eval <argn>>
+ new.more2 <eval <argn>/20>
  new.timer 5
  equip <new.uid>
  flags=<flags>|080
  update
  return 0			//avisa o caller que ele não estava envenenado
-else
+else			//Aumenta o veneno se puder
+ if (<findid.i_veneno.more2> < <eval <argn>/20>)
+ findid.i_veneno.more2=<eval <argn>/20>
  return 1			//avisa o caller que ele já estava envenenado e não fez nada
 endif
 
