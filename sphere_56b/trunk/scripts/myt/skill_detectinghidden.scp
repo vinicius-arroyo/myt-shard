@@ -1,11 +1,11 @@
 [DEFNAME DetectingHidden]
 //Tempo antes de poder detectar no mesmo lugar
-DetectingHidden_timer	5
+DetectingHidden_timer	15
 
 //Distância mínima de um lugar já detectado para poder detectar
 DetectingHidden_dist	8
 
-[FUNCTION f_DetectingHidden]
+[FUNCTION sk_DetectingHidden]
 //Função inicial chamada pelo botão da skill
 
 //Checar se o char pode detectar aqui
@@ -22,20 +22,21 @@ IF (!<LOCAL.canDet>)
  SYSMESSAGERED Voce procurou aqui faz pouco tempo.
  return 1
 endif
-local.timer=<eval (1500-<DetectingHidden>)/100)>
+local.timer=<f_rangeValue 15,5,<DetectingHidden>>
 DORAND 3
  emoteyellow observando atentamente
  emoteyellow procurando
  emoteyellow apalpando o ambiente
 ENDDO
 TIMERF <local.timer>,DetectingHidden_,<DetectingHidden>
-freeze
+STUN <local.timer>
+return 1
 
 [FUNCTION DetectingHidden_]
 obj=<uid>
 LOCAL.vision=<eval (<argn>/166)+2>
 FORITEMS <LOCAL.vision>
- if (<type>==t_trap) && (<argn> > <morey>) && (RAND(19)!=0)		//Para todas as traps no campo de visao E se eu passar no teste.
+ if (<type>==t_trap) && (<BELLTEST <argn>,<morey>>)			//Para todas as traps no campo de visao E se eu passar no teste.
   if (<morez>==0) && (<attr>&080)					//Se for uma armadilha do chão (morez=t_normal=0)
    attr=<attr>&~080							//Apareça
    update
@@ -59,7 +60,8 @@ new.morep=<p>
 new.timer <DEF.DetectingHidden_timer>
 new.equip
 SKILL_GAIN skill_DetectHidden
-unfreeze
+sysmessageyellow Voce nao esta mais procurando.
+
 
 [ITEMDEF i_mry_DetectingHidden]
 ID=i_rune_reveal
