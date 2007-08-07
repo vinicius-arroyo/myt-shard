@@ -138,21 +138,23 @@ else
 endif
 
 [FUNCTION f_NPC_POW_Manadrain_Far]
-LOCAL.mana=<eval {0 <f_rangeValue 5,25,<Focus>>}+5>
+LOCAL.mana=<eval {5 <f_rangeValue 0,25,<Focus>>}>
 LOCAL.range=<f_rangeValue 6,16,<Focus>>
 OBJ=<UID>
 LOCAL.did=0
 FORPLAYERS 6
- IF (<mana> > <LOCAL.mana>)
-  mana=<mana>-<LOCAL.mana>
- ELSE
-  mana=0
+ IF (!<IsGM>)
+  IF (<mana> > <LOCAL.mana>)
+   mana=<mana>-<LOCAL.mana>
+  ELSE
+   mana=0
+  ENDIF
+  effect 3 i_fx_sparkle_2 0 16 0 01f
+  OBJ.mana=<obj.mana>+<LOCAL.mana>
+  cry
+  sysmessagered Sua energia esta sendo sugada!
+  LOCAL.did=1
  ENDIF
- effect 3 i_fx_sparkle_2 0 16 0 01f
- OBJ.mana=<obj.mana>+<LOCAL.mana>
- cry
- sysmessagered Sua energia esta sendo sugada!
- LOCAL.did=1
 ENDFOR
 IF (<LOCAL.did>)
  effect 3 i_fx_heal_effect 0 16 0
@@ -161,25 +163,24 @@ IF (<LOCAL.did>)
 ENDIF
 
 
-[FUNCTION f_NPC_POW_Lifedrain]
+[FUNCTION f_NPC_POW_Chill]
 LOCAL.skill=<eval {0 <argv0>}>
-LOCAL.dam=<argv1>
 IF (<LOCAL.SKILL> <= 600)
  sysmessagegreen Voce esta sentindo frio.
  emotegreen frio
- LOCAL.losestam=<eval {0 2}>
+ LOCAL.losestam=<eval {1 2}>
 ELIF (<LOCAL.skill> <= 950)
  sysmessagegreen VOCE ESTA QUASE CONGELANDO DE FRIO!
  emotegreen muito frio
- LOCAL.losestam=<eval {1 3}>
+ LOCAL.losestam=<eval {2 4}>
 ELSE
- local.timer=<eval {0 <f_rangeValue 5,25,<local.skill>>}+5>
+ local.timer=<eval {5 <f_rangeValue 5,25,<local.skill>>}>
  emotered congelou
  stonned <local.timer>
  sysmessagegreen Voce congelou de tanto frio!
  RETURN 1
 ENDIF
-IF (<stam> > 3)
+IF (<stam> > 3) && (<stam> > <LOCAL.losestam>)
  stam=<stam>-<LOCAL.losestam>
 ENDIF
 damage <LOCAL.losestam> dam_cold
@@ -332,10 +333,11 @@ on=@Death
 FOR layer 0 25
  findlayer.<local.layer>.remove
 ENDFOR
-color=05b
+body=<obody>
 
 [FUNCTION NPC_CHANGELING]
 obj=<argv0>
+obody=<body>
 body=<obj.body>
 str=<obj.str>
 hits=<obj.str>
@@ -368,6 +370,7 @@ FOR skill 0 54
 ENDFOR
 if (<magery> > 500)
  MODINT=60
+ EVENTS +e_mage_phaser
 endif
 attack <src.uid>
 

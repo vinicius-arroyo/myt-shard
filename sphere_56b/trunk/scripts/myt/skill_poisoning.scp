@@ -1,0 +1,523 @@
+[FUNCTION sk_poisoning]
+sysmessageyellow Selecione o veneno:
+targetf _sk_poisoning
+return 1
+
+[FUNCTION _sk_poisoning]
+if (<argo.type>!=t_potion) || (<argo.more1>!=s_Poison)
+ sysmessagered <argo.name> nao eh um venendo.
+ return 1
+endif
+f_usePoison <argo.uid>
+
+[FUNCTION f_usePoison]
+OBJ=<argn>
+IF (<obj.topobj>!=<UID>)
+ sysmessagered Voce deve ter o veneno em sua posse.
+ return 1
+endif
+sysmessageyellow Aonde deseja aplicar <obj.name>?
+targetfg _f_usePoison <argn>
+return 1
+
+
+[FUNCTION _f_usePoison]
+OBJ=<argn>
+//Determinando o tempo de envenenamento
+LOCAL.time=<f_rangeValue 2,3,<obj.more2>>				//4 a 6 segundos, dependnedo do tipo de poção
+LOCAL.time=<eval <LOCAL.time>+<f_rangeValue 15,5,<poisoning>>>		//+ 5 a 15 segundos, dependendo da skill poisoning
+//Jogando no chão
+IF (!<argo.UID>)
+ //Manhinha do CANSEELOS sem char, no <p>
+ serv.newitem i_gold
+ new.p=<targp>
+ face <new>
+ if (!<CANSEELOS <new.uid>>)
+  sysmessagered Nao esta na sua linha de visao.
+  new.remove
+  return 1
+ elif (<obj.more2> < 1000)
+  sysmessagered Este veneno eh muito fraco para ser utilizado desta maneira.
+  new.remove
+  return 1
+ endif
+ new.remove
+ call f_poisonApplyGround
+//Jogando num char
+ELIF (<argo.ischar>)
+ if (!<CANSEELOS <argo.uid>>)
+  sysmessagered Nao esta na sua linha de visao.
+  return 1
+ elif (<obj.more2> < 1000)
+  sysmessagered Este veneno eh muito fraco para ser utilizado desta maneira.
+  return 1
+ endif
+ face <argo.uid>
+ call f_poisonApplyChar
+//Aplicando em felchas
+ELIF (<argo.baseid>==i_arrow)
+ if (<argo.topobj>!=<UID>)
+  sysmessagered Voce deve ter as flechas em sua posse.
+  return 1
+ endif
+ call f_poisonApplyArrow
+//Aplicando numa arma
+ELIF (<f_IsWeapon <argo.uid>>) && (<argo.type>!=t_weapon_arrow)
+ if (<argo.topobj>!=<UID>)
+  sysmessagered Voce deve ter a arma em sua posse.
+  return 1
+ endif
+ if (<argo.more2>)
+  sysmessagered Esta arma ja tem um tratamento diferenciado.
+  return 1
+ endif
+ call f_poisonApplyWeapon
+//Aplicando em comida
+ELIF (<f_IsFood <argo.uid>>)
+ if (<argo.topobj>!=<UID>)
+  sysmessagered Voce deve ter a comida em sua posse.
+  return 1
+ endif
+ call f_poisonApplyFood
+ELSE
+ sysmessagered Voce nao pode envenenar <argo.name>
+ return 1
+ENDIF
+
+////////////////////////////////////////////////
+// Jogando veneno no chão
+////////////////////////////////////////////////
+[FUNCTION f_poisonApplyGround]
+emoteyellow arremessa um frasco
+serv.newitem i_blood_pool_large
+new.name=veneno
+new.more2=<obj.more2>
+new.color=0110
+new.type t_veneno
+new.attr=04012
+new.timer 15
+new.p=<targp>
+new.sfx SND_GLASS
+anim 9
+obj.decrement
+
+////////////////////////////////////////////////
+// Jogando veneno num char
+////////////////////////////////////////////////
+[FUNCTION f_poisonApplyChar]
+emoteyellow arremessa um frasco
+serv.newitem i_blood_pool_large
+new.name=veneno
+new.more2=(<obj.more2>/3)*2
+new.color=0110
+new.type t_veneno
+new.attr=04012
+new.timer 15
+new.p=<argo.p>
+argo.effect 0 <obj.dispid> 8 0 0
+new.sfx SND_GLASS
+anim 9
+obj.decrement
+
+////////////////////////////////////////////////
+// Aplicando veneno em flechas
+////////////////////////////////////////////////
+[FUNCTION f_poisonApplyArrow]
+cTAG.p_arrow=<argo.uid>
+cTAG.p_poison=<obj.uid>
+cTAG.p_timer=<LOCAL.time>
+cTAG.p_px=<p.x>
+cTAG.p_py=<p.y>
+sfx 05ad
+emoteyellow abre a garrafa
+//message aplicando <uid.<cTAG.p_poison>.name> em <uid.<cTAG.p_arrow>.amount> <UID.<cTAG.p_arrow>.name> [flechas]
+timerf 2,_f_poisonApplyArrow
+
+[FUNCTION _f_poisonApplyArrow]
+if (<p.x>!=<cTAG.p_px>) || (<p.y>!=<cTAG.p_py>)
+ sysmessagered Voce deve ficar parado para envenenar as flechas!
+ emoteyellow derramou a pocao
+ serv.newitem i_blood_pool_large
+ new.name=veneno
+ new.more2=<UID.<cTAG.p_poison>.more2>
+ new.color=0110
+ new.type t_veneno
+ new.attr=04012
+ new.timer 15
+ new.p=<p>
+ new.movedir <dir>
+ new.sfx SND_GLASS
+ UID.<cTAG.p_poison>.decrement
+ return 1
+endif
+IF (0<cTAG.p_timer>)
+ DORAND 10
+  begin
+   emoteyellow derrama um pouco da pocao
+   sfx 02d6
+  end
+  begin
+   emoteyellow esfrega as flechas
+   sfx 05a9
+  end
+  sfx 02d6
+  sfx 049
+ ENDDO
+ cTAG.p_timer=<cTAG.p_timer>-1
+ timerf 1,_f_poisonApplyArrow
+else
+ if (<UID.<cTAG.p_arrow>.topobj>!=<UID>)
+  sysmessagered Cade as flechas?
+  emoteyellow <sex assustado/assustada>
+  SFX <sex 0429/0319>
+  return 1
+ elif (<UID.<cTAG.p_poison>.topobj>!=<UID>)
+  sysmessagered Cade a pocao?
+  emoteyellow <sex assustado/assustada>
+  SFX <sex 0429/0319>
+  return 1
+ elif (<UID.<cTAG.p_arrow>.amount> > <f_rangeValue 1,10,<poisoning>>)
+  LOCAl.amt=<f_rangeValue 1,10,<poisoning>>
+  UID.<cTAG.p_arrow>.amount=<UID.<cTAG.p_arrow>.amount>-<LOCAL.amt>
+  UID.<cTAG.p_arrow>.update
+  UID.<cTAG.p_poison>.decrement
+  serv.newitem i_arrow_poison
+  new.amount <f_rangeValue 1,10,<poisoning>>
+  new.bounce
+ else
+  UID.<cTAG.p_poison>.decrement
+  serv.newitem i_arrow_poison
+  new.amount <UID.<cTAG.p_arrow>.amount>
+  new.bounce
+  UID.<cTAG.p_arrow>.remove
+ endif
+ SKILL_GAIN SKILL_POISONING
+endif
+return 1
+
+
+////////////////////////////////////////////////
+// Aplicando veneno em uma arma
+////////////////////////////////////////////////
+[FUNCTION f_poisonApplyWeapon]
+cTAG.p_weapon=<argo.uid>
+cTAG.p_poison=<obj.uid>
+cTAG.p_timer=<LOCAL.time>
+cTAG.p_px=<p.x>
+cTAG.p_py=<p.y>
+sfx 05ad
+emoteyellow abre a garrafa
+//message aplicando <obj.name> em <argo.name> [arma]
+timerf 2,_f_poisonApplyWeapon
+
+[FUNCTION _f_poisonApplyWeapon]
+if (<p.x>!=<cTAG.p_px>) || (<p.y>!=<cTAG.p_py>)
+ sysmessagered Voce deve ficar parado para envenenar a arma!
+ emoteyellow derramou a pocao
+ serv.newitem i_blood_pool_large
+ new.name=veneno
+ new.more2=<UID.<cTAG.p_poison>.more2>
+ new.color=0110
+ new.type t_veneno
+ new.attr=04012
+ new.timer 15
+ new.p=<p>
+ new.movedir <dir>
+ new.sfx SND_GLASS
+ UID.<cTAG.p_poison>.decrement
+ return 1
+endif
+IF (0<cTAG.p_timer>)
+ DORAND 10
+  begin
+   emoteyellow derrama um pouco da pocao
+   sfx 02d6
+  end
+  begin
+   emoteyellow esfrega a arma
+   sfx 0247
+  end
+  sfx 02d6
+  sfx 048
+ ENDDO
+ cTAG.p_timer=<cTAG.p_timer>-1
+ timerf 1,_f_poisonApplyWeapon
+else
+ if (<UID.<cTAG.p_weapon>.topobj>!=<UID>)
+  sysmessagered Cade a arma?
+  emoteyellow <sex assustado/assustada>
+  SFX <sex 0429/0319>
+  return 1
+ elif (<UID.<cTAG.p_poison>.topobj>!=<UID>)
+  sysmessagered Cade a pocao?
+  emoteyellow <sex assustado/assustada>
+  SFX <sex 0429/0319>
+  return 1
+ elif (!<BELLTEST <poisoning>, <eval (<UID.<cTAG.p_poison>.more2>*3)/7> >) && (!<IsGM>)
+  sysmessagered Voce nao teve hesito.
+  SFX <sex 043e/032C>
+  UID.<cTAG.p_poison>.decrement
+ else
+  obj=<cTAG.p_weapon>
+  obj.tag.name=<obj.name>
+  obj.tag.color=<obj.color>
+  obj.name=<obj.name> (envenenada)
+  obj.color=0105
+  obj.more2=20
+  obj.morex=<UID.<cTAG.p_poison>.more2>
+  obj.updatex
+  emoteyellow terminou
+  UID.<cTAG.p_poison>.decrement
+ endif
+ SKILL_GAIN SKILL_POISONING
+endif
+return 1
+
+[FUNCTION f_poisonApplyFood]
+sysmessage aplicando <obj.name> em <argo.name> [comida]
+sysmessageyellow Esperando o script de comida.
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+[TYPEDEF t_veneno]
+on=@step
+src.veneno <more2>
+more2=<more2>/2
+
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_mry_usepoison
+//*****************************************************************************
+[ITEMDEF i_mry_usepoison]
+id=i_rune_poison
+name=usando veneno
+type=t_eq_script
+layer=layer_special
+
+ON=@DCLICK
+timer=30
+attr=attr_decay
+targetg Onde deseja utilizar o veneno?
+return 1
+
+ON=@TARGON_CHAR
+if (<link.more2> <= 1000 )
+ cont.sysmessage Este veneno e muito fraco para ser jogado deste forma.
+ remove
+ return 1
+endif
+if (<src.targ.distance> > 3)
+ cont.sysmessage Muito longe...
+ remove
+ return 1
+endif
+if (<src.targ.restest 1 i_veneno>==0)
+ sfx 03e
+ cont.emotegreen joga o frasco de veneno
+ cont.newitem 0122a
+ cont.act.p=<src.targ.p>
+ cont.act.name veneno
+ cont.act.timer {10 30}
+ cont.act.attr attr_decay|attr_move_never
+ cont.act.color 0b0
+ cont.act=0
+ cont.newitem i_veneno
+ cont.act.timerd 1
+ cont.act.more2 <eval <link.more2>/20>
+ cont.act.cont <src.targ.uid>
+ cont.act.timerd 1
+ src.targ.flags=<src.targ.flags>|statf_poisoned
+ src.targ.update
+ link.remove
+ remove
+endif
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.BaseID>==i_arrow)
+ if (<src.targ.cont.uid> != <src.findlayer.layer_pack.uid>)
+  cont.sysmessage As flechas precisam estar em suas maos.
+  remove
+  return 1
+ endif
+ if (<src.poisoning> >= {1 1300})
+  src.targ.p=<src.p>
+  link.remove
+  src.newitem i_bottle_empty
+  src.act.bounce  
+  if (<src.targ.amount> >=5 )
+   src.targ.cont <src.findlayer.layer_pack.uid>
+   src.consume 5 <src.targ.baseid>
+   src.act=0
+   src.newitem i_arrow_poison
+   src.act.amount 5
+   src.act.bounce
+  else
+   src.act=0
+   src.newitem i_arrow_poison
+   src.act.amount <src.targ.amount>
+   src.act.bounce
+   src.targ.cont <src.findlayer.layer_pack.uid>
+   src.consume <src.targ.amount> <src.targ.baseid>
+   src.sysmessage Voce envenenou as flechas.
+  endif
+ else
+  cont.sysmessagered Voce falhou em tentar envenenar as flechas.
+  link.remove
+  src.newitem i_bottle_empty
+  src.act.bounce
+ endif
+elif (<src.targ.type>==t_weapon_sword) || (<src.targ.type>==t_weapon_fence)
+ if (<src.targ.cont.uid> != <src.findlayer.layer_pack.uid>) && (<src.targ.uid> != <src.findlayer.layer_hand1.uid>) && (<src.targ.uid> != <src.findlayer.layer_hand2.uid>)
+  cont.sysmessage A arma precisam estar em suas maos.
+  remove
+  return 1
+ endif
+ if (<src.targ.more2> == 20)
+  if (<src.targ.morex> >= 35)
+   cont.sysmessage Ja tem veneno o suficiente na arma.
+   remove
+   return 1
+  else
+   src.targ.morex=<eval <src.targ.morex>+(<link.more2>/69)>
+  endif
+ elif (<src.targ.more2> != 0)
+  cont.sysmessage Esta arma ja tem um tratamento diferenciado.
+  remove
+  return 1
+ elif (<src.poisoning> >= {1 1300})
+  src.targ.morex=<eval <link.more2>/23>
+  src.targ.more2=20
+  src.targ.tag.name=<src.targ.name>
+  src.targ.name <src.targ.name> (envenenado)
+  link.remove
+  src.newitem i_bottle_empty
+  src.act.bounce
+  remove
+  src.sysmessage Voce envenenou a arma.
+  return 1
+ else
+  cont.sysmessage Voce falhou em tentar envenenar a arma.
+  link.remove
+  src.newitem i_bottle_empty
+  src.act.bounce
+ endif
+else
+ src.sysmessage Voce nao pode envenenar isto.
+endif
+remove
+return 1
+
+
+ON=@TARGON_GROUND
+if (<link.more2> <=1000)
+ cont.sysmessage Este veneno e muito fraco para ser jogado deste forma.
+ remove
+ return 1
+endif
+ sfx 03e
+ cont.emotegreen joga o frasco de veneno
+ cont.newitem 0122a
+ cont.act.p=<src.targp>
+ cont.act.name veneno
+ cont.act.timer {30 90}
+ cont.act.attr 012
+ cont.act.color 0b0
+ cont.act.more2=<eval <link.more2>/40>
+ cont.act.type t_veneno
+ link.remove
+ remove
+ return 1
+
+//*****************************************************************************
+// i_veneno
+//*****************************************************************************
+[ITEMDEF i_veneno]
+id=i_rune_poison
+type=t_eq_script
+name=Veneno
+layer=layer_flag_poison
+
+on=@create
+timer=5
+
+on=@timer
+if (<more2> <= 0) || (<more2> >= 4000) || (<cont.flags>&statf_dead)
+ cont.sysmessagegreen O efeito do veneno esta passando
+ cont.flags=<cont.flags>&~statf_poisoned
+ cont.update
+ remove
+ return 1
+else
+ IF (<CONT.RESTEST 2 i_veneno>
+  remove
+  return 1
+ endif
+ LOCAL.dano=<eval {1 <eval <more2>/7>}>
+ if (<LOCAL.dano> > 15)
+  LOCAL.dano=15
+ endif
+ cont.damage <LOCAL.dano> dam_poison
+ if (<more2> >= 40)
+  if (!<R6>)
+   cont.stun <eval {3 7}>
+   cont.emotered paralizado
+  endif
+  more2=<more2>-{1 5}
+ elif (<more2> > 30)
+  more2=<more2>-{1 4}
+ elif (<more2> > 15)
+    more2=<more2>-{0 3}
+ else
+  more2=<more2>-{0 3}
+ endif
+ timer {3 7}
+endif
+cont.timerf <eval {1 3}>,f_emoteveneno,<eval <more2>/5>
+return 1
+
+
+[FUNCTION f_emoteveneno]
+DORAND <argn>
+ emotegreen doente
+ f_tosse
+ emotegreen doente
+ f_vomita
+ emotegreen muito doente
+ f_peida
+ f_vomita
+ emotegreen parece pessimo
+ f_vomita
+ENDDO
+
+[FUNCTION ispoisoned]
+if (<restest 1 i_veneno>)	//testa se está envenenado
+ return 1			//se está, retorna 1
+else
+ return 0			//se não está, retorna 0
+endif
+
+[FUNCTION veneno]
+if (!<ispoisoned>)		//testa se está envenenado
+ serv.newitem i_veneno
+ new.more2 <eval <argn>/20>
+ new.timer 5
+ equip <new.uid>
+ flags=<flags>|080
+ update
+ return 0			//avisa o caller que ele não estava envenenado
+else			//Aumenta o veneno se puder
+ if (<findid.i_veneno.more2> < <eval <argn>/20>)
+ findid.i_veneno.more2=<eval <argn>/20>
+ return 1			//avisa o caller que ele já estava envenenado e não fez nada
+endif
+
+[EOF]

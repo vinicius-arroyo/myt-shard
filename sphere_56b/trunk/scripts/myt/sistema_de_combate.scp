@@ -324,22 +324,24 @@ endif
 //MOREX=carga de veneno
 //Se a arma na HAND1 estiver envenenada // && (<src.npc>!=12)
 if (<argo.more2>==20)
- if (<swordsmanship> <= {1 2000}) || (<fencing> <= {1 2000}) || (<poisoning> <= {1 1300})
-  if (<src.restest 1 i_veneno>==0)
-   IF (<local.specialmove>!=8)
-    src.veneno <eval <argo.more2>/17>
-   ELSE
-    src.veneno 1000
-    f_gmLog [SPECIAL MOVES] <tag.name>: Infecting aplicado com sucesso.
-   ENDIF
+ src.damage <eval <argo.morex>/100>> dam_poison <UID>
+ IF (<local.specialmove>==8)
+  src.veneno 2000
+  f_gmLog [SPECIAL MOVES] <tag.name>: Infecting aplicado com sucesso.
+ ENDIF
+ if (<R20000> < <swordsmanship>) || (<R20000> < <fencing>) || (<R13000> < <poisoning>)
+  src.veneno <argo.morex>
+ ENDIF
+ argo.morex=<eval (<argo.morex>*11)/12>
+ if (<argo.morex> <= 150) || (<argo.morex> > 2000)
+  argo.more2=0
+  argo.morex=0
+  if !(strmatch(<argo.tag.name>,)
+   argo.name <argo.tag.name>
   endif
-  argo.morex=<argo.morex>-1
-  if (<argo.morex> == 0) || (<argo.morex> >= 1000)
-   argo.more2=0
-   if !(strmatch(<argo.tag.name>,)
-    argo.name <argo.tag.name>
-   endif
-  endif
+  argo.color=<argo.tag0.color>
+  sysmessageorange Sua arma nao esta mais envenenada.
+  argo.updatex
  endif
 //Se a arma na HAND1 estiver encantada com Flamestrike
 elif (<argo.more2>==51)
@@ -1017,10 +1019,8 @@ if (<argn1>==11) && (<restest 1 i_mry_peste>)
 endif
 
 //s_Poison
-if (<argn1>==20) && (<restest 1 i_veneno>==0)
- LOCAL.poison <argn2>
- LOCAL.poison <eval <LOCAL.poison>/20>
- veneno <LOCAL.poison>
+if (<argn1>==20)
+ veneno <argn2>
  effect 2 i_fx_curse 0 30 0
  update
  return 1
@@ -1035,15 +1035,15 @@ endif
 //*************************************
 // @ITEMDCLICK
 //*************************************
-ON=@ITEMDCLICK
-if (<act.Baseid>==i_bottle_green) && (<act.more1>==s_poison)
- LOCAL.actuid=<act.uid>
- newitem i_mry_usepoison
- new.link <LOCAL.actuid>
- new.equip
- new.use
- return 1
-endif
+//ON=@ITEMDCLICK
+//if (<act.Baseid>==i_bottle_green) && (<act.more1>==s_poison)
+// LOCAL.actuid=<act.uid>
+// newitem i_mry_usepoison
+// new.link <LOCAL.actuid>
+// new.equip
+// new.use
+// return 1
+//endif
 
 //*************************************
 // @USERSPECIALMOVE
@@ -1062,215 +1062,7 @@ IF (<f_isWeapon <act>>)
  f_clrSpecialMove
 endif
 
-//*****************************************************************************
-//*****************************************************************************
-// TYPEDEFs
-//*****************************************************************************
-//*****************************************************************************
-[TYPEDEF t_veneno]
-on=@step
-if (<src.restest 1 i_veneno>==0)
- src.veneno <more2>
-endif
 
-//*****************************************************************************
-//*****************************************************************************
-// ITEMDEFs
-//*****************************************************************************
-//*****************************************************************************
-
-//*****************************************************************************
-// i_mry_usepoison
-//*****************************************************************************
-[ITEMDEF i_mry_usepoison]
-id=i_rune_poison
-name=usando veneno
-type=t_eq_script
-layer=layer_special
-
-ON=@DCLICK
-timer=30
-attr=attr_decay
-targetg Onde deseja utilizar o veneno?
-return 1
-
-ON=@TARGON_CHAR
-if (<link.more2> <= 1000 )
- cont.sysmessage Este veneno e muito fraco para ser jogado deste forma.
- remove
- return 1
-endif
-if (<src.targ.distance> > 3)
- cont.sysmessage Muito longe...
- remove
- return 1
-endif
-if (<src.targ.restest 1 i_veneno>==0)
- sfx 03e
- cont.emotegreen joga o frasco de veneno
- cont.newitem 0122a
- cont.act.p=<src.targ.p>
- cont.act.name veneno
- cont.act.timer {10 30}
- cont.act.attr attr_decay|attr_move_never
- cont.act.color 0b0
- cont.act=0
- cont.newitem i_veneno
- cont.act.timerd 1
- cont.act.more2 <eval <link.more2>/20>
- cont.act.cont <src.targ.uid>
- cont.act.timerd 1
- src.targ.flags=<src.targ.flags>|statf_poisoned
- src.targ.update
- link.remove
- remove
-endif
-return 1
-
-ON=@TARGON_ITEM
-if (<src.targ.BaseID>==i_arrow)
- if (<src.targ.cont.uid> != <src.findlayer.layer_pack.uid>)
-  cont.sysmessage As flechas precisam estar em suas maos.
-  remove
-  return 1
- endif
- if (<src.poisoning> >= {1 1300})
-  src.targ.p=<src.p>
-  link.remove
-  src.newitem i_bottle_empty
-  src.act.bounce  
-  if (<src.targ.amount> >=5 )
-   src.targ.cont <src.findlayer.layer_pack.uid>
-   src.consume 5 <src.targ.baseid>
-   src.act=0
-   src.newitem i_arrow_poison
-   src.act.amount 5
-   src.act.bounce
-  else
-   src.act=0
-   src.newitem i_arrow_poison
-   src.act.amount <src.targ.amount>
-   src.act.bounce
-   src.targ.cont <src.findlayer.layer_pack.uid>
-   src.consume <src.targ.amount> <src.targ.baseid>
-   src.sysmessage Voce envenenou as flechas.
-  endif
- else
-  cont.sysmessagered Voce falhou em tentar envenenar as flechas.
-  link.remove
-  src.newitem i_bottle_empty
-  src.act.bounce
- endif
-elif (<src.targ.type>==t_weapon_sword) || (<src.targ.type>==t_weapon_fence)
- if (<src.targ.cont.uid> != <src.findlayer.layer_pack.uid>) && (<src.targ.uid> != <src.findlayer.layer_hand1.uid>) && (<src.targ.uid> != <src.findlayer.layer_hand2.uid>)
-  cont.sysmessage A arma precisam estar em suas maos.
-  remove
-  return 1
- endif
- if (<src.targ.more2> == 20)
-  if (<src.targ.morex> >= 35)
-   cont.sysmessage Ja tem veneno o suficiente na arma.
-   remove
-   return 1
-  else
-   src.targ.morex=<eval <src.targ.morex>+(<link.more2>/69)>
-  endif
- elif (<src.targ.more2> != 0)
-  cont.sysmessage Esta arma ja tem um tratamento diferenciado.
-  remove
-  return 1
- elif (<src.poisoning> >= {1 1300})
-  src.targ.morex=<eval <link.more2>/23>
-  src.targ.more2=20
-  src.targ.tag.name=<src.targ.name>
-  src.targ.name <src.targ.name> (envenenado)
-  link.remove
-  src.newitem i_bottle_empty
-  src.act.bounce
-  remove
-  src.sysmessage Voce envenenou a arma.
-  return 1
- else
-  cont.sysmessage Voce falhou em tentar envenenar a arma.
-  link.remove
-  src.newitem i_bottle_empty
-  src.act.bounce
- endif
-else
- src.sysmessage Voce nao pode envenenar isto.
-endif
-remove
-return 1
-
-
-ON=@TARGON_GROUND
-if (<link.more2> <=1000)
- cont.sysmessage Este veneno e muito fraco para ser jogado deste forma.
- remove
- return 1
-endif
- sfx 03e
- cont.emotegreen joga o frasco de veneno
- cont.newitem 0122a
- cont.act.p=<src.targp>
- cont.act.name veneno
- cont.act.timer {30 90}
- cont.act.attr 012
- cont.act.color 0b0
- cont.act.more2=<eval <link.more2>/40>
- cont.act.type t_veneno
- link.remove
- remove
- return 1
-
-//*****************************************************************************
-// i_veneno
-//*****************************************************************************
-[ITEMDEF i_veneno]
-id=i_rune_poison
-type=t_eq_script
-name=Veneno
-layer=layer_flag_poison
-
-on=@create
-timer=5
-
-on=@timer
-if (<more2> <= 0) || (<more2> >= 4000) || (<cont.flags>&statf_dead)
- cont.sysmessagegreen O efeito do veneno esta passando
- cont.flags=<cont.flags>&~statf_poisoned
- cont.update
- remove
- return 1
-else
- IF (<CONT.RESTEST 2 i_veneno>
-  remove
-  return 1
- endif
- LOCAL.dano=<eval {1 <eval <more2>/7>}>
- if (<LOCAL.dano> > 15)
-  LOCAL.dano=15
- endif
- cont.damage <LOCAL.dano> dam_poison
- if (<more2> >= 40)
-  if (!<R10>)
-   cont.stun {3 7}
-  endif
-  cont.emotegreen parece pessimo
-  more2=<more2>-{2 5}
- elif (<more2> > 30)
-  cont.emotegreen muito doente
-  more2=<more2>-{1 4}
- elif (<more2> > 15)
-  cont.emotegreen doente
-    more2=<more2>-{0 3}
- else
-  cont.emotegreen um pouco doente
-  more2=<more2>-{0 3}
- endif
- timer {3 7}
- return 1
-endif
 
 //*****************************************************************************
 //*****************************************************************************
@@ -1282,34 +1074,6 @@ endif
 ctag.roll=<eval (<tag0.agr>*24)+70>
 src.dialog d_estrategia
 return 1
-
-[FUNCTION ispoisoned]
-if (<restest 1 i_veneno>)	//testa se está envenenado
- return 1			//se está, retorna 1
-else
- return 0			//se não está, retorna 0
-endif
-
-[FUNCTION veneno]
-if (!<ispoisoned>)		//testa se está envenenado
- serv.newitem i_veneno
- new.more2 <eval <argn>/20>
- new.timer 5
- equip <new.uid>
- flags=<flags>|080
- update
- return 0			//avisa o caller que ele não estava envenenado
-else			//Aumenta o veneno se puder
- if (<findid.i_veneno.more2> < <eval <argn>/20>)
- findid.i_veneno.more2=<eval <argn>/20>
- return 1			//avisa o caller que ele já estava envenenado e não fez nada
-endif
-
-[FUNCTION stun]
-sysmessagered Voce esta paralizado!
-if (!<IsGM>)
- tag.nomovetill <eval <serv.time>+(<argn>*10)>
-endif
 
 
 //*****************************************************************************
