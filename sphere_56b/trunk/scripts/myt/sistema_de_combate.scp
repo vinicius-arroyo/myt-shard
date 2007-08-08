@@ -204,7 +204,7 @@ LOCAL.specialmove=<f_trySpecialMove>
 ////////////Tentar aparar com escudo///////////
 ///////////////////////////////////////////////
 
-if (<src.findlayer.layer_hand2.type>==t_shield) && (<LOCAL.specialmove>!=1)
+if (<src.findlayer.layer_hand2.type>==t_shield) && ((<LOCAL.specialmove>!=1) || (<LOCAL.specialmove>!=23))
  LOCAL.escudo=<src.parrying>/2
  if ({1 1000} <= <LOCAL.escudo>) && (RAND(<src.tag0.agr>)==0)
    if (<NPC>==0) // se não for NPC...
@@ -332,8 +332,7 @@ if (<argo.more2>==20)
  if (<R20000> < <swordsmanship>) || (<R20000> < <fencing>) || (<R13000> < <poisoning>)
   src.veneno <argo.morex>
  ENDIF
- argo.morex=<eval (<argo.morex>*11)/12>
- if (<argo.morex> <= 150) || (<argo.morex> > 2000)
+ if ((<argo.morex> <= 150) || (<argo.morex> > 2000))
   argo.more2=0
   argo.morex=0
   if !(strmatch(<argo.tag.name>,)
@@ -342,7 +341,9 @@ if (<argo.more2>==20)
   argo.color=<argo.tag0.color>
   sysmessageorange Sua arma nao esta mais envenenada.
   argo.updatex
- endif
+ ELIF (<action>!=skill_archery)
+  argo.morex=<eval (<argo.morex>*11)/12>
+ ENDIF
 //Se a arma na HAND1 estiver encantada com Flamestrike
 elif (<argo.more2>==51)
  src.effect 2 i_fire_column 0 32 0
@@ -445,7 +446,7 @@ endif
 ///////////////////////////////////////////////
 //Aplicando correção de dano por AR////////////
 ///////////////////////////////////////////////
-IF (<LOCAL.specialmove>!=1)	//Não permite se usando IgnoreAR
+IF (<LOCAL.specialmove>!=1) || (<LOCAL.specialmove>!=23)	//Não permite se usando IgnoreAR ou ARPierce
  LOCAL.AR_LO=<src.ac>/6
  LOCAL.AR_HI=<src.ac>/3
  LOCAL.dano=<LOCAL.dano>-{<eval <LOCAL.AR_LO>> <eval <LOCAL.AR_HI>>}
@@ -580,7 +581,7 @@ if (<argo.dmgcold>)
  src.damage <argo.dmgcold> dam_cold <uid>
 endif
 if (<argo.dmgenergy>)
- src.damage <argo.dmgenery> dam_energy <uid>
+ src.damage <argo.dmgenergy> dam_energy <uid>
 endif
 if (<argo.dmgpoison>)
  src.damage <argo.dmgpoison> dam_poison <uid>
@@ -856,6 +857,15 @@ ELIF (<action> == Skill_Macefighting)
   sfx 0146
   sfx 023b
  enddo
+ELIF (<action> == Skill_Archery)
+//Doubleshot?
+ IF (<LOCAL.specialmove>==22)
+  sfx 0523
+ ELIF (<weapon.tag0.sfx>)
+  sfx <weapon.tag0.sfx>
+ ELSE
+  sfx 0234
+ ENDIF
 endif
 
 ///// Modificadores de dano
@@ -877,8 +887,8 @@ endif
 ///// Transfere e aplica dano
 src.damage <argn1> <LOCAL.tipo> <uid>
 
-///// Double strike?
-IF (<LOCAL.specialmove>==7)
+///// Double strike? Double shot?
+IF (<LOCAL.specialmove>==7) || (<LOCAL.specialmove>==22)
  src.timerf 1,damage,<argn1>,<LOCAL.tipo>,<uid>
 ENDIF
 
