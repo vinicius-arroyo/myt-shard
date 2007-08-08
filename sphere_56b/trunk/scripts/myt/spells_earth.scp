@@ -6,7 +6,7 @@
 DEFNAME=s_earthquake
 NAME=Earthquake
 SOUND=snd_SPELL_EARTHQUAKE
-RUNES=IVP
+RUNES=0
 CAST_TIME=70
 RESOURCES=i_reag_blood_moss,i_reag_ginseng,i_reag_mandrake_root,i_reag_sulfur_ash
 RUNE_ITEM=i_rune_EARTHQUAKE
@@ -16,12 +16,12 @@ EFFECT_ID=0
 EFFECT=30,45
 DURATION=30.0
 MANAUSE=35
-SKILLREQ=MAGERY 70.0
+SKILLREQ=MAGERY 57.0
 // NOTE: does Earthquake use a duration?? IF so, no more then 30secs. This spell is more like an irradiating wave thus should have a set distance/time it can be effective
 INTERRUPT=100.0,100.0
 
 on=@select
-return <trycast s_earthquake,spl_earth>
+return <trycast s_earthquake,spl_terra>
 
 on=@Success
 mana=<mana>-<ctag.cMana>
@@ -86,10 +86,8 @@ else
  FORCHARS
   sfx 011e
   damagespell s_Earthquake, DAM_PHYSICAL, <OBJ.MORE1>, <OBJ.LINK>
-  if (<hits> > 0) && (!<NPC>)
-   sleep
-   morte_equip <UID>
-  endif
+  f_faint
+  timerf <eval {1 3}>,f_wakeup
  ENDFOR
  remove
 endif
@@ -98,8 +96,6 @@ return 1
 //***********************************************************
 //		SPELL STALAGMITE
 //***********************************************************
-[FUNCTION t]
-try cast 200
 
 [Spell 200]
 DEFNAME=s_stalagmite
@@ -119,13 +115,13 @@ SKILLREQ=MAGERY 35.0
 INTERRUPT=100.0,100.0
 
 on=@select
-return <trycast s_stalagmite,spl_earth>
+return <trycast s_stalagmite,spl_terra>
 
 on=@Success
-mana=<mana>-<ctag.cMana>
+f_consumeMana <ctag.cMana>
 
 on=@Fail
-mana=<mana>-<ctag.cMana>
+f_consumeMana <ctag.cMana>
 
 on=@Effect
 SERV.NEWITEM i_spl_stalagmite
@@ -134,6 +130,7 @@ new.p=<p.x>,<p.y>,<eval <p.z>-10>
 new.timerd 1
 sfx 022d
 DAMAGESPELL s_stalagmite, dam_physical, <src.cTAG.cSkill>, <src.uid>
+return 1
 
 [ITEMDEF i_spl_stalagmite]
 ID=08e1
@@ -152,11 +149,146 @@ return 1
 on=@step
 SRC.DAMAGE <eval {2 5}> DAM_PHYSICAL
 
+
+//***********************************************************
+//		SPELL CONJURE ELEM EARTH
+//***********************************************************
+[Spell 201]
+DEFNAME=s_conjure_elem_earth
+NAME=Conjurar elemental da terra
+//SOUND=022d
+RUNES=0
+CAST_TIME=15
+RESOURCES=i_reag_blood_moss,i_reag_ginseng,i_reag_mandrake_root,i_reag_sulfur_ash
+RUNE_ITEM=i_rune_EARTHQUAKE
+SCROLL_ITEM=i_scroll_EARTHQUAKE
+FLAGS=spellflag_targ_xyz | spellflag_scripted
+EFFECT_ID=0
+EFFECT=3,8
+//DURATION=30.0
+MANAUSE=50
+SKILLREQ=MAGERY 55.0
+INTERRUPT=100.0,100.0
+
+on=@start
+sfx 022d
+
+on=@select
+return <trycast s_conjure_elem_earth,spl_terra>
+
+on=@Success
+LOCAL.timer=<f_rangeValue 5,120,<src.cTag.cSkill>>
+obj=<f_conjure_creature c_elem_earth,<LOCAL.timer>>
+obj.p=<src.targp>
+f_consumeMana <ctag.cMana>
+
+on=@Fail
+f_consumeMana <ctag.cMana>
+
+
+//***********************************************************
+//		SPELL HURL STONE
+//***********************************************************
+
+[Spell 202]
+DEFNAME=s_hurlStone
+NAME=Arremessar pedra
+SOUND=0239
+RUNES=0
+CAST_TIME=25
+RESOURCES=i_reag_blood_moss,i_reag_ginseng,i_reag_mandrake_root,i_reag_sulfur_ash
+RUNE_ITEM=i_rune_EARTHQUAKE
+SCROLL_ITEM=i_scroll_EARTHQUAKE
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_dir_anim
+EFFECT_ID=0
+EFFECT=6,13
+//DURATION=30.0
+MANAUSE=5
+SKILLREQ=MAGERY 35.0
+INTERRUPT=100.0,100.0
+
+on=@select
+return <trycast s_hurlStone,spl_terra>
+
+on=@Success
+f_consumeMana <ctag.cMana>
+
+on=@Fail
+f_consumeMana <ctag.cMana>
+
+on=@Effect
+EFFECT 0 i_rock_7 6
+DAMAGESPELL s_hurlStone, dam_physical, <src.cTAG.cSkill>, <src.uid>
+return 1
+
+//***********************************************************
+//		SPELL STALAGMITE CELL
+//***********************************************************
+
+[Spell 203]
+DEFNAME=s_stalagmiteCell
+NAME=Cela de stalagmites
+SOUND=022D
+RUNES=0
+CAST_TIME=15
+RESOURCES=i_reag_blood_moss,i_reag_ginseng,i_reag_mandrake_root,i_reag_sulfur_ash
+RUNE_ITEM=i_rune_EARTHQUAKE
+SCROLL_ITEM=i_scroll_EARTHQUAKE
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted
+EFFECT_ID=0
+EFFECT=3,8
+//DURATION=30.0
+MANAUSE=42
+SKILLREQ=MAGERY 46.5
+INTERRUPT=100.0,100.0
+
+on=@select
+return <trycast s_stalagmiteCell,spl_terra>
+
+on=@Success
+f_consumeMana <ctag.cMana>
+
+on=@Fail
+f_consumeMana <ctag.cMana>
+
+on=@Effect
+f_cela i_spl_stalagmite,i_spl_stalagmite,1
+return 1
+
 //***********************************************************
 //		SPELL SUMMON EARTH ELEMENTAL
 //***********************************************************
-[FUNCTION f_spl_summon_elem_earth]
-LOCAL.timer=<eval <magery>/67>		//0 a 15 segundos
-f_summon_creature c_elem_earth,<LOCAL.timer>
+[Spell 204]
+DEFNAME=s_summon_elem_earth
+NAME=Conjurar elemental da terra
+//SOUND=022d
+RUNES=0
+CAST_TIME=15
+RESOURCES=i_reag_blood_moss,i_reag_ginseng,i_reag_mandrake_root,i_reag_sulfur_ash
+RUNE_ITEM=i_rune_EARTHQUAKE
+SCROLL_ITEM=i_scroll_EARTHQUAKE
+FLAGS=spellflag_targ_xyz | spellflag_scripted
+EFFECT_ID=0
+EFFECT=3,8
+//DURATION=30.0
+MANAUSE=65
+SKILLREQ=MAGERY 65.0
+INTERRUPT=100.0,100.0
+
+on=@start
+sfx 022d
+
+on=@select
+return <trycast s_summon_elem_earth,spl_terra>
+
+on=@Success
+LOCAL.timer=<f_rangeValue 5,40,<src.cTag.cSkill>>
+obj=<f_summon_creature c_elem_earth,<LOCAL.timer>>
+obj.p=<src.targp>
+obj.update
+f_consumeMana <ctag.cMana>
+
+on=@Fail
+f_consumeMana <ctag.cMana>
 
 [EOF]

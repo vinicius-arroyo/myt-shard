@@ -167,7 +167,7 @@ RETURN <NPC_CanCast>
 //*************************************************************
 
 [FUNCTION f_summon_creature]
-//Conjura uma criatura por um periodo de tempo ao ordens do mago
+//Conjura uma criatura por um periodo de tempo às ordens do mago
 //<argv0> = criatura
 //<argv1> = tempo (segundos)
 newnpc <argv0>
@@ -185,8 +185,26 @@ new.more2 <argv1>
 new.link <uid>
 new.cont <obj>
 new.timer 1
+obj.attr=<obj.attr>|0c000000	//spawned e pet
 obj.effect 3 i_fx_sparkle 0 16 0 0a1
 sfx 0fb
+return <obj.uid>
+
+[FUNCTION f_conjure_creature]
+//Conjura uma criatura por um periodo de tempo a solta pelo mundo sem mestre
+//<argv0> = criatura
+//<argv1> = tempo (segundos)
+newnpc <argv0>
+act.p <p>
+obj <act.uid>
+serv.newitem i_mry_summon
+new.more2 <argv1>
+new.link <uid>
+new.cont <obj>
+new.timer 1
+obj.attr=<obj.attr>|04000000	//spawned
+obj.effect 3 i_fx_sparkle 0 16 0 022
+sfx 0217
 return <obj.uid>
 
 
@@ -369,3 +387,72 @@ FOR ammount 1 <LOCAL.amt>
  new.timerf <LOCAL.timer>,remove
  new.update
 ENDFOR
+
+//Faz uma duplicata pet/summoned do DEFAULT.
+[FUNCTION f_dupeChar]
+
+//Copia o char
+serv.newnpc <BaseID>
+new.p=<p>
+new.str=<str>
+new.hits=<str>
+new.dex=<dex>
+new.int=<int>
+new.mana=<int>
+new.color=<color>
+new.karma=<karma>
+new.fame=<fame>
+new.name=<name>
+obj=<new.uid>
+
+//Copia o equipamento
+for layer 1 24
+ local.item=<findlayer.<local.layer>.baseid>
+ local.color=<findlayer.<local.layer>.color>
+ local.mor=<findlayer.<local.layer>.more1>
+ local.mor2=<findlayer.<local.layer>.more2>
+ serv.newitem <local.item>
+ new.color=<local.color>
+ new.more1=<local.mor>
+ new.more2=<local.mor2>
+ new.cont=<obj>
+ENDFOR
+FORCHARLAYER layer_pack
+ dupe
+ new.cont <obj>
+ENDFOR
+
+//Copia as skills
+FOR skill 0 54
+ obj.<local.skill>=<src.<local.skill>>
+ENDFOR
+obj.poisoning 0 //Não morde.
+
+//Melhora AI se mago
+IF (<obj.magery> > 50.0)
+ obj.modINT=<obj.modINT>+60
+ obj.events +e_mage_phaser
+ obj.events +e_caster_warrior
+endif
+
+//Põe events de briga
+obj.events +e_PvM
+obj.events +e_combat
+
+//Seta como pet e summoned
+serv.newitem i_memory
+new.color memory_ipet
+new.more1 04
+new.more2 <serv.time>
+new.morep <p>
+new.link <uid>
+new.cont <obj>
+serv.newitem i_mry_summon
+new.more2 <f_rangeValue 5,120,<magery>>
+new.link <uid>
+new.cont <obj>
+new.timer 1
+obj.effect 3 i_fx_sparkle 0 16 0 0a1
+obj.flags=<obj.flags>|0c000000	//spawned e pet
+sfx 0fb
+return <obj.uid>
