@@ -456,3 +456,110 @@ obj.effect 3 i_fx_sparkle 0 16 0 0a1
 obj.flags=<obj.flags>|0c000000	//spawned e pet
 sfx 0fb
 return <obj.uid>
+
+
+//*************************************************************
+//		TYPEDEFS de magia
+//*************************************************************
+//Livro que contem Palavras do poder
+//more1 SPL_* (que tipo de palavras vai conter? Vida? Morte? Materia?)
+//more2 Quantas palavras vão ter? Não passar de 5 é uma boa.
+[TYPEDEF t_book_WoP]
+ON=@CLIENTTOOLTIP
+DOSWITCH <MORE1>
+ LOCAL.t=(magia vulgar)
+ LOCAL.t=(vida)
+ LOCAL.t=(agua)
+ LOCAL.t=(materia)
+ LOCAL.t=(ar)
+ LOCAL.t=(fogo)
+ LOCAL.t=(morte)
+ LOCAL.t=(terra)
+ LOCAL.t=(energia)
+ENDDO
+LOCAL.t .= <DEF.br>Palavras: <eval <more2>>
+f_sendTooltipData <local.t>
+
+ON=@DCLICK
+//Salvar posição
+src.cTAG.cPX=<src.p.x>
+src.cTAG.cPY=<src.p.y>
+src.cTAG.cWoPB=<UID>
+//Tempo que demora pra ler é de 15 a 90 segundos variando com magery
+src.cTAG.cTimer=<f_rangeValue 90,15,<src.magery>>
+//começa a ler
+src.emoteyellow abre um livro
+src.sfx 03e3
+src.sysmessageblue Voce abre o livro do poder e passa a ler.
+src.timerf 1,f_read_WoPB
+return 1
+
+[FUNCTION f_read_WoPB]
+if (<cTAG.cPX>!=<p.x>) || (<cTAG.cPY>!=<p.y>) || (<FLAGS>&statf_cantcraft)
+ sysmessagered Voce parou de ler o livro
+ f_clearWoPB
+ return 1
+ENDIF
+DORAND 6
+ emoteyellow lendo
+ sfx 055
+ENDDO
+cTAG.cTimer -= 1
+if (!<cTAG.cTimer>)
+ f_revealWoP
+ f_clearWoPB
+else
+ timerf 1,f_read_WoPB 
+endif
+
+[FUNCTION f_clearWoPB]
+src.cTAG.cPX=
+src.cTAG.cPY=
+src.cTAG.cWoPB=
+src.cTAG.cTimer=
+
+[FUNCTION f_revealWoP]
+obj=<cTAG.cWoPB>
+DOSWITCH <obj.more1>
+ LOCAL.wop=<SPELL_WoP_CANTRIP>
+ LOCAL.wop=<SPELL_WoP_VIDA>
+ LOCAL.wop=<SPELL_WoP_AGUA>
+ LOCAL.wop=<SPELL_WoP_MATERIA>
+ LOCAL.wop=<SPELL_WoP_AR>
+ LOCAL.wop=<SPELL_WoP_FOGO>
+ LOCAL.wop=<SPELL_WoP_MORTE>
+ LOCAL.wop=<SPELL_WoP_TERRA>
+ LOCAL.wop=<SPELL_WoP_ENERGIA>
+ENDDO
+obj.more2 -= 1
+obj.update
+if (!<obj.more2>)
+ obj.remove
+endif
+message <LOCAL.wop>
+sysmessageblue Voce parou de ler e revelou uma palavra do poder!
+
+
+//*************************************************************
+//		ITEMDEFs de magia
+//*************************************************************
+
+[ITEMDEF i_book_WoP_vida]
+ID=i_spellbook_paladin
+TYPE=t_book_WoP
+NAME=Palavras do poder
+
+on=@create
+color=0170
+more1=spl_vida
+more2={2 5}
+
+[ITEMDEF i_book_WoP_terra]
+ID=i_spellbook_bushido
+TYPE=t_book_WoP
+NAME=Palavras do poder
+
+on=@create
+color=08c
+more1=spl_terra
+more2={2 5}
