@@ -338,10 +338,31 @@ bark 3
 //	EFFECTSPELL <spell>,<skill>
 //*****************************************************************************
 //Retorna o EFFECT de uma magia de acordo com uma skill
+//Se a spell tiver spellflag_resist, calcula o retorno para MagicResist do DEFAULT.
 [FUNCTION EFFECTSPELL]
 LOCAL.eff=<SERV.RESOURCES.<argv0>.EFFECT>
+LOCAL.skill=<argn1>
 LOCAL.min=<strarg <LOCAL.eff>>
-LOCAL.eff=<EVAL {<LOCAL.min> <streat <LOCAL.eff>>}>
+LOCAL.eff=<streat <LOCAL.eff>>
+
+//Resisting spells?
+if (<serv.resources.<argv0>.FLAGS>&spellflag_resist)
+ if (<BELLTEST <MagicResistance>,<LOCAL.skill>)
+  sysmessageblue Voce resiste a magia.
+  //Resistir totalmente?
+  if (<BELLTEST <MagicResistance>,140.0>)	//Resistir totalmente
+   LOCAL.min=0
+   LOCAL.eff=0
+   sfx 05C1
+   emotered resistiu
+  else						//Resistir parcialmente
+   LOCAL.eff=<f_rangeValue <LOCAL.min>,<LOCAL.eff>,<eval 1010-<MagicResistance>>>
+  endif
+ endif
+ SKILL_GAIN Skill_MagicResistance
+endif
+
+LOCAL.eff=<EVAL {<LOCAL.min> <LOCAL.eff>}>
 LOCAL.eff=<f_rangeValue <LOCAL.min>, <LOCAL.eff>, <argv1>>
 RETURN <LOCAL.eff>
 
@@ -759,5 +780,19 @@ endif
 if (<tag0.nomovetill> > <serv.time>)
  return 1
 endif
+return 0
+
+//*****************************************************************************
+// f_consumeMana <mana>
+//*****************************************************************************
+//Tenta consumir <argn> mana. Se tiver o suficiente retorna 1.
+//Se não tiver, não consome e retorna 0.
+[FUNCTION f_consumeMana]
+IF (<IsGM>)
+ return 1
+ELIF (<mana> >= <argn>)
+ mana=<mana>-<argn>
+ return 1
+ENDIF
 return 0
 [EOF]
