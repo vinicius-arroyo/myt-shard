@@ -64,7 +64,7 @@ CAST_TIME=62
 //RESOURCES=i_reag_black_pearl,i_reag_nightshade,i_reag_spider_silk
 RUNE_ITEM=i_rune_POISON_FIELD
 //SCROLL_ITEM=i_scroll_POISON_FIELD
-FLAGS=SPELLFLAG_TARG_XYZ | SPELLFLAG_HARM | SPELLFLAG_FX_TARG | SPELLFLAG_FIELD| SPELLFLAG_RESIST | spellflag_scripted
+FLAGS=SPELLFLAG_TARG_XYZ | SPELLFLAG_HARM | SPELLFLAG_FX_TARG | SPELLFLAG_FIELD| SPELLFLAG_RESIST
 EFFECT_ID=i_fx_curse
 EFFECT=50,500
 DURATION=5.0,60.0
@@ -187,6 +187,7 @@ local.moddex=-<f_rangeValue 5,30,<src.ctag.cSkill>>
 local.modint=-<f_rangeValue 5,10,<src.ctag.cSkill>>
 local.time=<EFFECTSPELL s_deathCurse,<src.ctag.cSkill>>
 f_polymorph c_zombie,<local.time>,<local.modstr>,<local.moddex>,<local.modint>
+f_death_mask <local.time>
 return 0
 
 
@@ -296,7 +297,75 @@ on=@Fail
 f_consumeMana <ctag.cMana>
 
 on=@Effect
-f_cela_veneno <effect s_CelaVeneno,<src.cTAG.cSkill>>
+f_cela_veneno <effectspell s_CelaVeneno,<src.cTAG.cSkill>>
+return 0
+
+//***********************************************************
+//		SPELL Summon Undead
+//***********************************************************
+[Spell 256]
+DEFNAME=s_SummonUndead
+NAME=Conjurar morto-vivo
+SOUND=0
+RUNES=0
+CAST_TIME=35
+//RESOURCES=i_reag_blood_moss,i_reag_ginseng,i_reag_mandrake_root,i_reag_sulfur_ash
+RUNE_ITEM=i_RUNE_ALCHEM_3
+//SCROLL_ITEM=i_scroll_EARTHQUAKE
+FLAGS=spellflag_scripted
+EFFECT_ID=0
+EFFECT=5,45
+//DURATION=30.0
+MANAUSE=33
+SKILLREQ=MAGERY 75.0
+INTERRUPT=100.0,100.0
+
+on=@select
+return <trycast s_SummonUndead,spl_morte>
+
+on=@start
+sfx 05c8
+
+on=@Fail
+f_consumeMana <ctag.cMana>
+
+on=@SUCCESS
+f_consumeMana <ctag.cMana>
+
+on=@Effect
+f_spl_summon_undead <src.cTag.cSkill>
+return 0
+
+//***********************************************************
+//		SPELL Death Confusion
+//***********************************************************
+[Spell 257]
+DEFNAME=s_DeathConfusion
+NAME=Confusao mortal
+SOUND=01E1
+RUNES=0
+CAST_TIME=82
+//RESOURCES=i_reag_blood_moss,i_reag_ginseng,i_reag_mandrake_root,i_reag_sulfur_ash
+RUNE_ITEM=i_RUNE_ALCHEM_3
+//SCROLL_ITEM=i_scroll_EARTHQUAKE
+FLAGS=SPELLFLAG_HARM | spellflag_scripted | spellflag_resist | spellflag_targ_char
+EFFECT_ID=0
+EFFECT=15,45
+//DURATION=30.0
+MANAUSE=12
+SKILLREQ=MAGERY 77.3
+INTERRUPT=100.0,100.0
+
+on=@select
+return <trycast s_DeathConfusion,spl_morte>
+
+on=@Fail
+f_consumeMana <ctag.cMana>
+
+on=@Effect
+EFFECT 3 i_fx_sparkle 0 16 0 026
+EFFECT 3 i_fx_bless_effect 0 16 0 0a4
+f_spl_confusion <EFFECTSPELL s_DeathConfusion,<src.cTAG.cSkill>>
 return 0
 
 //*************************************************************
@@ -477,17 +546,9 @@ sfx 01fa
 
 
 [FUNCTION f_spl_confusion]
-if (!0<argn>)
- LOCAL.skill={400 600}
-else
- LOCAL.skill=<argn>
-endif
 serv.newitem i_spl_confusion
-new.more2 = <eval <LOCAL.skill>/75>
-new.equip
-sfx 01fb
-EFFECT 3 i_fx_curse 0 16 0
-
+new.more2 = <eval <argn>/3>
+equip <new>
 
 [FUNCTION f_spl_summon_undead]
 if (!0<argn>)
@@ -510,7 +571,7 @@ else
  local.timer <argv0>
 endif
 serv.newitem i_spl_death_mask
-new.equip
+equip <new>
 new.timer=<local.timer>
 effect 3 i_fx_curse 0 16 0 017d
 sfx 01fa
@@ -555,7 +616,7 @@ more2=5
 
 on=@equip
 cont.flags=<cont.flags>|0400000		//Hallu
-timer 3
+timer 5
 cont.sysmessagegreen Voce se sente muito estranho.
 
 on=@timer
@@ -603,5 +664,49 @@ FORCHARMEMORYTYPE memory_war_targ
  ENDIF
 ENDFOR
 RETURN <LOCAL.ret>
+
+//***********************************************************
+//		SPELL SUMMON UNDEAD
+//***********************************************************
+[FUNCTION f_spl_summon_undead]
+IF (<argv0>)
+ LOCAL.DIF=<EVAL <argv0>/100>
+else
+ LOCAL.DIF=<EVAL <magery>/100>
+ENDIF
+IF (<LOCAL.DIF> > 10)
+ LOCAL.DIF=10
+endif
+LOCAL.DIF1=<eval {1 <LOCAL.DIF>}>
+LOCAL.DIF=<eval {<LOCAL.DIF1> <LOCAL.DIF>}> //Isso aqui simula uma gausseana perneta
+if (<LOCAL.DIF>==1)
+ f_summon_creature c_zombie,60
+elif (<LOCAL.DIF>==2)
+ f_summon_creature c_zombie,28
+ f_summon_creature c_zombie,33
+elif (<LOCAL.DIF>==3)
+ f_summon_creature c_skeleton,60
+elif (<LOCAL.DIF>==4)
+ f_summon_creature c_skeleton_w_axe,60
+elif (<LOCAL.DIF>==5)
+ f_summon_creature c_skeleton_w_sword,60
+elif (<LOCAL.DIF>==6)
+ f_summon_creature c_grim_reaper,30
+elif (<LOCAL.DIF>==7)
+ f_summon_creature c_zombie,28
+ f_summon_creature c_skeleton_w_axe,33
+elif (<LOCAL.DIF>==8)
+ f_summon_creature c_grim_reaper,32
+ f_summon_creature c_skeleton_w_axe,37
+elif (<LOCAL.DIF>==9)
+ f_summon_creature c_grim_reaper,25
+ f_summon_creature c_zumbi_superior,29
+ f_summon_creature c_spectre,35
+elif (<LOCAL.DIF>==10)
+ LOCAL.undead1={c_spectre 1 c_m_liche 1 c_Wailing_Banshee 1}
+ LOCAL.undead2={c_m_liche_lord 1 c_zumbi_superior 1 c_grim_reaper 1}
+ f_summon_creature <local.undead1>,45
+ f_summon_creature <local.undead2>,47
+endif
 
 [EOF]
