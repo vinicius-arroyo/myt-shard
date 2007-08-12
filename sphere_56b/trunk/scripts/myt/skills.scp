@@ -5,6 +5,8 @@
 //
 //*****************************************************************************
 //*****************************************************************************
+//** ATENCAO, TENHA CERTEZA QUE ESSE SCP ENTROU DEPOIS DE SPHERE_SKILLS.SCP ***
+//*****************************************************************************
 // Esse sistema computa o ganho de skills cada vez que a funcao skill_gain() 
 //é chamada.
 //
@@ -32,6 +34,7 @@
 //TAG.skill_maxSkillValue		//valor maximo que uma skill pode chegar (depende do tempo online)	
 //TAG.skill_maxIncrease			//maximo de skill que pode ser ganha de uma vez (depende do skillsum)
 //TAG.skill_<name>						//contador secundario de cada skill. sempre que atinge o limite incrementa a skill real
+
 //*****************************************************************************
 //*****************************************************************************
 // DEFNAMEs
@@ -114,30 +117,31 @@ OBJ=<uid>
 LOCAL.amnt=<OBJ.<DEF.<argv[0]>>>
 
 //sysmessage [SKILL] Skill: <argv[0]>::<eval <LOCAL.amnt>>
-
-//verifica se ha spam de skill em andamento (max 1 skill por segundo)
-if (<TAG0.skill_ts>><SERV.time>)
-	serv.log <account>: <argv[0]> SPAM
+if (!<npc>)
+	//verifica se ha spam de skill em andamento (max 1 skill por segundo)
+	if (<TAG0.skill_ts>><SERV.time>)
+		serv.log <account>: <argv[0]> SPAM
+		TAG.skill_ts=<eval <SERV.time>+10>
+		TAG.skill_spam=<TAG0.skill_spam>+1
+		if (<TAG.skill_spam>>2)
+			skill_spamDetected <argv[0]>
+			return 1
+		endif
+	endif
 	TAG.skill_ts=<eval <SERV.time>+10>
-	TAG.skill_spam=<TAG0.skill_spam>+1
-	if (<TAG.skill_spam>>2)
-		skill_spamDetected <argv[0]>
+	TAG.skill_spam=0
+
+	//se a skill nao pode subir mais devido ao limite por tempo
+	if ( <LOCAL.amnt> >= <TAG.skill_maxSkillValue> )
+	//  sysmessage [SKILL] Habilidade bloqueada
+		TAG.skill_blocked=1
+		if ( <LOCAL.amnt> > <TAG.skill_maxSkillValue> )
+			TRY <DEF.<argv[0]>> <TAG.skill_maxSkillValue>
+			serv.log <account>/<uid>: <argv[0]> passou dos limites: <LOCAL.amnt>
+		endif
+		serv.log <account>: <argv[0]> bloqueada
 		return 1
 	endif
-endif
-TAG.skill_ts=<eval <SERV.time>+10>
-TAG.skill_spam=0
-
-//se a skill nao pode subir mais devido ao limite por tempo
-if ( <LOCAL.amnt> >= <TAG.skill_maxSkillValue> )
-//  sysmessage [SKILL] Habilidade bloqueada
-	TAG.skill_blocked=1
-	if ( <LOCAL.amnt> > <TAG.skill_maxSkillValue> )
-		TRY <DEF.<argv[0]>> <TAG.skill_maxSkillValue>
-		serv.log <account>: <argv[0]> passou dos limites: <LOCAL.amnt>
-	endif
-	serv.log <account>: <argv[0]> bloqueada
-  return 1
 endif
 
 //define valor limiar para incremento de skill
