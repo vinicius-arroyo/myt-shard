@@ -109,7 +109,7 @@ SKILLREQ=MAGERY 20.0
 INTERRUPT=100.0,100.0
 
 on=@select
-return <trycast s_firedarts,spl_fogo>
+return <trycast s_fireball,spl_fogo>
 
 on=@Fail
 f_consumeMana <ctag.cMana>
@@ -122,5 +122,180 @@ EFFECT 0 i_fx_fireball 6 16 1
 DAMAGESPELL s_fireball,dam_fire,<src.ctag.cSkill>,<src.uid>
 return 0
 
+//***********************************************************
+//		SPELL Heat Weapon
+//***********************************************************
+[Spell 302]
+DEFNAME=s_heatWeapon
+NAME=Esquentar arma
+SOUND=snd_SPELL_FIREBALL
+//RUNES=VF
+CAST_TIME=4.0
+RESOURCES=i_reag_black_pearl,i_reag_sulfur_ash
+RUNE_ITEM=i_rune_FIREBALL
+SCROLL_ITEM=i_scroll_FIREBALL
+FLAGS=SPELLFLAG_TARG_OBJ | SPELLFLAG_HARM | SPELLFLAG_RESIST
+EFFECT_ID=i_fire
+EFFECT=3,12
+DURATION=0.0
+MANAUSE=32
+SKILLREQ=MAGERY 52.5
+INTERRUPT=100.0,100.0
+
+on=@select
+return <trycast s_heatWeapon,spl_fogo>
+
+on=@Fail
+f_consumeMana <ctag.cMana>
+
+on=@SUCCESS
+f_consumeMana <ctag.cMana>
+
+on=@Effect
+EFFECT 3 i_fire 0 16 0
+DAMAGESPELL s_heatWeapon,dam_fire,<src.ctag.cSkill>,<src.uid>
+if (<weapon>)
+ if (STRMATCH(*ingot*,<serv.itemdef.<weapon.baseid>.resources>)) && !(<weapon.attr>&08d14)
+  f_heatWeapon <eval <EFFECTSPELL s_heatWeapon,<src.ctag.cSkill>>*3>
+  sysmessagered Sua arma esta muito quente para segurar!
+ else
+  src.sysmessagered A arma do seu oponente nao esquenta!
+ endif
+else
+ src.sysmessagered Seu oponente nao esta armado!
+endif
+return 1
+
+//***********************************************************
+//		SPELL Cauterizar
+//***********************************************************
+[Spell 303]
+DEFNAME=s_cauterizar
+NAME=cauterizar
+SOUND=0356
+//RUNES=VF
+CAST_TIME=4.0
+RESOURCES=i_reag_black_pearl,i_reag_sulfur_ash
+RUNE_ITEM=i_rune_FIREBALL
+SCROLL_ITEM=i_scroll_FIREBALL
+FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_GOOD
+EFFECT_ID=0
+EFFECT=8,18
+DURATION=0.0
+MANAUSE=12
+SKILLREQ=MAGERY 72.5
+INTERRUPT=100.0,100.0
+
+on=@start
+if (<targ.distance <UID>> > 1)
+ sysmessageyellow Muito longe...
+ return 1
+ELIF (<targ.hits> > <eval <targ.maxhits>/2>)
+ sysmessageyellow Seu alvo nao precisa de cauterizacao...
+ return 1
+endif
+sfx 0227
+
+on=@select
+return <trycast s_cauterizar,spl_fogo>
+
+on=@Fail
+f_consumeMana <ctag.cMana>
+
+on=@SUCCESS
+f_consumeMana <ctag.cMana>
+
+on=@Effect
+EFFECT 3 i_fx_smoke_small 0 64 0
+hits += <EFFECTSPELL s_cauterizar,<src.ctag.cSkill>>
+cry
+return 1
+
+//***********************************************************
+//		SPELL Mystic Flame
+//***********************************************************
+[Spell 304]
+DEFNAME=s_mysticFlame
+NAME=Chama mistica
+SOUND=0
+//RUNES=VF
+CAST_TIME=5.0
+RESOURCES=i_reag_black_pearl,i_reag_sulfur_ash
+RUNE_ITEM=i_rune_FIREBALL
+SCROLL_ITEM=i_scroll_FIREBALL
+FLAGS=SPELLFLAG_TARG_ITEM | spellflag_good
+EFFECT_ID=0
+EFFECT=8,18
+DURATION=0.0
+MANAUSE=32
+SKILLREQ=MAGERY 72.5
+INTERRUPT=100.0,100.0
+
+on=@select
+return <trycast s_mysticFlame,spl_fogo>
+
+on=@start
+sfx 05c1
+
+on=@Fail
+f_consumeMana <ctag.cMana>
+
+on=@SUCCESS
+f_consumeMana <ctag.cMana>
+
+on=@Effect
+if (!<IsWeapon <UID>>) || !(STRMATCH(*ingot*,<serv.itemdef.<baseid>.resources>))
+ src.sysmessageyellow Apenas armas de metal.<resources>
+ src.mana += <ctag.cMana>
+ return 1
+ELIF (<more2>)
+ src.sysmessageyellow Esta arma ja possui um tratamento especial
+ src.mana += <ctag.cMana>
+ return 1
+ELIF (<src.distance <topobj>> > 1)
+ src.sysmessageyellow Muito longe...
+ src.mana += <ctag.cMana>
+ return 1
+endif
+src.sfx 0356
+f_mysticFlame <EFFECTSPELL s_mysticFlame,<src.ctag.cSkill>>
+
+[FUNCTION f_heatWeapon]
+obj=<weapon>
+obj.tag.hcolor=<obj.color>
+obj.tag.hname=<obj.name>
+obj.name=<obj.name> (quente)
+obj.color=04ec
+obj.attr=<obj.attr>|08010
+obj.p=<topobj.p>
+obj.timerf <argn>,_f_heatWeapon
+
+[FUNCTION _f_heatWeapon]
+color=<tag.hcolor>
+tag.hcolor
+name=<tag.hname>
+tag.hname
+attr=<attr>&~08010
+emotered esfriou
+
+[FUNCTION f_mysticFlame]
+tag.hcolor=<color>
+more2=51
+morex=1
+dmgfire=<argn>
+color=04ec
+attr=<attr>|020
+timerf <eval <argn>*3>,_f_mysticFlame,<argn>
+updatex
+
+[FUNCTION _f_mysticFlame]
+color=<tag.hcolor>
+tag.hcolor
+more2=0
+morex=0
+dmgfire -= <argn>
+attr=<attr>&~020
+sfx 0208
+updatex
 
 [EOF]
