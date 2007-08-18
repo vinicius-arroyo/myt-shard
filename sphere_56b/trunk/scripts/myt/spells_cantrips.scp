@@ -1,0 +1,110 @@
+//###############################################################################
+//				SPELL Reactive Armor
+//###############################################################################
+
+[Spell 7]
+DEFNAME=s_reactive_armor
+NAME=Reactive Armor
+SOUND=snd_SPELL_REACTIVE_ARMOR
+RUNES=""
+CAST_TIME=4.0
+//RESOURCES=i_reag_garlic,i_reag_spider_silk,i_reag_sulfur_ash
+RUNE_ITEM=i_rune_REACTIVE_ARMOR
+SCROLL_ITEM=i_scroll_REACTIVE_ARMOR
+FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_FX_TARG | SPELLFLAG_GOOD | SPELLFLAG_SCRIPTED
+EFFECT_ID=i_fx_HEAL_EFFECT
+EFFECT=2,15
+DURATION=3*60.0,5*60.0
+MANAUSE=4
+SKILLREQ=MAGERY 25.3
+INTERRUPT=100.0,100.0
+
+on=@select
+return <trycast s_reactive_armor,spl_vulgar>
+
+on=@Fail
+f_consumeMana <ctag.cMana>
+
+on=@SUCCESS
+f_consumeMana <ctag.cMana>
+
+ON=@EFFECT
+f_s_reactive_armor <src.uid>
+return 1
+
+[FUNCTION f_s_reactive_armor]
+//argn1 Caster
+IF (<restest 1 i_spl_changeAR>)
+ FINDID.i_spl_changeAR.more2=0
+ FINDID.i_spl_changeAR.timerd=1
+ return 1
+endif
+SERV.NEWITEM i_spl_changeAR
+LOCAL.effect=<f_rangeValue 2,15,<UID.<argn1>.cTAG.cSkill>>
+NEW.tag.resfire= -<LOCAL.EFFECT>
+NEW.tag.rescold= -<LOCAL.EFFECT>
+NEW.tag.respoison= -<LOCAL.EFFECT>
+NEW.tag.resenergy= -<LOCAL.EFFECT>
+NEW.more1=<LOCAL.EFFECT>
+NEW.MORE2=<UID.<argn1>.cTAG.cMana>
+NEW.link=<argn1>
+EQUIP <new>
+
+[ITEMDEF i_spl_changeAR]
+ID=i_rune_REACTIVE_ARMOR
+TYPE=t_eq_script
+LAYER=layer_special
+NAME=changeAR
+
+on=@equip
+IF (<more2>)
+ TIMER=10
+ENDIF
+src.resfire += <tag.resfire>
+src.rescold += <tag.rescold>
+src.respoison += <tag.respoison>
+src.resenergy += <tag.resenergy>
+src.modar += <more1>
+
+on=@timer
+IF (!<more2>) || (!<link.f_consumeMana <more2>>) || (<link.flags>&statf_dead) || (<cont.flags>&statf_dead)
+ cont.resfire -= <tag.resfire>
+ cont.rescold -= <tag.rescold>
+ cont.respoison -= <tag.respoison>
+ cont.resenergy -= <tag.resenergy>
+ cont.modar -= <more1>
+ cont.sysmessageyellow Reactive Armor desligado.
+ remove
+ return 1
+ENDIF
+timer 10
+return 1
+
+
+
+//###############################################################################
+//				SPELL Magic Arrow
+//###############################################################################
+
+[Spell 5]
+DEFNAME=s_magic_arrow
+NAME=Magic Arrow
+SOUND=snd_SPELL_MAGIC_ARROW
+CAST_TIME=0.6
+RUNES=IPY
+RESOURCES=i_reag_black_pearl,i_reag_nightshade
+RUNE_ITEM=i_rune_MAGIC_ARROW
+SCROLL_ITEM=i_scroll_MAGIC_ARROW
+FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_DIR_ANIM | SPELLFLAG_HARM | SPELLFLAG_SCRIPTED
+EFFECT_ID=0
+EFFECT=2,10
+DURATION=0.0
+MANAUSE=4
+SKILLREQ=MAGERY 10.0
+INTERRUPT=100.0,100.0
+
+on=@Effect
+EFFECT 0 i_fx_energy_ray 6 0 0
+DAMAGESPELL s_magic_arrow,dam_pierce,<src.magery>,<src.uid>
+return 1
+[EOF]
