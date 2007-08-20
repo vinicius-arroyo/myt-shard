@@ -761,15 +761,53 @@ endif
 [FUNCTION stun]
 if (!<IsGM>)
  if (<IsStunned>)
-  tag.nomovetill=<eval <tag.nomovetill>+(<argn>*10)>
+  findid.i_stun.timer += <argn>
   sysmessagered Sua paralizia piorou!
  else
-  tag.nomovetill <eval <serv.time>+(<argn>*10)>
-  sysmessagered Voce esta paralizado!
+  serv.newitem i_stun
+  equip <new>
+  new.timer <argn>
  endif
 endif
 
 [FUNCTION IsStunned]
+if (<src.restest 1 i_stun>)
+ return 1
+endif
+return 0
+
+[ITEMDEF i_stun]
+//memory de paralização total
+ID=i_rune_paralyze
+type=t_eq_script
+name=Stun
+layer=layer_special
+
+on=@equip
+src.flags |= 04
+src.sysmessagered Voce esta paralizado!
+
+on=@timer
+cont.flags ^= 04
+remove
+return 1
+
+//*****************************************************************************
+// nomove <tempo>
+//*****************************************************************************
+//Paraliza o char por <tempo> segundos mas permite ações como skills, magia, luta e usar objetos.
+[FUNCTION nomove]
+if (!<IsGM>)
+ if (<IsNomove>)
+  tag.nomovetill += <eval <argn>*10>
+  sysmessagered Sua imobilidade piorou!
+ else
+  tag.nomovetill = <eval <serv.time>+(<argn>*10)>
+  sysmessagered Voce nao consegue andar!
+ endif
+endif
+
+[FUNCTION IsNomove]
 if (<tag0.nomovetill> > <serv.time>)
  return 1
 endif
