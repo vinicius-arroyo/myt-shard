@@ -1013,6 +1013,16 @@ f_moscas
 return 0
 
 
+
+
+
+
+
+
+   //////////////////////////////////////////////
+  //  	   CÓDIGO PARA PORTAS/CONTAINERES     //
+ //////////////////////////////////////////////
+
 // Created 16/8/2007 09:46:06, with Gump Studio.
 // Exported with with SphereExporter ver 1.2.
 // Script for 0.55R*/0.56/0.57
@@ -1152,4 +1162,171 @@ else
  dclick <argo>
 endif
 
+
+
+
+
+   //////////////////////////////////////////////
+  //	       	   CHAVES-ESTATUA	      //
+ //////////////////////////////////////////////
+
+
+[ITEMDEF i_gerador_estatua]
+ID=i_pedestal
+TYPE=t_script
+NAME=pedestal
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Chaves-estatua
+DESCRIPTION=Pedestal (gerador)
+
+on=@create
+more2=60*60	//1 hora
+
+on=@dclick
+if (!<more1>)
+ obj=<uid>
+ src.menu m_chave_estatua
+ attr=08010
+ return 1
+endif
+f_gerador_estatua_reset
+return 1
+
+on=@timer
+f_gerador_estatua_reset
+return 1
+
+[ITEMDEF i_chave_estatua]
+ID=i_statue_stone_sm_3
+TYPE=t_script
+NAME=estatua
+FLIP=0
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Chaves-estatua
+DESCRIPTION=Chave
+
+ON=@DROPON_CHAR
+//Se nunca foi pego
+if (<link.baseid>!=i_gerador_estatua)
+ //Remove efeito de sparkle
+ link.remove
+ link=<more2>
+ //Aciona timer do pedestal
+ link.timer=<link.more2>
+ src.sfx 05c9
+endif
+
+ON=@DROPON_ITEM
+trigger=@DROPON_CHAR
+
+ON=@DCLICK
+src.sysmessageyellow Aonde deseja usar isso?
+target
+return 1
+
+ON=@TARGON_ITEM
+IF (<src.targ.baseid>==i_pedestal_fechadura) && (<src.targ.color>==<color>)
+ p=<src.targ.p>		//posicionar
+ nudgeup 8
+ attr=08010
+ tag.porta=<src.targ.link>	//Salvar porta
+ src.targ.link.timerd 1		//abrir porta
+ src.targ.link.timerf 1 timer,-1	//permanecer aberta 4eva
+ update				//efeitinho
+ EFFECT 2 i_fx_sparkle_2 0 16 0
+ sfx 05C0
+ELSE
+ src.sysmessagered Nada acontece...
+ENDIF
+return 1
+
+ON=@TARGON_CHAR
+src.sysmessagered Nada acontece...
+return 1
+
+
+[ITEMDEF i_pedestal_fechadura]
+ID=i_pedestal
+TYPE=t_script
+NAME=pedestal
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Chaves-estatua
+DESCRIPTION=Pedestal (fechadura)
+
+on=@dclick
+if (!<more1>) && (<src.IsGM>)
+ target Selecione a porta:
+ELSE
+ src.SYSMESSAGEYELLOW Voce pensa em uma forma de acionar o dispositivo.
+ENDIF
+return 1
+
+on=@targon_item
+if (<src.targ.type>==t_door)
+ src.targ.type=t_door_locked
+endif
+if (<src.targ.type>!=t_door_locked)
+ src.sysmessagered Selecione uma PORTA! SUA PORTA!
+ return 1
+endif
+obj=<uid>
+src.targ.link=<UID>
+link=<src.targ.UID>
+attr=08010
+src.menu m_chave_estatua
+return 1
+
+[MENU m_chave_estatua]
+Escolha uma estatua
+ON=i_statue_stone_sm_3, @014
+obj.more1=014
+obj.f_gerador_estatua_reset
+
+ON=i_statue_stone_sm_3, @036
+obj.more1=036
+obj.f_gerador_estatua_reset
+
+ON=i_statue_stone_sm_3, @016A
+obj.more1=016A
+obj.f_gerador_estatua_reset
+
+ON=i_statue_stone_sm_3, @0C8
+obj.more1=0C8
+obj.f_gerador_estatua_reset
+
+ON=i_statue_stone_sm_3, @026
+obj.more1=026
+obj.f_gerador_estatua_reset
+
+
+[FUNCTION f_gerador_estatua_reset]
+IF (<baseid>==i_gerador_estatua)
+ IF (<link.instances>)		//Se há estátua
+  if (<link.tag0.porta>)	//Se a estátua foi usada
+   obj=<link.tag.porta>
+   obj.timerd 1			//Fechar a porta
+   obj.timerf 1,timer,-1	//Manter fechada
+  endif
+  link.remove			//Remover estátua velha
+ ENDIF
+ serv.newitem i_chave_estatua	//Criar estátua nova
+ new.color=<more1>		//Colorir de acordo com o código
+ new.p=<p>			//Posicionar
+ new.nudgeup 8
+ new.attr=028
+ new.timer=-1
+ new.more2 <UID>		//Salvar quem gerou a estátua
+ link=<new.uid>
+ serv.newitem i_fx_sparkle_2	//efeitinho
+ link.link=<new.uid>
+ new.timerf 1,p,<p>
+ new.timerf 2,update
+ELIF (<baseid>==i_pedestal_fechadura)
+ color=<more1>
+ attr=028
+ timer=-1
+ENDIF
 [EOF]
