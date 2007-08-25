@@ -1381,4 +1381,90 @@ ENDIF
 on=@dclick
 src.sysmessagered Nao esta funcionando. Provavelmente esta quebrado.
 return 1
+
+
+
+   //////////////////////////////////////////////
+  //		    CAMPO MÁGICO	      //
+ //////////////////////////////////////////////
+
+[ITEMDEF i_campo_magico_fogo]
+ID=0167
+NAME=campo magico
+TYPE=t_multi
+MULTIREGION=-3,-3,3,3
+COMPONENT=I_FX_EXPLODE_BALL 0 0 10 0
+COMPONENT=0DB -3 -3 0 0
+COMPONENT=0DB -3 3 0 0
+COMPONENT=0DB 3 -3 0 0
+COMPONENT=0DB 3 3 0 0
+COMPONENT=0DB 4 0 0 0
+COMPONENT=0DB 0 4 0 0
+COMPONENT=0DB -4 0 0 0
+COMPONENT=0DB 0 -4 0 0
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Campos mágicos
+DESCRIPTION=de Fogo
+
+ON=@CREATE
+TIMERF 1,region.events,r_campo_magico_fogo
+TIMERF 1,region.tag.active,1
+
+ON=@DCLICK
+IF (!<tag0.try>) && (<region.tag0.active>)
+ IF ({0 <src.magery>} > 75.0) || (<src.IsGM>)
+  region.tag.active=0
+  timerf 30,region.tag.active,1
+  timerf 30,sfx,SND_SPELL_FIREBALL
+  src.anim 17
+  src.sfx 0201
+  src.sysmessageblue Voce deabilitou o dispositivo com sucesso!
+ ELSE
+  SERV.NEWITEM i_fire_column
+  new.attr=012
+  new.p=<p>
+  new.nudgeup 10
+  new.update
+  new.timerd 1.6
+  new.sfx SND_SPELL_FIREBALL
+  src.DAMAGESPELL s_fireball, dam_fire, 120.0, <uid>
+  timerf 30,tag.try 0
+  tag.try 1
+  src.sysmessagered Voce falhou ao desabilitar
+ ENDIF
+ELIF (<tag0.try>)
+ src.sysmessageyellow Tente novamente mais tarde.
+ELSE
+ src.sysmessageblue O dispositivo ja esta desativado
+ENDIF
+RETURN 1
+
+[REGIONTYPE r_campo_magico_fogo]
+on=@exit
+on=@enter
+if !(<src.flags>&statf_nomagic) && (!<src.isgm>) && (<tag0.active>)
+ SERV.NEWITEM i_fire_column
+ new.attr=012
+ new.p=<p>
+ new.nudgeup 10
+ new.update
+ new.timerd 1.6
+ new.sfx SND_SPELL_FIREBALL
+ src.DAMAGESPELL s_fireball, dam_fire, 120.0, <uid>
+ src.music <hval {38 40}>
+endif
+
+on=@CLIPERIODIC
+if !(<src.flags>&statf_nomagic) && (!<src.isgm>) && (<src.region.tag0.active>)
+ SERV.NEWITEM i_fire_column
+ new.attr=012
+ new.p=<p>
+ new.nudgeup 10
+ new.update
+ new.timerd 1.6
+ new.sfx SND_SPELL_FIREBALL
+ src.DAMAGESPELL s_fireball, dam_fire, 200.0, <uid>
+endif
+
 [EOF]
