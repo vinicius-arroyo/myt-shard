@@ -1,0 +1,103 @@
+[DEFNAME ItemID]
+//Tempo antes de poder identificar outro item
+ItemID_timer	15
+
+[FUNCTION sk_ItemID]
+//Função inicial chamada pelo botão da skill
+
+//Checar se o player pode fazer isso
+if (<action> != -1) || (<ctag0.action>!=0) || (<flags>&statf_cantcraft)
+ SYSMESSAGERED Voce esta ocupado com outro afazer.
+ return 1
+endif 
+SYSMESSAGEYELLOW Que item costaria de identificar?
+targetf sk_ItemID_
+
+[FUNCTION sk_ItemID_]
+//Checar se é identificavel
+IF (!<argo.isitem>)
+ sysmessagered Voce nao pode identificar isso.
+ return 1
+endif
+IF (<argo.topobj>!=<UID>)
+ sysmessagered Voce deve ter o item em sua posse.
+ return 1
+endif
+IF (<argo.attr>&attr_identified)
+ sysmessageyellow Este item ja esta identificado.
+ return 1
+endif
+
+//Checar se o char pode identificar
+IF (<restest 1 i_mry_ItemID>)					//Ele usou essa skill faz pouco tempo?
+ sysmessagered Aguarde antes de tentar novamente.
+ return 1
+ENDIF
+local.timer=<f_rangeValue 15,3,<ItemID>>
+DORAND 2
+ emoteyellow examinando atentamente
+ emoteyellow examinando item
+ENDDO
+TIMERF <local.timer>,ItemID_
+ctag.action=3
+cTag.cItem=<argo.uid>
+cTag.cPX=<p.x>
+cTag.cPY=<p.Y>
+return 1
+
+[FUNCTION ItemID_]
+ctag.action=
+OBJ=<cTag.cItem>
+
+//Antiexploit
+IF (<flags>&statf_cantcraft)
+ sysmessagered Voce nao pode identificar o item por que foi perturbado.
+ return 1
+endif
+IF (<ctag0.cPX>!=<p.x>) || (<ctag0.cPY>!=<p.y>)
+ sysmessagered Sua atencao foi desviada. Voce nao identificou o item.
+ return 1
+endif
+IF (<obj.topobj>!=<UID>)
+ sysmessagered Aonde esta o item? Voce foi roubado!
+ susto
+ return 1
+endif
+
+//Tentar identificar
+if (<obj.type>==t_potion)
+ if ({0 <obj.more2>} < <ItemID>)
+  LOCAL.canItemID=1
+ endif
+//ELIF outros tipos de item.
+endif
+
+//Sucesso/falha
+if (<LOCAL.canItemID>)
+ surpreso
+ obj.attr |= attr_identified
+ obj.updatex
+ sysmessageblue Voce identificou o item.
+else
+ confuso
+ sysmessagered Voce falhou ao tentar identificar o item.
+endif
+
+//Temporizar a skill
+serv.newitem i_mry_ItemID
+equip <new>
+new.timer <DEF.ItemID_timer>
+
+//Ganhar skill
+SKILL_GAIN SKILL_ITEMID
+
+
+[ITEMDEF i_mry_ItemID]
+ID=i_spell_circle_3
+NAME=ItemID
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@Timer
+remove
+return 1
