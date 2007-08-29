@@ -4,7 +4,36 @@
  ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
 
+[TYPEDEF t_potion]
 
+on=@ClientToolTip
+IF (<attr>&attr_identified)
+ LOCAL.name <DEF.<BASEID>_IDNAME> <DEF.BFONT_RED>(<f_potionStr>)
+ LOCAL.tip <DEF.<BASEID>_IDTIP>
+ELIF (!<src.isgm>)
+  LOCAL.name <NAME>
+ LOCAL.tip (Não identificado)
+ELSE
+ LOCAL.name <NAME>
+ LOCAL.tip (Não identificado) <DEF.BR><DEF.BFONT_YELLOW>[<DEF.<BASEID>_IDNAME> <DEF.BFONT_RED>(<f_potionStr>)<DEF.BFONT_YELLOW>]<DEF.BR><DEF.BFONT_LRED>[<DEF.<BASEID>_IDTIP>]
+ENDIF
+IF (<amount> > 1)
+ LOCAL.tip = Qtd.: <eval <amount>><DEF.BR><LOCAL.tip>
+endif
+src.addcliloc 1042971,<LOCAL.name>
+src.addcliloc 1070722,<LOCAL.tip>
+RETURN 1
+
+[FUNCTION f_potionStr]
+if (<more2> < 955)
+ return fraca
+elif (<more2> < 1250)
+ return normal
+elif (<more2> < 1750)
+ return forte
+else
+ return concentrada
+endif
 
 //########################################################
 //##							##
@@ -69,6 +98,7 @@ ON=@Create
 	MORE2={ 30.0 90.0 }
 
 
+
 // --- CURE ---
 
 [ITEMDEF 0f07]
@@ -86,7 +116,6 @@ CATEGORY=MyT - Provisions - Alchemy & Magic
 ON=@Create
 	MORE1=s_cure
 	MORE2={ 300 900 }
-
 
 // --- AGILITY ---
 
@@ -106,7 +135,6 @@ ON=@Create
 	MORE1=s_agility
 	MORE2={ 300 900 }
 
-
 // --- STRENGTH ---
 
 [ITEMDEF 0f09]
@@ -124,7 +152,6 @@ CATEGORY=MyT - Provisions - Alchemy & Magic
 ON=@Create
 	MORE1=s_Strength
 	MORE2={ 300 900 }
-
 
 // --- POISON ---
 
@@ -144,6 +171,15 @@ ON=@Create
 	MORE1=s_Poison
 	MORE2={ 300 900 }
 
+on=@dclick
+if (<attr>&attr_identified)
+ src.f_usePoison <uid>
+else
+ src.veneno <more2>
+ src.sysmessagered Voce tomou veneno!
+ src.cry
+endif
+return 1
 
 // --- REFRESH ---
 
@@ -163,7 +199,6 @@ ON=@Create
 	MORE1=s_refresh
 	MORE2={ 300 900 }
 
-
 // --- EXPLOSION ---
 
 [ITEMDEF 0f0d]
@@ -181,6 +216,7 @@ CATEGORY=MyT - Provisions - Alchemy & Magic
 ON=@Create
 	MORE1=s_explosion
 	MORE2={ 30.0 80.0 }
+
 
 // --- MANA ---
 
@@ -257,6 +293,7 @@ CATEGORY=MyT - Provisions - Alchemy & Magic
 on=@create
 more2=50
 
+
 on=@dclick
 src.spelleffect s_magic_reflection,<more2>
 
@@ -266,7 +303,7 @@ src.spelleffect s_magic_reflection,<more2>
 [itemdef i_potion_encolher]
 ID=i_bottle_black
 NAME=pocao de encolher
-TYPE=T_script
+TYPE=T_POTION
 TDATA1=i_bottle_empty
 DESCRIPTION=Poção de encolher
 SUBSECTION=Potions
@@ -318,11 +355,12 @@ return 1
 [itemdef i_potion_explosao_terrestre]
 ID=i_bottle_purple
 NAME=pocao de explosao terrestre
-TYPE=T_script
+TYPE=T_POTION
 TDATA1=i_bottle_empty
 DESCRIPTION=Poção de explosão terrestre
 SUBSECTION=Potions
 CATEGORY=MyT - Provisions - Alchemy & Magic
+
 
 on=@dclick
 if (0<tag.armed>==0)
@@ -354,7 +392,7 @@ return 1
 
 on=@step
  if (0<tag.armed> == 2)
-  src.damage {10 30}
+  src.damage <eval {10 30}>,dam_fire|dam_physical
   src.effect 3,i_fx_explode,0,13,0
   sfx 011b
   src.say *Atingido por uma explosao terrestre*
@@ -370,7 +408,7 @@ return 1
 [itemdef i_potion_sopro_de_fogo]
 ID=i_bottle_orange
 NAME=pocao do sopro de fogo
-TYPE=T_script
+TYPE=T_POTION
 TDATA1=i_bottle_empty
 DESCRIPTION=Poção sopro de fogo
 SUBSECTION=Potions
@@ -386,8 +424,8 @@ return 1
 
 on=@targon_char
 src.anim 11
-src.targ.effect 0,i_fx_fireball_small,10,1,1
-src.targ.damage (<src.int>/5) 0010 <src.targ.uid>
+src.targ.effect 0,i_fx_fireball_small,6,1,1
+src.targ.damage (<src.int>/5) 0010 <src.uid>
 src.newitem i_bottle_empty
 src.act.bounce
 src.consume 1 <baseid>
@@ -408,7 +446,7 @@ return 1
 [itemdef i_potion_morvor]
 ID=i_bottle_red
 NAME=pocao do maximo vigor
-TYPE=T_script
+TYPE=T_POTION
 TDATA1=i_bottle_empty
 DESCRIPTION=Morvor (Stamina)
 SUBSECTION=Potions
@@ -470,7 +508,7 @@ src.act.equip
 src.act.more2=(<src.int>/10)
 src.act.timer=1
 src.flags=<src.flags>|08
-src.sysmessage Ninguem pode lhe ver.
+src.sysmessageblue Ninguem pode lhe ver.
 
 
 [itemdef i_mry_invis]
@@ -501,7 +539,7 @@ endif
 [itemdef i_potion_furor]
 ID=i_bottle_white
 NAME=pocao do furor de batalha
-TYPE=T_script
+TYPE=T_POTION
 TDATA1=i_bottle_empty
 DESCRIPTION=Poção do furor de batalha
 SUBSECTION=Potions
@@ -514,8 +552,8 @@ if (<topobj.uid> != <src.uid>)
 endif
 src.newitem i_mry_furor
 src.act.equip
-src.act.timer=(<src.str>/5)
-src.sysmessage Sentese estranhamnte disposto a lutar.
+src.act.timer=(<src.str>/3)
+src.sysmessageblue Sentese estranhamnte disposto a lutar.
 src.tactics=(<src.tactics>+200)
 src.fencing=(<src.fencing>+200)
 src.wrestling=(<src.wrestling>+200)
@@ -523,7 +561,7 @@ src.swordsmanship=(<src.swordsmanship>+200)
 src.macefighting=(<src.macefighting>+200)
 src.parrying=(<src.parrying>+200)
 src.consume 1 <baseid>
-src.say Graurrrr!
+src.say=@026 Graurrrr!
 return 1
 
 [itemdef i_mry_furor]
@@ -551,7 +589,7 @@ return 1
 [itemdef i_potion_formula_21]
 ID=0f04
 NAME=formula 21
-TYPE=T_script
+TYPE=T_POTION
 TDATA1=i_bottle_empty
 DESCRIPTION=Formula 21 (ouro)
 SUBSECTION=Potions
@@ -650,7 +688,6 @@ CATEGORY=MyT - Provisions - Alchemy & Magic
 
 ON=@Create
 	COLOR=0c3
-
 
 ON=@DClick
 	src.spelleffect s_Protection 650
@@ -756,7 +793,7 @@ return 1
 
 
 [ITEMDEF i_potion_poly_galinha]
-// Polymorpha temporariamente pra grizzly alterando algusn stats.
+// Polymorpha temporariamente pra galinha diminuindo stats.
 NAME=pocao da coragem
 ID=i_bottle_white
 TYPE=T_POTION
@@ -770,3 +807,17 @@ CATEGORY=MyT - Provisions - Alchemy & Magic
 ON=@DClick
 src.sysmessagered Grande corgem a sua!
 src.f_polymorph c_chicken,150,-30,-30,-30
+
+[FUNCTION IDNAME]
+IF (STRMATCH(<argv0>,))
+ RETURN <TAG0.IDNAME>
+ELSE
+ TAG.IDNAME=<argv0>
+ENDIF
+
+[FUNCTION IDTIP]
+IF (STRMATCH(<argv0>,))
+ RETURN <TAG0.IDTIP>
+ELSE
+ TAG.IDTIP=<argv0>
+ENDIF
