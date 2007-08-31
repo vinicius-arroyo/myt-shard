@@ -81,7 +81,7 @@ endif
 
 ON=@CLIENTTOOLTIP
 if (<src.isgm>)
-	f_sendTooltip <name>,Tempo: <eval <more2>> segundos
+	f_sendTooltip <name>,Tempo: <eval <more2>> segundos<DEF.BR> Ajuste o tempo em segundos<DEF.BR> no MORE2 deste item.
 	return 1
 endif
 
@@ -181,6 +181,7 @@ update
 
 [FUNCTION f_leverDoor]
 link.timerd=1
+link.timerf 1,timer,-1
 if (<morex>)
  timer=<more2>
  link.say=@026 click...
@@ -189,6 +190,7 @@ else
 endif
 if (<link.link>!=04fffffff) && (<link.link>!=<UID>)
  link.link.timerd=1
+ link.link.timerf 1,timer,-1
  if (<morex>)
   link.link.say=@026 click...
  else
@@ -1467,4 +1469,167 @@ if !(<src.flags>&statf_nomagic) && (!<src.isgm>) && (<src.region.tag0.active>)
  src.DAMAGESPELL s_fireball, dam_fire, 200.0, <uid>
 endif
 
+   //////////////////////////////////////////////
+  //		   PORTAS MÁGICAS	      //
+ //////////////////////////////////////////////
+
+[ITEMDEF i_trig_door_magic]
+//Respawn de loot de containers em geral
+ID=01ea7
+NAME=cagilho de porta magica
+TYPE=t_comm_crystal
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=gatilho de port amagica
+
+on=@Create
+SPEECH=spk_door_magic
+ATTR=8080
+COLOR=065
+tag.word=abra cadabra
+MORE2=600
+
+on=@dclick
+src.f_dialog_magic_door <UID>
+return 1
+
+on=@CLIENTTOOLTIP
+if (<src.isgm>)
+	f_sendTooltip <name>,Tempo: <EVAL <more2>>s<DEF.BR>Senha: <tag.word>
+	return 1
+endif
+
+[FUNCTION f_dialog_magic_door]
+obj=<argn1>
+cTAG.trigger=<obj>
+LOCAL.timer=<obj.more2>
+cTAG.horas=<eval <obj.more2>/3600>
+LOCAL.timer -= <eval <cTAG0.horas>*3600>
+cTAG.minutos=<eval <LOCAL.timer>/60>
+LOCAL.timer -= <eval <cTAG0.minutos>*60>
+cTAG.segundos=<LOCAL.timer>
+IF (!<obj.more1>)
+ obj.more1=01eec
+ENDIF
+cTAG.face=<obj.more1>
+cTAG.word=<obj.tag.word>
+DIALOG d_magic_door
+
+[SPEECH spk_door_magic]
+on=*
+//checar distância mínima
+IF (<src.distance <p>> < 3)
+
+ //Checar se a palavra corresponde
+ IF (STRMATCH(<args>,<tag.word>))
+  //abrir, temporizar e dar o efeito
+  obj=<uid>
+  foritems 1
+   if (<type>==t_door_locked)
+    if (!<tag0.open>)
+     tag.open=1
+     timerd 5
+     timerf 1,timer,<obj.more2>
+     timerf <obj.more2>,tag.open,0
+     sfx 01FF
+     effect 2 i_fx_heal_effect 0 16 0
+    endif
+   endif
+  endfor
+
+ //palavra errada. Efeito.
+ else
+  serv.newitem <more1>
+  new.attr=012
+  new.p=<p>
+  new.nudgeup 10
+  new.update
+  new.timer 3
+  DORAND 4
+   new.say=@06 Diga-me a palavra poderosa...
+   new.say=@06 Conta-me o que me diz respeito...
+   new.say=@06 E por qual meio deseja entrar?
+   new.say=@06 Diga o que me deve e entre...
+  ENDDO
+  new.sfx 05bc
+ endif
+endif
+
+// Created 30/8/2007 19:24:49, with Gump Studio.
+// Exported with with SphereExporter ver 1.2.
+// Script for 0.55R*/0.56/0.57
+
+[DIALOG d_magic_door]
+0,0
+page 0
+resizepic 0 0 9250 366 320
+dtext 130 15 152 Porta magica
+gumppic 44 136 1143
+dtext 54 118 0 Palavra magica
+dtextentry 55 138 247 20 32 2 <cTAG.word>
+gumppic 48 80 2443
+gumppic 144 80 2443
+gumppic 248 80 2443
+dtextentry 55 81 48 20 0 3 <eval <cTAG0.horas>>
+dtextentry 150 81 48 20 0 4 <eval <cTAG0.minutos>>
+dtextentry 256 81 48 20 0 5 <eval <cTAG0.segundos>>
+dtext 56 64 0 horas
+dtext 152 64 0 minutos
+dtext 252 64 0 segundos
+if (<ctag.face>==01eec)
+ tilepic 152 192 7920
+else
+ tilepic 152 192 7913
+endif
+button 144 272 247 248 1 0 2
+button 144 240 2444 2443 1 0 1
+dtext 160 240 0 mudar
+dtext 138 178 0 Face mágica
+
+[DIALOG d_magic_door text]
+Porta magica
+Palavra magica
+<cTAG.word>
+<eval <cTAG0.horas>>
+<eval <cTAG0.minutos>>
+<eval <cTAG0.segundos>>
+horas
+minutos
+segundos
+mudar
+Face mágica
+
+[DIALOG d_magic_door button]
+ON=0
+//CANCEL
+src.sysmessageyellow Nenhuma alteracao na porta magica.
+
+ON=1
+// Button 2
+if (<ctag.face>==01eec)
+ ctag.face=i_door_magical
+else
+ ctag.face=01eec
+endif
+DIALOG d_magic_door
+
+ON=2
+// OKAY
+obj=<ctag0.trigger>
+obj.tag.word=<ARGTXT[2]>
+obj.more2=<eval (<ARGTXT[3]>*3600)+(<ARGTXT[4]>*60)+<ARGTXT[5]>>
+obj.more1=<cTAG.face>
+src.sysmessagegreen Porta magica configurada com sucesso!
+foritems 1
+ if (<type>==t_door_locked)
+  if (<tag0.open>)
+   tag.open=0
+   timerf CLEAR
+   LOCAL.i += 1
+  endif
+ endif
+endfor
+IF (<local.i>)
+ sysmessageyellow <dLOCAL.i> porta(s) resetada(s)
+ENDIF
 [EOF]
