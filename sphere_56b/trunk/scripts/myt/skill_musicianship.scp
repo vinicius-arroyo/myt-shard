@@ -1,0 +1,160 @@
+[SKILL 22]
+DEFNAME=SKILL_PROVOCATION
+KEY=Provocation
+TITLE=Bard
+PROMPT_MSG=@036 Quem voce gostaria de incitar?
+DELAY=10.0,1.0
+STAT_STR=20
+STAT_INT=60
+STAT_DEX=70
+BONUS_STR=0
+BONUS_DEX=90
+BONUS_INT=10
+BONUS_STATS=5
+//ADV_RATE=2.5,50.0,200.0
+
+ON=@Fail
+	SRC.SYSMESSAGERED Sua musica falhou em incitar raiva o suficiente.
+	//Diminuir chance de ser atacado.
+	IF (<SRC.PROVOCATION> < <R900>)
+		return 0
+	ELSE
+		RETURN 1
+	ENDIF
+
+ON=@Abort
+	SRC.SYSMESSAGEYELLOW Sua musica falhou em incitar raiva o suficiente.
+	//Diminuir chance de ser atacado.
+	IF (<SRC.PROVOCATION> < <R900>)
+		return 0
+	ELSE
+		RETURN 1
+	ENDIF
+
+[SKILL 15]
+DEFNAME=Skill_Enticement
+KEY=Enticement
+TITLE=Bard
+PROMPT_MSG=Quem voce gostaria de incitar?
+DELAY=10.0,1.0
+STAT_STR=15
+STAT_INT=70
+STAT_DEX=50
+BONUS_STR=0
+BONUS_DEX=50
+BONUS_INT=50
+BONUS_STATS=5
+//ADV_RATE=2.5,50.0,200.0
+
+ON=@Fail
+	SRC.SYSMESSAGE Your music fails to attract anyone.
+
+ON=@Abort
+	SRC.SYSMESSAGE You fail to complete the song.
+
+[SKILL 9]
+DEFNAME=SKILL_PEACEMAKING
+KEY=Peacemaking
+TITLE=Bard
+PROMPT_MSG=
+DELAY=2.0
+STAT_STR=0
+STAT_INT=70
+STAT_DEX=70
+BONUS_STR=0
+BONUS_DEX=50
+BONUS_INT=50
+BONUS_STATS=5
+//ADV_RATE=2.5,50.0,200.0
+
+ON=@Fail
+	SRC.SYSMESSAGE You attempt to calm everyone, but fail.
+
+ON=@Abort
+	SRC.SYSMESSAGE You fail to complete the song.
+
+/////////////////////////////////////////////
+///
+//	FUNÇÕES DE PODERES BARDICOS
+
+
+[FUNCTION BARDSONG_PLAY]
+RETURN 0
+
+[FUNCTION BARDSONG_VALOR]
+emoteyellow entoa uma cancao encorajadora
+LOCAL.timer=<f_rangeValue 8,2,<musicianship>>
+TIMERf <LOCAL.timer>, _BARDSONG_VALOR
+
+[FUNCTION _BARDSONG_VALOR]
+IF (!<BELLTEST <Musicianship>,560>)
+ sysmessagered Sua cancao nao foi muito encorajadora.
+ return 1
+endif
+LOCAL.r=<f_rangeValue 1,5,<musicianship>>
+LOCAL.moddam=<f_rangeValue -1,3,<musicianship>>
+LOCAL.modar=<f_rangeValue -2,4,<musicianship>>
+LOCAL.timer=<f_rangeValue 0,35,<musicianship>>
+//sysmessageyellow r:<dLOCAL.r> moddam:<dLOCAL.moddam> modar:<dLOCAL.modar>
+OBJ=<UID>
+FORCHARS <LOCAL.r>
+ IF (!<IsMyEnemy <OBJ.UID>>) && ((<IsMyMaster <OBJ.UID>>) || (<IsPlayer>)) && (!<RESTEST 4 i_mry_BARDSONG_VALOR>)
+  serv.newitem i_mry_BARDSONG_VALOR
+  new.more1=<LOCAL.modar>
+  new.more2=<LOCAL.moddam>
+  equip <new.UID>
+  new.timer=<LOCAL.timer>
+  message=@02, *encorajado* 
+ ENDIF
+ENDFOR
+
+[ITEMDEF i_mry_BARDSONG_VALOR]
+ID=i_lyre
+NAME=VALOR
+TYPE=t_eq_script
+LAYER=30
+
+on=@equip
+cont.modar += <more1>
+cont.tag0.moddam += <more2>
+src.sysmessagegreen Voce se sente mais corajoso!
+
+on=@timer
+cont.modar -= <more1>
+cont.tag.moddam -= <more2>
+remove
+return 1
+
+
+[FUNCTION SETMEMORY]
+//setmemory <memory_type>,<UID>
+LOCAL.link=<argv[1]>
+LOCAL.memtype=<argv[0]>
+FORCHARLAYER 30
+ if (<TYPE>==t_eq_memory_obj) && (<link>==<local.link>)
+  color |= <argv[0]>
+  LOCAL.set=1
+  obj=<LOCAL.link>
+  IF (<obj.isplayer>) && (!<IsEmpty <obj.tag.name>>)
+   name=<obj.tag.name>
+  ELSE
+   name=<obj.name>
+  ENDIF
+ endif
+ENDFOR
+IF (!<LOCAL.set>)
+ serv.newitem i_memory
+ new.type=t_eq_script
+ new.color = <LOCAL.memtype>
+ equip <new.uid>
+ new.timer=20*60
+ new.link=<LOCAL.link>
+ obj=<LOCAL.link>
+ IF (<obj.isplayer>) && (!<IsEmpty <obj.tag.name>>)
+  new.name=<obj.tag.name>
+ ELSE
+  new.name=<obj.name>
+ ENDIF
+ new.type=t_eq_memory_obj
+ENDIF
+[EOF]
