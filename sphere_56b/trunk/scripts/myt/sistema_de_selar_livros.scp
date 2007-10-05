@@ -348,3 +348,157 @@ more1 ^= 080000000
 
 [FUNCTION selar_livro]
 more1 |= 080000000
+
+
+[FUNCTION f_book_start]
+if (<ISEMPTY <tag.name>>)
+ LOCAL.name=Livro
+ tag.name=Livro
+else
+ LOCAL.name=<tag.name>
+endif
+if (<ISEMPTY <tag.author>>)
+ LOCAL.author=Desconhecido
+ tag.author=Deconhecido
+else
+ LOCAL.author=<tag.author>
+endif
+
+[TYPEDEF t_book]
+on=@ClientToolTip
+if (<more2>)
+ return 0
+endif
+call f_book_start
+src.addcliloc 1042971,<LOCAL.name>
+src.addcliloc 1070722,Por: <LOCAL.author>
+return 1
+
+on=@dclick
+if (<more2>)
+ return 0
+endif
+dialogclose d_book
+src.cTAG.book=<UID>
+src.ctag.book.page=1
+src.DIALOG d_book
+return 1
+
+[DIALOG d_book]
+150,150
+page 0
+obj=<src.ctag.book>
+gumppic 0 0 510
+
+//Pagina 1
+if (<src.ctag.book.page> == 1)
+ dtext 82 19 9 Titulo
+ dtext 86 102 9 Autor
+ if (<src.ctag0.book.edit>==1)
+  dtextentry 41 40 143 22 5 0 <obj.tag.name>
+  dtextentry 41 127 143 22 5 1 <obj.tag.author>
+ else
+  dtext 41 40 0 <obj.tag.name>
+  dtext 41 127 0 <obj.tag.author>
+ endif
+ if ((<src.isgm>) || (<obj.tag0.owner>==<src.uid>) || (!<obj.tag0.owner>)) && (!<src.ctag0.book.edit>)
+  button 54 161 2445 2445 1 0 5
+  if (!<obj.tag0.owner>)
+   dtext 80 162 92  ser dono
+  elif (<obj.more1>&080000000)
+   dtext 90 162 368  editar
+  else
+   dtext 80 162 38  nao editar
+  endif
+ endif
+else
+ if (<src.ctag0.book.edit>==<src.ctag0.book.page>)
+  dtextentry 40 41 143 155 5 0 <obj.tag.page.<src.dctag0.book.page>>
+ else
+  dhtmlgump 40 38 143 159 0 0 <obj.tag.page.<src.dctag0.book.page>>
+ endif
+endif
+dtext 100 200 894 <src.dctag.book.page>
+
+//Pagina 2
+if (<src.ctag0.book.edit>==<src.ctag0.book.page>+1)
+ dtextentry 232 40 143 156 3 0 <obj.tag.page.<eval <src.ctag0.book.page>+1>>
+else
+ dhtmlgump 232 40 146 156 0 0 <obj.tag.page.<eval <src.ctag0.book.page>+1>>
+endif
+dtext 300 200 894 <eval <src.ctag.book.page>+1>
+
+//Folhas
+if (<src.ctag.book.page> != 1) && (!<src.ctag0.book.edit>)
+ button 0 0 511 511 1 0 1	//folha -
+endif
+if (<src.ctag.book.page> < 62) && (!<src.ctag0.book.edit>)
+ button 356 0 512 512 1 0 2	//folha +
+endif
+
+if (!(<obj.more1>&080000000) || (<src.ISGM>)) && (!<src.ctag0.book.edit>)
+ tilepic 19 200 4032
+ button 49 205 1209 1210 1 0 3	//edit 1
+ tilepic 353 200 4032
+ button 355 205 1209 1210 1 0 4	//edit 2
+endif
+
+[DIALOG d_book text]
+HtmlGump id.0
+Textentry id.0
+HtmlGump id.1
+Textentry id.1
+
+[DIALOG d_book button]
+ON=0
+if (<src.ctag0.book.edit>)
+ obj=<src.ctag0.book>
+ //Estamos editando o cabeçalho aqui...
+ if (<src.ctag0.book.edit>==1)
+  obj.tag.name=<argtxt[0]>
+  obj.tag.author=<argtxt[1]>
+  obj.updatex
+ else
+  obj.tag.page.<src.dctag0.book.edit>=<argtxt[0]>
+ endif
+ src.ctag0.book.edit
+ dialog d_book
+ return 1
+endif
+
+ON=1
+// Folha -
+src.ctag.book.page -= 2
+dialog d_book
+return 1
+
+ON=2
+// Folha +
+src.ctag.book.page += 2
+dialog d_book
+return 1
+
+ON=3
+// Edit 1
+src.ctag.book.edit=<src.ctag0.book.page>
+dialog d_book
+return 1
+
+ON=4
+// Edit 2
+src.ctag.book.edit=<eval <src.ctag0.book.page>+1>
+dialog d_book
+return 1
+
+ON=5
+// Ownership
+obj=<src.ctag.book>
+if (!<obj.tag.owner>)
+ obj.tag.owner=<src.UID>
+elif (<obj.more1>&080000000)
+ obj.more1 ^= 080000000
+else
+ obj.more1 |= 080000000
+endif
+dialog d_book
+return 1
