@@ -123,18 +123,46 @@ endif
 return 1
 
 
-TARGET Onde voce quer usar o vaso?
+TARGETP Onde voce quer usar o vaso?
 RETURN 1
 
 on=@targon_char
-src.sysmessage se voce quer jogar o vaso use o comando .jogar
+src.sysmessage se voce quer jogar o vaso use o comando .arremessar
 return 1
 
 
-ON=@Targon_ground 
+ON=@Targon_ground
+IF (!<more1>)
  SRC.SYSMESSAGE se voce quer colocar o vaso ai, arraste e solte. 
-RETURN 1  
-
+ RETURN 1
+ENDIF
+IF (<src.canseelos <src.targp>>) && (<src.distance <src.targp>> < 4)
+ serv.newitem i_poca
+ doswitch <more2>
+  new.name=poca de piche
+  new.name=poca de piche
+  new.name=poca de oleo
+ enddo
+ doswitch <more2>
+  src.emotered derrama piche
+  src.emotered derrama piche
+  src.emotered derrama oleo
+ enddo
+ doswitch <more2>
+  new.type t_piche_chao
+  new.type t_piche_chao
+  new.type t_oleo_chao
+ enddo
+ new.p=<src.targp>
+ new.timer=60*60
+ new.attr=012
+ new.color=0387
+ more1=0
+ more2=0
+ update
+ src.sfx 05a2
+ENDIF
+RETURN 1
 
 ON=@Targon_item
 if (<src.targ.distance> > 1) && (<topobj.uid> != <src.uid>) 
@@ -392,7 +420,7 @@ return 1
 
 ////////////////////////////////////////////////
 ///////////// frasco de óleo //////////////////
-///////////////////////////////////////////////
+//////////////////////////////////////////////
 
 
 [ITEMDEF i_frasco_oleo_vazio]
@@ -411,8 +439,37 @@ src.sysmessage Este frasco esta vazio.
 return 1
 
 
+////////////////////////////////////////////////
+///////////// TYPEDEFs	     //////////////////
+//////////////////////////////////////////////
 
+[TYPEDEF t_oleo_chao]
+on=@dclick
+if (<src.distance <UID>> < 3)
+ src.emotered ateia fogo
+ serv.newitem i_fire
+ new.p=<p>
+ new.timer=60*60
+ new.attr=012
+ new.effect 2, i_fire_column, 0, 27, 0
+ src.sfx 047
+ remove
+endif
 
+on=@step
+if (!<argn1>) //Acabo de pisar, não estou em cima
+ emotered escorrega no oleo
+ src.f_faint
+ src.timerf 2,f_wakeup
+endif
+
+[TYPEDEF t_piche_chao]
+on=@step
+if (!<argn1>) //Acabo de pisar, não estou em cima
+ emotered escorrega no piche
+ src.f_faint
+ src.timerf 2,f_wakeup
+endif
 [eof]
 
 
