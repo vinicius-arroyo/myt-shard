@@ -708,6 +708,7 @@ on=@timer
 link.empty
 serv.newitem <tag.tesouro>
 new.cont=<link>
+new.attr=08010
 timer=<more2>
 return 1
 
@@ -736,6 +737,10 @@ src.menu m_spawn_loot_time
 
 on=0 Unico item medio
 src.cTAG.respawn_loot_type=i_chest_dungeon_2
+src.menu m_spawn_loot_time
+
+on=0 Loot miseravel
+src.cTAG.respawn_loot_type=I_loot_quest_miseravel
 src.menu m_spawn_loot_time
 
 on=0 Loot pobre
@@ -800,7 +805,7 @@ targetf f_spawn_loot_target
 // -------# FUNCTIONS #-------- //
 
 [FUNCTION f_spawn_loot_target]
-if (<argo.type>!=t_container)&&(<argo.type>!=t_container_locked)&&(<argo.type>!=t_guarded_container)
+if (<argo.type>!=t_container)&&(<argo.type>!=t_container_locked)&&(<argo.type>!=t_guarded_container)&&(<argo.type>!=t_corpse)
  sysmessage Alvo invalido. Selecione o alvo.
  targetf f_spawn_loot_target
  return 1
@@ -1783,5 +1788,133 @@ obj.morey=<ARGTXT[4]>
 obj.morez=<ARGTXT[5]>
 obj.morem=<ARGTXT[9]>
 sysmessagegreen Portal magico alterado com sucesso!
+
+
+[ITEMDEF i_invis_generator]
+//Gerador de invisibilidade para itens ficarem invis e permitir Dettecting Hidden
+ID=01ea7
+NAME=gerador de invis
+TYPE=t_script
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=Gerador de inivibilidade
+
+on=@Create
+ATTR=8080
+COLOR=0145
+MORE2=259200
+MORE1=<serv.time>
+
+
+on=@timer
+IF (<link> == 04fffffff) || (!<link.tag0.Detecting_Hidden>)
+ remove
+ return 1
+elif !(<link.attr>&attr_invis)
+ if ((<more1>/10)+<more2>) < (<serv.time>/10))
+  link.tag.name=<link.name>
+  link.name=<link.name> (invis)
+  link.attr |= attr_invis
+  link.updatex
+ endif
+else
+ more1=<serv.time>
+endif
+timer 10
+return 1
+
+on=@dclick
+src.cTAG.invis_gen=<uid>
+src.menu m_invisible_object
+return 1
+
+ON=@CLIENTTOOLTIP
+if (<src.isgm>)
+	f_sendTooltip <name>,Tempo: <f_timestring <more2>><DEF.BR>Item: <QVAL <link> != 04fffffff ? <link.name> (<link.p.x>.<link.p.y>.<link.p.z>.<link.p.m>) : Nenhum><DEF.BR>Skill para detectar: <eval <link.tag0.Detecting_Hidden>/10>.0<DEF.BR>DCLick para editar.
+	return 1
+endif
+
+
+
+[MENU m_invisible_object]
+Gerador de invisibilidade
+ON=0 Link: <QVAL (<uid.<cTAG.invis_gen>.link>) != 04fffffff ? <uid.<cTAG0.invis_gen>.link.name> (<uid.<cTAG.invis_gen>.link.p>) : Nenhum>
+sysmessageyellow Selecione o objeto a deixar invisivel...
+targetf _invis_gen_link
+return 1
+
+on=0 Detecting Hidden necessaria: <eval <uid.<cTAG0.invis_gen>.link.dtag0.Detecting_Hidden>/10>.0
+uid.<cTAG.invis_gen>.link.tag0.Detecting_Hidden += 100
+if (<uid.<cTAG.invis_gen>.link.tag0.Detecting_Hidden> > 1000)
+ uid.<cTAG0.invis_gen>.link.tag0.Detecting_Hidden = 100
+endif
+menu m_invisible_object
+return 1
+
+on=0 Tempo para voltar a ficar inivivel: <f_timestring <uid.<cTAG0.invis_gen>.more2>>
+menu m_invisible_object_timer
+return 1
+
+on=@cancel
+uid.<cTAG.invis_gen>.update
+uid.<cTAG.invis_gen>.timer=10
+
+[MENU m_invisible_object_timer]
+Tempo para voltar a ficar inivivel: <f_timestring <uid.<cTAG0.invis_gen>.more2>>
+ON=0 +dia
+uid.<cTAG.invis_gen>.more2 += 86400
+MENU m_invisible_object_timer
+
+ON=0 -dia
+IF (<uid.<cTAG.invis_gen>.more2>> >= 86400)
+ uid.<cTAG.invis_gen>.more2 -= 86400
+endif
+MENU m_invisible_object_timer
+
+ON=0 +hora
+uid.<cTAG.invis_gen>.more2 += 3600
+MENU m_invisible_object_timer
+
+on=0 -hora
+IF (<uid.<cTAG.invis_gen>.more2>> >= 3600)
+ uid.<cTAG.invis_gen>.more2 -= 3600
+ENDIF
+MENU m_invisible_object_timer
+
+ON=0 +minuto
+uid.<cTAG.invis_gen>.more2 += 60
+MENU m_invisible_object_timer
+
+ON=0 -minuto
+IF (<uid.<cTAG.invis_gen>.more2>> >= 60)
+ uid.<cTAG.invis_gen>.more2 -= 60
+ENDIF
+MENU m_invisible_object_timer
+
+ON=0 +segundo
+uid.<cTAG.invis_gen>.more2 += 1
+MENU m_invisible_object_timer
+
+ON=0 -segundo
+IF (<uid.<cTAG.invis_gen>.more2>> >= 1)
+ uid.<cTAG.invis_gen>.more2 -= 1
+ENDIF
+MENU m_invisible_object_timer
+
+ON=0 Voltar
+MENU m_invisible_object
+
+on=@cancel
+uid.<cTAG.invis_gen>.update
+uid.<cTAG.invis_gen>.timer=10
+
+[FUNCTION _invis_gen_link]
+if (!<argo.isitem>)
+ sysmessagered Somente itens.
+else
+ uid.<cTAG.invis_gen>.link=<argo.uid>
+endif
+MENU m_invisible_object
+return 1
 
 [EOF]
