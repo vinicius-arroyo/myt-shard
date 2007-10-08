@@ -1790,6 +1790,11 @@ obj.morem=<ARGTXT[9]>
 sysmessagegreen Portal magico alterado com sucesso!
 
 
+
+   //////////////////////////////////////////////
+  //	OBJETOS INVISÍVEIS DETECTAVEIS	      //
+ //////////////////////////////////////////////
+
 [ITEMDEF i_invis_generator]
 //Gerador de invisibilidade para itens ficarem invis e permitir Dettecting Hidden
 ID=01ea7
@@ -1916,5 +1921,96 @@ else
 endif
 MENU m_invisible_object
 return 1
+
+
+
+   //////////////////////////////////////////////
+  //	     GERADOR DE CARTAS EM NPCS        //
+ //////////////////////////////////////////////
+
+
+[ITEMDEF i_trig_msg_gen]
+ID=i_rune_glowing_2
+NAME=gerador de cartas
+TYPE=t_script
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=gerador de mensagens em loot de NPCs
+
+on=@create
+attr=08080
+
+on=@dclick
+if (<src.isgm>)
+ src.ctag.conf=<UID>
+ DIALOG d_config_scroll
+ return 1
+endif
+
+on=@step
+if (!<argn1>) && (<src.npc>)	//Um NPC acabou de pisar
+ obj=<tag0.NPC>
+ if (!<obj.instances>)
+  serv.newitem i_carta
+  if (<more1>)
+   new.tag.nomove=1
+  endif
+  new.link=<UID>
+  new.more1 0
+  new.more2 0
+  src.bounce <new.uid>
+  tag.NPC=<src.UID>
+ endif
+endif
+return 1
+
+ON=@CLIENTTOOLTIP
+if (<src.isgm>)
+	f_sendTooltip <name>,Adiciona uma carta no loot do NPC que pisar<DEF.BR>So podendo haver uma por vez<DEF.br>DClick para editar.
+	return 1
+endif
+
+[DIALOG d_config_scroll]
+225,150
+page 0
+obj=<src.cTAG.conf>
+resizepic 0 0 9380 307 316
+if (!<src.ctag0.conf.edit>)
+ dhtmlgump 32 95 253 185 1 1 <QVAL !<ISEMPTY <obj.tag.text>> ? <obj.tag.text>:>
+ button 27 292 2445 2445 1 0 2
+ dtext 61 293 59 Editar
+ button 36 74 1209 1209 1 0 1
+ dtext 56 71 2057 <QVAL <obj.more1> ? Some em 24h se pego : Players podem ficar com a carta>
+else
+ dtextentry 32 97 234 182 0 1 <QVAL !<ISEMPTY <obj.tag.text>> ? <obj.tag.text>:>
+endif
+dtext 49 4 4 Configurar gerador de mensagens
+dtext 77 25 0 Assim que um NPC pisar aqui, ele
+dtext 26 38 0 ganhara em seu loot uma carta com os
+dtext 26 51 0 seguintes dizeres:
+
+
+[DIALOG d_config_scroll button]
+ON=0
+IF (<src.ctag0.conf.edit>)
+ obj=<src.cTAG.conf>
+ obj.tag.text=<argtxt[1]>
+ src.ctag.conf.edit
+ src.DIALOG d_config_scroll
+endif
+
+ON=1
+obj=<src.cTAG.conf>
+IF (!<obj.more1>)
+ obj.more1=1
+else
+ obj.more1=0
+endif
+src.DIALOG d_config_scroll
+
+ON=2
+src.ctag.conf.edit=1
+src.DIALOG d_config_scroll
 
 [EOF]

@@ -502,3 +502,77 @@ else
 endif
 dialog d_book
 return 1
+
+[ITEMDEF i_carta]
+ID=0e34
+NAME=carta
+TYPE=t_book_scroll
+
+on=@create
+more1=0		//Não selada
+more2=1		//Editável
+
+[TYPEDEF t_book_scroll]
+on=@dclick
+src.ctag.scroll=<UID>
+src.DIALOG d_scroll
+return 1
+
+//Triggers gambiarra para fizar em loot de NPCs. Se usar attr 010 ele some quando o char morre.
+on=@DropOn_Item
+if (<tag0.nomove>)
+ timerf 86400,remove
+endif
+
+on=@DropOn_Char
+if (<tag0.nomove>)
+ timerf 86400,remove
+endif
+
+on=@DropOn_Self
+if (<tag0.nomove>)
+ timerf 86400,remove
+endif
+
+
+[DIALOG d_scroll]
+150,150
+page 0
+obj=<src.ctag0.scroll>
+resizepic 0 0 9380 307 316
+if (!<src.ctag0.scroll.edit>) && (<obj.link> =! 04fffffff)
+ dhtmlgump 32 35 253 245 0 1 <DEF.BFONT_BLACK><QVAL !<ISEMPTY <obj.tag.text>> ? <obj.tag.text> :>
+ELIF (<obj.link.baseid>==i_trig_msg_gen)
+ dhtmlgump 32 35 253 245 0 1 <DEF.BFONT_BLACK><QVAL !<ISEMPTY <obj.link.tag.text>> ? <obj.link.tag.text> :>
+else
+ dtextentry 32 35 234 244 0 1 <QVAL !<ISEMPTY <obj.tag.text>> ? <obj.tag.text> :>
+endif
+if ((<src.isgm>) || (<obj.tag0.owner>==<src.uid>) || (!<obj.tag0.owner>)) && (!<src.ctag0.scroll.edit>) && (<obj.link>==04fffffff)
+ button 27 292 2445 2445 1 0 1
+ if (!<obj.tag0.owner>)
+  dtext 55 293 92 ser dono
+ else
+  dtext 62 293 368 editar
+ endif
+endif
+
+
+[DIALOG d_scroll button]
+ON=0
+if (<src.ctag0.scroll.edit>)
+ uid.<src.ctag.scroll>.tag.text=<argtxt[1]>
+ src.ctag.scroll.edit
+ src.DIALOG d_scroll
+endif
+
+ON=1
+obj=<src.ctag0.scroll>
+if (!<obj.tag0.owner>)
+ obj.tag.owner=<src.UID>
+ src.DIALOG d_scroll
+else
+ src.ctag.scroll.edit=1
+ src.DIALOG d_scroll
+endif
+
+[EOF]
