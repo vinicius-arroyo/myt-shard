@@ -1,382 +1,3 @@
-
-
-[ITEMDEF i_escudo_paladino]
-NAME=Escudo de Egeron
-ID=01bc4
-TYPE=t_shield
-WEIGHT=1
-ARMOR=30
-REQSTR=0
-CATEGORY=MyT - Provisions - Armor
-SUBSECTION=Adv Class
-DESCRIPTION=Escudo Paladino
-
-on=@create
-attr=000
-
-on=@equip
-if (<src.uid>!=<link>) && !(<src.isgm>)
- src.sysmessage Voce nao eh apto a portar este artefato fabuloso.
- src.findlayer.2.bounce
- return 1
-else 
- src.newitem i_mry_PalaEge
- src.act.equip
-endif
-
-
-on=@unequip
-src.findid(i_mry_PalaEge).remove
-
-
-on=@dclick
-if (<src.findlayer.2.uid>==<uid>)
- src.dialog d_poderes_egeron
- var.egeronUID=<uid>
- return 1
-endif
-
-[ITEMDEF i_mry_PalaEge]
-ID=0469e
-NAME=Paladino de Egeron (comandos)
-TYPE=t_comm_crystal
-LAYER=99
-
-ON=@Create
-SPEECH=spk_PalaEge
-TYPE=t_eq_script
-
-ON=@Equip
-TYPE=t_comm_crystal
-SRC.FLAGS=<SRC.FLAGS>|08000
-ATTR=<ATTR>|attr_newbie|attr_move_never
-
-[SPEECH spk_PalaEge]
-on=mani in manus
- src.newitem i_pal_healing
- src.new.equip
- src.new.use
-
-on=Aus Infermae
- src.newitem i_pal_cure
- src.new.equip
- src.new.use
-
-
-[ITEMDEF i_pal_healing]
-ID=i_shield_order
-name=Healing Paladino
-type t_eq_script
-layer 30
-
-on=@dclick
-if (<src.mana> >=6)
- TARGET Em quem voce deseja usar este poder?
- return 1
-else
- src.sysmessage Voce nao possui energia de fe o suficiente.
- remove
- return 1
-endif
-
-
-on=@timer
-if ({-50 1500} >= <cont.spiritspeak>) && (RAND(2))
- cont.sysmessage Voce perdeu a concentracao
- cont.mana=<cont.mana>-{2 6}
- dorand (3)
-  cont.say Huf!
-  cont.say *falhou*
-  cont.say *nada acontece*
- enddo
- cont.GAIN_SKILL spiritspeak
- remove
- return 1
-endif
-sfx 0fc
-cont.anim 17
-cont.effect 3 i_fx_sparkle_2 0 30 0
-cont.mana=<cont.mana>-6
-cont.targ.hits=<cont.targ.hits>+{5 7}
-if (<cont.targ.uid> != <cont.uid>)
- cont.targ.effect 3 i_fx_sparkle 0 15 0
- cont.targ.hits=<cont.targ.hits>+{3 6}
-endif
-if (<cont.targ.hits> >= <cont.targ.str>)
- cont.targ.hits=<cont.targ.str>
-endif
-remove
-return 1
-
-on=@targon_char
-timerd 13
-return 1
-
-[ITEMDEF i_pal_cure]
-ID=i_shield_order
-name=Cure Paladino
-type t_eq_script
-layer 30
-
-on=@dclick
-if (<src.mana> >=8)
- TARGET Em quem voce deseja usar este poder?
- return 1
-else
- src.sysmessage Voce nao possui energia de fe o suficiente.
- remove
- return 1
-endif
-
-
-on=@timer
-if ({0 1500} >= <cont.spiritspeak>) && (RAND(2))
- cont.sysmessage Voce perdeu a concentracao
- cont.mana=<cont.mana>-{4 8}
- dorand (3)
-  cont.say Huf!
-  cont.say *falhou*
-  cont.say *nada acontece*
- enddo
- cont.GAIN_SKILL spiritspeak
- remove
- return 1
-endif
-sfx 0244
-cont.anim 17
-cont.effect 3 i_fx_sparkle 0 30 0
-cont.mana=<cont.mana>-8
-cont.targ.hits=<cont.targ.hits>+{1 3}
-if (<cont.targ.restest 1 i_veneno>)
- cont.targ.findid.i_veneno.more2=<cont.targ.findid.i_veneno.more2>-{5 10}
- if (<cont.targ.findid.i_veneno.more2> > 4000)
-  cont.targ.findid.i_veneno.more2=0
-  cont.targ.findid.i_veneno.timerd=1
- endif
-endif
-if (<cont.targ.restest 1 i_rune_mind_blast>)
- cont.targ.findid.i_rune_mind_blast.more2=1
- cont.targ.findid.i_rune_mind_blast.timer=1
-endif
-if (<cont.targ.uid> != <cont.uid>)
- cont.targ.effect 3 i_fx_sparkle_2 0 15 0
- cont.targ.hits=<cont.targ.hits>+{1 2}
-endif
-remove
-return 1
-
-on=@targon_char
-timer 2
-return 1
-
-[DIALOG d_poderes_egeron]
-0, 0
-PAGE 0
-gumppic 0 0 510
-text 86 14 95 0
-text 80 32 95 1
-text 59 60 162 2
-text 60 118 102 3
-button 356 0 512 512 1 0 1
-gumppic 167 0 50992
-
-[DIALOG d_poderes_egeron TEXT]
-Campeao
-de Egeron
-<uid.<var.egeronUID>.link.tag.name>
-Livro de Poderes
-
-
-[DIALOG d_poderes_egeron BUTTON]
-on=1
-//para o poder 1
-src.dialog d_poderes_egeron_1
-return 1
-
-[DIALOG d_poderes_egeron_1]
-0, 0
-PAGE 0
-gumppic 0 0 510
-text 41 33 162 0
-text 80 52 162 1
-text 49 80 102 2
-text 50 138 1152 3
-button 356 0 512 512 1 0 1
-gumppic 277 88 20737
-text 33 158 1152 4
-button 0 0 511 511 1 0 2
-
-[DIALOG d_poderes_egeron_1 TEXT]
-Curar pela imposicao
-das maos
-Mani In Manus
-Reconstitui a energia
-vital de um ser vivente.
-
-[DIALOG d_poderes_egeron_1 BUTTON]
-on=1
-//para o poder 2 se tiver level 2.
-if (0<src.tag.paladino> >= 2)
- src.dialog d_poderes_egeron_2
-else
- src.dialog d_poderes_egeron
-endif
-return 1
-
-on=2
-//para o comesso
-src.dialog d_poderes_egeron
-return 1
-
-[DIALOG d_poderes_egeron_2]
-0, 0
-PAGE 0
-gumppic 0 0 510
-text 54 33 162 0
-text 80 52 162 1
-text 60 80 102 2
-text 50 138 1152 3
-button 356 0 512 512 1 0 1
-gumppic 277 88 2250
-text 33 158 1152 4
-text 33 178 1152 5
-button 0 0 511 511 1 0 2
-
-[DIALOG d_poderes_egeron_2 TEXT]
-Curar maleficios
-do corpo
-Aus Infermae
-Amenisa molestias e 
-venenos do corpo de um
-ser vivente.
-
-
-[DIALOG d_poderes_egeron_2 BUTTON]
-on=1
-//para o poder 3 se tiver level 3.
-if (0<src.tag.paladino> >= 3)
- src.dialog d_poderes_egeron_3
-else
- src.dialog d_poderes_egeron
-endif
-return 1
-
-on=2
-//para o poder 1
-src.dialog d_poderes_egeron_1
-return 1
-
-[DIALOG d_poderes_egeron_3]
-0, 0
-PAGE 0
-gumppic 0 0 510
-text 44 33 162 0
-text 80 52 162 1
-text 63 80 102 2
-text 50 138 1152 3
-button 356 0 512 512 1 0 1
-gumppic 277 88 20741
-text 33 158 1152 4
-text 33 178 1152 5
-button 0 0 511 511 1 0 2
-
-[DIALOG d_poderes_egeron_3 TEXT]
-Cura restauradora
-do corpo
-Egeron Manae
-Restaura totalmente a
-energia vital de um
-ser vivente.
-
-
-[DIALOG d_poderes_egeron_3 BUTTON]
-on=1
-//para o poder 4 se tiver level 4.
-if (0<src.tag.paladino> >= 4)
- src.dialog d_poderes_egeron_4
-else
- src.dialog d_poderes_egeron
-endif
-return 1
-
-on=2
-//para o poder 2
-src.dialog d_poderes_egeron_2
-return 1
-
-[function nodesm]
-findid.i_mry_desmaio.timer=1
-tag.desmaios=0
-
-[DIALOG d_poderes_egeron_4]
-0, 0
-PAGE 0
-gumppic 0 0 510
-text 37 33 162 0
-text 80 52 162 1
-text 53 80 102 2
-text 50 138 1152 3
-button 356 0 512 512 1 0 1
-gumppic 277 88 20489
-text 33 158 1152 4
-text 33 178 1152 5
-button 0 0 511 511 1 0 2
-
-[DIALOG d_poderes_egeron_4 TEXT]
-Expurgar maleficios
-do corpo
-Egeron Aus Venus
-Romove molestias e 
-venenos do corpo de um
-ser vivente.
-
-
-[DIALOG d_poderes_egeron_4 BUTTON]
-on=1
-//para o poder 5 se tiver level 5.
-if (0<src.tag.paladino> >= 5)
- src.dialog d_poderes_egeron_5
-else
- src.dialog d_poderes_egeron
-endif
-return 1
-
-on=2
-//para o poder 3
-src.dialog d_poderes_egeron_3
-return 1
-
-[DIALOG d_poderes_egeron_5]
-0, 0
-PAGE 0
-gumppic 0 0 510
-text 57 33 162 0
-text 80 52 162 1
-text 47 80 102 2
-text 50 138 1152 3
-gumppic 277 88 20736
-text 33 158 1152 4
-text 33 178 1152 5
-button 0 0 511 511 1 0 2
-
-[DIALOG d_poderes_egeron_5 TEXT]
-Bencao de Egeron
-<var.blank>
-Por Egeron Magnae
-Abencoa o Campeao de
-Egeron.
-<var.blank>
-
-
-[DIALOG d_poderes_egeron_5 BUTTON]
-
-on=2
-//para o poder 4
-src.dialog d_poderes_egeron_4
-return 1
-
-
-
 //*************************************************************
 //			NECROMANTE
 //*************************************************************
@@ -384,21 +5,33 @@ return 1
 [ITEMDEF i_necronomico]
 ID=i_spellbook_necromancy
 NAME=necronomico
-TYPE=t_spellbook
+TYPE=t_wand
+TEVENTS=e_focus
 
 on=@create
+tag.name=Necronomico
 ATTR=020
 
 on=@dclick
-src.equip <UID>
-src.mago
+if (<topobj.uid>==<src.uid>) && (<p.z>==1)
+ dialogclose d_book
+ if (strmatch(<tag.author>,))
+  tag.author=<src.tag.name>
+  updatex
+ endif
+ src.cTAG.book=<UID>
+ src.ctag.book.page=1
+ src.DIALOG d_book
+elif (<topobj.uid>==<src.uid>)
+ src.equip <UID>
+ src.mago
+ return 1
+endif
+
+on=@ClientToolTip
+src.addcliloc 1042971,<TAG.name>
+src.addcliloc 1070722,De: <TAG.author>
 return 1
-
-on=@equip
-src.MSPEECH spk_mago
-
-on=@unequip
-src.findid.i_spk_mago.remove
 
 
 //*************************************************************
@@ -413,8 +46,9 @@ TYPE=T_WEAPON_MACE_STAFF
 FLIP=1
 DAM=15,17
 SPEED=33
-REQSTR=20
+REQSTR=50
 TWOHANDS=Y
+TEVENTS=e_focus
 
 CATEGORY=MyT Provisions - Weapons
 SUBSECTION=Adv Class
@@ -430,8 +64,190 @@ src.equip <UID>
 src.mago
 return 1
 
-on=@equip
-src.MSPEECH spk_mago
+//*************************************************************
+//			Paladino
+//*************************************************************
+
+[DEFNAME adv_pala_timers]
+pala_cure_time		30*60*10
+pala_str_time		10*60*10
+pala_reactive_timer	60*60*10
+pala_bless_wpn		30*60*10
+pala_cure_mana		20
+pala_str_mana		20
+pala_reactive_mana	30
+pala_bless_wpn_mana	40
+
+[TYPEDEF e_adv_paladin]
+on=@dclick
+if ((<src.uid> != <topobj.uid>) || !(STRMATCH(<tag.advclass>,Paladino)) && (!<src.IsGM>)
+ return 0
+else
+ src.skillmenu sm_adv_paladin
+endif
+return 1
+
+[skillmenu sm_adv_paladin]
+Selecione um poder
+on=i_rune_cure
+TESTIF (<src.act.tag0.curet> < <serv.time>)
+src.f_adv_pala_cure
+
+on=i_rune_strength
+TESTIF (<src.act.tag0.strenghtt> < <serv.time>)
+src.f_adv_pala_strength
+
+on=i_rune_reactive_armor
+TESTIF (<src.act.tag0.reactiveart> < <serv.time>)
+f_adv_pala_reactiveAR
+
+[FUNCTION f_adv_pala_cure]
+sysmessageyellow Quem voce deseja purificar o corpo?
+src.targetf _f_adv_pala_cure
+
+[FUNCTION _f_adv_pala_cure]
+if (!<argo.ischar>) || (<argo.uid> == <uid>)
+ sysmessageyellow Esse poder so pode ser usado em outros seres vivos a nao ser voce.
+elif (!<f_consumeMana <DEF.pala_cure_mana>>)
+ sysmessageyellow Voce nao tem energia magica o suficiente.
+else
+ act.tag.curet=<eval <serv.time>+<def.pala_cure_time>
+ argo.spelleffect s_cure,<tactics>,<uid>
+ sfx snd_spell_cure
+ sysmessageyellow Podera usar este poder novamente em <f_timestring <eval <def.pala_cure_time>/10>>.
+endif
+return 1
+
+[FUNCTION f_adv_pala_strength]
+if (!<f_consumeMana <DEF.pala_str_mana>>)
+ sysmessageyellow Voce nao tem energia magica o suficiente.
+ retunr 1
+endif
+act.tag.strenghtt=<eval <serv.time>+<def.pala_str_time>
+spelleffect s_strength,<tactics>,<uid>
+sfx snd_spell_strength
+sysmessageyellow Podera usar este poder novamente em <f_timestring <eval <def.pala_str_time>/10>>.
+
+[FUNCTION f_adv_pala_reactiveAR]
+if (!<f_consumeMana <DEF.pala_reactive_mana>>)
+ sysmessageyellow Voce nao tem energia magica o suficiente.
+ retunr 0
+endif
+act.tag.reactiveart=<eval <serv.time>+<def.pala_reactive_timer>
+serv.newitem i_spl_changeAR
+new.more2=12
+new.more1=7
+new.tag.resfire=4
+new.tag.rescold=4
+new.tag.respoison=4
+new.tag.resenergy=4
+new.link=<uid>
+equip <new.uid>
+new.timerf 60,more2,0
+sfx snd_spell_strength
+sysmessageyellow Podera usar este poder novamente em <f_timestring <eval <def.pala_reactive_timer>/10>>.
+
+[FUNCTION f_adv_pala_bless_wpn]
+if (!<NPC_CanCast>)
+ sysmessagered Voce ainda nao pode usar outro poder.
+ return 0
+endif
+if (!<f_consumeMana <DEF.pala_bless_wpn_mana>>)
+ sysmessageyellow Voce nao tem energia magica o suficiente.
+ retunr 0
+endif
+if (!<weapon>)
+ sysmessagered Voce nao tem arma para abencoar.
+ return 0
+endif
+weapon.more2=17
+weapon.morex=7
+sfx 01f7
+effect 2 i_fx_sparkle 0 16 0
+spell_delay <DEF.pala_bless_wpn>
+sysmessageyellow Podera usar outro poder novamente em <f_timestring <eval <def.pala_bless_wpn>/10>>.
+
+[FUNCTION f_adv_pala_fire_wpn]
+if (!<NPC_CanCast>)
+ sysmessagered Voce ainda nao pode usar outro poder.
+ return 0
+endif
+if (!<f_consumeMana <DEF.pala_bless_wpn_mana>>)
+ sysmessageyellow Voce nao tem energia magica o suficiente.
+ retunr 1
+endif
+if (!<weapon>)
+ sysmessagered Voce nao tem arma para abencoar.
+ return 0
+endif
+weapon.more2=51
+weapon.morex=7
+sfx 01f7
+effect 2 i_fx_sparkle 0 16 0 0 0550
+spell_delay <DEF.pala_bless_wpn>
+sysmessageyellow Podera usar outro poder novamente em <f_timestring <eval <def.pala_bless_wpn>/10>>.
+
+[FUNCTION f_adv_pala_cold_wpn]
+if (!<NPC_CanCast>)
+ sysmessagered Voce ainda nao pode usar outro poder.
+ return 0
+endif
+if (!<f_consumeMana <DEF.pala_bless_wpn_mana>>)
+ sysmessageyellow Voce nao tem energia magica o suficiente.
+ retunr 1
+endif
+if (!<weapon>)
+ sysmessagered Voce nao tem arma para abencoar.
+ return 0
+endif
+weapon.dmgcold += 3
+Local.timer=<eval <def.pala_bless_wpn>/225>
+weapon.timerf <LOCAL.timer>,_f_adv_pala_cold_wpn
+weapon.tag.color=<weapon.color>
+weapon.color=04f1
+sfx 01f7
+effect 2 i_fx_sparkle 0 16 0 0 0112
+spell_delay <DEF.pala_bless_wpn>
+sysmessageyellow Podera usar outro poder novamente em <f_timestring <eval <def.pala_bless_wpn>/10>>.
+
+[FUNCTION _f_adv_pala_cold_wpn]
+color=<tag0.color>
+dmgcold -= 3
+cont.sfx snd_spell_weaken
+updatex
+
+[ITEMDEF i_anel_paladino]
+ID=i_ring_gold
+TYPE t_jewelry
+NAME=anel paladino
+TEVENTS=e_adv_paladin
+
+CATEGORY=MyT Provisions - Weapons
+SUBSECTION=Adv Class
+DESCRIPTION=Cajado Druida
+
+on=@create
+ATTR=025
+
+on=@equiptest
+IF !(STRMATCH(<src.tag.advclass>,Paladino)) && (!<src.IsGM>)
+ src.sysmessageyellow O anel nao entra no seu dedo.
+ return 1
+endif
+src.dspeech +spk_paladin
 
 on=@unequip
-src.findid.i_spk_mago.remove
+src.dspeech -spk_paladin
+
+[SPEECH spk_paladin]
+on=In Des Sanct
+anim 17
+timerf 3,f_adv_pala_bless_wpn
+
+on=In Des Flam
+anim 17
+timerf 3,f_adv_pala_fire_wpn
+
+on=In Des Quas
+anim 17
+timerf 3,f_adv_pala_cold_wpn

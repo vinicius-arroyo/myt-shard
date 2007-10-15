@@ -178,36 +178,46 @@ dialog d_tempo
 return 1
 
 //*****************************************************************************
-// i_clima_off
+// i_tile_clima
 //*****************************************************************************
-[ITEMDEF i_clima_off]
+[ITEMDEF i_tile_clima]
 ID=0495
 type=t_script
-name=clima off (entra)
+name=Controle de clima
+CATEGORY=MyT - Provisions - GM Items
+SUBSECTION=Tempo
+DESCRIPTION=Tile de controle de clima
 
 ON=@CREATE
-ATTR=attr_invis|attr_move_never
-TIMER=0
-COLOR=084c
-
-ON=@STEP
-SRC.TAG.no_clima=1
-
-//*****************************************************************************
-// i_clima_on
-//*****************************************************************************
-[ITEMDEF i_clima_on]
-ID=0495
-type=t_script
-name=clima on (sai)
-
-ON=@CREATE
-ATTR=attr_invis|attr_move_never
-TIMER=0
+ATTR=08090
+TIMER=-1
 COLOR=026
 
 ON=@STEP
-SRC.TAG.no_clima=0
+if (!<argn1>)	//Só quando pisa a 1ª vez
+ SRC.TAG.no_clima=<tag0.no_clima>
+ if (<tag0.light>)
+  src.tag.PersonalLight=<tag.light>
+ else
+  src.tag.PersonalLight=
+ endif
+ src.f_correctLight
+endif
+
+ON=@DCLICK
+if (!<src.IsGM>)
+ Sysmessagered So GMs.
+ return 1
+endif
+src.ctag.clima.UID=<UID>
+src.ctag.clima.no_clima=<tag0.no_clima>
+src.ctag.clima.light=<tag0.light>
+src.dialog d_cont_clima
+return 1
+
+ON=@CLIENTTOOLTIP
+f_sendTooltip <name>, <QVAL <tag0.no_clima>?Sem efeitos de clima:Ligar efeitos de clima><DEF.br>Luz: <QVAL <tag0.light>?<dtag.light>:Ambiente>
+return 1
 
 //*****************************************************************************
 // i_termometro
@@ -263,6 +273,9 @@ return 1
 ID=020E8
 NAME=neve
 TYPE=t_script
+CATEGORY=MyT - Provisions - GM Items
+SUBSECTION=Tempo
+DESCRIPTION=Neve
 
 ON=@CREATE
 COLOR=07A1
@@ -622,5 +635,88 @@ ENDIF
 if ( <LOCAL.retry>==1 )
   dialog d_tempo
 endif  
+
+
+
+[DIALOG d_cont_clima]
+250,150
+page 0
+resizepic 0 0 9200 283 238
+dtext 81 9 37 Controle de clima
+button 40 50 2151 2152 1 0 1
+
+IF (<src.ctag0.clima.no_clima>)
+ dtext 80 55 0 Desliga clima (indoor)
+else
+ dtext 80 55 0 Liga clima (outdoor)
+endif
+
+button 40 100 2151 2152 1 0 2
+
+IF (<src.ctag0.clima.light>)
+ dtext 80 105 0 Luz pessoal
+ gumppic 136 143 2444
+ dtext 27 144 0 Acertar luz para
+ dtext 41 171 0 30 = escuro; 1 = claro; 0 = ambiente.
+ dtextentry 155 144 47 20 0 5 <eval <src.ctag0.clima.light>>
+else
+ dtext 80 105 0 Luz ambiente
+endif
+
+button 23 203 247 248 1 0 3
+button 204 202 241 242 1 0 0
+
+[DIALOG d_cont_clima text]
+Controle de clima
+Desliga clima (indoor)
+Luz ambiente
+Acertar luz para
+30 = escuro; 1 = claro; 0 = ambiente.
+30
+
+[DIALOG d_cont_clima button]
+ON=1
+// Entra/sai
+IF (<src.ctag0.clima.no_clima>)
+ src.ctag.clima.no_clima=
+else
+ src.ctag.clima.no_clima=1
+endif
+src.DIALOG d_cont_clima
+
+ON=2
+// Luz
+IF (<src.ctag0.clima.light>)
+ src.ctag0.clima.light=
+else
+ src.ctag0.clima.light=1
+endif
+src.DIALOG d_cont_clima
+
+ON=3
+// OK
+IF (<src.ctag0.clima.light>)
+ IF (<ISNUM <argtxt[5]>>)
+  src.ctag0.clima.light=<argtxt[5]>
+ ELSE
+  src.ctag0.clima.light=
+  src.sysmessagered AVISO: Luz incorreta. Trocado para Luz Ambiente.
+ endif
+ENDIF
+obj=<src.ctag0.clima.UID>
+obj.tag.light=<src.ctag0.clima.light>
+obj.tag.no_clima=<src.ctag0.clima.no_clima>
+if (<obj.tag0.no_clima>
+ obj.color=05c
+else
+ obj.color=026
+endif
+obj.update
+src.sysmessagegreen Controle de clima alterado com sucesso!
+
+ON=0
+// Cancel
+src.sysmessagered Nada foi alterado.
+
 
 [EOF]
