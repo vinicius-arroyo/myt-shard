@@ -26,13 +26,16 @@ ON=@PICKUP_SELF
 	endif
 
 ON=@DROPON_SELF
-	if ( <TAG0.OVERRIDE.MAXWEIGHT>==0)
-		TAG.OVERRIDE.MAXWEIGHT=10000
+	if ( <TAG0.OVERRIDE.MAXWEIGHT>=!350)
+		TAG.OVERRIDE.MAXWEIGHT=350
 	endif
 
 //src.sysmessageyellow w: <weight> i: <argo.weight> n:<argo.amount>
 
-	if ( <eval <weight>+<argo.weight>> > <TAG.OVERRIDE.MAXWEIGHT> ) && (<src.isgm>==0)
+	FORCONT <UID> 10
+		LOCAL.weight += <weight>
+	ENDFOR
+	if ( <eval <LOCAL.weight>+<argo.weight>> > <TAG.OVERRIDE.MAXWEIGHT> ) && (<src.isgm>==0)
 		src.sysmessageyellow Sua caixa bancaria esta cheia.
 		return 1
 	endif
@@ -253,6 +256,42 @@ src.sysmessageyellow Caixa bancaria de <argn> stones alugada...
 src.sysmessageorange Seu aluguel expira em 2 semanas (reais).
 
 //*****************************************************************************
+// bankbalance
+//*****************************************************************************
+[FUNCTION bankbalance]
+FORCONT <findlayer.layer_bankbox.uid> 10
+ LOCAL.i += 1
+ LOCAL.w += <weight>
+ if (<baseID>==i_gold)
+  LOCAL.g += <amount>
+ elif (<baseID>==i_coin_copper)
+  LOCAL.c += <amount>
+ elif (<baseID>==i_coin_silver)
+  LOCAL.s += <amount>
+ endif
+endfor
+sysmessagered Balanco bancario:
+sysmessageyellow Peso no banco <eval <LOCAL.w>/10> (max: <eval <findlayer.layer_bankbox.tag0.OVERRIDE.MAXWEIGHT>/10>)
+sysmessageyellow Itens: <dLOCAL.i>
+sysmessageyellow Ouro: <dLOCAL.g>
+sysmessageyellow Prata: <dLOCAL.s>
+sysmessageyellow Cobre: <dLOCAL.c>
+
+//*****************************************************************************
+// setBankWeight
+//*****************************************************************************
+[FUNCTION setBankWeight]
+if (<ISEMPTY <argv0>>) || (!<ISnum <argv0>>)
+ sysmessageyellow Uso correto: .setBankWeight num (em stones)
+ return 1
+endif
+
+forplayers 6000
+ findlayer.layer_bankbox.tag.OVERRIDE.MAXWEIGHT=<eval <argn1>*10>
+ local.cont += 1
+endfor
+sysmessageyellow <dLOCAL.cont> caixas de banco modificadas.
+//*****************************************************************************
 //*****************************************************************************
 // ITEMDEFs
 //*****************************************************************************
@@ -385,6 +424,217 @@ on=0 1000
 on=0 5000
  bank_cambio 5000
 
+//*****************************************************************************
+// d_bank - Chamado diretamente pelos players
+//*****************************************************************************
+[DIALOG d_bank]
+250,150
+page 0
+resizepic 0 0 2620 339 155
+checkertrans 5 7 327 139
+tilepic 27 53 3648
+tilepic 267 67 3820
+tilepic 259 75 3826
+tilepic 14 85 7134
+dtext 144 12 37 Banco
+button 81 38 2151 2152 1 0 1
+button 229 87 2151 2152 1 0 2
+dtext 115 41 2100 Abrir caixa bancaria
+dtext 135 90 2100 Trocar moedas
+
+[DIALOG d_bank text]
+Banco
+Abrir caixa bancaria
+Trocar moedas
+
+[DIALOG d_bank button]
+ON=1
+// Abrir
+ src.bankself
+
+ON=2
+// Trocar moedas
+ src.DIALOG d_bank_coins_1
+
+//*****************************************************************************
+// d_bank_coins_1 - Permite troca de moedas - PASSO 1
+//*****************************************************************************
+[DIALOG d_bank_coins_1]
+250,150
+page 0
+resizepic 0 0 2620 339 320
+checkertrans 5 7 328 304
+tilepic 248 48 3826
+dtext 112 12 37 Trocar moedas
+button 24 48 2151 2472 1 0 1
+tilepic 64 48 3820
+dtext 128 48 2100 cobre -> prata
+tilepic 248 88 3823
+button 24 88 2151 2472 1 0 2
+tilepic 64 88 3820
+dtext 131 88 2100 cobre -> ouro
+tilepic 248 128 3820
+button 24 128 2151 2472 1 0 3
+tilepic 64 128 3826
+dtext 128 128 2100 prata -> cobre
+tilepic 248 168 3823
+button 24 168 2151 2472 1 0 4
+tilepic 64 168 3826
+dtext 131 168 2100 prata -> ouro
+tilepic 248 208 3820
+button 24 208 2151 2472 1 0 5
+tilepic 64 208 3823
+dtext 131 208 2100 ouro -> cobre
+tilepic 248 248 3826
+button 24 248 2151 2472 1 0 6
+tilepic 64 248 3823
+dtext 130 248 2100 ouro -> prata
+button 8 288 4014 4015 1 0 7
+
+[DIALOG d_bank_coins_1 text]
+Trocar moedas
+cobre -> prata
+cobre -> ouro
+prata -> cobre
+prata -> ouro
+ouro -> cobre
+ouro -> prata
+
+[DIALOG d_bank_coins_1 button]
+ON=1
+// cobre prata
+ src.ctag.change=5
+ src.ctag.moeda1=i_coin_copper
+ src.ctag.moeda2=i_coin_silver
+ src.DIALOG d_bank_coins_2
+
+ON=2
+// cobre ouro
+ src.ctag.change=5
+ src.ctag.moeda1=i_coin_copper
+ src.ctag.moeda2=i_gold
+ src.DIALOG d_bank_coins_2
+
+ON=3
+// prata cobre
+ src.ctag.change=5
+ src.ctag.moeda1=i_coin_silver
+ src.ctag.moeda2=i_coin_copper
+ src.DIALOG d_bank_coins_2
+
+ON=4
+// prata ouro
+ src.ctag.change=5
+ src.ctag.moeda1=i_coin_silver
+ src.ctag.moeda2=i_gold
+ src.DIALOG d_bank_coins_2
+
+ON=5
+// ouro cobre
+ src.ctag.change=5
+ src.ctag.moeda1=i_gold
+ src.ctag.moeda2=i_coin_copper
+ src.DIALOG d_bank_coins_2
+
+ON=6
+// ouro prata
+ src.ctag.change=5
+ src.ctag.moeda1=i_gold
+ src.ctag.moeda2=i_coin_silver
+ src.DIALOG d_bank_coins_2
+
+ON=7
+// Voltar
+src.DIALOG d_bank
+
+//*****************************************************************************
+// d_bank_coins_2 - Permite troca de moedas - PASSO 2
+//*****************************************************************************
+[DIALOG d_bank_coins_2]
+250,150
+page 0
+resizepic 0 0 2620 339 127
+checkertrans 5 7 328 112
+
+//desenha moeda1
+if (<src.ctag.moeda1>==i_gold)
+ tilepic 64 48 3823
+elif (<src.ctag.moeda1>==i_coin_silver)
+ tilepic 64 48 3826
+else
+ tilepic 64 48 3820
+endif
+
+//desenha moeda2
+if (<src.ctag.moeda2>==i_gold)
+ tilepic 248 48 3823
+elif (<src.ctag.moeda2>==i_coin_silver)
+ tilepic 248 48 3826
+else
+ tilepic 248 48 3820
+endif
+
+dtext 122 12 37 Trocar moedas
+button 133 93 247 248 1 0 1
+button 200 42 250 251 1 0 2
+button 200 63 252 253 1 0 3
+button 8 96 4014 4015 1 0 4
+gumppic 133 52 2443
+dtext 142 53 4 <src.dctag.change>
+dtext 154 31 2100 Qtd.
+
+[DIALOG d_bank_coins_2 text]
+Trocar moedas
+<src.dctag.change>
+Qtd.
+
+[DIALOG d_bank_coins_2 button]
+ON=1
+// OK
+ bank_cambio <ctag.change>
+ DIALOG d_bank_coins_1
+
+ON=2
+// Coin +
+if (<src.ctag0.change>==5)
+ src.ctag.change=10
+elif (<src.ctag0.change>==10)
+ src.ctag.change=50
+elif (<src.ctag0.change>==50)
+ src.ctag.change=100
+elif (<src.ctag0.change>==100)
+ src.ctag.change=500
+elif (<src.ctag0.change>==500)
+ src.ctag.change=1000
+elif (<src.ctag0.change>==1000)
+ src.ctag.change=5000
+else
+ src.ctag.change=5
+endif
+DIALOG d_bank_coins_2
+
+ON=3
+// Coin -
+if (<src.ctag0.change>==5)
+ src.ctag.change=5000
+elif (<src.ctag0.change>==10)
+ src.ctag.change=5
+elif (<src.ctag0.change>==50)
+ src.ctag.change=10
+elif (<src.ctag0.change>==100)
+ src.ctag.change=50
+elif (<src.ctag0.change>==500)
+ src.ctag.change=100
+elif (<src.ctag0.change>==1000)
+ src.ctag.change=500
+else
+ src.ctag.change=1000
+endif
+DIALOG d_bank_coins_2
+
+ON=4
+// Back
+DIALOG d_bank_coins_1
 
 //*****************************************************************************
 //*****************************************************************************
@@ -402,7 +652,7 @@ NAME=Bruno
 ID=C_MAN
 DESIRES=i_gold,e_notoriety
 AVERSIONS=t_TRAP,t_eerie_stuff
-
+TEVENTS=e_bank
 
 TSPEECH=jobbanker
 
@@ -425,6 +675,8 @@ ITEMNEWBIE=i_hair_ponytail
 COLOR=0456
 ITEMNEWBIE=i_beard_vandyke
 COLOR=match_hair
+
+
 
 
 ON=@NPCRestock
@@ -451,7 +703,7 @@ NAME=Urukubanco
 ID=C_MAN
 DESIRES=i_gold,e_notoriety
 AVERSIONS=t_TRAP,t_eerie_stuff
-
+TEVENTS=e_bank
 
 TSPEECH=jobbanker
 
@@ -493,7 +745,7 @@ DEFNAME=C_elyind
 NAME=Elyind
 DESIRES=i_gold,e_notoriety
 AVERSIONS=t_TRAP,t_eerie_stuff
-
+TEVENTS=e_bank
 
 TSPEECH=jobbanker
 
@@ -535,8 +787,7 @@ DEFNAME=C_ragnar
 NAME=Ragnar
 DESIRES=i_gold,e_notoriety
 AVERSIONS=t_TRAP,t_eerie_stuff
-
-
+TEVENTS=e_bank
 TSPEECH=jobbanker
 
 ON=@Create
@@ -572,6 +823,58 @@ CATEGORY=MYT - NPCs
 SUBSECTION=Banco
 DESCRIPTION=Ragnar (Anao)
 
+//*****************************************************************************
+//*****************************************************************************
+// EVENTS
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// e_bank
+//*****************************************************************************
+[EVENTS e_bank]
+//evento do banqueiro
+
+on=@CONTEXTMENUSELECT
+if (<argn>==21)
+ dorand 5
+  src.say Ola,<name>! Que servicos voce pode me disponibilizar?
+  src.say <name>, posso ver meus pertences?
+  src.say <name> eu gostaria de ver os meus pertences.
+  src.say <name> eu gostaria de ver os meus pertences.
+  src.say <name> eu gostaria de ver os meus pertences.
+ enddo
+ if (STRMATCH(<tag.raca>,Orc))
+  dorand 3
+   say Zub.
+   say Zub, zub...
+   say Abri caixa du <src.tag.name>...
+   say Zub, urk.
+  enddo
+ else
+  dorand 3
+   say Aqui esta.
+   say Certo, vamos ver...
+   say Agora mesmo!
+   say Pois nao?
+  enddo
+ endif
+ src.dialog d_bank
+ return 1
+elif (<argn>==22)
+ dorand 3
+  src.say Ola,<name>! Como esta a situacao da minha conta?
+  src.say <name>, o que tenho na caixa?
+  src.say E entao, <name>, o que eu tenho?
+ enddo
+ if (STRMATCH(<tag.raca>,Orc))
+  say Tem essi, e issu e issu aqui.
+ else
+  say Ah, veja nesta lista.
+ endif
+ src.bankbalance
+ return 1
+endif
 
 //*****************************************************************************
 //*****************************************************************************
@@ -618,7 +921,7 @@ else
   say Pois nao?
  enddo
 endif
-src.menu m_bank
+src.dialog d_bank
 return 1
 
 [EOF]

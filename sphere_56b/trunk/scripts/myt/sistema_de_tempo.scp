@@ -40,6 +40,11 @@ horas_por_dia=24
 dias_por_mes=30
 meses_por_ano=12
 
+//Constantes de clima
+weather_dry=1
+weather_snow=2
+weather_rain=3
+
 //valores max e min de temperaturas suportadas
 tBodyMax2=50
 tBodyMax1=30
@@ -130,6 +135,86 @@ on=@enter
 light 30
 //src.sysmessageyellow [r_clima] Entrando em <name> (<flags>)
 src.f_correctLight <flags>
+
+on=@cliperiodic
+//Bloqueia casos que não há clima
+IF (<flags>&region_flag_underground) || (<src.IsGM>) || (<src.flags>&041c4200a) || (<src.tag0.no_clima>)
+ serv.log [clima] Sem efeito de clima para client <src.account.name>
+ return 0
+endif
+IF (<tag.curweather>==<def.weather_snow>)
+ src.temp_snow
+ELIF (<tag.curweather>==<def.weather_rain>)
+ src.temp_rain
+else
+ src.temp_dry
+endif
+//serv.log [clima] Gerando efeito de clima
+
+on=@regperiodic
+//Bloqueia casos que não há clima
+IF (<flags>&region_flag_underground) || (<src.IsGM>) || (<src.flags>&041c4200a) || (<src.tag0.no_clima>)
+ serv.log [clima] Sem clima para <src.tag.name> em <name>
+ return 0
+endif
+
+//Determina se ja tem wheater na area
+if (<tag0.noweathertill> > <serv.time>)
+ if (<ISEMPTY <tag.curweather>>
+  tag.curweather=<def.weather_dry>
+  dry
+ elif (<tag.curweather>==<def.weather_snow>)
+  snow
+ elif (<tag.curweather>==<def.weather_rain>)
+  rain
+ else
+  dry
+ endif
+ serv.log [clima] Sem mudanca no clima
+ return 0
+endif
+
+//Trocar o wheather
+IF (STRMATCH(<var.tSeason>,primavera))
+ LOCAL.coldchance 0
+ LOCAL.raincance 15
+ELIF (STRMATCH(<var.tSeason>,verao))
+ LOCAL.coldchance 0
+ LOCAL.raincance 50
+ELIF (STRMATCH(<var.tSeason>,outono))
+ LOCAL.coldchance 10
+ LOCAL.raincance 0
+ELIF (STRMATCH(<var.tSeason>,inverno))
+ LOCAL.coldchance 60
+ LOCAL.raincance 10
+else
+ LOCAL.coldchance 0
+ LOCAL.raincance 0
+endif
+LOCAL.drychance=<eval 100-(<LOCAL.coldchance>+<LOCAL.rainchance>)>
+
+if (<ISEMPTY <tag.curweather>>
+ tag.curwheather=<def.wheather_dry>
+ dry
+endif
+
+IF (<tag.curweather>==<def.weather_snow>) || (<tag.curweather>==<def.weather_rain>)
+ tag.curweather=<def.weather_dry>
+ dry
+ LOCAL.timer=(<LOCAL.drychance>*2*60*60*10)/100
+ELIF (<R<LOCAL.coldchance>> >= <R<LOCAL.rainchance>>)
+ tag.curweather=<def.weather_snow>
+ snow
+ LOCAL.timer=(<LOCAL.coldchance>*2*60*60*10)/100
+ELSE
+ tag.curweather=<def.weather_rain>
+ rain
+ LOCAL.timer=(<LOCAL.rainchance>*2*60*60*10)/100
+ENDIF
+serv.log [clima] Clima muda para <tag.curweather> ateh <eval <LOCAL.timer>+<serv.time>>
+tag.noweathertill=<eval <LOCAL.timer>+<serv.time>>
+rainchance=<LOCAL.rainchance>
+coldchance=<LOCAL.coldchance>
 
 //*****************************************************************************
 //*****************************************************************************
@@ -254,7 +339,9 @@ TIMER=1
 ON=@TIMER
 TIMER={4 8}
 cont.temp_check
-if !(<CONT.flags>&statf_indoors)
+if (<CONT.flags>&statf_indoors) || (<CONT.TAG0.no_clima>)
+	return 1
+else
 	if (<MORE1> > 0)
 		cont.temp_addSnow
 		MORE1=<MORE1>-1
@@ -278,7 +365,7 @@ SUBSECTION=Tempo
 DESCRIPTION=Neve
 
 ON=@CREATE
-COLOR=07A1
+COLOR=0481
 ATTR=attr_move_never|attr_decay
 TIMER={6 15}
 
@@ -309,8 +396,8 @@ if (<VAR.tMin> >= minutos_por_hora) //minuto
  VAR.tMin=0
  VAR.tHour=<VAR.tHour>+1
 
- f_connectDB
- serv.log [TEMPO] - <eval <var.tHour>>:<eval <var.tMin>> -- <eval <var.tDay>>/<eval <var.tMonth>>/<eval <var.tYear>>
+// f_connectDB
+// serv.log [TEMPO] - <eval <var.tHour>>:<eval <var.tMin>> -- <eval <var.tDay>>/<eval <var.tMonth>>/<eval <var.tYear>>
 
  // serv.allclients findid.i_mry_clima.timer=8
  // serv.allclients sector.light=0
@@ -432,32 +519,34 @@ endif
 //2 = frio
 //3 = muito frio
 [FUNCTION temp_effect] 
-if (<isgm>) ||(<flags>&statf_noweather)
+if (<isgm>) || (<flags>&statf_noweather) || (<tag0.no_clima>)
  return
 endif
 if (0<argn>==1)
  if (<stam> >= 5)
-  stam=<stam>//-{1 3}
+  stam=<stam>-{0 2}
  endif
  DORAND 5
   sysmessagegreen Voce esta se sentindo cancado devido ao calor.
   emotered sua
  ENDDO
 elif (0<argn>==2)
- if (<hits> >= 10)  && (<stam> > 5)
-  stam=<stam>//-{2 4}
- elif (<hits> < 10)  && (<stam> > 5)
-  stam=<stam>//-{1 2}
- else //(<stam>==0)
-  hits=<hits>//-{2 5}
+ if (<hits> >= 10)  && (<stam> > 10)
+  stam=<stam>-{0 2}
+ elif (<hits> < 10)  && (<stam> > 10)
+  stam=<stam>-{0 1}
+ else
+  DAMAGE <eval {0 <R3>}> dam_cold <UID>
  endif
  DORAND 5
   sysmessagegreen Voce esta sentindo frio. Abrigue-se.
   emotered treme
  ENDDO
 elif (0<argn>==3)
- hits=<hits>//-{2 5}
- stam=<stam>//-{1 3}
+ DAMAGE <eval {1 3}> dam_cold <UID>
+ if (<stam> > 3)
+  stam=<stam>-{1 3}
+ endif
  DORAND 5
   sysmessagered Seus membros estao congelando de frio! Voce vai morrer!
   sysmessagegreen Voce esta sentindo MUITO frio. Abrigue-se.
@@ -473,55 +562,46 @@ endif
 //*****************************************************************************
 //faz nevar
 [FUNCTION temp_snow]
-region.RAINCHANCE=0
-region.COLDCHANCE=064
-src.findid.i_mry_clima.more1={3 4}
-sector.snow
+findid.i_mry_clima.more1=<eval {3 4}>
 
 //*****************************************************************************
 // temp_rain
 //*****************************************************************************
 //faz chover
 [FUNCTION temp_rain]
-region.RAINCHANCE=064
-region.COLDCHANCE=0
-src.findid.i_mry_clima.more2={3 4}
-sector.rain
+findid.i_mry_clima.more2=<eval {3 4}>
 
 //*****************************************************************************
 // temp_dry
 //*****************************************************************************
 //faz ficar seco
 [FUNCTION temp_dry]
-region.RAINCHANCE=0
-region.COLDCHANCE=0
-src.findid.i_mry_clima.more1=0
-src.findid.i_mry_clima.more2=0
-sector.dry
+findid.i_mry_clima.more1=0
+findid.i_mry_clima.more2=0
 
 //*****************************************************************************
 // temp_addSnow
 //*****************************************************************************
 //cria poca de neve
 [FUNCTION temp_addSnow]
-newitem i_neve
-act.movenear <uid> 6
+serv.newitem i_neve
+new.movenear <uid> 6
 
 //*****************************************************************************
 // temp_addSplash
 //*****************************************************************************
 //cria poca de agua
 [FUNCTION temp_addSplash]
-src.newitem i_poca
-src.act.timer {6 15}
-src.act.movenear <src.uid> 6
+serv.newitem i_poca
+new.timer {6 15}
+new.attr 012
+new.movenear <uid> 6
 
 //*****************************************************************************
 // f_correctLight
 //*****************************************************************************
 //Corrige a luz do client de acordo com o ambeinte
 [FUNCTION f_correctLight]
-
 
 //NIGHTSIGHT ligado
 if (<flags>&0100)
