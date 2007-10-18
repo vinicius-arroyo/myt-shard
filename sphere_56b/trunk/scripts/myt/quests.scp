@@ -2011,4 +2011,157 @@ ON=2
 src.ctag.conf.edit=1
 src.DIALOG d_config_scroll
 
+
+   //////////////////////////////////////////////
+  //		Buracos de descer	      //
+ //////////////////////////////////////////////
+[ITEMDEF i_buraco_escavar]
+//Buraco para escavar e virar um buraco de descer
+ID=i_floor_crumbling
+NAME=chao fragil
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Teleporters
+DESCRIPTION=Chao que vira buraco
+
+on=@dclick
+IF (<dispid> != 011C5)
+ //escavar
+ IF (!<src.restest 1 i_pa>)
+  src.sysmessagered Voce precisa de uma pa para escavar
+ else
+  sfx 018d
+  more1=1
+  dispid += 2
+  timer 2
+  update
+ endif
+else
+ if (!<link.instances>)
+  return 1
+ endif
+ //descer
+ if (<src.restest 1 i_corda>)
+  src.f_hole_down <uid>,<link>
+ else
+  src.sysmessagered Voce precisa de uma corda para descer
+ endif  
+endif
+return 1
+
+on=@timer
+if (<more1>)
+ if (<dispid> != 011C5)
+  sfx 018d
+  dispid += 1
+  update
+  timer 1
+ else
+  timer=5*60
+  more1=0
+  name=buraco
+  update
+ endif
+else
+ dispid=011C0
+ name=chao fragil
+ update
+endif
+return 1
+
+[FUNCTION f_hole_down]
+//Desce do buraco <argv0> para a corda <argv1>
+cTAG.buraco.de=<argv0>
+cTAG.buraco.para=<argv1>
+cTAG.timer=10
+cTAG.anim = 0
+flags |= 08
+update
+nomove 10
+_f_hole_down
+
+[FUNCTION _f_hole_down]
+if (<cTAG.timer>)
+ cTAG.timer -= 1
+ doswitch <ctag0.anim>
+  UID.<ctag0.buraco.de>.emotered descendo
+  UID.<ctag0.buraco.para>.emotered descendo
+  UID.<ctag0.buraco.de>.sfx 048
+  sysmessageyellow Voce desce pelo buraco
+  UID.<ctag0.buraco.para>.sfx 03e3
+ enddo
+ if (<cTAG0.anim> == 5)
+  cTAG.anim = 0
+ else
+  cTAG0.anim += 1
+ endif
+ timerf 1,_f_hole_down
+else
+ p=<UID.<cTAG0.buraco.para>.p>
+ flags ^= 08
+ update
+ emotered desceu
+endif
+
+[ITEMDEF i_corda_subir]
+//Corda para subir ate <link>
+ID=i_rope_bundle
+NAME=corda
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Teleporters
+DESCRIPTION=Corda para subir ao buraco
+
+on=@dclick
+src.f_hope_climb <uid>,<link>
+return 1
+
+[FUNCTION f_hope_climb]
+//Sobe da corda <argv0> para o buraco <argv1>
+cTAG.buraco.de=<argv0>
+cTAG.buraco.para=<argv1>
+cTAG.timer=10
+cTAG.anim=0
+flags |= 08
+update
+nomove 10
+_f_hope_climb
+
+[FUNCTION _f_hope_climb]
+if (<cTAG.timer>)
+ cTAG.timer -= 1
+ doswitch <ctag0.anim>
+  UID.<ctag0.buraco.de>.emotered subindo
+  UID.<ctag0.buraco.para>.emotered subindo
+  UID.<ctag0.buraco.de>.sfx 048
+  sysmessageyellow Voce sobe pelo buraco
+  UID.<ctag0.buraco.para>.sfx 03e3
+ enddo
+ if (<cTAG0.anim> == 5)
+  cTAG.anim = 0
+ else
+  cTAG0.anim += 1
+ endif
+ timerf 1,_f_hope_climb
+else
+ p=<UID.<cTAG0.buraco.para>.p>
+ flags ^= 08
+ update
+ emotered subiu
+endif
+
+[TYPEDEF e_just_once]
+on=@dclick
+if (STRMATCH(*<src.account.name>*,<tag.users>))
+ src.sysmessageyellow Voce ja usou este item.
+ if (<src.IsGM>)
+  src.sysmessagegreen Mas GM pode.
+  return 0
+ endif
+ return 1
+endif
+src.sysmessageyellow Atencao: Voce so podera usar este item UMA vez!
+tag.users .= ;<src.account.name>
+return 0
+
 [EOF]
