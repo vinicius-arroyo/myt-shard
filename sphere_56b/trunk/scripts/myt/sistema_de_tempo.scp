@@ -47,7 +47,7 @@ weather_rain=3
 
 //valores max e min de temperaturas suportadas
 tBodyMax2=50
-tBodyMax1=30
+tBodyMax1=35
 tBodyMin1=18
 tBodyMin2=10
 
@@ -113,18 +113,16 @@ temp_primavera=0
 
 dungeon_light=29
 
+snow_temp_up=7
+rain_temp_up=25
+rain_temp_down=23
+
 //*****************************************************************************
 //*****************************************************************************
 // EVENTs
 //*****************************************************************************
 //*****************************************************************************
 [EVENTS e_clima]
-ON=@LOGIN
-src.findid.i_mry_clima.remove
-src.newitem=i_mry_clima
-src.act.link <src.uid>
-src.act.cont <src.uid>
-
 ON=@ENVIRONCHANGE
 //sysmessageyellow [e_clima] ENVIRONCHANGE
 src.f_correctLight <src.region.flags>
@@ -138,83 +136,40 @@ src.f_correctLight <flags>
 
 on=@cliperiodic
 //Bloqueia casos que não há clima
-IF (<flags>&region_flag_underground) || (<src.IsGM>) || (<src.flags>&041c4200a) || (<src.tag0.no_clima>)
+IF (<src.IsGM>) || (<src.flags>&041c4200a) || (<src.tag0.no_clima>)
  //serv.log [clima] Sem efeito de clima para client <src.account.name>
  return 0
 endif
-IF (<tag.curweather>==<def.weather_snow>)
- src.temp_snow
-ELIF (<tag.curweather>==<def.weather_rain>)
- src.temp_rain
-else
- src.temp_dry
-endif
-//serv.log [clima] Gerando efeito de clima
+LOCAL.t1=<R2>
+LOCAL.t2=<eval {5 7}>
+LOCAL.t3=<eval {15 17}>
+LOCAL.t4=<eval {25 27}>
+src.timerf <LOCAL.t1>,temp_check
+src.timerf <LOCAL.t2>,temp_check
+src.timerf <LOCAL.t3>,temp_check
+src.timerf <LOCAL.t4>,temp_check
 
 on=@regperiodic
 //Bloqueia casos que não há clima
-IF (<flags>&region_flag_underground) || (<src.IsGM>) || (<src.flags>&041c4200a) || (<src.tag0.no_clima>)
+IF (<flags>&region_flag_underground)
  //serv.log [clima] Sem clima para <src.tag.name> em <name>
  return 0
 endif
-
-//Determina se ja tem wheater na area
-if (<tag0.noweathertill> > <serv.time>)
- if (<ISEMPTY <tag.curweather>>
-  tag.curweather=<def.weather_dry>
-  dry
- elif (<tag.curweather>==<def.weather_snow>)
-  snow
- elif (<tag.curweather>==<def.weather_rain>)
-  rain
- else
-  dry
- endif
- //serv.log [clima] Sem mudanca no clima
- return 0
-endif
-
-//Trocar o wheather
-IF (STRMATCH(<var.tSeason>,primavera))
- LOCAL.coldchance 0
- LOCAL.raincance 15
-ELIF (STRMATCH(<var.tSeason>,verao))
- LOCAL.coldchance 0
- LOCAL.raincance 50
-ELIF (STRMATCH(<var.tSeason>,outono))
- LOCAL.coldchance 10
- LOCAL.raincance 0
-ELIF (STRMATCH(<var.tSeason>,inverno))
- LOCAL.coldchance 60
- LOCAL.raincance 10
-else
- LOCAL.coldchance 0
- LOCAL.raincance 0
-endif
-LOCAL.drychance=<eval 100-(<LOCAL.coldchance>+<LOCAL.rainchance>)>
-
-if (<ISEMPTY <tag.curweather>>
- tag.curwheather=<def.wheather_dry>
- dry
-endif
-
-IF (<tag.curweather>==<def.weather_snow>) || (<tag.curweather>==<def.weather_rain>)
- tag.curweather=<def.weather_dry>
- dry
- LOCAL.timer=(<LOCAL.drychance>*2*60*60*10)/100
-ELIF (<R<LOCAL.coldchance>> >= <R<LOCAL.rainchance>>)
- tag.curweather=<def.weather_snow>
- snow
- LOCAL.timer=(<LOCAL.coldchance>*2*60*60*10)/100
-ELSE
- tag.curweather=<def.weather_rain>
+LOCAL.temp=<eval <var.temperature>+<tag0.modtemp>>
+IF (<LOCAL.temp> >= rain_temp_down) && (<LOCAL.temp> <= rain_temp_up)
+ RAINCHANCE=064
  rain
- LOCAL.timer=(<LOCAL.rainchance>*2*60*60*10)/100
+ //serv.log [CLIMA] chove
+ELIF (<LOCAL.temp> <= snow_temp_up)
+ COLDCHANCE=064
+ snow
+ //serv.log [CLIMA] neva
+ELSE
+ COLDCHANCE=0
+ RAINCHANCE=0
+ dry
+ //serv.log [CLIMA] seco
 ENDIF
-//serv.log [clima] Clima muda para <tag.curweather> ateh <eval <LOCAL.timer>+<serv.time>>
-tag.noweathertill=<eval <LOCAL.timer>+<serv.time>>
-rainchance=<LOCAL.rainchance>
-coldchance=<LOCAL.coldchance>
 
 //*****************************************************************************
 //*****************************************************************************
@@ -325,35 +280,6 @@ message Estacao: <VAR.tSeason>
 return 1
 
 //*****************************************************************************
-// i_mry_clima
-//*****************************************************************************
-[ITEMDEF i_mry_clima]
-ID=i_deed
-NAME=controle de clima
-TYPE=t_eq_script
-LAYER=layer_special
-
-ON=@CREATE
-TIMER=1
-
-ON=@TIMER
-TIMER={4 8}
-cont.temp_check
-if (<CONT.flags>&statf_indoors) || (<CONT.TAG0.no_clima>)
-	return 1
-else
-	if (<MORE1> > 0)
-		cont.temp_addSnow
-		MORE1=<MORE1>-1
-	endif
-	if ( (<MORE2> > 0)
-		cont.temp_addSplash
-		MORE2=<MORE2>-1
-	endif
-endif
-return 1
-
-//*****************************************************************************
 // i_neve
 //*****************************************************************************
 [ITEMDEF i_neve]
@@ -365,6 +291,7 @@ SUBSECTION=Tempo
 DESCRIPTION=Neve
 
 ON=@CREATE
+TAG.NOSAVE=1
 COLOR=0481
 ATTR=attr_move_never|attr_decay
 TIMER={6 15}
@@ -452,7 +379,7 @@ return 1
 //*****************************************************************************
 //pega a temperatura da regiao atual
 [function temp_get]
-return <VAR.temperature>+<region.tag0.modtemp>
+return <eval <VAR.temperature>+<region.tag0.modtemp>>
 
 //*****************************************************************************
 // temp_check()
@@ -463,8 +390,6 @@ return <VAR.temperature>+<region.tag0.modtemp>
 [FUNCTION temp_check]
 
 if (<tag0.no_clima>==1) || (<flags>&statf_indoors)
- findid.i_mry_clima.more1=0
- findid.i_mry_clima.more2=0
  return 1
 endif
 
@@ -503,6 +428,15 @@ else
  LOCAL.f=0
 endif
 
+//adiciona neve ou poça
+IF !(<region.flags>&region_flag_underground)
+ IF (<LOCAL.temp> >= rain_temp_down) && (<LOCAL.temp> <= rain_temp_up)
+  timerf <R3>,temp_addSplash
+ ELIF (<LOCAL.temp> <= snow_temp_up)
+  timerf <R3>,temp_addSnow
+ ENDIF
+endif
+
 temp_effect <LOCAL.f>
 
 if (0<argn1> > 0 )
@@ -520,6 +454,7 @@ endif
 //3 = muito frio
 [FUNCTION temp_effect] 
 if (<isgm>) || (<flags>&statf_noweather) || (<tag0.no_clima>)
+ //sysmessage [clima] sem clima
  return
 endif
 if (0<argn>==1)
@@ -557,27 +492,6 @@ if (<stam> < 0) || (<stam> > 900)
  stam=0
 endif
 
-//*****************************************************************************
-// temp_snow
-//*****************************************************************************
-//faz nevar
-[FUNCTION temp_snow]
-findid.i_mry_clima.more1=<eval {3 4}>
-
-//*****************************************************************************
-// temp_rain
-//*****************************************************************************
-//faz chover
-[FUNCTION temp_rain]
-findid.i_mry_clima.more2=<eval {3 4}>
-
-//*****************************************************************************
-// temp_dry
-//*****************************************************************************
-//faz ficar seco
-[FUNCTION temp_dry]
-findid.i_mry_clima.more1=0
-findid.i_mry_clima.more2=0
 
 //*****************************************************************************
 // temp_addSnow
