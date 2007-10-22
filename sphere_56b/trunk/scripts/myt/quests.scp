@@ -93,20 +93,28 @@ endif
 sfx 0f0
 f_alavancaDispchange
 if (!<morex>)
+ if (<link.type>==t_door_locked)
+  f_leverDoor
+ elif (<link.type>==t_container_locked)
+  f_leverCont
+ elif (<link.type>==t_fire_barrier)
+  f_turnFireBarrier
+ elif (<link.type>==t_poison_barrier)
+  f_turnPoisonBarrier
+ elif (<link.type>==t_energy_barrier)
+  f_turnEnergyBarrier
+ elif (<link.type>==t_portculis)
+  link.f_portculis
+  if (<link.link.type>==t_portculis)
+   link.link.f_portculis
+  endif
+  timer=<more2>
+ elif (<link.type>==t_pulley)
+  link.f_leaverPulley
+  timer=<more2>
+ endif
  morex=1
- if (<link.type>==t_door_locked)
-  f_leverDoor
- elif (<link.type>==t_container_locked)
-  f_leverCont
- elif (<link.type>==t_fire_barrier)
-  f_turnFireBarrier
- elif (<link.type>==t_poison_barrier)
-  f_turnPoisonBarrier
- elif (<link.type>==t_energy_barrier)
-  f_turnEnergyBarrier
- endif
 else
- morex=0
  if (<link.type>==t_door_locked)
   f_leverDoor
  elif (<link.type>==t_container_locked)
@@ -117,7 +125,15 @@ else
   f_turnPoisonBarrier
  elif (<link.type>==t_energy_barrier)
   f_turnEnergyBarrier
+ elif (<link.type>==t_portculis)
+  link.f_portculis
+  if (<link.link.type>==t_portculis)
+   link.link.f_portculis
+  endif
+ elif (<link.type>==t_pulley)
+  link.f_leaverPulley 1
  endif
+ morex=0
 endif
 return 1
 
@@ -125,7 +141,6 @@ on=@timer
 if (<morex>)
  f_alavancaDispchange
  sfx 0f0
- morex=0
  if (<link.type>==t_door_locked)
   f_leverDoor
  elif (<link.type>==t_container)
@@ -136,8 +151,16 @@ if (<morex>)
   f_turnPoisonBarrier
  elif (<link.type>==t_energy_barrier)
   f_turnEnergyBarrier
+ elif (<link.type>==t_portculis) && (<link.morex>) && (!<link.morey>)
+  link.f_portculis
+  if (<link.link.type>==t_portculis)
+   link.link.f_portculis
+  endif
+ elif (<link.type>==t_pulley)
+  link.f_leaverPulley 1
  endif
  timer=-1
+ morex=0
 endif
 return 1
 
@@ -184,23 +207,40 @@ endif
 update
 
 [FUNCTION f_leverDoor]
-link.timerd=1
-link.timerf 1,timer,-1
+//Função que cuida do uso de portas via alavanca/botão/polia
+//morey=1 na porta é aberta.
+//morex=1 na alavanca quer dizer acionada.
 if (<morex>)
- timer=<more2>
- link.say=@026 click...
-else
- link.say=@026 TRANK!
-endif
-if (<link.link>!=04fffffff) && (<link.link>!=<UID>)
- link.link.timerd=1
- link.link.timerf 1,timer,-1
- if (<morex>)
-  link.link.say=@026 click...
- else
-  link.link.say=@026 TRANK!
+ //alavanca está atualmente acionada
+ if (<link.tag0.open>)
+  //porta atualmente aberta
+  link.timerd 1
+  link.tag.open=0
+  link.say=@026 TRANK!
+  if (<link.link.type>==t_door_locked)
+   link.link.timerd=1
+   link.link.tag.open 0
+   link.link.say=@026 TRANK!
+  endif
  endif
+else
+ //alavanca atualmente default
+ if (!<link.tag0.open>)
+  //porta atualmente aberta
+  link.timerd 1
+  link.timerf 1,timer,-1
+  link.tag0.open=1
+  link.say=@026 click...
+  if (<link.link.type>==t_door_locked)
+   link.link.timerd 1
+   link.link.timerf 1,timer,-1
+   link.link.tag0.open=1
+   link.link.say=@026 click...
+  endif
+ endif
+ timer=<more2>
 endif
+
 
 [FUNCTION f_leverCont]
 if (<morex>)
@@ -2014,9 +2054,13 @@ src.ctag.conf.edit=1
 src.DIALOG d_config_scroll
 
 
+
+
+
    //////////////////////////////////////////////
   //		Buracos de descer	      //
  //////////////////////////////////////////////
+
 [ITEMDEF i_buraco_escavar]
 //Buraco para escavar e virar um buraco de descer
 ID=i_floor_crumbling
@@ -2165,5 +2209,391 @@ endif
 src.sysmessageyellow Atencao: Voce so podera usar este item UMA vez!
 tag.users .= ;<src.account.name>
 return 0
+
+
+
+   //////////////////////////////////////////////
+  //	     	     PORTCULIS		      //
+ //////////////////////////////////////////////
+
+[TYPEDEF t_portculis]
+//moreZ=z dela fechada
+//morex=1 aberta
+//morey=1 em uso
+on=@dclick
+IF (<src.IsGM>)
+ f_portculis
+else
+ src.sysmessageyellow Procure o dispositivo que abre isso.
+endif
+return 1
+
+on=@timer
+if (<morex>) && (!<morey>)
+ f_portculis
+endif
+return 1
+
+[FUNCTION f_portculis]
+if (<morey>)
+ //ja esta em uso
+ return 1
+endif
+if (!<morex>)
+ //está fechada
+ morex=<p.z>
+ timerf 1,f_portculis_up
+else
+ //está aberta
+ timerf 1,f_portculis_down
+endif
+morey=1
+sfx 0477
+return 1
+
+[FUNCTION f_portculis_up]
+IF (<p.z> != <morez>+20)
+ nudgeup 5
+ timerf 1,f_portculis_up
+else
+ morey=
+ morex=1
+ sfx 0EE
+ timer 60
+endif
+return 1
+
+[FUNCTION f_portculis_down]
+IF (<p.z> != <morez>)
+ nudgedown 5
+ timerf 1,f_portculis_down
+else
+ morey=
+ morex=
+ sfx 0475
+ timer -1
+endif
+return 1
+
+
+
+   //////////////////////////////////////////////
+  //	     	     POLIA		      //
+ //////////////////////////////////////////////
+
+[DEFNAME DEFEITO_POLIA]
+polia_corda		01
+polia_barra		02
+polia_engrenagem	04
+polia_mola		08
+
+polia_corda_id		i_corda
+polia_barra_id		i_barra_metal
+polia_engrenagem_id	i_gears
+polia_mola_id		i_springs
+
+//more2 Tempo ate o novo defeito
+//more1 defeitos atuais (máscara)
+//morex defeitos possiveis (máscara)
+//morey número de defeitos possíveis
+
+[TYPEDEF t_pulley]
+on=@dclick
+iF (<src.isgm>)
+ src.sysmessageorange MODO GM! Para interagir com o objeto tire o status de GM.
+ src.cTAG.polia=<UID>
+ src.cTAG.pmore2=<more2>
+ src.cTAG.pmorex=<morex>
+ src.cTAG.pmorey=<morey>
+ src.ctag.plink=<link>
+ src.DIALOG d_polia
+ return 1
+endif
+ 
+if (!<more1>)
+ src.sysmessagegreen A polia parece estar em boas condicoes.
+else
+ src.sysmessagered A polia anao funciona por que:
+ IF (<more1>&<DEF.POLIA_CORDA>)
+  src.sysmessageyellow="- A corda esta arrebentada. Provideincie uma corda."
+ ENDIF
+ IF (<more1>&<DEF.POLIA_BARRA>)
+  src.sysmessageyellow="- O eixo se partiu. Procidencia um cabo de metal."
+ ENDIF
+ IF (<more1>&<DEF.POLIA_ENGRENAGEM>)
+  src.sysmessageyellow="- As engrenagens estao desdentadas. Providencie engenagens."
+ ENDIF
+ IF (<more1>&<DEF.POLIA_MOLA>)
+  src.sysmessageyellow="- A mola se partiu.Providencie uma mola."
+ ENDIF
+ TARGET
+endif
+return 1
+
+on=@TARGON_SELF
+src.sysmessageyellow Providencie os reparos.
+return 1
+
+on=@TARGON_GROUND
+src.sysmessageyellow Providencie os reparos.
+return 1
+
+on=@TARGON_CHAR
+src.sysmessageyellow Providencie os reparos.
+return 1
+
+on=@TARGON_ITEM
+LOCAL.item=<src.targ.baseid>
+IF (<LOCAL.item> == <DEF.polia_corda_id>) && (<more1>&<DEF.polia_corda>)
+ MORE1 ^= <DEF.POLIA_CORDA>
+ELIF (<LOCAL.item> == <DEF.polia_barra_id>) && (<more1>&<DEF.polia_barra>)
+ MORE1 ^= <DEF.POLIA_BARRA>
+ELIF (<LOCAL.item> == <DEF.polia_engrenagem_id>) && (<more1>&<DEF.polia_engrenagem>)
+ MORE1 ^= <DEF.POLIA_ENGRENAGEM>
+ELIF (<LOCAL.item> == <DEF.polia_mola_id>) && (<more1>&<DEF.polia_mola>)
+ MORE1 ^= <DEF.POLIA_MOLA>
+ELSE
+ src.sysmessagered A polia nao precisa de <src.targ.name>
+ LOCAL.NOFIX=1
+ENDIF
+IF (!<LOCAL.NOFIX>)
+ //Arrumando
+ src.emotered instalando <src.targ.name>
+ src.bow
+ sfx 0387
+ src.targ.decrement
+ timer=<more2>
+endif
+return 1
+
+on=@timer
+more1=
+if (!<morey>) || (!<morex>)
+ more1=
+else
+ //Ficou comprido, podia por FOR, mas este é o melhor jeito de manter um bom senso.
+ LOCAL.fix=<morey>
+ IF (<morex>&<DEF.polia_corda>) && !<R2>
+  more1 |= <DEF.polia_corda>
+  LOCAL.fix -= 1
+ ENDIF
+ IF (<morex>&<DEF.polia_barra>) && (<LOCAL.fix>) && !<R2>
+  more1 |= <DEF.polia_barra>
+  LOCAL.fix -= 1
+ ENDIF
+ IF (<morex>&<DEF.polia_engrenagem>) && (<LOCAL.fix>) && !<R2>
+  more1 |= <DEF.polia_engrenagem>
+  LOCAL.fix -= 1
+ ENDIF
+ IF (<morex>&<DEF.polia_mola>) && (<LOCAL.fix>) && !<R2>
+  more1 |= <DEF.polia_mola>
+ ENDIF
+ IF (!<more1>)
+  more1=<morex>
+ ENDIF
+endif
+return 1
+
+[FUNCTION f_leaverPulley]
+//argn1 = obedecendo timer ou obrigando fechar
+IF (<more1>)
+ src.sysmessagegreen Nao esta funcionando. Voce pode tentar checar os mecanismos.
+ src.act.timer=1
+ return 1
+endif
+IF (<link.type>==t_portculis) && (<link.morex>==<argn>)
+ link.f_portculis
+ if (<link.link.type>==t_portculis)
+  link.link.f_portculis
+ endif
+ELIF (<link.type>==t_door_locked)
+ f_pulleyDoor <argn>
+endif
+
+[FUNCTION f_pulleyDoor]
+//Função que cuida do uso de portas via polia
+//argn1 = obedecendo timer ou obrigando fechar
+//tag.open=1 na porta é aberta.
+if (<argn>)
+ //alavanca está atualmente acionada
+ if (<link.tag0.open>)
+  //porta atualmente aberta
+  link.timerd 1
+  link.tag.open=0
+  link.say=@026 TRANK!
+  if (<link.link.type>==t_door_locked)
+   link.link.timerd=1
+   link.link.tag.open 0
+   link.link.say=@026 TRANK!
+  endif
+ endif
+else
+ //alavanca atualmente default
+ if (!<link.tag0.open>)
+  //porta atualmente aberta
+  link.timerd 1
+  link.timerf 1,timer,-1
+  link.tag0.open=1
+  link.say=@026 click...
+  if (<link.link.type>==t_door_locked)
+   link.link.timerd 1
+   link.link.timerf 1,timer,-1
+   link.link.tag0.open=1
+   link.link.say=@026 click...
+  endif
+ endif
+endif
+
+[FUNCTION f_polia_link]
+if (!<argo.isitem>)
+ src.sysmessagered Alvo invalido.
+else
+ src.cTAG.plink=<argo.uid>
+endif
+DIALOG d_polia
+return 1
+
+[FUNCTION f_info_polia]
+obj=<cTAG.polia>
+IF !(<cTAG0.pmorex>&<DEF.polia_corda>)
+ LOCAL.corda="2151 2153"
+ELSE
+ LOCAL.corda="2153 2151" 
+ENDIF
+IF !(<cTAG0.pmorex>&<DEF.polia_barra>)
+ LOCAL.barra="2151 2153"
+ELSE
+ LOCAL.barra="2153 2151" 
+ENDIF
+IF !(<cTAG0.pmorex>&<DEF.polia_engrenagem>)
+ LOCAL.engrenagem="2151 2153"
+ELSE
+ LOCAL.engrenagem="2153 2151" 
+ENDIF
+IF !(<cTAG0.pmorex>&<DEF.polia_mola>)
+ LOCAL.mola="2151 2153"
+ELSE
+ LOCAL.mola="2153 2151" 
+ENDIF
+call f_timestring <cTAG0.pmore2>
+
+
+[DIALOG d_polia]
+250,150
+page 0
+call f_info_polia
+resizepic 0 0 2620 360 325
+checkertrans 5 6 348 311
+dtext 104 6 37 Configurar Polia
+tilepic 12 13 7848
+dtext 31 73 2100 No. de defeitos
+dtext 32 89 2100 concomitantes
+gumppic 43 112 2443
+dtext 69 113 4 <dcTAG0.pmorey>
+button 94 111 254 254 1 0 6
+dtext 31 134 2100 0=sem defeitos
+button 43 192 2443 2444 1 0 7
+dtext 59 192 32 linkar
+dtext 215 70 2100 Defeitos possiveis
+button 200 96 <LOCAL.corda> 1 0 2
+dtext 240 100 3 Corda
+button 200 128 <LOCAL.barra> 1 0 3
+dtext 240 132 3 Barra de metal
+button 200 160 <LOCAL.engrenagem> 1 0 4
+dtext 240 164 3 Engrenagem
+button 200 192 <LOCAL.mola> 1 0 5
+dtext 240 196 3 Mola
+dtext 104 222 2100 Tempo ate novo defeito
+gumppic 43 249 2443
+dtextentry 57 251 34 20 0 12 <dLOCAL.h>
+dtext 112 249 2100 horas
+gumppic 184 249 2443
+dtextentry 197 251 34 20 0 14 <dLOCAL.m>
+dtext 253 249 2100 minutos
+button 12 286 241 242 1 0 0
+button 280 286 247 248 1 0 1
+
+[DIALOG d_polia text]
+Configurar Polia
+No. de defeitos
+concomitantes
+4
+0=sem defeitos
+linkar
+Defeitos possiveis
+Corda
+Barra de metal
+Engrenagem
+Mola
+Tempo ate novo defeito
+.
+horas
+.
+minutos
+
+[DIALOG d_polia button]
+
+ON=0
+// Cancel
+sysmessagered Nada foi alterado.
+
+ON=1
+// OK
+obj=<cTAG.polia>
+obj.more2=<eval (<ARGTXT[12]>*3600)+(<ARGTXT[14]>*60)>
+obj.morex=<cTAG0.pmorex>
+obj.morey=<cTAG0.pmorey>
+obj.link=<cTAG0.plink>
+sysmessagegreen Configuracao completa.
+
+
+ON=2
+// defito corda
+IF (<cTAG0.pmorex>&<DEF.polia_corda>)
+ cTAG.pmorex ^= <def.polia_corda>
+ELSE
+ cTAG.pmorex |= <def.polia_corda>
+ENDIF
+DIALOG d_polia
+
+ON=3
+// Defeito barra
+IF (<cTAG0.pmorex>&<DEF.polia_barra>)
+ cTAG.pmorex ^= <def.polia_barra>
+ELSE
+ cTAG.pmorex |= <def.polia_barra>
+ENDIF
+DIALOG d_polia
+
+ON=4
+// Defeito engrenagem
+IF (<cTAG0.pmorex>&<DEF.polia_engrenagem>)
+ cTAG.pmorex ^= <def.polia_engrenagem>
+ELSE
+ cTAG.pmorex |= <def.polia_engrenagem>
+ENDIF
+DIALOG d_polia
+
+ON=5
+// Defeito mola
+IF (<cTAG0.pmorex>&<DEF.polia_mola>)
+ cTAG.pmorex ^= <def.polia_mola>
+ELSE
+ cTAG.pmorex |= <def.polia_mola>
+ENDIF
+DIALOG d_polia
+
+ON=6
+// Change defeitos
+cTAG.pmorey += 1
+if (<cTAG.pmorey> == 5)
+ cTAG.pmorey = 0
+endif
+DIALOG d_polia
+
+ON=7
+// linkar
+sysmessageyellow Selecione o objeto que a polia vai acionar.
+targetf f_polia_link
 
 [EOF]
