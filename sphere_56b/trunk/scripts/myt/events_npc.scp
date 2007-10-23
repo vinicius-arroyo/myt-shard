@@ -14,6 +14,12 @@ MONSTERPOW_MEDUSA		04
 MONSTERPOW_CHILL		08
 MONSTERPOW_LIFEDRAIN		010
 
+//Definições de santuários de NPCs (deixa eles mais fortes)
+[DEFNAME  SANCTUARY]
+SANCTUARY_UNDEAD		01
+SANCTUARY_DEAMON		02
+SANCTUARY_EXTRAPLANAR		04
+
 [EVENTS e_PvM]
 //CAHRGE - NPCs que podem correr, correm contra o player.
 on=@NPCActFight
@@ -202,44 +208,49 @@ if (<src.restest 1 i_spl_death_mask>)
 endif
 
 ON=@EnvironChange
-//	Return 0
-	// Enter "//" before Return 0, if you want to make script working
-	// i like the dark
-	if (<sector.isdark>) || (<flags>& (statf_nightsight|statf_indoors))
-		if (!<tag0.lightstr>)
-			return 0
-		endif
-		anim 011
-		bark 4
-		str=<tag.lightstr>	// restore me.
-		hits=<str>
-		tag.lightstr=
-		karma=<tag0.lightkarma>
-		tag.lightkarma=//just dispose of this.
-		fame=<tag0.lightfame>
-		tag.lightfame=
-		flags ^= statf_conjured	// no loot if killed.
-		return 0
-	endif
-	// i can't live in light areas. weaken me ? or destroy me ?
-	anim 014
-	bark 4
-	if (<tag0.lightstr>)
-		return 0
-	endif
-	if ( <flags>&statf_conjured	) 
-		remove
-		return 1
-	endif
-	flags |= statf_conjured	// no loot if killed.
-	tag.lightstr=<str>
-	str=1
-	hits=1	// very weak.
-	tag.lightkarma=<karma>	// killing it means nothing now.
-	karma=-2
-	tag.lightfame=<fame>
-	fame=10
-	return 0
+IF (<region.tag0.sanctuary>==SANCTUARY_UNDEAD)
+ //Estou em casa!
+ IF (!<tag0.sanctuary>)
+  //Faça-me forte!
+  tag.lighthits=<maxhits>
+  tag.lightmana=<maxmana>
+  tag.lightstam=<maxstam>
+  maxhits = (<maxhits>*<R15,30>)/10
+  maxstam = (<maxstam>*<R15,50>)/10
+  maxmana = (<maxmana>*<R15,35>)/10
+  aid
+  tag.sanctuary 1
+ ENDIF  
+ELIF (<var0.thour> > 5) && (<var0.thour> < 19) && !(<flags>&statf_indoors) && !(<REGION.FLAGS>&region_flag_underground)
+ //Está claro aqui. Isso vai doer.
+ IF (<eval <maxhits>+<maxmana>+<maxstam>> < 250) && (!<tag0.lighthits>)
+  //sou fraquinho. Me mate.
+  findlayer.21.remove
+  suicide
+ ELIF (!<tag0.lighthits>)
+  //sou fortinho, penalize-me
+  tag.lighthits=<maxhits>
+  tag.lightmana=<maxmana>
+  tag.lightstam=<maxstam>
+  maxhits = (<maxhits>*10)/<R15,30>
+  maxstam = (<maxstam>*10)/<R15,50>
+  maxmana = (<maxmana>*10)/<R15,35>
+  flags |= statf_conjured
+  aid
+ ENDIF
+ELSE
+ //Não estou em casa, mas ainda estou confortável
+ IF (<tag0.lighthits>)
+  maxhits=<tag0.lighthits>
+  maxmana=<tag0.lightmana>
+  maxstam=<tag0.lightstam>
+  tag.lighthits=
+  tag.lightmana=
+  tag.lightstam=
+  tag.sanctuary=
+  flags ^= statf_conjured
+ ENDIF
+ENDIF
 
 on=@SPELLEFFECT
 if (<argn1>==4)		//Heal
@@ -506,20 +517,6 @@ return 1
 //////////Reis mortos de Luyaran
 /////////////////////////////////////////////////////////
 [EVENTS e_king_undead]
-ON=@NPCSEENEWPLAYER
-IF (<src.restest 1 i_escudo_reinado>)
- say=@026 O escudo... Voce o tem! Luna o abencoe...
- karma=2000
- update
-ELSE
- dorand 3
-  SAY=@026 Liberte-me!
-  SAY=@026 Nao quero mais machucar meu povo!
-  SAY=@026 Fuja! Nao quero machuca-lo, fuja!
- enddo
-ENDDO
-SFX=<hval {0482 0486}>
-
 on=@HITTRY
 dorand 8
  SAY=@026 Liberte-me!
@@ -527,6 +524,41 @@ dorand 8
  SAY=@026 Fuja! Nao quero machuca-lo, fuja!
 enddo
 SFX=<hval {0482 0486}>
+
+
+[FUNCTION f_king_give_axe]
+wipeObject i_machado_luna
+serv.newitem i_machado_luna
+src.bounce <new.uid>
+
+[FUNCTION f_king_give_crescent]
+wipeObject i_crescente_mond
+serv.newitem i_crescente_mond
+src.bounce <new.uid>
+
+[FUNCTION f_king_give_pike]
+wipeObject i_pique_atila
+serv.newitem i_pique_atila
+src.bounce <new.uid>
+
+
+/////////////////////////////////////////////////////////
+//////////Criaturas que somem se não for noite
+/////////////////////////////////////////////////////////
+[EVENTS e_haunt]
+on=@environchange
+if (<var.thour> > 5) && (<var.thour> < 20)
+ f_haut_vanish
+endif
+return 1
+
+[FUNCTION f_haut_vanish]
+serv.newitem i_fx_sparkle_2
+new.p=<p>
+new.attr=012
+new.timerd 13
+new.sfx 05C7
+remove
 
 /////////////////////////////////////////////////////////
 //////////Guardas maus
