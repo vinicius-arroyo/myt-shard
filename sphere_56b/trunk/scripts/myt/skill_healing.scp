@@ -122,8 +122,8 @@ if (<obj.flags>&statf_dead)
 	new.more1=<r10,<eval 10+(<healing>/100)>> //10 a 20 segundos
 	new.more2=<eval 1+(<healing>/300)>	//1 a 4 hits de healing
 else
-	new.more1=<r2,<eval 2+(<healing>/100)>> //2 a 12 segundos
-	new.more2=<eval 1+(<healing>/160)>	//1 a 7 hits de healing
+	new.more1=<r4,<eval 4+(<healing>/100)>> //4 a 14 segundos
+	new.more2=<eval 4+(<healing>/160)>	//4 a 10 hits de healing
 	if ( <uid> == <obj> )
 			new.morey=1
 	else
@@ -203,7 +203,7 @@ ON=@TIMER
 		cont.sysmessagered Quem estava lhe tratando perdeu a consciencia.
 	elif (<cont.flags>&statf_dead) && (!<cont.findid.i_mry_desmaio>)
 		link.sysmessagered Este corpo nao pode retornar a vida
-	elif ( <cont.hits> < <cont.str> )
+	elif ( <cont.hits> < <cont.maxhits> )
 		link.skill_gain skill_healing
 
 		dorand 9
@@ -218,9 +218,9 @@ ON=@TIMER
 			link.anim 19
 		enddo
 
-		cont.hits=<cont.hits>+<r0,<more2>>
-		if (<cont.hits>>=<cont.str>)
-			cont.hits=<cont.str>
+		cont.hits=<cont.hits>+<r1,<more2>>
+		if (<cont.hits>>=<cont.maxhits>)
+			cont.hits=<cont.maxhits>
 		else
 			more1=<more1>-1
 			if ( <more1> )
@@ -236,15 +236,13 @@ ON=@TIMER
 		if (<cont.flags>&statf_poisoned)
 			if (<R600,1000> < <link.healing>)
 				//cura
-				cont.flags=<cont.flags>&~statf_poisoned
-				cont.sysmessagegreen O veneno foi removido de seu corpo.
+				cont.spelleffect s_cure,<link.healing>
 				if ( !<morey> )
-					link.sysmessagegreen Voce removeu o veneno do paciente.
+					link.sysmessagegreen Voce retirou parte do veneno do paciente.
 				endif
 			else
-				cont.sysmessagegreen O veneno NAO foi removido de seu corpo.
 				if ( !<morey> )
-					link.sysmessagegreen Voce NAO removeu o veneno do paciente.
+					link.sysmessagegreen Voce falhou au tentar lidar com o veneno.
 				endif
 			endif
 		else
@@ -256,7 +254,7 @@ ON=@TIMER
 		
 		//remove desmaio
 		cont.findid.i_mry_desmaio.more1 = 0  
-		cont.findid.i_mry_desmaio.timer = 1
+		cont.findid.i_mry_desmaio.timerd = 1
 	endif
 	
 	link.events -e_bandagem
@@ -267,6 +265,7 @@ ON=@TIMER
 	//nem sempre devolve bandagem suja
 	if ( <r1,10><5 )
 		serv.newitem i_bandage_bloody
+		new.name bandagem suja
 		new.cont=<link>
 	endif
 
