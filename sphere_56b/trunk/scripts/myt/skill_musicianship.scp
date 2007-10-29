@@ -43,7 +43,7 @@ BONUS_STATS=5
 ON=@Fail
 	SRC.SYSMESSAGERED Sua musica falhou em incitar raiva o suficiente.
 	//Diminuir chance de ser atacado.
-	IF (<SRC.PROVOCATION> < <R900>)
+	IF (<SRC.PROVOCATION> < <R600>)
 		return 0
 	ELSE
 		RETURN 1
@@ -52,7 +52,7 @@ ON=@Fail
 ON=@Abort
 	SRC.SYSMESSAGEYELLOW Sua musica falhou em incitar raiva o suficiente.
 	//Diminuir chance de ser atacado.
-	IF (<SRC.PROVOCATION> < <R900>)
+	IF (<SRC.PROVOCATION> < <R600>)
 		return 0
 	ELSE
 		RETURN 1
@@ -125,8 +125,8 @@ LOCAL.timer=<f_rangeValue 0,35,<musicianship>>
 //sysmessageyellow r:<dLOCAL.r> moddam:<dLOCAL.moddam> modar:<dLOCAL.modar>
 OBJ=<UID>
 FORCHARS <LOCAL.r>
- IF (!<IsMyEnemy <OBJ.UID>>) && ((<IsMyMaster <OBJ.UID>>) || (<IsPlayer>)) && (!<RESTEST 4 i_mry_BARDSONG_VALOR>)
-  serv.newitem i_mry_BARDSONG_VALOR
+ IF (!<IsMyEnemy <OBJ.UID>>) && ((<IsMyMaster <OBJ.UID>>) || (<IsPlayer>)) && (!<RESTEST 4 i_mry_COMBAT_MODS>)
+  serv.newitem i_mry_COMBAT_MODS
   new.more1=<LOCAL.modar>
   new.more2=<LOCAL.moddam>
   equip <new.UID>
@@ -135,7 +135,7 @@ FORCHARS <LOCAL.r>
  ENDIF
 ENDFOR
 
-[ITEMDEF i_mry_BARDSONG_VALOR]
+[ITEMDEF i_mry_COMBAT_MODS]
 ID=i_lyre
 NAME=VALOR
 TYPE=t_eq_script
@@ -216,4 +216,91 @@ IF (!<LOCAL.set>)
  ENDIF
  new.type=t_eq_memory_obj
 ENDIF
+
+[FUNCTION BARDSONG_LULABY]
+emoteyellow entoa uma cancao de ninar
+events +e_no_attack
+events +e_no_dclick
+INSTRUMENT
+TIMERF 5,_BARDSONG_LULABY
+
+[FUNCTION _BARDSONG_LULABY]
+IF !(<INSTRUMENT PEACE>)
+ sysmessagered Voce nao tem um instrumento
+ return 1
+endif
+IF (<FLAGS>&statf_war|statf_dead|statf_freeze|statf_war|statf_stone) || (<cTAG0.DISTURB>) || (!<IsOnline>) || (!<BELLTEST <Musicianship>,200>) || (!<R12>)
+ sysmessagered Voce foi perturbado
+ emotered para de cantar
+ events -e_no_attack
+ events -e_no_dclick
+ cTAG.DISTURB
+ return 1
+ENDIF
+IF !(<INSTRUMENT PEACE>)
+ sysmessagered Voce nao tem um instrumento
+ return 1
+endif
+DOSWITCH <EVAL <cTAG.ESTROFE>>
+ say=@06 E nessa cancao
+ say=@06 cancao de ninar
+ say=@06 Pode dormir
+ say=@06 Nao queira acordar
+ say=@06 Doces sonhos
+ say=@06 Ternura no ar
+ say=@06 Nao fique de pe
+ say=@06 Pode deitar
+ENDDO
+cTAG0.ESTROFE +=1
+IF (<cTAG0.ESTROFE>=8)
+ cTAG.ESTROFE
+ENDIF
+OBJ=<UID>
+FORCHARS 12
+ IF ((<IsMyEnemy <OBJ.UID>>) || (!<IsMyMaster <OBJ.UID>>) || (!<IsPlayer>)) && (<CanSeeLos <OBJ.UID>>) && (<UID> != <obj.uid>)
+  EFFETCT_BARDSONG_LULABY <OBJ.UID>
+ ENDIF
+ENDFOR
+TIMERF 3,_BARDSONG_LULABY
+
+[FUNCTION EFFETCT_BARDSONG_LULABY]
+obj=<argn1>
+DORAND 3
+ F_SONOLENTO <argn1>
+ENDDO
+IF ((<R<obj.int>> > <INT>) || (<BELLTEST <obj.Musicianship>,120.0>)) && (!<R6>)
+ f_faint
+ timerF <BETWEEN 10,60,<obj.Musicianship>,2000>,f_WakeUp
+ENDIF
+
+[FUNCTION f_sonolento]
+OBJ=<argn1>
+say=@038, *sonolento*
+IF (!<RESTEST 4 i_mry_COMBAT_MODS>)
+ serv.newitem i_mry_COMBAT_MODS
+ new.more1=-<BETWEEN 0,4,<obj.Musicianship>,2000>
+ new.more2=-<BETWEEN 0,25,<obj.Musicianship>,2000>
+ equip <new.UID>
+ new.timer=<BETWEEN 0,120,<obj.Musicianship>,2000>
+ obj.skill_gain skill_musicianship
+ENDIF
+
+
+[EVENTS e_no_attack]
+on=@hit
+disturb
+
+on=@GetHit
+disturb
+
+on=@SpellEffect
+disturb
+
+[EVENTS e_no_dclick]
+on=@dclick
+disturb
+
+[FUNCTION disturb]
+cTAG.disturb 1
+
 [EOF]
