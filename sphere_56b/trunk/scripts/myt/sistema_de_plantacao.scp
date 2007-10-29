@@ -1,5 +1,5 @@
 //*****************************************************************************
-//**                        Sistema de plantação v1.2                        **
+//**                        Sistema de plantação v1.5                        **
 //**                          Mystical Tales Shard                           **
 //*****************************************************************************
 
@@ -35,10 +35,6 @@ tempo_de_plantacao=60*60
 //Tempo total de crescimento de uma planta para que ela se torne madura.
 //No caso das árvores perenes, o valor será triplicado automaticamente.
 
-uso_da_terra_arada=4
-//Número de vezes que pode-se plantar em um tile de terra arada antes 
-//dele se tornar esteril novamente.
-
 chance_colher_sementes=18
 //Porcentágem de chance que um player tem de retirar novas sementes quando 
 //terminam os frutos da planta.
@@ -47,18 +43,15 @@ tempo_de_decay_planta=15
 //Tempo em segundos entre a colheita do ultimo fruto e a 'morte' da planta.
 //O player só poderá tentar colher sementes durante este intervalo de tempo.
 
-ferramenta_para_colher=0f51
-//ID Hex da ferramente que deve estar na mão do player para ele conseguir colher
+ferramenta_para_colher=3921
+//DispID Decimal da ferramente que deve estar na mão do player para ele conseguir colher
 //os frutos. Coloque 0 (zero) para desabilitar a necessidade de uma ferramenta.
 
 //*****************************************************************************
 //**                                TYPEDEF                                  **
 //*****************************************************************************
 
-[TYPEDEF t_semente]
-ON=@CREATE
-more1=5
-
+[TYPEDEF t_seed]
 ON=@CLICK
 MESSAGE <name> (<more1>)
 return 1
@@ -80,50 +73,49 @@ TARGET Voce nao pode plantar em criaturas. Selecione onde plantar:
 RETURN 1
 
 ON=@TARGON_ITEM
-if (<src.targ.id>==0914)
-	if ( <src.targ.distance>>1)
-		SRC.SYSMESSAGE Voce esta muito lonje.
+if (<src.targ.baseid>==i_terra_arada)
+	if (<src.targ.distance> > 1)
+		SRC.SYSMESSAGEred Voce esta muito lonje.
 		return 1
 	endif
-	if ( <src.targ.more2>==1 )
-		SRC.SYSMESSAGE Esta terra ja esta sendo usada. Use outra.
+	if (<src.targ.link> != 04fffffff)
+		SRC.SYSMESSAGEred Esta terra ja esta sendo usada. Use outra.
 		return 1
 	endif
-	SRC.targ.link=<src.uid>
-	src.targ.more2=1 // Flag que a terra tá sendo usada
-	src.targ.timer=tempo_de_plantacao //tempo pro Flag cair
 //-?-QUE TIPO DE SEMENTE É? QUE PLANTA VAI NASCER?
 	if (<more2>==0001)
-		src.newitem i_plan_batata1
+		serv.newitem i_plan_batata1
 	elseif (<more2>==0002)
-		src.newitem i_plan_milho1
+		serv.newitem i_plan_milho1
 	elseif (<more2>==0003)
-		src.newitem i_plan_ervilha1
+		serv.newitem i_plan_ervilha1
 	elseif (<more2>==0004)
-		src.newitem i_plan_trigo1
+		serv.newitem i_plan_trigo1
 	elseif (<more2>==0005)
-		src.newitem i_plan_cenoura1
+		serv.newitem i_plan_cenoura1
 	elseif (<more2>==0006)
-		src.newitem i_plan_alface1
+		serv.newitem i_plan_alface1
 	elseif (<more2>==0007)
-		src.newitem i_plan_ginsen1
+		serv.newitem i_plan_ginsen1
 	elseif (<more2>==0008)
-		src.newitem i_plan_mandrake1
+		serv.newitem i_plan_mandrake1
 	elseif (<more2>==0009)
-		src.newitem i_plan_alho1
+		serv.newitem i_plan_alho1
 	elseif (<more2>==0010)
-		src.newitem i_plan_nightshade1
+		serv.newitem i_plan_nightshade1
 	elseif (<more2>==0011)
-		src.newitem i_plan_maca1
+		serv.newitem i_plan_maca1
 	elseif (<more2>==0012)
-		src.newitem i_plan_uva1
+		serv.newitem i_plan_uva1
 	elseif (<more2>==0013)
-		src.newitem i_plan_banana1
+		serv.newitem i_plan_banana1
 	elseif (<more2>==0014)
-		src.newitem i_plan_algodao1	//-?-PONHA AQUI O NOVOS TIPOS DE PLANTAS.
+		serv.newitem i_plan_algodao1	//-?-PONHA AQUI O NOVOS TIPOS DE PLANTAS.
 	endif
-	src.act.p=<src.targp>
-	src.act.link=<src.uid>
+	new.p=<src.targp.x>,<src.targp.y>,<eval <src.targp.z>+1>,<src.targp.m>
+	new.link=<src.targ.uid>
+	src.targ.link=<new.uid>
+	new.timer=<EVAL <DEF.tempo_de_plantacao>/3>
 	more1=(<more1>-1)
 	update
 	src.act=0
@@ -133,11 +125,20 @@ if (<src.targ.id>==0914)
 	endif
 	return 1
 else
-	src.sysmessage Voce nao pode plantar nisso.
+	src.sysmessagered Voce nao pode plantar nisso.
 	return 1
 endif
-[TYPEDEF t_planta]
 
+[TYPEDEF t_broto]
+ON=@TIMER
+plant_timerBroto
+return 1
+
+ON=@DCLICK
+src.sysmessageyellow Voce nao pode colher o broto.
+return 1
+
+[TYPEDEF t_planta]
 ON=@CLICK
 if (<more1>==0ffffffff)
 	MESSAGE <name> (morreu)
@@ -148,7 +149,43 @@ else
 endif
 
 ON=@CLIENTTOOLTIP
-f_sendTooltip <name>,<QVAL <more1>==0ffffffff ? (morreu):<eval <more1>> frutos>
+f_sendTooltip <name>,<QVAL <morex> ? <eval <morex>> frutos:morreu>
+return 1
+
+ON=@DCLICK
+if (<src.distance <P>> > 1)
+ SRC.SYSMESSAGEYELLOW Voce esta muito lonje.
+ return 1
+endif
+if (<morex>)
+	src.f_colhe <more1>
+	if (<morex>==1)
+		timer=tempo_de_decay_planta
+	endif
+	morex -= 1
+elif (!<morex>)
+	src.f_sementes <more2>
+	timer=1
+	more1=-1
+endif
+update
+return 1
+
+ON=@TIMER
+if (!<morey>) && (!<morex>)
+ EMOTERED morreu
+ morey=1
+ timer=2
+elif (!<morex>)
+ if (<LINK>)
+  link.more1 -= 1
+  if (!<link.more1>)
+   link.timer 1
+  endif
+  link.link=-1
+ endif
+ remove
+endif
 return 1
 
 
@@ -197,71 +234,128 @@ src.act.equip
 RETURN 1
 
 [FUNCTION f_colhe]
-if (ferramenta_para_colher!=0)
-	if (<src.findlayer(1).ID> == ferramenta_para_colher )
-		src.newitem=<args>
-		src.anim 12
-		src.act.bounce
-		src.sfx 004f
-		src.emoteyellow colhendo <src.act.name>
-		return 1
-	else
-		src.sysmessagered Voce nao esta equipado com  ferramenta correta.
-		src.emotered estragou um fruto
-		return 1
-	endif
+if (<src.findlayer(1).DispIDdec> == <DEF.ferramenta_para_colher> ) || (<DEF.ferramenta_para_colher>==0)
+	src.newitem=<args>
+	src.anim 12
+	src.act.bounce
+	src.sfx 004f
+	src.emoteyellow colhendo <src.act.name>
+	return 1
+else
+	src.sysmessagered Voce nao esta equipado com  ferramenta correta.
+	src.emotered estragou um fruto
+	return 1
 endif
 
 
 [FUNCTION f_sementes]
-if ( chance_colher_sementes >= <eval rand(100)>)
-	if (ferramenta_para_colher!=0)
-		if (<src.findlayer(1).ID> == ferramenta_para_colher )
-			src.newitem=<args>
-			src.act.bounce
-			src.anim 12
-			src.sfx 004f
-			src.emoteyellow colhendo <src.act.name>
-			src.sysmessageyellow Voce tirou algumas novas sementes da planta.
-			return 1
-		else
-			src.sysmessage Voce nao esta equipado com  ferramenta correta.
-			return 1
-		endif
+if ( chance_colher_sementes >= <r100>)
+	if (<src.findlayer(1).DispIDdec> == ferramenta_para_colher ) || (<DEF.ferramenta_para_colher> == 0)
+		serv.newitem=<args>
+		src.bounce <new.uid>
+		src.anim 12
+		src.sfx 004f
+		src.emoteyellow colhendo <new.name>
+		src.sysmessageyellow Voce tirou algumas novas sementes da planta.
+		return 1
+	else
+		src.sysmessagered Voce nao esta equipado com  ferramenta correta.
+		return 1
 	endif
 else
 	src.anim 12
 	src.sfx 004f
-	src.sysmessage Voce nao tirou novas sementes da planta.
+	src.sysmessageyellow Voce nao tirou novas sementes da planta.
 	return 1
 endif
 
+[FUNCTION plant_checkTile]
+sysmessageyellow Selecione aonde arar:
+TARGETFG _plant_checkTile
+
+[FUNCTION _plant_checkTile]
+LOCAL.t <serv.map(<targp.x>,<targp.y>).type>
+LOCAL.s <serv.map(<targp.x>,<targp.y>).statics(0).name>
+IF (<distance <targp>> > 1)
+ sysmessageyellow Muito longe.
+ return 0
+ELIF (<LOCAL.t>!=t_grass)
+ sysmessageyellow Voce so pode fazer isso na grama.
+ return 0
+ELIF (<region.flags>&region_flag_underground) || (<flags>&statf_indoors)
+ sysmessageyellow Aqui nao bate sol. Um vegetal nao pode crescer aqui.
+ return 0
+ELIF (!<ISNUM <LOCAL.s>>)
+ sysmessageyellow Nao eh um bom lugar para plantar.
+ return 0
+ELIF (<flags>&0c0c4240e)
+ sysmessageyellow Voce nao esta em condicoes de trabalhar.
+ return 0
+ELIF (<region.flags>&region_flag_nobuilding)
+ sysmessageyellow Nao se pode plantar ou construir nessa area por ordens superiores.
+ return 0
+ELIF (<ARGO.UID>)
+ IF (<argo.baseid>==i_terra_arada)
+  sysmessageyellow Esta terra ja foi arada.
+  return 0
+ ELSE
+  sysmessageyellow <argo.name> vai atrapalhar o plantio.
+  return 0
+ ENDIF
+ELSE
+ OBJ=<UID>
+ FORITEMS 2
+  IF (<p.x>==<obj.targp.x>) && (<p.y>==<obj.targp.y>) && (<p.z>-<obj.z> <= 20) && (<p.z>-<obj.z> >= -5)
+   obj.sysmessageyellow <name> vai atrapalhar o plantio.
+   RETURN 0
+  ENDIF
+ ENDFOR
+ENDIF
+plant_arar <targp>
+RETURN 1
+
+[FUNCTION plant_arar]
+cTAG.cp=<argn1>,<argn2>,<argn3>
+cTAG.ctimer=<BETWEEN2 1,10,<camping>,1000>
+cTAG.p.x=<p.x>
+cTAG.p.y=<p.y>
+_plant_arar
+
+[FUNCTION _plant_arar]
+if (<p.x>!=<cTAG0.p.x>) || (<p.y>!=<cTAG0.p.y>)
+ sysmessagered Voce parou de arar
+ return 1
+endif
+sfx 0145
+anim 12
+cTAG.ctimer -= 1
+IF (<cTAG0.cTIMER>)
+ TIMERF 1,_plant_arar
+ELSE
+ serv.newitem i_terra_arada
+ new.p=<cTAG.cp>
+// new.attr=010
+ new.more1=<BETWEEN 4,10,<camping>,1000>
+ timer=-1
+ENDIF
+
+[FUNCTION plant_timerBroto]
+if (<more2>)
+ serv.newitem <more2>
+ new.p=<p>
+ new.timer=<eval <DEF.tempo_de_plantacao>/3>
+ new.link=<link>
+ link.link=<new.uid>
+ remove
+endif
 
 //*****************************************************************************
 //**                             Terra e Arado                               **
 //*****************************************************************************
 
 
-[ITEMDEF i_terra_esteril]
-//terra que não dá pra palntar
-NAME=terra esteril
-ID=055C
-DEFNAME=i_terra_esteril
-TYPE=t_normal
-CATEGORY=MyT - Sistemas
-SUBSECTION=Plantacao
-DESCRIPTION=Terra Esteril
-
-ON=@CREATE
-attr=08010
-
-ON=@DCLICK
-SRC.SYSMESSAGE Esta terra e infertil.
-SRC.SYSMESSAGE Voce precisa ara-la.
-RETURN 1
-
 [ITEMDEF i_terra_arada]
-//Arado
+//Terra para plantar
 NAME=terra arada
 ID=0914
 DEFNAME=i_terra_arada
@@ -272,25 +366,27 @@ SUBSECTION=Plantacao
 DESCRIPTION=Terra arada
 
 ON=@CREATE
-attr=08010
-MORE1=0
-more2=0
+attr=08000
 timer=-1
 
 ON=@TIMER
-MORE1=(<more1>+1)
-IF (<more1>> (uso_da_terra_arada)-1)
-	serv.newitem=i_terra_esteril
-	new.p=<p>
-	new.nudgeup 1
-	new.emotered secou
-	remove
-	return 1
+if (!<more1>)
+ remove
 endif
-more2=0
-timer=-1
 return 1
 
+on=@click
+message <name>
+if (<src.camping> > 199)
+ message [Camping] Mais <eval <more1>> <QVAL <more1> < 2?plantacao:plantacoes>
+endif
+return 1
+
+ON=@CLIENTTOOLTIP
+if (<src.camping> > 199)
+ f_sendTooltip <name>,[Camping] Mais <eval <more1>> <QVAL <more1> < 2?plantação:plantações>
+endif
+return 1
 
 [ITEMDEF i_arado]
 //Arado
@@ -305,34 +401,8 @@ SUBSECTION=Plantacao
 DESCRIPTION=Arado
 
 ON=@DCLICK
-TARGET Selecione onde arar:
-RETURN 1
-
-ON=@TARGON_GROUND
-TARGET Voce nao pode arar isso. Selecione onde arar:
-RETURN 1
-
-ON=@TARGON_CHAR
-TARGET Voce nao pode arar criaturas. Selecione onde arar:
-RETURN 1
-
-ON=@TARGON_ITEM
-if (<src.targ.id>==055C)
-	if ( <src.targ.distance>>1)
-		SRC.SYSMESSAGE Voce esta muito lonje.
-		return 1
-	endif
-	src.targ.remove
-	src.newitem=i_terra_arada
-	src.act.p=<src.targ.p>
-	src.act.link=<SRC.UID>
-	src.act=0
-	src.F_PLANTA
-	return 1
-elseif (<src.targ.id>==0914)
-	src.sysmessage Esta terra ja esta arada.
-RETURN 1
-endif
+src.plant_checkTile
+return 1
 
 //*****************************************************************************
 //**                                Sementes                                 **
@@ -344,7 +414,7 @@ endif
 [ITEMDEF i_sem_batata]
 NAME=sementes de batata
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -357,7 +427,7 @@ MORE2=0001 //caracteriza que esta semente é de batata.
 [ITEMDEF i_sem_milho]
 NAME=sementes de milho
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -371,7 +441,7 @@ MORE2=0002 //caracteriza que esta semente é de milho.
 [ITEMDEF i_sem_ervilha]
 NAME=sementes de ervilha
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -384,7 +454,7 @@ MORE2=0003 //caracteriza que esta semente é de ervilha.
 [ITEMDEF i_sem_trigo]
 NAME=sementes de trigo
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -397,7 +467,7 @@ MORE2=0004 //caracteriza que esta semente é de trigo.
 [ITEMDEF i_sem_cenoura]
 NAME=sementes de cenoura
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -410,7 +480,7 @@ MORE2=0005 //caracteriza que esta semente é de cenoura.
 [ITEMDEF i_sem_alface]
 NAME=sementes de alface
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -423,10 +493,10 @@ MORE2=0006 //caracteriza que esta semente é de alface.
 
 //################################ Reagentes ##################################
 
-[ITEMDEF i_sem_ginsen]
+[ITEMDEF i_sem_ginseng]
 NAME=sementes de ginseng
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -439,7 +509,7 @@ MORE2=0007 //caracteriza que esta semente é de ginsen.
 [ITEMDEF i_sem_mandrake]
 NAME=sementes de mandrake root
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -452,7 +522,7 @@ MORE2=0008 //caracteriza que esta semente é de mandrake root.
 [ITEMDEF i_sem_alho]
 NAME=sementes de alho
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -465,7 +535,7 @@ MORE2=0009 //caracteriza que esta semente é de alho.
 [ITEMDEF i_sem_nightshade]
 NAME=sementes de nightshade
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -480,7 +550,7 @@ MORE2=0010 //caracteriza que esta semente é de nightshade.
 [ITEMDEF i_sem_maca]
 NAME=semente de macieira
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -493,7 +563,7 @@ MORE2=0011 //caracteriza que esta semente é de macieira.
 [ITEMDEF i_sem_uva]
 NAME=semente de parreira
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -506,7 +576,7 @@ MORE2=0012 //caracteriza que esta semente é de parreira.
 [ITEMDEF i_sem_banana]
 NAME=semente de bananeira
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -522,7 +592,7 @@ MORE2=0013 //caracteriza que esta semente é de bananeira.
 [ITEMDEF i_sem_algodao]
 NAME=sementes de pe de algodao
 ID=i_bag
-TYPE=t_semente
+TYPE=t_seed
 WEIGHT=1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
@@ -543,46 +613,23 @@ MORE2=0014 //caracteriza que esta semente é de algodao.
 
 [ITEMDEF i_plan_batata1]
 ID=0c5e
-TYPE=t_script
+TYPE=t_broto
 NAME=batata (broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_batata2
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o broto.
-return 1
+more2=i_plan_batata2
 
 [ITEMDEF i_plan_batata2]
 ID=0c5f
-TYPE=t_script
+TYPE=t_broto
 NAME=batata (jovem)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_batata3
-link.act.link=<link.uid>
-link.act.p=<p>
-link.act.nudgeup 1
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o isso jovem.
-return 1
+more2=i_plan_batata3
 
 [ITEMDEF i_plan_batata3]
 ID=0c60
@@ -591,86 +638,31 @@ NAME=batata (madura)
 // por sections de menu
 
 ON=@CREATE
-MORE1=3 +(Rand(1)-1) //O primeiro número é o número de frutos q a planta vai dar.
-
-ON=@DCLICK
-if ( <src.targ.distance>>1)
-	SRC.SYSMESSAGE Voce esta muito lonje.
-	return 1
-endif
-if (<more1> > 0)
-	src.f_colhe I_BATATA
-	if (<more1>==1)
-		timer=tempo_de_decay_planta
-	endif
-	more1=(<more1>-1)
-	update
-	return 1
-elseif (<more1> !=-1)
-	src.f_sementes i_sem_batata
-	timer=1
-	more1=-1
-	update
-	return 1
-else
-	return 1
-endif
-
-ON=@TIMER
-if (<more2>==0)
-	EMOTERED morreu
-	more2=1
-	timer=2
-	return 1
-else
-	remove
-	return 1
-endif
+MOREx=<R2,3>
+more1=I_BATATA
+more2=i_sem_batata
 
 //****milho****
 
 [ITEMDEF i_plan_milho1]
 ID=0cb5
-TYPE=t_script
+TYPE=t_broto
 NAME=milho (broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_milho2
-link.act.link=<link.uid>
-link.act.p=<p>
-link.act.nudgeup 1
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o broto.
-return 1
+more2=i_plan_milho2
 
 [ITEMDEF i_plan_milho2]
 ID=0c7e
-TYPE=t_script
+TYPE=t_broto
 NAME=milho (jovem)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_milho3
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o isso jovem.
-return 1
+more2=i_plan_milho3
 
 [ITEMDEF i_plan_milho3]
 ID=0c7d
@@ -679,96 +671,32 @@ NAME=milho (maduro)
 // por sections de menu
 
 ON=@CREATE
-MORE1=1 //O primeiro número é o número de frutos q a planta vai dar.
-
-ON=@CLICK
-MESSAGE <name> (<more1>)
-return 1
-
-ON=@CLIENTTOOLTIP
-f_sendTooltip <name>,<eval <more1>>
-return 1
-
-ON=@DCLICK
-if ( <src.targ.distance>>1)
-	SRC.SYSMESSAGE Voce esta muito lonje.
-	return 1
-endif
-if (<more1> > 0)
-	src.f_colhe I_FRUIT_CORN
-	if (<more1>==1)
-		timer=tempo_de_decay_planta
-	endif
-	more1=(<more1>-1)
-	update
-	return 1
-elseif (<more1> !=-1)
-	src.f_sementes i_sem_milho
-	timer=1
-	more1=-1
-	update
-	return 1
-else
-	return 1
-endif
-
-ON=@TIMER
-if (<more2>==0)
-	EMOTERED morreu
-	more2=1
-	timer=2
-	return 1
-else
-	remove
-	return 1
-endif
-
+MOREX=1
+more1=I_FRUIT_CORN
+MORE2=i_sem_milho
 
 
 //****ervilha****
 
 [ITEMDEF i_plan_ervilha1]
 ID=0cb5
-TYPE=t_script
+TYPE=t_broto
 NAME=ervilha (broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_ervilha2
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o broto.
-return 1
+more2=i_plan_ervilha2
 
 [ITEMDEF i_plan_ervilha2]
 ID=0cb0
-TYPE=t_script
+TYPE=t_broto
 NAME=ervilha (jovem)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_ervilha3
-link.act.link=<link.uid>
-link.act.p=<p>
-link.act.nudgeup 1
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher isso jovem.
-return 1
+more2=i_plan_ervilha3
 
 [ITEMDEF i_plan_ervilha3]
 ID=0c8d
@@ -777,91 +705,28 @@ NAME=ervilha (madura)
 // por sections de menu
 
 ON=@CREATE
-MORE1=3 +(Rand(1)-1) //O primeiro número é o número de frutos q a planta vai dar.
-
-ON=@CLICK
-MESSAGE <name> (<more1>)
-return 1
-
-ON=@CLIENTTOOLTIP
-f_sendTooltip <name>,<eval <more1>>
-return 1
-
-ON=@DCLICK
-if ( <src.targ.distance>>1)
-	SRC.SYSMESSAGE Voce esta muito lonje.
-	return 1
-endif
-if (<more1> > 0)
-	src.f_colhe I_ERVILHA
-	if (<more1>==1)
-		timer=tempo_de_decay_planta
-	endif
-	more1=(<more1>-1)
-	update
-	return 1
-elseif (<more1> !=-1)
-	src.f_sementes i_sem_ervilha
-	timer=1
-	more1=-1
-	update
-	return 1
-else
-	return 1
-endif
-
-ON=@TIMER
-if (<more2>==0)
-	EMOTERED morreu
-	more2=1
-	timer=2
-	return 1
-else
-	remove
-	return 1
-endif
+MOREX=<R2,3>
+MORE1=I_ERVILHA
+MORE2=i_sem_ervilha
 
 
 //****trigo****
 
 [ITEMDEF i_plan_trigo1]
 ID=01EBF
-TYPE=t_script
+TYPE=t_broto
 NAME=trigo(broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_trigo2
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o broto.
-return 1
+more2=i_plan_trigo2
 
 [ITEMDEF i_plan_trigo2]
 ID=0c59
-TYPE=t_script
+TYPE=t_broto
 NAME=trigo (jovem)
 // por sections de menu
-
-ON=@create
-attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_trigo3
-link.act.link=<link.uid>
-link.act.p=<p>
-link.act.nudgeup 1
-remove
-return 1
 
 ON=@DCLICK
 src.sysmessage Voce nao pode colher isso jovem.
@@ -874,95 +739,32 @@ NAME=trigo (maduro)
 // por sections de menu
 
 ON=@CREATE
-MORE1=1 //O primeiro número é o número de frutos q a planta vai dar.
+MOREX=1
+MORE1=i_wheat_sheaf
+MORE2=i_sem_trigo
 
-ON=@CLICK
-MESSAGE <name> (<more1>)
-return 1
-
-ON=@CLIENTTOOLTIP
-f_sendTooltip <name>,<eval <more1>>
-return 1
-
-ON=@DCLICK
-if ( <src.targ.distance>>1)
-	SRC.SYSMESSAGE Voce esta muito lonje.
-	return 1
-endif
-if (<more1> > 0)
-	src.f_colhe i_wheat_sheaf
-	if (<more1>==1)
-		timer=tempo_de_decay_planta
-	endif
-	more1=(<more1>-1)
-	update
-	return 1
-elseif (<more1> !=-1)
-	src.f_sementes i_sem_trigo
-	timer=1
-	more1=-1
-	update
-	return 1
-else
-	return 1
-endif
-
-
-ON=@TIMER
-if (<more2>==0)
-	EMOTERED morreu
-	more2=1
-	timer=2
-	return 1
-else
-	remove
-	return 1
-endif
 
 //****cenoura****
 
 [ITEMDEF i_plan_cenoura1]
 ID=0c68
-TYPE=t_script
+TYPE=t_broto
 NAME=cenoura(broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_cenoura2
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o broto.
-return 1
+more2=i_plan_cenoura2
 
 [ITEMDEF i_plan_cenoura2]
 ID=0c69
-TYPE=t_script
+TYPE=t_broto
 NAME=cenoura (jovem)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_cenoura3
-link.act.link=<link.uid>
-link.act.p=<p>
-link.act.nudgeup 1
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher isso jovem.
-return 1
+more2=i_plan_cenoura3
 
 [ITEMDEF i_plan_cenoura3]
 ID=0c76
@@ -971,96 +773,32 @@ NAME=cenoura (madura)
 // por sections de menu
 
 ON=@CREATE
-MORE1=6 +(Rand(1)-1) //O primeiro número é o número de frutos q a planta vai dar.
-
-ON=@CLICK
-if ( <src.targ.distance>>1)
-	SRC.SYSMESSAGE Voce esta muito lonje.
-	return 1
-endif
-MESSAGE <name> (<more1>)
-return 1
-
-ON=@CLIENTTOOLTIP
-f_sendTooltip <name>,<eval <more1>>
-return 1
-
-ON=@DCLICK
-if (<more1> > 0)
-	src.f_colhe i_fruit_carrot
-	if (<more1>==1)
-		timer=tempo_de_decay_planta
-	endif
-	more1=(<more1>-1)
-	update
-	return 1
-elseif (<more1> !=-1)
-	src.f_sementes i_sem_cenoura
-	timer=1
-	more1=-1
-	update
-	return 1
-else
-	return 1
-endif
-
-
-ON=@TIMER
-if (<more2>==0)
-	EMOTERED morreu
-	more2=1
-	timer=2
-	return 1
-else
-	remove
-	return 1
-endif
+MOREX=<R5,6>
+MORE1=i_fruit_carrot
+MORE2=i_sem_cenoura
 
 
 //****alface****
 
 [ITEMDEF i_plan_alface1]
 ID=0c71
-TYPE=t_script
+TYPE=t_broto
 NAME=alface(broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_alface2
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o broto.
-return 1
+more2=i_plan_alface2
 
 [ITEMDEF i_plan_alface2]
 ID=0c71
-TYPE=t_script
+TYPE=t_broto
 NAME=alface (jovem)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_alface3
-link.act.link=<link.uid>
-link.act.p=<p>
-link.act.nudgeup 1
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher isso jovem.
-return 1
+more2=i_plan_alface3
 
 [ITEMDEF i_plan_alface3]
 ID=0c71
@@ -1069,50 +807,10 @@ NAME=alface (madura)
 // por sections de menu
 
 ON=@CREATE
-MORE1=1 //O primeiro número é o número de frutos q a planta vai dar.
+MOREX=1
+more1=i_fruit_lettuce
+more2=i_sem_alface
 
-ON=@CLICK
-MESSAGE <name> (<more1>)
-return 1
-
-ON=@CLIENTTOOLTIP
-f_sendTooltip <name>,<eval <more1>>
-return 1
-
-ON=@DCLICK
-if ( <src.targ.distance>>1)
-	SRC.SYSMESSAGE Voce esta muito lonje.
-	return 1
-endif
-if (<more1> > 0)
-	src.f_colhe i_fruit_lettuce
-	if (<more1>==1)
-		timer=tempo_de_decay_planta
-	endif
-	more1=(<more1>-1)
-	update
-	return 1
-elseif (<more1> !=-1)
-	src.f_sementes i_sem_alface
-	timer=1
-	more1=-1
-	update
-	return 1
-else
-	return 1
-endif
-
-
-ON=@TIMER
-if (<more2>==0)
-	EMOTERED morreu
-	more2=1
-	timer=2
-	return 1
-else
-	remove
-	return 1
-endif
 
 //################################ Reagentes ##################################
 
@@ -1120,45 +818,23 @@ endif
 
 [ITEMDEF i_plan_ginsen1]
 ID=0cb5
-TYPE=t_script
+TYPE=t_broto
 NAME=ginsen (broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_ginsen2
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o broto.
-return 1
+more2=i_plan_ginsen2
 
 [ITEMDEF i_plan_ginsen2]
 ID=0cb0
-TYPE=t_script
+TYPE=t_broto
 NAME=ginsen (jovem)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_ginsen3
-link.act.link=<link.uid>
-link.act.p=<p>
-link.act.nudgeup 1
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher isso jovem.
-return 1
+more2=i_plan_ginsen3
 
 [ITEMDEF i_plan_ginsen3]
 ID=018e9
@@ -1167,95 +843,31 @@ NAME=ginsen (maduro)
 // por sections de menu
 
 ON=@CREATE
-MORE1=Rand(2)+1 //O primeiro número é o número de frutos q a planta vai dar.
-
-ON=@CLICK
-MESSAGE <name> (<more1>)
-return 1
-
-ON=@CLIENTTOOLTIP
-f_sendTooltip <name>,<eval <more1>>
-return 1
-
-ON=@DCLICK
-if ( <src.targ.distance>>1)
-	SRC.SYSMESSAGE Voce esta muito lonje.
-	return 1
-endif
-if (<more1> > 0)
-	src.f_colhe i_r_ginseng
-	if (<more1>==1)
-		timer=tempo_de_decay_planta
-	endif
-	more1=(<more1>-1)
-	update
-	return 1
-elseif (<more1> !=-1)
-	src.f_sementes i_sem_ginsen
-	timer=1
-	more1=-1
-	update
-	return 1
-else
-	return 1
-endif
-
-
-ON=@TIMER
-if (<more2>==0)
-	EMOTERED morreu
-	more2=1
-	timer=2
-	return 1
-else
-	remove
-	return 1
-endif
+MOREX=<R1,3>
+MORE1=i_r_ginseng
+MORE2=i_sem_ginsen
 
 //****mandrake root****
 
 [ITEMDEF i_plan_mandrake1]
 ID=018df
-TYPE=t_script
+TYPE=t_broto
 NAME=mandrake root (broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_mandrake2
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o broto.
-return 1
+more2=i_plan_mandrake2
 
 [ITEMDEF i_plan_mandrake2]
 ID=018df
-TYPE=t_script
+TYPE=t_broto
 NAME=mandrake root (jovem)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_mandrake3
-link.act.link=<link.uid>
-link.act.p=<p>
-link.act.nudgeup 1
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher isso jovem.
-return 1
+more2=i_plan_mandrake3
 
 [ITEMDEF i_plan_mandrake3]
 ID=018df
@@ -1264,96 +876,32 @@ NAME=mandrake root (maduro)
 // por sections de menu
 
 ON=@CREATE
-MORE1=Rand(2)+1 //O primeiro número é o número de frutos q a planta vai dar.
-
-ON=@CLICK
-MESSAGE <name> (<more1>)
-return 1
-
-ON=@CLIENTTOOLTIP
-f_sendTooltip <name>,<eval <more1>>
-return 1
-
-ON=@DCLICK
-if ( <src.targ.distance>>1)
-	SRC.SYSMESSAGE Voce esta muito lonje.
-	return 1
-endif
-if (<more1> > 0)
-	src.f_colhe i_r_raiz_de_mandrake
-	if (<more1>==1)
-		timer=tempo_de_decay_planta
-	endif
-	more1=(<more1>-1)
-	update
-	return 1
-elseif (<more1> !=-1)
-	src.f_sementes i_sem_mandrake
-	timer=1
-	more1=-1
-	update
-	return 1
-else
-	return 1
-endif
-
-
-ON=@TIMER
-if (<more2>==0)
-	EMOTERED morreu
-	more2=1
-	timer=2
-	return 1
-else
-	remove
-	return 1
-endif
+MORE1=<R1,2>
+more1=i_r_raiz_de_mandrake
+more2=i_sem_mandrake
 
 
 //****alho****
 
 [ITEMDEF i_plan_alho1]
 ID=018e1
-TYPE=t_script
+TYPE=t_broto
 NAME=alho (broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_alho2
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o broto.
-return 1
+more2=i_plan_alho2
 
 [ITEMDEF i_plan_alho2]
 ID=018e1
-TYPE=t_script
+TYPE=t_broto
 NAME=alho (jovem)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_alho3
-link.act.link=<link.uid>
-link.act.p=<p>
-link.act.nudgeup 1
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher isso jovem.
-return 1
+more2=i_plan_alho3
 
 [ITEMDEF i_plan_alho3]
 ID=018e1
@@ -1362,95 +910,31 @@ NAME=alho (maduro)
 // por sections de menu
 
 ON=@CREATE
-MORE1=Rand(2)+1 //O primeiro número é o número de frutos q a planta vai dar.
-
-ON=@CLICK
-MESSAGE <name> (<more1>)
-return 1
-
-ON=@CLIENTTOOLTIP
-f_sendTooltip <name>,<eval <more1>>
-return 1
-
-ON=@DCLICK
-if ( <src.targ.distance>>1)
-	SRC.SYSMESSAGE Voce esta muito lonje.
-	return 1
-endif
-if (<more1> > 0)
-	src.f_colhe i_r_alho
-	if (<more1>==1)
-		timer=tempo_de_decay_planta
-	endif
-	more1=(<more1>-1)
-	update
-	return 1
-elseif (<more1> !=-1)
-	src.f_sementes i_sem_alho
-	timer=1
-	more1=-1
-	update
-	return 1
-else
-	return 1
-endif
-
-
-ON=@TIMER
-if (<more2>==0)
-	EMOTERED morreu
-	more2=1
-	timer=2
-	return 1
-else
-	remove
-	return 1
-endif
+MOREX=<R1,2>
+more1=i_r_alho
+more2=i_sem_alho
 
 //****nightshade****
 
 [ITEMDEF i_plan_nightshade1]
 ID=0cb5
-TYPE=t_script
+TYPE=t_broto
 NAME=nightshade (broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_nightshade2
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o broto.
-return 1
+more2=i_plan_nightshade2
 
 [ITEMDEF i_plan_nightshade2]
 ID=018e5
-TYPE=t_script
+TYPE=t_broto
 NAME=nightshade (jovem)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_nightshade3
-link.act.link=<link.uid>
-link.act.p=<p>
-link.act.nudgeup 1
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher isso jovem.
-return 1
+more2=i_plan_nightshade3
 
 [ITEMDEF i_plan_nightshade3]
 ID=018e5
@@ -1459,50 +943,9 @@ NAME=nightshade (maduro)
 // por sections de menu
 
 ON=@CREATE
-MORE1=Rand(2)+1 //O primeiro número é o número de frutos q a planta vai dar.
-
-ON=@CLICK
-MESSAGE <name> (<more1>)
-return 1
-
-ON=@CLIENTTOOLTIP
-f_sendTooltip <name>,<eval <more1>>
-return 1
-
-ON=@DCLICK
-if ( <src.targ.distance>>1)
-	SRC.SYSMESSAGE Voce esta muito lonje.
-	return 1
-endif
-if (<more1> > 0)
-	src.f_colhe i_r_nightshade
-	if (<more1>==1)
-		timer=tempo_de_decay_planta
-	endif
-	more1=(<more1>-1)
-	update
-	return 1
-elseif (<more1> !=-1)
-	src.f_sementes i_sem_nightshade
-	timer=1
-	more1=-1
-	update
-	return 1
-else
-	return 1
-endif
-
-
-ON=@TIMER
-if (<more2>==0)
-	EMOTERED morreu
-	more2=1
-	timer=2
-	return 1
-else
-	remove
-	return 1
-endif
+MOREX=<R1,2>
+more1=i_r_nightshade
+more2=i_sem_nightshade
 
 //################################### Arvores persistentes #############################
 
@@ -1510,45 +953,23 @@ endif
 
 [ITEMDEF i_plan_maca1]
 ID=0cb5
-TYPE=t_script
+TYPE=t_broto
 NAME=macieira (broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)
-
-ON=@timer
-link.newitem=i_plan_maca2
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Brotos nao dao frutos.
-return 1
+more2=i_plan_maca2
 
 [ITEMDEF i_plan_maca2]
 ID=0CC7
-TYPE=t_script
+TYPE=t_broto
 NAME=macieira (pequena arvore)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)
-
-ON=@timer
-link.newitem=i_plan_maca3
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Esta arvore e muito jovem para dar frutos.
-return 1
+more2=i_plan_maca3
 
 [ITEMDEF i_plan_maca3]
 NAME=macieira
@@ -1557,11 +978,11 @@ type=t_script
 
 on=@create
 attr=08010
-timer=1
+timerf 1,timerd,1
 
 on=@timer
-link.newitem=i_arvore_macieira2
-link.act.p=<p>
+serv.newitem=i_arvore_macieira2
+new.p=<p>
 return 1
 
 [ITEMDEF i_arvore_macieira2]
@@ -1577,7 +998,7 @@ more2=0
 
 on=@timer
 more1=1
-more2=rand(4)+2
+more2=<R2,4>
 return 1
 
 on=@dclick
@@ -1587,11 +1008,11 @@ if ( <src.targ.distance>>1)
 endif
 if (<more2>>0)
 	src.f_colhe=i_fruit_apple
-	more2=(<more2>-1)
+	more2 -= 1
 	update
 else
 	src.sysmessage Nao ha frutos nessa arvore.
-	if (<more1>==1
+	if (<more1>==1)
 		timer=(tempo_de_plantacao)
 		more1=0
 	endif
@@ -1602,44 +1023,26 @@ return 1
 
 [ITEMDEF i_plan_uva1]
 ID=0B1
-TYPE=t_script
+TYPE=t_broto
 NAME=poste da parreira
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)
-
-ON=@timer
-nudgeup 5
-link.newitem=i_plan_uva2
-link.act.link=<link.uid>
-link.act.p=<p>
-return 1
+more2=i_plan_uva2
 
 ON=@DCLICK
 return 1
 
 [ITEMDEF i_plan_uva2]
 ID=0CEA
-TYPE=t_script
+TYPE=t_broto
 NAME=parreira (pequena arvore)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)
-
-ON=@timer
-link.newitem=i_plan_uva3
-link.act.link=<link.uid>
-link.act.p=<p>
-link.act.nudgedown 10
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Esta arvore e muito jovem para dar frutos.
+more2=i_plan_uva3
 return 1
 
 [ITEMDEF i_plan_uva3]
@@ -1655,7 +1058,7 @@ more2=0
 
 on=@timer
 more1=1
-more2=(rand(4)+2)
+more2=<R2,4>
 return 1
 
 on=@dclick
@@ -1669,7 +1072,7 @@ if (<more2>>0)
 	update
 else
 	src.sysmessage Nao ha frutos nessa arvore.
-	if (<more1>==1
+	if (<more1>==1)
 		timer=(tempo_de_plantacao)
 		more1=0
 	endif
@@ -1681,41 +1084,23 @@ return 1
 
 [ITEMDEF i_plan_banana1]
 ID=0CAB
-TYPE=t_script
+TYPE=t_broto
 NAME=bananeira (broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)
-
-ON=@timer
-link.newitem=i_plan_banana2
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Esta arvore e muito jovem para dar frutos.
-return 1
+more2=i_plan_banana2
 
 [ITEMDEF i_plan_banana2]
 ID=0CA8
-TYPE=t_script
+TYPE=t_broto
 NAME=bananeira (pequena arvore)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)
-
-ON=@timer
-link.newitem=i_plan_banana3
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
+more2=i_plan_banana3
 
 ON=@DCLICK
 src.sysmessage Esta arvore e muito jovem para dar frutos.
@@ -1734,7 +1119,7 @@ more2=0
 
 on=@timer
 more1=1
-more2=(rand(4)+2)
+more2=<R2,4>
 return 1
 
 on=@dclick
@@ -1762,46 +1147,23 @@ return 1
 
 [ITEMDEF i_plan_algodao1]
 ID=0cb5
-TYPE=t_script
+TYPE=t_broto
 NAME=pe de algodao (broto)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_algodao2
-link.act.link=<link.uid>
-link.act.p=<p>
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o broto.
-return 1
+more2=i_plan_algodao2
 
 [ITEMDEF i_plan_algodao2]
 ID=0C51
-TYPE=t_script
+TYPE=t_broto
 NAME=pe de algodao (jovem)
 // por sections de menu
 
 ON=@create
 attr=08010
-timer=(tempo_de_plantacao)/2
-
-ON=@timer
-link.newitem=i_plan_algodao3
-link.act.link=<link.uid>
-link.act.p=<p>
-link.act.nudgeup 1
-remove
-return 1
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher o isso jovem.
-return 1
+more2=i_plan_algodao3
 
 [ITEMDEF i_plan_algodao3]
 ID=0C53
@@ -1810,49 +1172,10 @@ NAME=pe de algodao (maduro)
 // por sections de menu
 
 ON=@CREATE
-MORE1=6 +(Rand(1)-1) //O primeiro número é o número de frutos q a planta vai dar.
+MOREX=<R5,6>
+MORE1=i_cotton
+MORE2=i_sem_algodao
 
-ON=@CLICK
-MESSAGE <name> (<more1>)
-return 1
-
-ON=@CLIENTTOOLTIP
-f_sendTooltip <name>,<eval <more1>>
-return 1
-
-ON=@DCLICK
-if ( <src.targ.distance>>1)
-	SRC.SYSMESSAGE Voce esta muito lonje.
-	return 1
-endif
-if (<more1> > 0)
-	src.f_colhe i_cotton
-	if (<more1>==1)
-		timer=tempo_de_decay_planta
-	endif
-	more1=(<more1>-1)
-	update
-	return 1
-elseif (<more1> !=-1)
-	src.f_sementes i_sem_algodao
-	timer=1
-	more1=-1
-	update
-	return 1
-else
-	return 1
-endif
-
-ON=@TIMER
-if (<more2>==0)
-	EMOTERED morreu
-	more2=1
-	timer=2
-	return 1
-else
-	remove
-	return 1
-endif
 
 //*****************************************************************************
 //**                               Novos frutos                              **
@@ -1864,7 +1187,6 @@ endif
 ID=01728
 
 NAME=batata
-//DEFNAME2=i_LEMON
 WEIGHT=.1
 VALUE=3
 TYPE=T_NORMAL
@@ -1879,7 +1201,6 @@ COLOR=000f7
 [ITEMDEF I_ERVILHA]
 ID=0c7f
 NAME=ervilha
-//RESOURCES=I_CROP_CORN
 TYPE=T_NORMAL
 VALUE={2 4}
 WEIGHT=0.2
@@ -1956,12 +1277,13 @@ endif
 
 
 //**********************************************************************************************
-//**                    Script de plantação do Mystical Tales Shard v1.2                      ** 
+//**                    Script de plantação do Mystical Tales Shard v1.5                      ** 
 //**                               Por: Galthar, O Errante                                    **
 //**                             e-mail: galtar@terra.com.br                                  **
 //**                                     UIN# 44477266                                        **
 //**                                                                                          **
-//**                               24 de junho de 2003, 20:58hs                               **
+//**                               24 de junho de 2003, 20:58hs (v1.2)                        **
+//**                               28 de outurbo de 2007, 23:25hs (v1.5)                      **
 //**											      **
 //**                                    "Deus é O Cara!!!"                                    **
 //**********************************************************************************************
@@ -1969,6 +1291,5 @@ endif
 //**            Por favor, não altere este arquivo sem o consentimento do autor               **
 //**											      **
 //**********************************************************************************************
-
 
 [EOF]
