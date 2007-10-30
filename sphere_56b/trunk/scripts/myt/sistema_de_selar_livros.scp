@@ -1,205 +1,60 @@
-/ Script downloaded from Emulator Resource
-// Website - celeron.twilightmanor.net
-// Contact - celeron@twilightmanor.net
-// Author - Rudenid
-//Book Copying script
-//V2.0
-//By Rudenid.
-//Use Pen and Ink to copy a blank book.
-//Use paper seals to seal a not-so-blank book.
-//I put the seals on scribe NPCs myself, but feel free to distribute them however you'd like
-//EDITADO POR MIM. :D Silver huahauaha
-
-[DIALOG d_sealbook]
-0,0
-page 0
-gumppic 150 130 2202
-gumppic 0 0 2204
-text 205 175 0 1
-text 215 270 0 2
-text 355 180 0 3
-text 390 210 0 4
-text 390 235 0 5
-text 405 305 0 6
-button 355 205 2474 2473 1 0 1
-button 355 230 2474 2473 1 0 2
-
-[DIALOG d_sealbook TEXT]
-Nothing
-<NAME>
-<AUTHOR>
-Selar este livro?
-Sim
-Nao
-<PAGES> Pages
-
-[DIALOG d_sealbook BUTTON]
-
-ONBUTTON=1
-
-IF !(<TYPE> == t_book)
-SRC.SYSMESSAGE Isso nao e um livro.
-RETURN 1
-ENDIF
-
-IF (<MORE1> & 080000000)
-SRC.SYSMESSAGE Esse livro ja esta selado.
-RETURN 1
-ENDIF
-
-IF (<ATTR> & attr_move_never)
-SRC.SYSMESSAGE Voce nao pode selar isto.
-RETURN 1
-ENDIF
-
-IF (<SRC.UID> != <TOPOBJ.UID>)
-SRC.SYSMESSAGE O livro deve estar em sua mochila para ser selado.
-RETURN 1
-ENDIF
-
-IF (<SRC.RESCOUNT i_seal_paper> < <PAGES>)
-SRC.SYSMESSAGE Esse livro tem <PAGES> paginas, e no entanto voce apenas tem <SRC.RESCOUNT i_seal_paper> selos. Voce precisa de um por pagina.
-RETURN 1
-ENDIF
-
-VAR.REQINSCRIPTION=<eval <PAGES> * 10.0>
-IF (<eval <VAR.REQINSCRIPTION>> > 100.0)
-VAR.REQINSCRIPTION=100.0
-ENDIF
-VAR.ALWAYSSCRIBE=<eval <VAR.REQINSCRIPTION> * 4>
-VAR.ALWAYSSCRIPT=<eval <VAR.ALWAYSSCRIBE> / <SRC.INSCRIPTION>>
-VAR.CHANCESCRIBE=rand(<eval <VAR.ALWAYSSCRIBE>>)
-
-IF (<eval <VAR.REQINSCRIPTION>> > <SRC.INSCRIPTION>)
-SRC.SYSMESSAGE Voce nao tem conhecimento para selar um livro de <PAGES> paginas.
-RETURN 1
-ENDIF
-
-IF (<eval <VAR.CHANCESCRIBE>> > <SRC.INSCRIPTION>)
-SRC.SYSMESSAGE Voce falhou em selar o livro.
-ELSE
-SRC.SFX 79
-SRC.CONSUME <PAGES> i_seal_paper
-SRC.SYSMESSAGE Voce sela o livro.
-MORE1=080000000
-ENDIF
-
-VAR.CHANCESCRIBE=
-VAR.ALWAYSSCRIBE=
-VAR.REQINSCRIPTION=
-
 [ITEMDEF 0fbf]
 //pen and ink
+NAME=tinta
 DEFNAME=i_pen_and_ink
 RESOURCES=1 i_FEATHER, 1 i_INK_POT
-WEIGHT=2
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Artists
-DESCRIPTION=Pen & Ink (W)
+WEIGHT=0.1
+CATEGORY=MyT - Sistemas
+SUBSECTION=Livros
+DESCRIPTION=Tinta
 DUPELIST=0fc0
 
+on=@create
+more1=64
+
 ON=@DCLICK
-TARGET Escolha um livro de onde copiar.
+src.sysmessageyellow O que deseja fazer com a tinta?
+TARGET
 RETURN 1
 
 ON=@TARGON_ITEM
-IF <LINK.SERIAL>==0
-IF !(<SRC.TARG.TYPE>==t_book)
-SRC.SYSMESSAGE Isso nao e um livro.
-RETURN 1
-ENDIF
-//IF (<SRC.TARG.ATTR>&010)
-//SRC.SYSMESSAGE ///////
-//RETURN 1
-//ENDIF
-LINK=<SRC.TARG.SERIAL>
-TARGET Escolha um livro de onde copiar.
-RETURN 1
+if (<src.targ.baseid>==<baseid>)
+ if (<eval <more1>+<src.targ.more1>> < 300)
+  more1 += <src.targ.more1>
+  argo.remove  
+  src.newitem i_bottle_empty
+  src.bounce <new>
+ elif (<more1> >= 300)
+  sysmessagered cheio
+  return 1
+ else
+  LOCAL.amt=<eval 300-<more1>>
+  more1=300
+  src.targ.more1 -= <LOCAL.amt>
+  src.tag.update
+  sysmessageyellow Voce encheu o tubo de tinta.
+ endif
+ src.emoteyellow despejando tinta
+ sfx 0240
+ update
+ELIF (<src.targ.baseid>==i_bottle_empty)
+ more1=<more1>/2
+ update
+ dupe
+ src.emoteyellow despejando tinta
+ sfx 0240
+ src.targ.decrement
+ELIF (<src.targ.type>==t_book)
+ src.book_copy <src.targ.uid>
 ELSE
-IF !(<SRC.TARG.TYPE>==t_book)
-SRC.SYSMESSAGE Isto nao e um livro.
-LINK=0
-RETURN 1
-ENDIF
-IF (<SRC.TARG.ATTR>&010)
-SRC.SYSMESSAGE Voce nao pode mover isto.
-LINK=0
-RETURN 1
-ENDIF
-IF (<SRC.TARG.MORE1>&080000000)
-SRC.SYSMESSAGE Esse livro esta selado e nada pode ser escrito nele.
-LINK=0
-RETURN 1
-ENDIF
-IF !(<SRC.TARG.CONT>==<SRC.FINDLAYER(21).SERIAL>)
-SRC.SYSMESSAGE Este livro deve estar em sua mochila.
-LINK=0
-RETURN 1
-ENDIF
-IF (<SRC.TARG.PAGES> > 0)
-SRC.SYSMESSAGE Esse livro ja foi escrito.
-LINK=0
-RETURN 1
-ENDIF
+ src.sysmessagered Selecione outro frasco te tinta, uma garrafa alquimica ou um livro original para copiar.
+endif
+return 1
 
-IF (rand(110.0) < <SRC.INSCRIPTION>)
-SRC.NEWITEM <SRC.TARG.ID>
-SRC.ACT.ATTR=0
-SRC.ACT.MORE1=0
-SRC.ACT.NAME=<LINK.NAME>
-SRC.ACT.AUTHOR=<LINK.AUTHOR>
-SRC.ACT.LINK=<LINK.UID>
-SRC.ACT.MOREX=0
-SRC.COPYBOOK
-SRC.ACT.LINK=
-SRC.ACT.DISPID=<SRC.TARG.DISPID>
-SRC.ACT.COLOR=<SRC.TARG.COLOR>
-SRC.SFX 0247
-SRC.SYSMESSAGE Voce copiou o livro com sucesso.
-SRC.ACT.BOUNCE
-SRC.TARG.REMOVE
-LINK=0
-ELSE
-SRC.SYSMESSAGE Voce falhou em copiar o livro.
-LINK=0
-ENDIF
-
-IF (<SRC.INSCRIPTION> < 100.0)
-
-IF (<SRC.INSCRIPTION> < 30.0)
-IF (rand(3)=1)
-SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
-ENDIF
-ELSEIF (<SRC.INSCRIPTION> < 50.0)
-IF (rand(75)=1)
-SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
-ENDIF
-ELSEIF (<SRC.INSCRIPTION> < 80.0)
-IF (rand(100)=1)
-SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
-ENDIF
-ELSE
-IF (rand(200)=1)
-SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
-ENDIF
-ENDIF
-
-ENDIF
-
-IF (<SRC.INSCRIPTION> > 100.0)
-SRC.INSCRIPTION=100.0
-ENDIF
-
-RETURN 1
-
-[FUNCTION copybook]
-IF <ACT.MOREX> > <ACT.LINK.PAGES>
-ACT.MOREX=0
-RETURN 1
-ENDIF
-TRYP 0 ACT.BODY<ACT.MOREX>=<ACT.LINK.BODY<ACT.MOREX>>
-ACT.MOREX=<ACT.MOREX>+1
-COPYBOOK
+on=@ClientToolTip
+src.addcliloc 1042971,<name>
+src.addcliloc 1070722,Qtd: <eval <more1>>
+return 1
 
 [ITEMDEF 0fc0]
 //pen and ink
@@ -208,96 +63,154 @@ CATEGORY=MyT - Items by Professions
 SUBSECTION=Artists
 DESCRIPTION=Pen & Ink (N)
 
-ON=@DCLICK
-TARGET Escolha um livro de onde copiar.
-RETURN 1
+//ATALHO PARA GM
+[FUNCTION copiar]
+book_copy
 
-ON=@TARGON_ITEM
-IF <LINK.SERIAL>==0
-IF !(<SRC.TARG.TYPE>==t_book)
-SRC.SYSMESSAGE Isso nao e um livro.
-RETURN 1
+[FUNCTION book_copy]
+if (!<ISNUM <argv[0]>>)
+ sysmessageyellow Selecione o original.
+ targetf gm_book_copy
+elif !(<uid.<argv[0]>.more1>&080000000)
+ sysmessagered Este livro ainda esta aberto para edicao.
+ RETURN 1
+elif (<uid.<argv[0]>.morex>==1) && (!<isgm>)
+ sysmessagered Voce nao pode fazer uma segunda copia do livro. Procure o original.
+ RETURN 1
 ENDIF
-LINK=<SRC.TARG.SERIAL>
-TARGET EScolha um livro para copiar.
-RETURN 1
+LOCAL.pages=<book_getPages <argv[0]>>
+IF (<LOCAL.pages> > <BETWEEN 0,64,<inscription>,900>) && (!<isgm>)
+ sysmessagered Voce nao tem capacidade para copiar um livro com esse tanto de paginas.
+ELIF (!<LOCAL.pages>)
+ sysmessagered Este livro nao tem conteudo.
+ELIF (<LOCAL.pages> > <book_getInk>) && (!<isgm>)
+ sysmessagered Voce nao tem tinta o suficiente para copiar este livro.
+elif (<UID.<argv[0]>.topobj>!=<UID>)
+ sysmessagered O livro em precisa estar em seu poder
 ELSE
-IF !(<SRC.TARG.TYPE>==t_book)
-SRC.SYSMESSAGE Isso nao e um livro.
-LINK=0
-RETURN 1
-ENDIF
-IF (<SRC.TARG.ATTR>&010)
-SRC.SYSMESSAGE Voce nao pode mover isto.
-LINK=0
-RETURN 1
-ENDIF
-IF (<SRC.TARG.MORE1>&080000000)
-SRC.SYSMESSAGE Esse livro esta selado e nao pode ser escrito.
-LINK=0
-RETURN 1
-ENDIF
-IF !(<SRC.TARG.CONT>==<SRC.FINDLAYER(21).SERIAL>)
-SRC.SYSMESSAGE O livro deve estar em sua mochila.
-LINK=0
-RETURN 1
-ENDIF
-IF (<SRC.TARG.PAGES> > 0)
-SRC.SYSMESSAGE Esse livro ja foi escrito.
-LINK=0
-RETURN 1
-ENDIF
-
-IF (rand(110.0) < <SRC.INSCRIPTION>)
-SRC.NEWITEM <SRC.TARG.ID>
-SRC.ACT.ATTR=0
-SRC.ACT.MORE1=0
-SRC.ACT.NAME=<LINK.NAME>
-SRC.ACT.AUTHOR=<LINK.AUTHOR>
-SRC.ACT.LINK=<LINK.UID>
-SRC.ACT.MOREX=0
-SRC.COPYBOOK
-SRC.ACT.LINK=
-SRC.ACT.DISPID=<SRC.TARG.DISPID>
-SRC.ACT.COLOR=<SRC.TARG.COLOR>
-SRC.SFX 0247
-SRC.SYSMESSAGE Voce copiou o livro com sucesso.
-SRC.ACT.BOUNCE
-SRC.TARG.REMOVE
-LINK=0
-ELSE
-SRC.SYSMESSAGE Voce falhou em copiar o livro.
-LINK=0
-ENDIF
-
-IF (<SRC.INSCRIPTION> < 100.0)
-
-IF (<SRC.INSCRIPTION> < 30.0)
-IF (rand(3)=1)
-SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
-ENDIF
-ELSEIF (<SRC.INSCRIPTION> < 50.0)
-IF (rand(75)=1)
-SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
-ENDIF
-ELSEIF (<SRC.INSCRIPTION> < 80.0)
-IF (rand(100)=1)
-SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
-ENDIF
-ELSE
-IF (rand(200)=1)
-SRC.INSCRIPTION=<SRC.INSCRIPTION>+{ 1 20 2 5 3 2 4 1 }
-ENDIF
-ENDIF
-
-ENDIF
-
-IF (<SRC.INSCRIPTION> > 100.0)
-SRC.INSCRIPTION=100.0
-ENDIF
-
+ cTAG.obook=<argv[0]>
+ sysmessageyellow Selecione um livro em branco:
+ TARGETF _book_copy
+endif
 RETURN 1
 
+[FUNCTION _book_copy]
+if (!<argo.isitem>)
+ sysmessagered Alvo invalido
+elif (<argo.type>!=t_book)
+ sysmessagered Isso nao eh um livro
+elif (<argo.more1>&080000000) || (<argo.morex>)
+ sysmessagered Este livro nao eh editavel
+elif (<argo.topobj>!=<UID>)
+ sysmessagered O livro em branco precisa estar em seu poder
+elif (<book_getPages <argo.uid>>)
+ sysmessagered Este livro nao esta em branco
+elif (!<ISNEARTYPE t_escrivaninha 1>) && (!<ISNEARTYPE t_table 1>)
+ sysmessagered Posicione-se adequadamente numa mesa ou escrivaninha
+else
+ cTAG.bookn=<argo.uid>
+ cTAG.timer=<eval <book_getPages <cTAG0.obook>>*3>
+ cTAG.timer=<BETWEEN2 <cTAG0.timer>,1,<inscription>,1500>
+ cTAG.cP.x=<p.x>
+ cTAG.cP.y=<p.y>
+ EVENTS +e_no_attack
+ EVENTS +e_no_dclick
+ TIMERF 1,__book_copy
+ emoteyellow copiando livro
+endif
+return 1
+
+[FUNCTION __book_copy]
+if (<cTAG0.disturb>) || (<cTAG0.cP.x>!=<p.x>) || (<cTAG0.cP.y>!=<p.y>)
+ EVENTS -e_no_attack
+ EVENTS -e_no_dclick
+ cTAG.disturb
+ sysmessagered Voce foi perturbado
+ return 1
+endif
+doswitch <cTAG0.anim>
+ emoteyellow escrevendo
+ 0
+ anim 33
+ emoteyellow escrevendo
+ sfx 0249
+ 0
+ anim 19
+enddo
+cTAG.anim <QVAL <cTAG0.anim> <= 6?<cTAG0.anim>+1:0>
+cTAG.timer -= 1
+if (!<cTAG0.timer>)
+ IF (<book_consumeInk <book_getPages <cTAG0.obook>>>)
+  UID.<cTAG0.obook>.dupe
+  UID.<cTAG0.obook>.morex=1
+  UID.<cTAG0.obook>.tag.owner=2
+  UID.<cTAG0.obook>.dispid=<UID.<cTAG0.bookn>.dispid>
+  UID.<cTAG0.obook>.more1=080000000
+  UID.<cTAG0.obook>.update
+  UID.<cTAG0.bookn>.remove
+  emoteyellow terminou
+  sysmessagered Terminou de copiar <UID.<cTAG0.obook>.tag.name>
+  skill_gain Skill_Inscription
+ else
+  sysmessagered Sua tinta acabou.
+ endif
+else
+ timerf 1,__book_copy
+ EVENTS -e_no_attack
+ EVENTS -e_no_dclick
+ cTAG.disturb
+endif
+
+
+[FUNCTION gm_book_copy]
+if (<argo.type>==t_book)
+ argo.dupe
+ argo.dispid=i_book_lg_pub
+ argo.morex=1
+ argo.tag.owner=2
+ argo.update
+ argo.more1=080000000
+endif
+
+[FUNCTION book_getPages]
+obj=<argn1>
+for p 1 64
+ IF (!<ISEMPTY <obj.tag.page.<dLOCAL.p>>>)
+  LOCAL.pa += 1
+ endif
+endfor
+RETURN <LOCAL.pa>
+
+[FUNCTION book_getInk]
+FORCONTID i_pen_and_ink 3
+ LOCAL.ret += <more1>
+ENDFOR
+RETURN <LOCAL.ret>
+
+[FUNCTION book_consumeInk]
+//<argn1> quantidade a gastar
+//retorna 1 se bem sucedido
+OBJ=<UID>
+LOCAL.ret=0
+LOCAL.amt=<argn1>
+FORCONTID i_pen_and_ink 3
+ IF (<LOCAL.amt>)
+  IF (<more1> > <LOCAL.amt>)
+   MORE1 -= <LOCAL.amt>
+   LOCAL.amt=0
+   update
+   LOCAL.ret=1
+  ELSE
+   LOCAL.amt -= <MORE1>
+   serv.newitem i_bottle_empty
+   obj.bounce <new>
+   remove
+  ENDIF
+ ELSE
+  LOCAL.ret=1
+ ENDIF
+ENDFOR
+RETURN <LOCAL.ret>
 
 [FUNCTION desselar_livro]
 more1 ^= 080000000
@@ -326,7 +239,7 @@ if (<more2>)
  return 0
 endif
 call f_book_start
-src.addcliloc 1042971,<LOCAL.name>
+src.addcliloc 1042971,<LOCAL.name> <QVAL <morex>?(copia):>
 src.addcliloc 1070722,Por: <LOCAL.author>
 return 1
 
@@ -579,6 +492,7 @@ DESCRIPTION=Livro (bege)
 NAME=Livro
 DEFNAME=i_book_sm
 RESOURCES=1 I_CANVAS, 10 I_PAPER, 1 I_THREAD, 1 I_HIDE
+TYPE=T_BOOK
 WEIGHT=2
 CATEGORY=MyT - Sistemas
 SUBSECTION=Livros
