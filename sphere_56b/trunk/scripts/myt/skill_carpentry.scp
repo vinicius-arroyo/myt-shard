@@ -153,6 +153,61 @@ src.fazitem
 return 1
 
 //*****************************************************************************
+// cr_fazEstofada
+//*****************************************************************************
+[FUNCTION cr_fazEstofada]
+//<argv[0]> ITEMDEF da cadeira
+//<argv[1]> Qtd de pregos (0=nenhum)
+//<argv[2]> Qtd de tabuas (0=nenhum)
+//<argv[3]> 1 se precisa de i_base_cadeira
+//<argv[4]> dif (0 a 100)
+SYSMESSAGEYELLOW Selecione o estofamento:
+TARGETF _cr_fazEstofada <argv[0]>,<argv[1]>,<argv[2]>,<argv[3]>,<argv[4]>
+
+[FUNCTION _cr_fazEstofada]
+if (<argo.baseid> != i_estofamento)
+ SYSMESSAGERED Isso nao eh estofamento. Procure um costureiro.
+ return 1
+endif
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=carpentry
+obj.tag.uid1=<argo.uid>
+obj.tag.amt1=1
+obj.tag.nam1=estofamento
+LOCAL.temp=2
+if (<argv[1]> != 0)
+ obj.tag.res<dLOCAL.temp>=i_pregos
+ obj.tag.amt<dLOCAL.temp>=<eval <argv[1]>>
+ obj.tag.nam<dLOCAL.temp>=pregos
+ LOCAL.temp += 1
+endif
+if (<argv[2]> != 0)
+ obj.tag.res<dLOCAL.temp>=i_tabua
+ obj.tag.nam<dLOCAL.temp>=tabua
+ obj.tag.amt<dLOCAL.temp>=<eval <argv[2]>>
+ LOCAL.temp += 1
+endif
+if (<argv[3]> != 0)
+ obj.tag.res<dLOCAL.temp>=i_base_chair
+ obj.tag.nam<dLOCAL.temp>=base para cadeira
+ obj.tag.amt<dLOCAL.temp>=1
+endif
+obj.tag.dif=<eval <argv[4]>>
+obj.tag.anim=9
+obj.tag.sfx=023d
+obj.tag.delay=<BETWEEN 0,35,<argv[4]>,100>
+obj.tag.emote=montando
+obj.tag.espid=i_martelo
+obj.tag.espname=martelo
+obj.tag.wmakefurn=1
+obj.tag.item=<argv[0]>
+IF (<argv[0]>!=i_chair_throne)
+ obj.tag.color=<argo.color>
+ENDIF
+src.fazitem
+
+//*****************************************************************************
 //*****************************************************************************
 // ITEMDEFs - Ferramentas
 //*****************************************************************************
@@ -345,6 +400,7 @@ DUPELIST=01027
 [ITEMDEF i_torneira]
 NAME=torneira para barril
 ID=01004
+TYPE=t_preitem_carpentry
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Tinker
 DESCRIPTION=estofamento
@@ -353,6 +409,7 @@ DESCRIPTION=estofamento
 //para ser colocado em tailoring
 NAME=estofamento
 ID=0163c
+TYPE=t_preitem_carpentry
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Tailor
 DESCRIPTION=estofamento
@@ -371,6 +428,7 @@ timer=30
 [ITEMDEF i_corda]
 NAME=corda
 ID=014f8
+TYPE=t_buy_misc
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Tailor
 DESCRIPTION=corda
@@ -420,7 +478,6 @@ text 335 59 995 16
 text 335 79 995 17 
 text 335 99 995 18
 text 300 220 200 19
-text 51 220 200 20  
 button 31 64 2224 2224 1 0 1	//arco besta		
 button 31 84 2224 2224 1 0 2	// municao	
 button 31 104 2224 2224 1 0 3	// escudos
@@ -435,7 +492,6 @@ button 315 64 2224 2224 1 0 11	// ferramentas
 button 315 84 2224 2224 1 0 12	// luteria	
 button 315 104 2224 2224 1 0 13	// outros	
 button 280 224 2224 2224 1 0 14 // botão make last item
-button 31 224 2224 2224 1 0 15 // botão make last item
 
 [DIALOG d_menu_cr TEXT]
 Carpinteiro
@@ -458,7 +514,7 @@ Ferramentas
 Luteria
 Outros
 Fazer Ultimo Item
-Selecionar Recurso
+
 
 
 [DIALOG d_menu_cr BUTTON]
@@ -501,9 +557,7 @@ dialog d_menu_cr
 return 1
 
 on=9
-src.sysmessageyellow	sistema em manutencao
-dialog d_menu_cr
-//SKILLMENU=sm_cr_cadeiras
+SKILLMENU=sm_cr_cadeiras
 return 1
 
 on=10
@@ -528,11 +582,6 @@ on=14
 src.dialog_fazitem
 return 1
 
-on=15
-//src.dialog=d_menures_carpinter
-src.sysmessageyellow	sistema em manutencao
-dialog d_menu_cr
-return 1
 
 //*****************************************************************************
 // d_menures_carpinter
@@ -2102,129 +2151,137 @@ src.cr_fazitem2
 [SKILLMENU sm_cr_cadeiras]
 O que deseja construir ?
 
-ON=i_tabua tabuas (1 T)
+ON=i_tabua tabuas
 src.cr_faztabua
 
-on=i_suporte suporte (5 B)
-TESTIF=(<src.restest 5 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote>) && (<src.carpentry> >= 300)
-src.tag.cr_make=i_suporte
-src.tag.cr_resn=i_tabua
-src.tag.cr_res=5
-src.tag.cr_delay=5
-src.tag.cr_dif=10
-src.tag.cr_name=tabua tratada
-src.cr_fazitem
+ON=i_base_chair base pra cadeira
+TESTIF=(<src.carpentry> >= 400)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=carpentry
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
+obj.tag.amt1=3
+obj.tag.res2=i_pregos
+obj.tag.amt2=5
+obj.tag.dif=55
+obj.tag.anim=9
+obj.tag.sfx=023d
+obj.tag.delay=12
+obj.tag.emote=entalhando
+obj.tag.espid=i_talhadeira
+obj.tag.espname=talhadeira
+obj.tag.scrap=i_foligem_carp
+obj.tag.item=i_base_chair
+src.fazitem
+return 1
 
-ON=i_cadeira_p base pra cadeira (10 B,7 PE)
-TESTIF=(<src.restest 10 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_martelo,1 i_talhadeira,7 i_pregos,1 i_serrote>) && (<src.carpentry> >= 400)
-src.tag.cr_make=i_cadeira_p
-src.tag.cr_resn=i_tabua
-src.tag.cr_resn2=i_pregos
-src.tag.cr_res=10
-src.tag.cr_res2=7
-src.tag.cr_delay=6
-src.tag.cr_dif=15
-src.tag.cr_name=base pra cadeira
-src.cr_fazitem2
+ON=0b2f cadeira
+TESTIF=(<src.carpentry> >= 400)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=carpentry
+obj.tag.res1=i_tabua
+obj.tag.nam1=tabua
+obj.tag.amt1=5
+obj.tag.res2=i_pregos
+obj.tag.amt2=10
+obj.tag.dif=52
+obj.tag.anim=9
+obj.tag.sfx=023d
+obj.tag.delay=15
+obj.tag.emote=martelando
+obj.tag.espid=i_martelo
+obj.tag.espname=martelo
+obj.tag.scrap=i_foligem_carp
+obj.tag.wmakefurn=1
+obj.tag.item=i_chair_wood_rough_dark
+src.fazitem
+return 1
 
-on=i_cadeiram cadeira de madeira(20 B,4 PE)
-TESTIF=(<src.restest 20 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,4 i_pregos>) && (<src.carpentry> >= 420) 
-src.tag.cr_make=i_cadeiram
-src.tag.cr_resn=i_tabua
-src.tag.cr_resn2=i_pregos
-src.tag.cr_res=20
-src.tag.cr_res2=4
-src.tag.cr_delay=10
-src.tag.cr_dif=20
-src.tag.cr_name=cadeira de madeira
-src.cr_fazitem2
+ON=i_chair_wood_bamboo cadeira
+TESTIF=(<src.carpentry> >= 400)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=carpentry
+obj.tag.res1=i_base_chair
+obj.tag.amt1=1
+obj.tag.nam1=base para cadeira
+obj.tag.res2=i_pregos
+obj.tag.amt2=5
+obj.tag.nam2=pregos
+obj.tag.res3=i_tabua
+obj.tag.nam3=tabua
+obj.tag.amt3=3
+obj.tag.dif=57
+obj.tag.anim=9
+obj.tag.sfx=023d
+obj.tag.delay=17
+obj.tag.emote=martelando
+obj.tag.espid=i_martelo
+obj.tag.espname=martelo
+obj.tag.scrap=i_foligem_carp
+obj.tag.wmakefurn=1
+obj.tag.item=i_chair_wood_bamboo
+src.fazitem
+return 1
 
+ON=i_chair_wood cadeira
+TESTIF=(<src.carpentry> >= 530)
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.skill=carpentry
+obj.tag.res1=i_base_chair
+obj.tag.amt1=1
+obj.tag.nam1=base para cadeira
+obj.tag.res2=i_pregos
+obj.tag.amt2=5
+obj.tag.nam2=pregos
+obj.tag.res3=i_tabua
+obj.tag.nam3=tabua
+obj.tag.amt3=3
+obj.tag.dif=59
+obj.tag.anim=9
+obj.tag.sfx=023d
+obj.tag.delay=19
+obj.tag.emote=martelando
+obj.tag.espid=i_martelo
+obj.tag.espname=martelo
+obj.tag.scrap=i_foligem_carp
+obj.tag.wmakefurn=1
+obj.tag.item=i_chair_wood
+src.fazitem
+return 1
 
-on=i_cadeira_simples simples(15B,4PE,BA,SP)
-TESTIF=(<src.restest 15 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,4 i_pregos,1 i_cadeira_p,1 i_suporte>) && (<src.carpentry> >= 435) 
-src.tag.cr_make=i_cadeira_simples
-src.tag.cr_resn=i_tabua
-src.tag.cr_resn2=i_pregos
-src.tag.cr_resn3=i_suporte
-src.tag.cr_resn4=i_cadeira_p
-src.tag.cr_res4=1
-src.tag.cr_res3=1
-src.tag.cr_res=15
-src.tag.cr_res2=4
-src.tag.cr_delay=10
-src.tag.cr_dif=20
-src.tag.cr_name=cadeira simples
-src.cr_fazitem4
+on=i_chair_wood_cushion
+TESTIF=(<src.carpentry> >= 700) 
+//<argv[0]> ITEMDEF da cadeira
+//<argv[1]> Qtd de pregos
+//<argv[2]> Qtd de tabuas
+//<argv[3]> 1 se precisa de i_base_cadeira
+//<argv[4]> dif (0 a 100)
+src.cr_fazEstofada i_chair_wood_cushion,10,0,1,71
+return 1
 
-on=i_cadeira_simples2 simples(15B,4PE,BA,SP)
-TESTIF=(<src.restest 15 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,4 i_pregos,1 i_cadeira_p,1 i_suporte>) && (<src.carpentry> >= 435) 
-src.tag.cr_make=i_cadeira_simples2
-src.tag.cr_resn=i_tabua
-src.tag.cr_resn2=i_pregos
-src.tag.cr_resn3=i_suporte
-src.tag.cr_resn4=i_cadeira_p
-src.tag.cr_res4=1
-src.tag.cr_res3=1
-src.tag.cr_res=15
-src.tag.cr_res2=4
-src.tag.cr_delay=10
-src.tag.cr_dif=20
-src.tag.cr_name=cadeira simples
-src.cr_fazitem4
+on=i_chair_wood_fancy_cushion
+TESTIF=(<src.carpentry> >= 800) 
+//<argv[0]> ITEMDEF da cadeira
+//<argv[1]> Qtd de pregos
+//<argv[2]> Qtd de tabuas
+//<argv[3]> 1 se precisa de i_base_cadeira
+//<argv[4]> dif (0 a 100)
+src.cr_fazEstofada i_chair_wood_fancy_cushion,15,1,1,81
+return 1
 
-on=i_cadeira_estofada estofada(18B,5PE,BA,ST,SP)
-TESTIF=(<src.restest 18 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,5 i_pregos,1 i_cadeira_p,1 i_estofamento,1 i_suporte>) && (<src.carpentry> >= 450) 
-src.tag.cr_make=i_cadeira_estofada
-src.tag.cr_resn=i_tabua
-src.tag.cr_resn2=i_pregos
-src.tag.cr_resn3=i_suporte
-src.tag.cr_resn4=i_cadeira_p
-src.tag.cr_resn5=i_estofamento
-src.tag.cr_res4=1
-src.tag.cr_res5=1
-src.tag.cr_res3=1
-src.tag.cr_res=18
-src.tag.cr_res2=5
-src.tag.cr_delay=10
-src.tag.cr_dif=20
-src.tag.cr_name=cadeira estofada
-src.cr_fazitem5
-
-on=i_cadeira_estofada2 estofada(18B,5PE,BA,ST,SP)
-TESTIF=(<src.restest 18 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,5 i_pregos,1 i_cadeira_p,1 i_estofamento,1 i_suporte>) && (<src.carpentry> >= 450) 
-src.tag.cr_make=i_cadeira_estofada2
-src.tag.cr_resn=i_tabua
-src.tag.cr_resn2=i_pregos
-src.tag.cr_resn3=i_suporte
-src.tag.cr_resn4=i_cadeira_p
-src.tag.cr_resn5=i_estofamento
-src.tag.cr_res4=1
-src.tag.cr_res5=1
-src.tag.cr_res3=1
-src.tag.cr_res=18
-src.tag.cr_res2=5
-src.tag.cr_delay=10
-src.tag.cr_dif=20
-src.tag.cr_name=cadeira estofada
-src.cr_fazitem5
-
-on=i_trono trono(20B,6PE,BA,ST,SP)
-TESTIF=(<src.restest 20 i_tabua,1 i_serra,1 i_alisar_pequeno,1 i_alisar_moldador,1 i_alisar,1 i_raspadeira_p,1 i_talhadeira,1 i_serrote,6 i_pregos,1 i_cadeira_p,1 i_estofamento,1 i_suporte>) && (<src.carpentry> >= 495) 
-src.tag.cr_make=i_trono
-src.tag.cr_resn=i_tabua
-src.tag.cr_resn2=i_pregos
-src.tag.cr_resn3=i_suporte
-src.tag.cr_resn4=i_cadeira_p
-src.tag.cr_resn5=i_estofamento
-src.tag.cr_res4=1
-src.tag.cr_res5=1
-src.tag.cr_res3=1
-src.tag.cr_res=20
-src.tag.cr_res2=6
-src.tag.cr_delay=20
-src.tag.cr_dif=30
-src.tag.cr_name=trono
-src.cr_fazitem5
+on=i_chair_throne
+TESTIF=(<src.carpentry> >= 950) 
+//<argv[0]> ITEMDEF da cadeira
+//<argv[1]> Qtd de pregos
+//<argv[2]> Qtd de tabuas
+//<argv[3]> 1 se precisa de i_base_cadeira
+//<argv[4]> dif (0 a 100)
+src.cr_fazEstofada i_chair_throne,30,10,0,97
+return 1
 
 
 //*****************************************************************************

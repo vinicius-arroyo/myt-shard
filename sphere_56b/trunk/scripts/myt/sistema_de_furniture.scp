@@ -135,7 +135,7 @@ return 1
 [MENU m_furniture]
 (MyT) O que deseja fazer? (MyT)
 on=0 Fixar o movel no chao.
-src.findid(i_mry_furniture).link.attr=(<src.findid(i_mry_furniture).link.attr>|08010)
+src.findid(i_mry_furniture).link.attr=(<src.findid(i_mry_furniture).link.attr>|010)
 src.findid(i_mry_furniture).link.attr=(<src.findid(i_mry_furniture).link.attr>&~02)
 src.findid(i_mry_furniture).link.update
 src.findid(i_mry_furniture).link.timer=-1
@@ -146,7 +146,7 @@ src.findid(i_mry_furniture).remove
 return 1
 
 on=0 Soltar o movel do chao.
-src.findid(i_mry_furniture).link.attr=(<src.findid(i_mry_furniture).link.attr>&~08010)
+src.findid(i_mry_furniture).link.attr=(<src.findid(i_mry_furniture).link.attr>&~010)
 src.findid(i_mry_furniture).link.update
 src.update
 src.sysmessageyellow Seu movel NAO esta fixo.
@@ -173,7 +173,6 @@ else
  src.findid(i_mry_furniture).link.remove
 endif
 src.findid(i_mry_furniture).remove
-src.subfurn
 src.sysmessagered Seu movel foi apagado.
 return 1
 
@@ -318,12 +317,35 @@ else
 endif
 return 1
 
+on=@clienttooltip
+if (!<src.IsGM>)
+ return 0
+endif
+f_sendTooltip <name>, Dono: <UID.<tag0.dono>.tag.name> [<UID.<tag0.dono>.account.name>] <DEF.BR> Moveis: <eval <UID.<tag0.dono>.tag.furniact>-1>/<eval <UID.<tag0.dono>.tag.furnimax>-1>
+return 1
+
+on=@destroy
+IF (<UID.<tag0.dono>.ISPLAYER>)
+ obj=<UID.<tag0.dono>.UID>
+ obj.tag.furniact -= 1 
+// obj.say <UID> -- <obj.tag.furnitures>
+ obj.tag.furnitures=<obj.f_RemoveList <UID>,<obj.tag.furnitures>>
+ f_sendMessage <obj.uid>,Seu movel (<name>) em <region.name> foi destruido!,024
+ serv.log [furniture] <name> (<UID>) de dono <obj.tag.name> [<obj.account.name>] - DESTRUIDO!
+ENDIF
+
+
 [MENU m_addfurn]
 Voce tem <eval <tag0.furniact>-1>  moveis e o maximo permitido eh <eval <tag0.furnimax>-1>. Deseja fazer de <UID.<ctag0.furn>.name> seu movel?
 on=0 Sim
 obj=<src.ctag.furn>
 IF (<src.AddFurn>)
-	obj.tag.dono=<src.uid>
+ obj.tag.dono=<src.uid>
+ IF (<ISEMPTY <src.tag.furnitures>>)
+  src.tag.furnitures=<obj.uid>
+ ELSE
+  src.tag.furnitures=<obj.uid>;<src.tag.furnitures>
+ obj.update
 ELSE
 	src.sysmessagered Voce nao pode ter mais moveis!
 ENDIF
