@@ -1,121 +1,148 @@
-   //###################################//
-  //  Sistema e criacao de animais     //
- //            V 0.1 Por Silver       //
-//###################################//
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE ANIMAIS por
+//
+//  Silver
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//TODO:
 
-[EVENTS e_sistema_animal_porco]
-ON=@create
-if !(<restest 1 i_mry_age_animal>)
-  newitem i_mry_age_animal_ovelha
-  act.equip
-  act.timer=12*60*60 ///Pra cada animal vc pode mudar.
-  act.more1=12*60*60 //Pra no ano seguinte ser o mesmo timer, vou salvar aki.
-  tag.age=1
+//TAGS usadas:
+
+//*****************************************************************************
+//*****************************************************************************
+// EVENTs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// e_domesticos
+//*****************************************************************************
+[FUNCTION anim_domestico]
+serv.newitem i_mry_age_animal
+new.cont=<uid>
+new.timer=4*60*60   //1 dia in-game
+new.morex=0         //idade em dias
+
+dorand 2
+    tag.sexo=1      //macho
+    tag.sexo=2      //femea
+enddo
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_racao
+//*****************************************************************************
+[TYPEDEF t_racao]
+ON=@DCLICK
+bounce
+src.sysmessageyellow Selecione o animal:
+target 
+return 1
+
+ON=@TARGON_CHAR
+if (<src.targ.memoryfindtype.memory_ipet.link>==<src.uid>)
+    consume
+    sfx 006f
+
+    if (<src.targ.findid.i_mry_age_animal.morex> <= 4 ) || (0<src.targ.tag.prenha>) || (<src.animallore> <= 450) || (0<src.targ.tag.sexo>==1)
+        src.sysmessageyellow O animal come e volta a sua rotina.
+    //so inicia acasalamento se for femea, com idade, nao prenha e com animallore suficiente
+    else (<src.targ.body>==c_chicken) || (<src.targ.body>==c_pig_big) || (<src.targ.body>==c_pig) || (<src.targ.body>==c_cow_brown) || (<src.targ.body>==c_cow_bw) 
+        src.targ.tag.prenha=1
+        serv.newitem i_criador
+        new.link=<src.targ.uid>
+        new.cont=<src.uid>  
+        new.dclick
+    endif
+else
+    src.sysmessageyellow Esse animal nao lhe pertence.
+endif
+return 1
+
+ON=@TARGON_GROUND
+src.sysmessageyellow Alvo invalido.
+return 1
+
+ON=@TARGON_ITEM
+src.sysmessageyellow Alvo invalido.
+return 1 
+ 
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// f_giveBirth
+//*****************************************************************************
+[FUNCTION f_giveBirth]
+
+if (<link.id>==c_pig_big)
+    if (!<R0,5>)
+        LOCAL.c=1
+        LOCAL.f=c_pig_big
+    else
+        LOCAL.c=4
+        LOCAL.f=c_pig
+    endif
+endif
+
+link.emoteyellow da a luz
+link.tag.prenha=
+serv.newitem=i_blood_pool_large
+new.p=<link.p>
+new.timer=2
+new.attr=02
+
+//generate some stats
+dorand 2
+    LOCAL.str=link.str
+    LOCAL.str=cont.str
+enddo
+dorand 2
+    LOCAL.dex=link.dex
+    LOCAL.dex=cont.dex
+enddo
+dorand 2
+    LOCAL.int=link.int
+    LOCAL.int=cont.int
+enddo
+
+while (<local.c>>0)
+    LOCAL.c -= 1
+    serv.newnpc <LOCAL.f>
+    new.movenear <link.p> 3
+    new.str=<LOCAL.str>
+    new.dex=<LOCAL.dex>
+    new.int=<LOCAL.int>
+endwhile
+
+if (!<R0,15>)
+    link.emotered morreu
+    link.suicide
+else
+    link.anim 3
 endif
 
 
-[EVENTS e_sistema_animal_porco]
-ON=@create
-if !(<restest 1 i_mry_age_animal>)
-  newitem i_mry_age_animal_porco
-  act.equip
-  act.timer=12*60*60 ///Pra cada animal vc pode mudar.
-  act.more1=12*60*60 //Pra no ano seguinte ser o mesmo timer, vou salvar aki.
-  tag.age=1
-endif
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
 
-[EVENTS e_sistema_animal_ovelha]
-ON=@create
-if !(<restest 1 i_mry_age_animal>)
-  newitem i_mry_age_animal_ovelha
-  act.equip
-  act.timer=12*60*60 ///Pra cada animal vc pode mudar.
-  act.more1=12*60*60 //Pra no ano seguinte ser o mesmo timer, vou salvar aki.
-  tag.age=1
-endif
-
-[EVENTS e_sistema_animal_galinha]
-ON=@create
-if !(<restest 1 i_mry_age_animal_galinha>)
-  newitem i_mry_age_animal_ovelha
-  act.equip
-  act.timer=12*60*60 ///Pra cada animal vc pode mudar.
-  act.more1=12*60*60 //Pra no ano seguinte ser o mesmo timer, vou salvar aki.
-  tag.age=1
-endif
-
-[EVENTS e_sistema_animal_vaca]
-ON=@create
-if !(<restest 1 i_mry_age_animal_vaca>)
-  newitem i_mry_age_animal_ovelha
-  act.equip
-  act.timer=12*60*60 ///Pra cada animal vc pode mudar.
-  act.more1=12*60*60 //Pra no ano seguinte ser o mesmo timer, vou salvar aki.
-  tag.age=1
-endif
-
-
-[EVENTS e_treinavel]
-ON=@HIT
-IF (<MEMORYFINDTYPE.memory_ipet>)&&!(<FLAGS>&04000000)
-	VAR.QUESUBO=0<EVAL {0 4}>
-
-IF (<VAR.QUESUBO>==0)
-	IF (RAND(7)==<VAR.QUESUBO>)&&(<STR> < 300)
-	STR=<STR>+0<EVAL {1 3}>+(0<EVAL 0<TAG.SUBEPLUS>>)
-	SAY * <NAME> e agora mais forte!!! *
-	ENDIF
-ELSEIF (<VAR.QUESUBO>==1)
-	IF (RAND(7)==<VAR.QUESUBO>)&&(<DEX> < 200)
-	DEX=<DEX>+0<EVAL {1 3}>+(0<EVAL 0<TAG.SUBEPLUS>>)
-	SAY * <NAME> e agora mais agil!!! *	
-	ENDIF
-ELSEIF (<VAR.QUESUBO>==2)
-	IF (RAND(7)==<VAR.QUESUBO>)&&(<TACTICS> < 100.0)
-	TACTICS=<TACTICS>+0.5+(0<EVAL 0<TAG.SUBEPLUS>>)
-	SAY * <NAME> agora tem melhores taticas !!! *
-	ENDIF
-ELSEIF (<VAR.QUESUBO>==3)
-	IF (RAND(7)==<VAR.QUESUBO>)&&(<PARRYING> < 100.0)
-	PARRYING=<PARRYING>+0.5+(0<EVAL 0<TAG.SUBEPLUS>>)
-	SAY * <NAME> agora tem melhor devesa *
-	ENDIF
-ELSEIF (<VAR.QUESUBO>==4)
-	IF (RAND(7)==<VAR.QUESUBO>)&&(<WRESTLING> < 100.0)
-	WRESTLING=<WRESTLING>+0.5+(0<EVAL 0<TAG.SUBEPLUS>>)
-	SAY * <NAME> Luta melhor agora!!! *
-	ENDIF
-ENDIF
-IF (<TACTICS> > 100.0)
-TACTICS=100.0
-ENDIF
-IF (<WRESTLING> > 100.0)
-TACTICS=100.0
-ENDIF
-IF (<PARRYING> > 100.0)
-TACTICS=100.0
-ENDIF
-ENDIF
-
-ON=@SPELLEFFECT
-IF !(<SRC.UID>==<MEMORYFINDTYPE.memory_ipet.LINK>)
-IF (<ARGN>==1)||(<ARGN>==3)||(<ARGN>==5)||(<ARGN>==8)||(<ARGN>==12)||(<ARGN>==18)||(<ARGN>==20)||(<ARGN>==27)||(<ARGN>==28)||(<ARGN>==30)||(<ARGN>==31)||(<ARGN>==37)||(<ARGN>==39)||(<ARGN>==42)||(<ARGN>==43)||(<ARGN>==46)||(<ARGN>==47)||(<ARGN>==49)||(<ARGN>==51)||(<ARGN>==53)||(<ARGN>==55)||(<ARGN>==57)||(<ARGN>==69)||(<ARGN>==70)
-		IF (RAND(7)==1)
-		MAGICRESISTANCE=<MAGICRESISTANCE>+0.5
-		SAY *<NAME> e agora mais resistente a magia *
-		ENDIF
-	IF (RAND(189) < 0<EVAL <MAGICRESISTANCE>/10>)
-		SYSMESSAGE * resistiu a magia *
-	RETURN 1
-	ENDIF	
-ENDIF
-ENDIF
-
-
-
-
-//########### itens para criacao ##########//
-
+//*****************************************************************************
+// i_eggs_fresh
+//*****************************************************************************
 [ITEMDEF 09b5]
 DEFNAME=i_eggs_fresh
 VALUE=1
@@ -127,10 +154,13 @@ SUBSECTION=Cook
 DESCRIPTION=Eggs
 
 ON=@STEP
-SFX 0040
+sfx 0040
 src.emotered quebra os ovos
-REMOVE
+remove
 
+//*****************************************************************************
+// i_ninho
+//*****************************************************************************
 [ITEMDEF i_ninho]
 ID=01AD4
 NAME=ninho 
@@ -140,65 +170,59 @@ SUBSECTION=Farmer
 DESCRIPTION=ninho de galinha
 
 ON=@DCLICK
-src.newitem i_eggs_fresh
-src.act.amount={0 4}
-src.act.bounce
+serv.newitem i_eggs_fresh
+new.amount={0 4}
+new.bounce
+serv.newitem i_ninho_vazio
+new.p=<p>
 remove
-src.newitem i_ninho_vazio
-src.act.p=<p>
 return 1
 
-ON=@create
+ON=@CREATE
 timer=600
 
-ON=@timer
-link=0<var.linkg>
+ON=@TIMER
 
-if (<eval 0<{0 10}> >= 10)
-	link.NEWNPC c_chicken
-	link.act.TAG.sexo=2
-	link.act.P=<link.P>
-	link.NEWNPC c_chicken
-	link.ACT.TAG.sexo=2
-	link.ACT.P=<LINK.P>
-	link.NEWNPC c_chicken
-	link.ACT.TAG.sexo=2
-	link.ACT.P=<LINK.P>
-	link.NEWNPC c_chicken
-	link.ACT.TAG.sexo=2
-	link.ACT.P=<LINK.P>
-	link.message * Os ovos chocaram e nasceram galinhas *
-	remove
-	return 1
+if (<R0,1> == 0)
+    for R 1 4
+        serv.newnpc c_chicken
+        new.p=<p>
+    endfor
 else
-	link.NEWNPC c_galo
-	link.ACT.TAG.sexo=1
-	link.ACT.P=<link.P>
-	link.NEWNPC c_galo
-	link.ACT.TAG.sexo=1
-	link.ACT.P=<LINK.P>
-	link.message * Os ovos chocaram e nasceram galos *
-	remove 
+    for R 1 2
+        serv.newnpc c_galo
+        new.p=<p>
+    endfor
 endif
+
+serv.newitem i_ninho_vazio
+new.p=<p>
+new.emotered os ovos chocaram
+
+remove
+sector.allclients update
+
 return 1
 
+//*****************************************************************************
+// i_ninho_vazio
+//*****************************************************************************
 [itemdef i_ninho_vazio]
-id=01ad5
-name=ninho (vazio)
-
+ID=01ad5
+NAME=ninho (vazio)
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Farmer
 DESCRIPTION=ninho vazio
 
-on=@create
+ON=@CREATE
 timer=60
+attr=attr_decay
 
-on=@timer
-remove
 
+//*****************************************************************************
+// i_milho
+//*****************************************************************************
 [ITEMDEF 0c7f]
-//Ear of Corn
-// DEFNAME2=CORN
 DEFNAME2=i_milho
 DEFNAME=i_fruit_corn
 RESOURCES=I_CROP_CORN
@@ -210,316 +234,116 @@ SUBSECTION=Fruits and Vegetables
 DESCRIPTION=Milho
 DUPELIST=0c80,0c81,0c82
 
-
-
+//*****************************************************************************
+// i_feno_1
+//*****************************************************************************
 [ITEMDEF i_feno_1]
 ID=0100c
 VALUE=1000
 NAME=Feno de pessima qualidade
 TYPE=t_feno
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Farmer
+DESCRIPTION=feno tipo E
 
 ON=@CREATE
 MORE2=1
 COLOR=089f
 
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Farmer
-DESCRIPTION=feno nota  E
-
+//*****************************************************************************
+// i_feno_2
+//*****************************************************************************
 [ITEMDEF i_feno_2]
 ID=0100c
 VALUE=2000
 NAME=feno de baixa qualidade
 TYPE=t_feno
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Farmer
+DESCRIPTION=feno tipo D
 
 ON=@CREATE
 MORE2=3
 COLOR=08a2
 
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Farmer
-DESCRIPTION=feno nota D
-
+//*****************************************************************************
+// i_feno_3
+//*****************************************************************************
 [ITEMDEF i_feno_3]
 ID=0100c
 VALUE=3000
 NAME=feno de qualidade regular
 TYPE=t_feno
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Farmer
+DESCRIPTION=feno tipo C
 
 ON=@CREATE
 MORE2=6
 COLOR=08a4
 
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Farmer
-DESCRIPTION=feno nota C
-
+//*****************************************************************************
+// i_feno_4
+//*****************************************************************************
 [ITEMDEF i_feno_4]
 ID=0100c
 VALUE=4000
 NAME=feno de boa qualidade 
 TYPE=t_feno
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Farmer
+DESCRIPTION=feno tipo B
 
 ON=@CREATE
 MORE2=10
 COLOR=029b
 
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Farmer
-DESCRIPTION=feno nota B
-
+//*****************************************************************************
+// i_feno_5
+//*****************************************************************************
 [ITEMDEF i_feno_5]
 ID=0100c
 VALUE=5000
 NAME=feno de otima qualidade
 TYPE=t_feno
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Farmer
+DESCRIPTION=feno tipo A
 
 ON=@CREATE
 MORE2=20
 COLOR=077d
 
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Farmer
-DESCRIPTION=feno nota A
+//*****************************************************************************
+// i_mry_age_animal
+//*****************************************************************************
+[ITEMDEF i_mry_age_animal]
+ID=i_memory
+TYPE=t_eq_script
+LAYER=layer_special
+NAME=Idade
 
-
-
-//##### types ####//
-
-[typedef t_milho]
-ON=@DCLICK
-TARGET Selecione o animal :
-timer=200
-src.equip
-RETURN 1
-
-ON=@TARGON_CHAR
-
-IF (<SRC.TARG.MEMORYFINDTYPE.memory_ipet.LINK>==<SRC.UID>)
- IF (<SRC.TARG.TAG.AGE> <= 4 ) || (<src.targ.tag.choca>==1) || (<src.animallore> <= 450) 
-	CONSUME
-        SFX 006f
-        src.f_sair
- ELSE (<SRC.TARG.BODY>==c_chicken) 
-	var.limpac=<src.targ.uid>
-        src.targ.tag.choca=1
-	SRC.TARG.say * co co cohhh *
-	SRC.NEWITEM i_criador_galinha
-	SRC.ACT.LINK=<SRC.TARG.UID>
-	SRC.ACT.MORE2=<MORE2>
-	SRC.ACT.MORE=<SRC.TARG.UID>
-	SRC.ACT.CONT=<SRC.UID>	
-	SRC.ACT.DCLICK
-	sfx 006f
-	consume
- ENDIF
-
-
-CONSUME
-SFX 006f
-ELSE
-SRC.MESSAGE Esse animal nao lhe pertence.
-
-ENDIF
-RETURN 1
-
-on=@targon_ground
-src.sysmessage Alvo invalido.
+ON=@TIMER
+morex += 1          //mais um dia de vida
+if (<morex> > <cont.str>)
+    cont.emotered morreu de velhice
+    cont.suicide
+    remove
+else
+    timer = 4*60*60 //1 dia in-game
+    morex += 1        
+endif
 return 1
 
-on=@targon_item
-trigger @targon_ground
-return 1
-
- 
- 
-
-[TYPEDEF t_feno]
-
-ON=@DCLICK
-TARGET Selecione o animal :
-timer=200
-src.equip
-
-RETURN 1
-
-ON=@TARGON_CHAR
-IF (<SRC.TARG.MEMORYFINDTYPE.memory_ipet.LINK>==<SRC.UID>)
- 
-  IF (<src.targ.body>==c_pig_big) && (<SRC.TARG.TAG.AGE> > 8 ) && (<src.targ.tag.prenha>!=1) && (<src.animallore> > 500) 
-        sfx 
-        var.limpap=<src.targ.uid>
-        src.targ.tag.prenha=1
-        src.targ.say * roooinc *
-        SRC.NEWITEM i_criador_porco
-	SRC.ACT.LINK=<SRC.TARG.UID>
-	SRC.ACT.MORE2=<MORE2>
-	SRC.ACT.MORE=<SRC.TARG.UID>
-	SRC.ACT.CONT=<SRC.UID>	
-	SRC.ACT.DCLICK
-	sfx 
-  ELIF (<src.targ.body>==c_pig)
-	CONSUME
-        src.f_sair
-  ELSE
-         CONSUME
-        SFX 003c
-        src.f_sair
-  ENDIF  
-
-
-
- IF (<src.targ.body>==c_sheep_woolly) && (<SRC.TARG.TAG.AGE> > 8 ) && (<src.targ.tag.prenha>!=1) && (<src.animallore> > 500) 
-        sfx 
-        var.limpap=<src.targ.uid>
-        src.targ.tag.prenha=1
-        src.targ.say * beehhhhh *
-        SRC.NEWITEM i_criador_ovelha
-	SRC.ACT.LINK=<SRC.TARG.UID>
-	SRC.ACT.MORE2=<MORE2>
-	SRC.ACT.MORE=<SRC.TARG.UID>
-	SRC.ACT.CONT=<SRC.UID>	
-	SRC.ACT.DCLICK
-	sfx 
-  ELIF (<src.targ.body>==c_goat)
-	CONSUME
-        src.f_sair
-  ELSE
-         CONSUME
-        SFX 003c
-        src.f_sair
-  ENDIF
- 
- IF (<SRC.TARG.TAG.AGE> <= 10 ) || (<src.targ.tag.prenha>==1) || (<src.animallore> <= 500) 
-	CONSUME
-        SFX 003c
-        src.f_sair
- ELIF (<SRC.TARG.BODY>==c_cow_brown) 
-	var.limpap=<src.targ.uid>
-        src.targ.tag.prenha=1
-	SRC.TARG.say * muhhhhhh *
-	SRC.NEWITEM i_criador_novo
-	SRC.ACT.LINK=<SRC.TARG.UID>
-	SRC.ACT.MORE2=<MORE2>
-	SRC.ACT.MORE=<SRC.TARG.UID>
-	SRC.ACT.CONT=<SRC.UID>	
-	SRC.ACT.DCLICK
-	sfx 0067
- 
- ELIF (<src.targ.body>==c_cow_bw) 
-        var.limpap=<src.targ.uid>
-        SRC.targ.tag.prenha=1
- 	SRC.NEWITEM i_criador_novo
-	SRC.ACT.LINK=<SRC.TARG.UID>
-	SRC.ACT.MORE2=<MORE2>
-	SRC.ACT.MORE=<SRC.TARG.UID>
-	SRC.ACT.CONT=<SRC.UID>	
-	SRC.ACT.DCLICK
-	src.targ.say * muhhhhhh *
-        sfx 0067
-	
- 
- ELIF (<src.targ.body>==c_bull_brown_lt) 
-	CONSUME
-        SFX 003c
-        src.f_sair
-
-
- 	
- ELIF (<src.targ.body>==c_bull_brown_dk) 
-	CONSUME
-        SFX 003c
-        src.f_sair
- ENDIF
-
- 
-
-SFX 003c
-consume
-
-ELSE
-SRC.MESSAGE Esse animal nao lhe pertence.
-ENDIF
-RETURN 1
-
-on=@targon_ground
-src.sysmessage Alvo invalido.
-return 1
-
-on=@targon_item
-trigger @targon_ground
-return 1
-
-
-
-//############primeira coisa  para reproducao
-
-//#### memory de idade ###//
-[ITEMDEF i_mry_age_animal_galinha]
-ID=i_memory //só desenho.
-TYPE=t_eq_script //é um t_script q pode equipar
-LAYER=30 //Layer pra memoryes
-NAME=Idade do animal
-
-on=@timer
-cont.tag.age=<cont.tag.age>+1
-IF (0<EVAL 0<CONT.TAG.AGE>> > 0<EVAL {14 + (0<EVAL 0<CONT.STR>/3>)}>)
-SAY 0<NAME> morreu .... //esse ZERO tá deixando feio.
-SUICIDE
-ELSE
-timer=<more1>
-ENDIF
-
-[ITEMDEF i_mry_age_animal_vaca]
-ID=i_memory //só desenho.
-TYPE=t_eq_script //é um t_script q pode equipar
-LAYER=30 //Layer pra memoryes
-NAME=Idade do animal
-
-on=@timer
-cont.tag.age=<cont.tag.age>+1
-IF (0<EVAL 0<CONT.TAG.AGE>> > 0<EVAL {25 + (0<EVAL 0<CONT.STR>/3>)}>)
-SAY 0<NAME> morreu .... //esse ZERO tá deixando feio.
-SUICIDE
-ELSE
-timer=<more1>
-ENDIF
-
-[ITEMDEF i_mry_age_animal_porco]
-ID=i_memory //só desenho.
-TYPE=t_eq_script //é um t_script q pode equipar
-LAYER=30 //Layer pra memoryes
-NAME=Idade do animal
-
-on=@timer
-cont.tag.age=<cont.tag.age>+1
-IF (0<EVAL 0<CONT.TAG.AGE>> > 0<EVAL {22 + (0<EVAL 0<CONT.STR>/3>)}>)
-SAY 0<NAME> morreu .... //esse ZERO tá deixando feio.
-SUICIDE
-ELSE
-timer=<more1>
-ENDIF
-
-[ITEMDEF i_mry_age_animal_ovelha]
-ID=i_memory //só desenho.
-TYPE=t_eq_script //é um t_script q pode equipar
-LAYER=30 //Layer pra memoryes
-NAME=Idade do animal
-
-on=@timer
-cont.tag.age=<cont.tag.age>+1
-IF (0<EVAL 0<CONT.TAG.AGE>> > 0<EVAL {22 + (0<EVAL 0<CONT.STR>/3>)}>)
-SAY 0<NAME> morreu .... //esse ZERO tá deixando feio.
-SUICIDE
-ELSE
-timer=<more1>
-ENDIF
 
 //#### memory das galinha
 
-[ITEMDEF i_criador_galinha]
+//*****************************************************************************
+// i_criador
+//*****************************************************************************
+[ITEMDEF i_criador]
 ID=i_memory
-NAME=Sim e legal
+NAME=Criador
 TYPE=t_eq_script
 
 ON=@DCLICK
@@ -528,577 +352,61 @@ TIMER=200
 RETURN 1
 
 ON=@TARGON_CHAR
-IF (<SRC.TARG.TAG.sexo>==<LINK.TAG.sexo>)
-SRC.SYSMESSAGE Eles tem o mesmo sexo.
-link.tag.choca= 
-REMOVE
-RETURN 1
-ENDIF
-IF !(<SRC.TARG.MEMORYFINDTYPE.memory_ipet.LINK>==<SRC.UID>)
-SRC.SYSMESSAGE Esse animal nao e seu.
-link.tag.choca=
-REMOVE
-RETURN 1
-ENDIF
 
+if (<src.targ.tag.sexo>==<link.tag.sexo>)
+    src.sysmessageyellow Eles tem o mesmo sexo...
+elif !(<src.targ.memoryfindtype.memory_ipet.link>==<src.uid>)
+    src.sysmessageyellow Esse animal nao lhe pertence.
+elif (<src.targ.tag.age> <= 2 )
+    src.sysmessageyellow Esse animal e muito novo.
+elif (<src.targ.id>==<link.id>)
+    src.sysmessagegreen Aguarde enquanto a natureza segue seu curso.
+    cont=<src.targ> //move memory to father
+    morex=15
+    timer=1
+    return 1
+endif
 
-IF  (<src.targ.tag.age> <= 2 )  || (<src.animallore> <=450 )      
-         cont.f_sair
-         cont.f_limpa_choca
-	 
-ELIF (<SRC.TARG.ID>==c_galo)
-	 MESSAGE Aguarde enquanto a natureza segue seu curso.
-	 CONT.TAG.TYPENAEWG=<EVAL {1 40}>    //16
-	 sfx 006e
-         cont.targ.say * co co cohhh *
-	 return 1
-ELSE
-	cont.f_sair
-	 cont.f_limpa_choca
-        return 1 
-ENDIF
-
-CONT.TAG.FATHERSTR=<SRC.TARG.STR>
-CONT.TAG.FATHERDEX=<SRC.TARG.DEX>
-CONT.TAG.FATHERTACTICS=<SRC.TARG.TACTICS>
-CONT.TAG.FATHERWRESTLING=<SRC.TARG.WRESTLING>
-CONT.TAG.FATHERMRESISTANCE=<SRC.TARG.MAGICRESISTANCE>
-CONT.TAG.FATHERPARRYING=<SRC.TARG.PARRYING>
-//TIMER=<EVAL 0{30 60}>
-ENDIF
-
-ENDIF
-RETURN 1		
-
-on=@targon_ground
-cont.f_limpa_choca
-return 1
-
-on=@targon_item
-trigger @targon_ground
-retunr 1
-
-ON=@TIMER
-IF (0<CONT.TAG.FATHERSTR>)
-f_checando_galinha
-//f_aplicando_genetica_e_fechando
-ENDIF
-REMOVE
-RETURN 1
-
-
-
-//#### memory das  vacas
-
-[ITEMDEF i_criador_novo]
-ID=i_memory
-NAME=Sim e legal
-TYPE=t_eq_script
-
-ON=@DCLICK
-TARGET Escolha outro animal :
-TIMER=10
-RETURN 1
-
-on=@targon_ground
-cont.f_sair
-cont.f_limpa_prenha
-
-on=@targon_item
-cont.f_sair
-cont.f_limpa_prenha
-
-ON=@TARGON_CHAR
-IF (<SRC.TARG.TAG.sexo>==<LINK.TAG.sexo>)
-SRC.SYSMESSAGE Eles tem o mesmo sexo.
-link.tag.prenha= 
-REMOVE
-RETURN 1
-ENDIF
-IF !(<SRC.TARG.MEMORYFINDTYPE.memory_ipet.LINK>==<SRC.UID>)
-SRC.SYSMESSAGE Esse animal nao e seu.
-LINK.TAG.prenha=
-REMOVE
-RETURN 1
-ENDIF
-
-
-IF  (<src.targ.tag.age> <= 10 )  || (<src.animallore> <=500 )      
-         cont.f_sair
-	 cont.f_limpa_prenha
- 
- ELIF  (<SRC.TARG.BODY>==c_bull_brown_lt) || (<SRC.TARG.BODY>==c_bull_brown_dk)  
-	MESSAGE Aguarde enquanto a natureza segue seu curso.
-	 
-         IF (<SRC.TARG.ID>==c_bull_brown_dk)
-	 CONT.TAG.TYPENAEW=<EVAL {3 15}>    //16
-	 sfx 007a
-         cont.targ.say * muhhhhhha *
-         
-         ELSEIF (<SRC.TARG.ID>==c_bull_brown_lt)
-	 CONT.TAG.TYPENAEW=<EVAL {4 20}>  //16//32
-	 sfx 007a
-         cont.targ.say * muhhhhhha *
-
-         ELSEIF (<SRC.targ.id>==c_touro_diferente)
-         CONT.TAG.TYPENAEW=<EVAL {1 40}>
-         sfx 007a
-         cont.targ.say * muhhhhhha *
-         
-         ELSE
-         cont.f_sair
-	 cont.f_limpa_prenha	
-         
-         ENDIF
-
-CONT.TAG.FATHERSTR=<SRC.TARG.STR>
-CONT.TAG.FATHERDEX=<SRC.TARG.DEX>
-CONT.TAG.FATHERTACTICS=<SRC.TARG.TACTICS>
-CONT.TAG.FATHERWRESTLING=<SRC.TARG.WRESTLING>
-CONT.TAG.FATHERMRESISTANCE=<SRC.TARG.MAGICRESISTANCE>
-CONT.TAG.FATHERPARRYING=<SRC.TARG.PARRYING>
-//TIMER=<EVAL 0{30 60}>
-ENDIF
-
-ENDIF
-RETURN 1		
-
-ON=@TIMER
-IF (0<CONT.TAG.FATHERSTR>)
-f_checando_as_coisas
-f_aplicando_genetica_e_fechando
-ENDIF
-REMOVE
-RETURN 1
-
-
-//###### memory das Ovelhas
-
-[ITEMDEF i_criador_ovelha]
-ID=i_memory
-NAME=Sim e legal ovelhas
-TYPE=t_eq_script
-
-ON=@DCLICK
-TARGET Escolha outro animal :
-TIMER=10
-RETURN 1
-
-on=@targon_ground
-cont.f_limpa_prenha
-cont.f_sair
-return 1
-on=@targon_item
-trigger @targon_ground
-return 1
-
-ON=@TARGON_CHAR
-IF (<SRC.TARG.TAG.sexo>==<LINK.TAG.sexo>)
-SRC.SYSMESSAGE Eles tem o mesmo sexo.
-cont.limpa_prenha
-REMOVE
-RETURN 1
-ENDIF
-IF !(<SRC.TARG.MEMORYFINDTYPE.memory_ipet.LINK>==<SRC.UID>)
-SRC.SYSMESSAGE Esse animal nao e seu.
-cont.limpa_prenha
-REMOVE
-RETURN 1
-ENDIF
-RETURN 1
-
-
-IF (<src.targ.tag.prenha>==1)  || (<src.targ.tag.age> <= 8 )  || (<src.animallore> <=500 )      
-         cont.f_limpa_prenha
-         cont.f_sair
-	 return 1	
- 
- ELIF  (<SRC.TARG.BODY>==c_goat) 
-	MESSAGE Aguarde enquanto a natureza segue seu curso.
-	CONT.TAG.TYPENAEWO=<EVAL {1 40}>
-        sfx 
-        cont.targ.say * Beeeeeeha *
- ELSE
-         
-        cont.f_limpa_prenha	
-        cont.f_sair
-        return 1
-return 1
-ENDIF
-
-CONT.TAG.FATHERSTR=<SRC.TARG.STR>
-CONT.TAG.FATHERDEX=<SRC.TARG.DEX>
-CONT.TAG.FATHERTACTICS=<SRC.TARG.TACTICS>
-CONT.TAG.FATHERWRESTLING=<SRC.TARG.WRESTLING>
-CONT.TAG.FATHERMRESISTANCE=<SRC.TARG.MAGICRESISTANCE>
-CONT.TAG.FATHERPARRYING=<SRC.TARG.PARRYING>
-//TIMER=<EVAL 0{30 60}>
-ENDIF
-return 1
-ENDIF
-RETURN 1		
-
-ON=@TIMER
-IF (0<CONT.TAG.FATHERSTR>)
-f_checando_ovelhas
-//f_aplicando_genetica_e_fechando
-ENDIF
-REMOVE
-RETURN 1 
-
-//#### Memory dos porcos
-
-[ITEMDEF i_criador_porco]
-ID=i_memory
-NAME=Sim e legal porcos
-TYPE=t_eq_script
-
-ON=@DCLICK
-TARGET Escolha outro animal :
-TIMER=10
-RETURN 1
-
-on=@targon_ground
-cont.f_limpa_prenha
-cont.f_sair
-return 1
-on=@targon_item
-trigger @targon_ground
-return 1
-
-ON=@TARGON_CHAR
-IF (<SRC.TARG.TAG.sexo>==<LINK.TAG.sexo>)
-SRC.SYSMESSAGE Eles tem o mesmo sexo.
-cont.limpa_prenha
-REMOVE
-RETURN 1
-ENDIF
-IF !(<SRC.TARG.MEMORYFINDTYPE.memory_ipet.LINK>==<SRC.UID>)
-SRC.SYSMESSAGE Esse animal nao e seu.
-cont.limpa_prenha
-REMOVE
-RETURN 1
-ENDIF
-RETURN 1
-
-
-IF (<src.targ.tag.prenha>==1)  || (<src.targ.tag.age> <= 8 )  || (<src.animallore> <=500 )      
-         cont.f_limpa_prenha
-         cont.f_sair
-	 return 1	
- 
- ELIF  (<SRC.TARG.BODY>==c_pig) 
-	MESSAGE Aguarde enquanto a natureza segue seu curso.
-	CONT.TAG.TYPENAEWP=<EVAL {1 40}>
-        sfx 
-        cont.targ.say * roinc roinc *
- ELSE
-         
-        cont.f_limpa_prenha	
-        cont.f_sair
-        return 1
-return 1
-ENDIF
-
-CONT.TAG.FATHERSTR=<SRC.TARG.STR>
-CONT.TAG.FATHERDEX=<SRC.TARG.DEX>
-CONT.TAG.FATHERTACTICS=<SRC.TARG.TACTICS>
-CONT.TAG.FATHERWRESTLING=<SRC.TARG.WRESTLING>
-CONT.TAG.FATHERMRESISTANCE=<SRC.TARG.MAGICRESISTANCE>
-CONT.TAG.FATHERPARRYING=<SRC.TARG.PARRYING>
-//TIMER=<EVAL 0{30 60}>
-ENDIF
-return 1
-ENDIF
-RETURN 1		
-
-ON=@TIMER
-IF (0<CONT.TAG.FATHERSTR>)
-f_checando_porcos
-//f_aplicando_genetica_e_fechando
-ENDIF
-REMOVE
-RETURN 1 
-
-
-//###### Funcoes
-
-
-//#######funcao principal para reproducao (porcos)
-
-
-[function f_checando_porcos]
-VAR.hayPOWER=<EVAL 0<MORE2>*2>
-
-IF (<LINK.ID>==c_pig_big)
-VAR.TYPENEWP=<EVAL {1 6}>
-
-VAR.TYPEFINAL3=<EVAL 0<evaL 0<VAR.TYPENEWP>>+<EVAL 0<CONT.TAG.TYPENAEWP>>+(-<EVAL 0{0 2}>)+<EVAL 0{0 <VAR.hayPOWER>}>>
-
-IF (0<VAR.TYPEFINAL4> < 0)
-VAR.TYPEFINAL=0
-ENDIF
-IF (0<VAR.TYPEFINAL4> <= 25)
-CONT.NEWNPC c_pig
-CONT.ACT.P=<LINK.P>
-cont.newnpc c_pig
-CONT.ACT.P=<LINK.P>
-VAR.LINKG=<link.uid>
-ELSEIF (0<VAR.TYPEFINAL4> <= 40)
-CONT.NEWnpc c_pig_big
-ENDIF
-LINK.MESSAGE * da a luz *
-LINK.TAG.prenha=0
-cont.newitem=i_blood_pool_large
-cont.act.p=<link.p>
-cont.act.timer=2
-cont.act.attr=012
-
-CONT.SYSMESSAGE Um novo animal nasceu!
-IF (RAND(15)==0)
-	IF (0<UID.<MORE>.TAG.sexo>==2)
-		UID.<MORE>.TAG.sexo.SUICIDE
-		CONT.SYSMESSAGE Mas a mae morreu no parto.
-	ELSE
-		LINK.SUICIDE
-		CONT.SYSMESSAGE Mas o pai teve um ataque de coracao durante o acasalamento.
-        ENDIF
-
-ENDIF
-LINK.ANIM 3
-CONT.ACT.MOVE s
-VAR.NEWBORNID=<CONT.ACT.UID>
-
-
-//#######funcao principal para reproducao (ovelhas)
-
-
-[function f_checando_ovelhas]
-VAR.hayPOWER=<EVAL 0<MORE2>*2>
-
-IF (<LINK.ID>==c_sheep_woolly)
-VAR.TYPENEWO=<EVAL {1 6}>
-
-VAR.TYPEFINAL3=<EVAL 0<evaL 0<VAR.TYPENEWO>>+<EVAL 0<CONT.TAG.TYPENAEWO>>+(-<EVAL 0{0 2}>)+<EVAL 0{0 <VAR.hayPOWER>}>>
-
-IF (0<VAR.TYPEFINAL3> < 0)
-VAR.TYPEFINAL=0
-ENDIF
-IF (0<VAR.TYPEFINAL3> <= 25)
-CONT.NEWNPC c_sheep_shorn
-CONT.ACT.P=<LINK.P>
-VAR.LINKG=<link.uid>
-ELSEIF (0<VAR.TYPEFINAL3> <= 40)
-CONT.NEWnpc c_goat
-ENDIF
-LINK.MESSAGE * da a luz *
-LINK.TAG.prenha=0
-cont.newitem=i_blood_pool_large
-cont.act.p=<link.p>
-cont.act.timer=2
-cont.act.attr=012
-
-CONT.SYSMESSAGE Um novo animal nasceu!
-IF (RAND(15)==0)
-	IF (0<UID.<MORE>.TAG.sexo>==2)
-		UID.<MORE>.TAG.sexo.SUICIDE
-		CONT.SYSMESSAGE Mas a mae morreu no parto.
-	ELSE
-		LINK.SUICIDE
-		CONT.SYSMESSAGE Mas o pai teve um ataque de coracao durante o acasalamento.
-        ENDIF
-
-ENDIF
-LINK.ANIM 3
-CONT.ACT.MOVE s
-VAR.NEWBORNID=<CONT.ACT.UID>
-
-
-//#######funcao principal para reproducao (galinhas)
-
-
-[function f_checando_Galinha]
-
-IF (<LINK.ID>==c_chicken)
-VAR.TYPENEWG=<EVAL {1 6}>
-
-VAR.TYPEFINAL2=<EVAL 0<evaL 0<VAR.TYPENEWG>>+<EVAL 0<CONT.TAG.TYPENAEWG>>>
-
-IF (0<VAR.TYPEFINAL2> < 0)
-VAR.TYPEFINAL=0
-ENDIF
-IF (0<VAR.TYPEFINAL2> <= 38)
-CONT.NEWITEM i_ninho
-CONT.ACT.P=<LINK.P>
-VAR.LINKG=<link.uid>
-ELSEIF (0<VAR.TYPEFINAL2> <= 40)
-CONT.NEWITEMi_ninho
-CONT.ACT.P=<LINK.P>
-CONT.NEWITEMi_ninho
-CONT.ACT.P=<LINK.P>
-ENDIF
-link.tag.choca=0
-
-CONT.SYSMESSAGE A galinha fez um ninho e ha ovos !
-IF (RAND(15)==0)
-	IF (0<UID.<MORE>.TAG.sexo>==2)
-		UID.<MORE>.TAG.sexo.SUICIDE
-		CONT.SYSMESSAGE Mas por algum motivo ela morreu ao chocalos.
-	ENDIF
-
-ENDIF
-
-LINK.ANIM 3
-CONT.ACT.MOVE s
-VAR.NEWBORNID=<CONT.ACT.UID>
-
-
-
-//#######funcao principal para reproducao (vacas)
-
-[FUNCTION f_checando_as_coisas]
-VAR.hayPOWER=<EVAL 0<MORE2>*2>
-
-IF (<LINK.ID>==c_cow_brown)
-VAR.TYPENEW2=<EVAL {1 6}>
-
-ELSEIF (<LINK.ID>==c_cow_bw)
-VAR.TYPENEW2=<EVAL {1 6}>
-
-ELSEIF (<LINK.ID>==c_vaca_diferente)
-VAR.TYPENEW2=<EVAL {1 40}>
-
-ENDIF
-
-
-VAR.TYPEFINAL=<EVAL 0<evaL 0<VAR.TYPENEW2>>+<EVAL 0<CONT.TAG.TYPENAEW>>+(-<EVAL 0{0 2}>)+<EVAL 0{0 <VAR.hayPOWER>}>>
-IF (<CONT.TAG.DEBUG.COMBAT>)
- //IF (<CONT.ANIMALLORE> > 900 )
-  CONT.MESSAGE Novo tipo: <EVAL 0<VAR.tYPEFINAL>>; Tentativa da mae: <EVAL 0<VAR.TYPENEW2>>, tentativa do pai: <EVAL 0<CONT.TAG.TYPENAEW>> final: <EVAL 0<VAR.hayPOWER>>!
- //ENDIF
-ENDIF 
-IF (<VAR.TYPEFINAL> < 0)
-VAR.TYPEFINAL=0
-ENDIF
-IF (RAND(100)==0) //vaca diferente
-CONT.NEWNPC c_vaca_diferente
-CONT.ACT.TAG.Sexo=2
-CONT.ACT.TAG.SUBEPLUS=<EVAL 0{-2 5}>
-CONT.ACT.P=<LINK.P>
-ELSEIF (RAND(100)==0) // touro diferente
-CONT.NEWNPC c_touro_diferente
-CONT.ACT.TAG.Sexo=1
-CONT.ACT.TAG.SUBEPLUS=<EVAL 0{-2 5}>
-CONT.ACT.P=<LINK.P>
-ELSEIF (<VAR.TYPEFINAL> <= 6)
-CONT.NEWNPC c_cow_bw
-CONT.ACT.TAG.sexo=2
-CONT.ACT.TAG.SUBEPLUS=0
-CONT.ACT.P=<LINK.P>
-ELSEIF (<VAR.TYPEFINAL> <= 12)
-CONT.NEWNPC c_cow_bw
-CONT.ACT.TAG.sexo=2
-CONT.ACT.TAG.SUBEPLUS=<EVAL 0{0 1}>
-CONT.ACT.P=<LINK.P>
-ELSEIF (<VAR.TYPEFINAL> <= 15)
-CONT.NEWNPC c_cow_brown
-CONT.ACT.TAG.sexo=2
-CONT.ACT.TAG.SUBEPLUS=<EVAL 0{0 2}>
-CONT.ACT.P=<LINK.P>
-ELSEIF (<VAR.TYPEFINAL> <= 20)
-CONT.NEWNPC c_bull_brown_lt
-CONT.ACT.TAG.Sexo=1
-CONT.ACT.TAG.SUBEPLUS=<EVAL 0{1 3}>
-CONT.ACT.P=<LINK.P>
-ELSE
-CONT.NEWNPC c_bull_brown_dk
-CONT.ACT.TAG.sexo=1
-CONT.ACT.TAG.SUBEPLUS=<EVAL 0{1 4}>
-CONT.ACT.P=<LINK.P>
-ENDIF
-LINK.MESSAGE * da a luz *
-LINK.TAG.prenha=0
-cont.newitem=i_blood_pool_large
-cont.act.p=<link.p>
-cont.act.timer=2
-cont.act.attr=012
-
-CONT.SYSMESSAGE Um novo animal nasceu!
-IF (RAND(15)==0)
-	IF (0<UID.<MORE>.TAG.sexo>==2)
-		UID.<MORE>.TAG.sexo.SUICIDE
-		CONT.SYSMESSAGE Mas a mae morreu no parto.
-	ELSE
-		LINK.SUICIDE
-		CONT.SYSMESSAGE Mas o pai teve um ataque de coracao durante o acasalamento.
-        ENDIF
-
-ENDIF
-LINK.ANIM 3
-CONT.ACT.MOVE s
-VAR.NEWBORNID=<CONT.ACT.UID>
-
-
-//setando os novos atributos e habilidades do nascido
-
-[FUNCTION f_aplicando_genetica_e_fechando]
-VAR.STRGAIN=<EVAL 0(<EVAL 0<CONT.TAG.FATHERSTR>+<LINK.STR>+<EVAL 0{0 50}>+(-<EVAL 0{0 150}>)+(<VAR.hayPOWER>)>/2>
-VAR.DEXGAIN=<EVAL 0(<EVAL 0<CONT.TAG.FATHERDEX>+<LINK.DEX>+<EVAL 0{0 50}>+(-<EVAL 0{0 150}>)+(<VAR.hayPOWER>)>/2>
-VAR.TACTICSGAIN=<EVAL 0{50 300}>+<EVAL 0<VAR.hayPOWER>*10>
-VAR.WRESTLINGGAIN=<EVAL 0{50 300}>+<EVAL 0<VAR.hayPOWER>*10>
-VAR.MRESISTANCEGAIN=<EVAL 0{50 300}>+<EVAL 0<VAR.hayPOWER>*10>
-VAR.PARRYINGGAIN=<EVAL 0{50 300}>+<EVAL 0<VAR.hayPOWER>*10>
-IF (<VAR.STRGAIN> < 40)
-VAR.STRGAIN=40
-ENDIF
-IF (<VAR.DEXGAIN> < 40)
-VAR.DEXGAIN=40
-ENDIF
-CONT.ACT.STR=<VAR.STRGAIN>
-CONT.ACT.DEX=<VAR.DEXGAIN>
-CONT.ACT.TACTICS=<VAR.TACTICSGAIN>
-CONT.ACT.WRESTLING=<VAR.WRESTLINGGAIN>
-CONT.ACT.MAGICRESISTANCE=<VAR.MRESISTANCEGAIN>
-CONT.ACT.PARRYING=<VAR.PARRYINGGAIN>
-CONT.TAG.FATHERSTR=
-CONT.TAG.FATHERDEX=
-CONT.TAG.FATHERTACTICS=
-CONT.TAG.TYPENAEW=
-CONT.TAG.FATHERWRESTLING=
-CONT.TAG.FATHERMRESISTANCE=
-CONT.TAG.FATHERPARRYING=
-CONT.NEWITEM i_memory
-CONT.ACT.COLOR memory_ipet
-CONT.ACT.MORE1 04
-CONT.ACT.MORE <SERV.TIME>
-CONT.ACT.MOREP <LINK.P>
-CONT.ACT.LINK <CONT.UID>
-CONT.ACT.CONT <VAR.NEWBORNID>
-IF (<CONT.TAG.DEBUG.COMBAT>)
-IF (<cont.animallore> >900)
-CONT.MESSAGE Novo animal: Forca: <EVAL 0<VAR.STRGAIN>>, Dextreza: <EVAL 0<VAR.DEXGAIN>>,Taticas: <EVAL 0<VAR.TACTICSGAIN>>,Luta: <EVAL 0<VAR.WRESTLINGGAIN>>,Resistencia a magia: <EVAL 0<VAR.MRESISTANCEGAIN>> e defesa: <EVAL 0<VAR.PARRYINGGAIN>>
-ENDIF
-ENDIF
-
-[FUNCTION f_limpa_prenha]
-link=<var.limpap>
 link.tag.prenha=
-return 0
+remove
+return 1
 
-[FUNCTION f_limpa_choca]
-link=<var.limpac>
-LINK.TAG.choca=
-return 0
+on=@targon_ground
+remove
+return 1
 
-[function f_Sair]
-SYSMESSAGE O animal come e volta a sua rotina...
-SFX 006f
-RETURN 1
+on=@targon_item
+remove
+return 1
 
+ON=@TIMER
+morex -= 1
+if !(<morex>)
+    f_giveBirth
+    remove
+else
+    link.emotered fazendo sequicu
+    cont.emoteyellow yuhuu
+    
+//    if (<src.targ.body>==c_pig_big)
+//        sfx 003c
+//        src.targ.say * roooinc *
+//    elif (<src.targ.body>==c_sheep_woolly)
+//        sfx 003c
+//        src.targ.say * beehhhhh *
+//    elif (<src.targ.body>==c_cow_brown)
+//        sfx 0067
+//        src.targ.say * muhhhhhh *
+//    elif (<src.targ.body>==c_cow_bw)
+//        sfx 0067
+//        src.targ.say * muhhhhhh *
+//    elif (<src.targ.body>==c_bull_brown_lt)
+//      sfx 003c
+//    elif (<src.targ.body>==c_bull_brown_dk)
+//      sfx 003c
+//    endif
+    
+endif
+return 1
 
-
-
-
-
-
-[eof]
+[EOF]
