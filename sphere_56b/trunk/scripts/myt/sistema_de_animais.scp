@@ -9,22 +9,45 @@
 //*****************************************************************************
 //TODO:
 
+//USO:
+//utilize (dclick) um item procriador (t_procriador) em uma femea, selecione
+//entao o macho e aguarde os resultados.
+//para ter sucesso os animais tem que ter uma idade minima, o procriador tem
+//que ter animal lore minimo e a femea tem que estar 'disponivel'
+
+//as caracteristicas de dex/int/str sao derivadas do pai e da mae aleatoriamente
+
+//animais suportados para reproducao:
+
+//c_pig
+//c_pig_big
+//c_chicken
+//c_galo
+//c_sheep_wooly
+//c_sheep_shorn
+//c_cow_bw / c_vaca2
+//c_cow_brown / c_vaca
+//c_bull_brown_dk / c_touro
+//c_bull_brown_lt / c_touro2
+
 //TAGS usadas:
 
+[DEFNAME animais]
+minReprodAge    = 216000    //6 horas de tempo minimo antes de poder reproduzir
+minReprodDelay  = 72000     //2 horas de tempo minimo antes reproduzir novamente
+
 //*****************************************************************************
 //*****************************************************************************
-// EVENTs
+// FUNTCIONs
 //*****************************************************************************
 //*****************************************************************************
 
 //*****************************************************************************
-// e_domesticos
+// anim_domestico
 //*****************************************************************************
+//configura um animal como domestico procriavel
 [FUNCTION anim_domestico]
-serv.newitem i_mry_age_animal
-new.cont=<uid>
-new.timer=4*60*60   //1 dia in-game
-new.morex=0         //idade em dias
+tag.born=<serv.time>
 
 dorand 2
     tag.sexo=1      //macho
@@ -38,30 +61,38 @@ enddo
 //*****************************************************************************
 
 //*****************************************************************************
-// t_racao
+// t_procriador
 //*****************************************************************************
-[TYPEDEF t_racao]
+[TYPEDEF t_procriador]
 ON=@DCLICK
 bounce
-src.sysmessageyellow Selecione o animal:
+src.sysmessageyellow Selecione a femea que deseja acasalar:
 target 
 return 1
 
 ON=@TARGON_CHAR
 if (<src.targ.memoryfindtype.memory_ipet.link>==<src.uid>)
     consume
-    sfx 006f
+//    src.targ.food += 1
+    sfx <serv.chardef.<src.targ.id>.sound>
 
-    if (<src.targ.findid.i_mry_age_animal.morex> <= 4 ) || (0<src.targ.tag.prenha>) || (<src.animallore> <= 450) || (0<src.targ.tag.sexo>==1)
-        src.sysmessageyellow O animal come e volta a sua rotina.
+    if (<src.animallore> <= 450) 
+        src.sysmessageyellow Voce nao possui conhecimento suficiente.
+    elif (0<src.targ.tag.sexo>==1)
+        src.sysmessageyellow Voce deve selecionar uma femea...
+    elif (<eval <serv.time>-<src.targ.tag.born>> <= minReprodAge ) 
+        src.sysmessageyellow Muito jovem para reproduzir.
+    elif (<eval <serv.time>-<src.targ.tag.prenha>> <= minReprodDelay )
+        src.sysmessageyellow Deve esperar antes de reproduzir novamente.
     //so inicia acasalamento se for femea, com idade, nao prenha e com animallore suficiente
-    else (<src.targ.body>==c_chicken) || (<src.targ.body>==c_pig_big) || (<src.targ.body>==c_pig) || (<src.targ.body>==c_cow_brown) || (<src.targ.body>==c_cow_bw) 
-        src.targ.tag.prenha=1
+    else
         serv.newitem i_criador
         new.link=<src.targ.uid>
         new.cont=<src.uid>  
         new.dclick
+        return 1
     endif
+    src.sysmessageyellow O animal come e volta a sua rotina.
 else
     src.sysmessageyellow Esse animal nao lhe pertence.
 endif
@@ -94,36 +125,59 @@ if (<link.id>==c_pig_big)
         LOCAL.c=4
         LOCAL.f=c_pig
     endif
+elif (<link.id>==c_pig)    
+    LOCAL.c=2
+    LOCAL.f=c_pig
+elif (<link.id>==c_chicken)
+    link.emoteyellow botou ovos
+    serv.newitem i_ninho
+    new.p=<link.p>
+    return 1
+elif (<link.id>==c_sheep_woolly) || (<link.id>==c_sheep_shorn)
+    LOCAL.c=1
+    LOCAL.f=c_sheep_shorn
+elif (<link.id>==c_cow_bw)
+    LOCAL.c=1
+    dorand 2
+        LOCAL.f=c_cow_bw
+        LOCAL.f=c_bull_brown_lt
+    enddo
+elif (<link.id>==c_cow_brown)
+    LOCAL.c=1
+    dorand 2
+        LOCAL.f=c_cow_brown
+        LOCAL.f=c_bull_brown_dk
+    enddo
 endif
 
 link.emoteyellow da a luz
-link.tag.prenha=
 serv.newitem=i_blood_pool_large
 new.p=<link.p>
-new.timer=2
+new.timer=5
 new.attr=02
 
 //generate some stats
 dorand 2
-    LOCAL.str=link.str
-    LOCAL.str=cont.str
+    LOCAL.str=<link.str>
+    LOCAL.str=<cont.str>
 enddo
 dorand 2
-    LOCAL.dex=link.dex
-    LOCAL.dex=cont.dex
+    LOCAL.dex=<link.dex>
+    LOCAL.dex=<cont.dex>
 enddo
 dorand 2
-    LOCAL.int=link.int
-    LOCAL.int=cont.int
+    LOCAL.int=<link.int>
+    LOCAL.int=<cont.int>
 enddo
 
 while (<local.c>>0)
     LOCAL.c -= 1
     serv.newnpc <LOCAL.f>
-    new.movenear <link.p> 3
+    new.movenear <link> 3
     new.str=<LOCAL.str>
     new.dex=<LOCAL.dex>
     new.int=<LOCAL.int>
+    serv.log criando <LOCAL.f> / <new>
 endwhile
 
 if (!<R0,15>)
@@ -218,15 +272,14 @@ ON=@CREATE
 timer=60
 attr=attr_decay
 
-
 //*****************************************************************************
 // i_milho
 //*****************************************************************************
 [ITEMDEF 0c7f]
-DEFNAME2=i_milho
+DEFNAME=i_milho
 DEFNAME=i_fruit_corn
 RESOURCES=I_CROP_CORN
-TYPE=T_milho
+TYPE=t_procriador
 VALUE={2 4}
 WEIGHT=0.2
 CATEGORY=MyT - Vegetation
@@ -235,108 +288,19 @@ DESCRIPTION=Milho
 DUPELIST=0c80,0c81,0c82
 
 //*****************************************************************************
-// i_feno_1
+// i_feno
 //*****************************************************************************
-[ITEMDEF i_feno_1]
+[ITEMDEF i_feno]
 ID=0100c
-VALUE=1000
-NAME=Feno de pessima qualidade
-TYPE=t_feno
+NAME=Feno
+TYPE=t_procriador
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Farmer
-DESCRIPTION=feno tipo E
+DESCRIPTION=feno
 
 ON=@CREATE
 MORE2=1
 COLOR=089f
-
-//*****************************************************************************
-// i_feno_2
-//*****************************************************************************
-[ITEMDEF i_feno_2]
-ID=0100c
-VALUE=2000
-NAME=feno de baixa qualidade
-TYPE=t_feno
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Farmer
-DESCRIPTION=feno tipo D
-
-ON=@CREATE
-MORE2=3
-COLOR=08a2
-
-//*****************************************************************************
-// i_feno_3
-//*****************************************************************************
-[ITEMDEF i_feno_3]
-ID=0100c
-VALUE=3000
-NAME=feno de qualidade regular
-TYPE=t_feno
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Farmer
-DESCRIPTION=feno tipo C
-
-ON=@CREATE
-MORE2=6
-COLOR=08a4
-
-//*****************************************************************************
-// i_feno_4
-//*****************************************************************************
-[ITEMDEF i_feno_4]
-ID=0100c
-VALUE=4000
-NAME=feno de boa qualidade 
-TYPE=t_feno
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Farmer
-DESCRIPTION=feno tipo B
-
-ON=@CREATE
-MORE2=10
-COLOR=029b
-
-//*****************************************************************************
-// i_feno_5
-//*****************************************************************************
-[ITEMDEF i_feno_5]
-ID=0100c
-VALUE=5000
-NAME=feno de otima qualidade
-TYPE=t_feno
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Farmer
-DESCRIPTION=feno tipo A
-
-ON=@CREATE
-MORE2=20
-COLOR=077d
-
-//*****************************************************************************
-// i_mry_age_animal
-//*****************************************************************************
-[ITEMDEF i_mry_age_animal]
-ID=i_memory
-TYPE=t_eq_script
-LAYER=layer_special
-NAME=Idade
-
-ON=@TIMER
-morex += 1          //mais um dia de vida
-if (<morex> > <cont.str>)
-    cont.emotered morreu de velhice
-    cont.suicide
-    remove
-else
-    timer = 4*60*60 //1 dia in-game
-    morex += 1        
-endif
-return 1
-
-
-//#### memory das galinha
 
 //*****************************************************************************
 // i_criador
@@ -347,27 +311,41 @@ NAME=Criador
 TYPE=t_eq_script
 
 ON=@DCLICK
-TARGET Escolha outro animal :
-TIMER=200
-RETURN 1
+src.sysmessageyellow Selecione o macho para acasalar:
+target 
+return 1
 
 ON=@TARGON_CHAR
 
-if (<src.targ.tag.sexo>==<link.tag.sexo>)
-    src.sysmessageyellow Eles tem o mesmo sexo...
+if (<src.targ.tag.sexo>==2)
+    src.sysmessageyellow Voce deve selecionar um macho...
 elif !(<src.targ.memoryfindtype.memory_ipet.link>==<src.uid>)
     src.sysmessageyellow Esse animal nao lhe pertence.
-elif (<src.targ.tag.age> <= 2 )
-    src.sysmessageyellow Esse animal e muito novo.
-elif (<src.targ.id>==<link.id>)
+elif (<eval <serv.time>-<src.targ.tag.born>> <= minReprodAge )
+    src.sysmessageyellow Muito jovem para reproduzir.
+else 
+    if (<src.targ.id>==<link.id>) //animais com mesmo body
+        LOCAL.do=1
+    elif ( (<src.targ.id>==c_sheep_woolly) || (<src.targ.id>==c_sheep_shorn) ) && ( (<link.id>==c_sheep_woolly) || (<link.id>==c_sheep_shorn) )        
+        LOCAL.do=1
+    elif ( (<src.targ.id>==c_bull_brown_dk) || (<src.targ.id>==c_bull_brown_lt) ) && ( (<link.id>==c_cow_bw) || (<link.id>==c_cow_brown) )
+        LOCAL.do=1
+    elif (<src.targ.id>==c_galo) && (<link.id>==c_chicken)
+        LOCAL.do=1
+    else
+        src.sysmessageyellow Nao pode cruzar animais de racas diferentes.
+        remove
+        return 1
+    endif
+
     src.sysmessagegreen Aguarde enquanto a natureza segue seu curso.
     cont=<src.targ> //move memory to father
     morex=15
     timer=1
+    link.tag.prenha=<serv.time>
     return 1
 endif
 
-link.tag.prenha=
 remove
 return 1
 
@@ -381,31 +359,31 @@ return 1
 
 ON=@TIMER
 morex -= 1
+dorand 2
+    sfx <serv.chardef.<link.id>.sound>
+enddo
+
 if !(<morex>)
     f_giveBirth
     remove
 else
-    link.emotered fazendo sequicu
-    cont.emoteyellow yuhuu
-    
-//    if (<src.targ.body>==c_pig_big)
-//        sfx 003c
-//        src.targ.say * roooinc *
-//    elif (<src.targ.body>==c_sheep_woolly)
-//        sfx 003c
-//        src.targ.say * beehhhhh *
-//    elif (<src.targ.body>==c_cow_brown)
-//        sfx 0067
-//        src.targ.say * muhhhhhh *
-//    elif (<src.targ.body>==c_cow_bw)
-//        sfx 0067
-//        src.targ.say * muhhhhhh *
-//    elif (<src.targ.body>==c_bull_brown_lt)
-//      sfx 003c
-//    elif (<src.targ.body>==c_bull_brown_dk)
-//      sfx 003c
-//    endif
-    
+    if (<link.id>==c_pig_big) || (<link.id>==c_pig)
+        LOCAL.s=roooinc
+    elif (<link.id>==c_sheep_woolly) || (<link.id>==c_sheep_shorn)
+        LOCAL.s=beehhhh
+    elif (<link.id>==c_cow_brown) || (<link.id>==c_cow_bw) || (<link.id>==c_bull_brown_lt) || (<link.id>==c_bull_brown_dk)
+        LOCAL.s=muhhhhh
+    elif (<link.id>==c_chicken)
+        LOCAL.s=cooohhh
+    else
+        LOCAL.s=geme
+    endif
+
+    dorand 3
+        link.emoteyellow <LOCAL.s>
+        cont.emoteyellow <LOCAL.s>
+    enddo
+    timer=1
 endif
 return 1
 
