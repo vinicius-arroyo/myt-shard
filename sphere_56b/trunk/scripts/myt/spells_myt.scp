@@ -120,16 +120,6 @@ else
 endif
  
 
-[ITEMDEF i_npc_spell_delay]
-ID=01810
-NAME=spell delay
-TYPE=t_eq_script
-LAYER=LAYER_SPECIAL
-
-on=@timer
-remove
-return 1
-
 //Se NPCs podem castar
 [FUNCTION NPC_CanCast]
 if (<findid.i_npc_spell_delay>) || (<tag0.spell_delay>)
@@ -151,7 +141,7 @@ RETURN <NPC_CanCast>
 //<argv0> = criatura
 //<argv1> = tempo (segundos)
 newnpc <argv0>
-act.p <p>
+act.movenear 2 <UID>
 obj <act.uid>
 serv.newitem i_memory
 new.color memory_ipet
@@ -168,6 +158,10 @@ new.timer 1
 obj.flags=<obj.flags>|0c000000	//spawned e pet
 obj.effect 3 i_fx_sparkle 0 16 0 0a1
 obj.karma=<karma>
+//Tirar o loot
+if (<obj.findlayer.21>)
+ obj.findlayer.21.empty
+endif
 sfx 0fb
 return <obj.uid>
 
@@ -188,30 +182,6 @@ obj.effect 3 i_fx_sparkle 0 16 0 022
 sfx 0217
 return <obj.uid>
 
-
-[ITEMDEF i_mry_summon]
-ID=i_rune_summon_creature
-name=summoned
-type=t_eq_script
-layer=layer_special
-
-on=@create
-attr=020
-
-on=@timer
-more2=<more2>-1
-if (<more2> <= 0) || (!<link.uid>)
- serv.newitem i_fx_vortex_full
- new.attr=02
- new.timerd 16
- cont.sfx 020c
- new.color 0a1
- new.p=<cont.p>
- cont.remove
- remove
-endif
-timer=1
-return 1
 
 [FUNCTION f_spl_polymorph]
 //Polymorph undead. Tira stats
@@ -633,6 +603,18 @@ more2={2 5}
 
 //------ MEMORY DE MAGIAS --------
 
+//CHARs com esta memory não podem castar.
+[ITEMDEF i_npc_spell_delay]
+ID=01810
+NAME=spell delay
+TYPE=t_eq_script
+LAYER=LAYER_SPECIAL
+
+on=@timer
+remove
+return 1
+
+//Armadura mágica (memory)
 [ITEMDEF i_spl_changeAR]
 ID=i_rune_REACTIVE_ARMOR
 TYPE=t_eq_script
@@ -662,6 +644,30 @@ ENDIF
 timer 10
 return 1
 
+//NPCs com esta memory sumirão quano o timer expirar.
+[ITEMDEF i_mry_summon]
+ID=i_rune_summon_creature
+name=summoned
+type=t_eq_script
+layer=layer_special
+
+on=@create
+attr=020
+
+on=@timer
+more2=<more2>-1
+if (<more2> <= 0) || (!<link.uid>)
+ serv.newitem i_fx_vortex_full
+ new.attr=02
+ new.timerd 16
+ cont.sfx 020c
+ new.color 0a1
+ new.p=<cont.p>
+ cont.remove
+ remove
+endif
+timer=1
+return 1
 
 //*************************************************************
 //			GUMPS DE SPELL
