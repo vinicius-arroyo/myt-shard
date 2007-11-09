@@ -31,8 +31,69 @@ RENT_MAX_DAYS			15	//Maximo de dias para alugar no ato do contrato
 RENT_TOTAL_DAYS			25	//Maximo de dias para extender o aluguel (fica RENT_PERCENT_FEE% mais caro)
 RENT_PERCENT_FEE		50	//Porcentagem que fica mais caro depois de alugar por RENT_MAX_DAYS
 
+
+[DEFNAME customHouse]
+CH_COMPONENT_COST			18	//Custo em MC de cada tile static
+CH_FIXTURE_COST			50	//Custo em MC de cada tile dynamic
+CH_DEVOLUTE_FEE			90	//Quantos % do custo da casa será devolvido ao dono.
+
 [PLEVEL 2]
 alugar
+
+
+//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+//\\			    EVENTS			    //\\
+//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+
+[EVENTS e_house_customize]
+ON=@SkillStart
+	IF !(<HOUSEDESIGN>)
+		RETURN 2
+	ENDIF
+	SYSMESSAGERED Voce esta ocupado projetando um edificio.
+	RETURN 1
+
+ON=@SkillUseQuick
+	IF !(<HOUSEDESIGN>)
+		RETURN 2
+	ENDIF
+	RETURN 1
+
+ON=@HouseDesignCommit
+	LOCAL.OLDCOST = <EVAL (<ARGN1> * <DEF.CH_COMPONENT_COST>)>
+	LOCAL.NEWCOST = <EVAL (<ARGN2> * <DEF.CH_COMPONENT_COST>)>
+	LOCAL.OLDCOST += <EVAL (<LOCAL.FIXTURES.OLD> * <DEF.CH_FIXTURE_COST>)>
+	LOCAL.NEWCOST += <EVAL (<LOCAL.FIXTURES.NEW> * <DEF.CH_FIXTURE_COST>)>
+	LOCAL.CURCOST = <EVAL (<LOCAL.NEWCOST> - <LOCAL.OLDCOST>)>
+	IF (<ISGM>)
+		SYSMESSAGEGREEN Seu novo projeto de edificio foi enviado.
+		SYSMESSAGERED Custaria <dLOCAL.CURCOST> mc.
+		RETURN 2
+	ENDIF
+	LOCAL.cash=<bank_checkCash <LOCAL.CURCOST>,1>
+	IF (<LOCAL.cash> < <LOCAL.CURCOST>)
+		SYSMESSAGERED Voce nao tem <dLOCAL.CURCOST> mc para pagar a construcao.
+		SYSMESSAGERED Seu total no banco é de <dLOCAL.cash> mc.
+		RETURN 1
+	ENDIF
+	SYSMESSAGEGREEN Seu novo projeto de edificio foi enviado.
+	IF (<LOCAL.CURCOST> == 0)
+		SYSMESSAGEYELLOW Como o novo projeto tem o mesmo custo do anterior, nada foi cobrado.
+	ELSEIF (<LOCAL.CURCOST> < 0)
+		LOCAL.CURCOST = <EVAL (0 - <LOCAL.CURCOST>)>
+		serv.newitem i_coin_copper, <eval (<LOCAL.CURCOST>*90)/100>, <UID>
+		SYSMESSAGEYELLOW Como o novo projeto ficou mais barato que o anterior, <eval (<LOCAL.CURCOST>*90)/100> mc foram devolvidas a voce.
+	ELSE
+		bank_getCash <LOCAL.CURCOST>, 1
+		SYSMESSAGEYELLOW <dLOCAL.CURCOST> mc foram cobrados para custear a construcao.
+	ENDIF
+	RETURN 2
+
+ON=@HouseDesignExit
+	SYSMESSAGEORANGE Voce saiu do modo de projeto de edificio.
+	EVENTS -e_house_customize
+	RETURN 2
+
 
 
 //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
@@ -46,6 +107,10 @@ IF (<attr>&RENT_VACANT)
   RETURN 1
  endif
 ENDIF
+src.cTAG.signUID=<uid>
+src.DIALOG d_sign_gump
+return 1
+
 LOCAL.can=0
 IF (<src.IsGM>)
  LOCAL.can=1
@@ -557,35 +622,41 @@ sysmessagegreen <obj.name> alugavel por <eval <obj.tag.price>> mc/dia
 //#######################################################
 //Muda a arte da placa
 [FUNCTION SignTurn]
-// RentRemoveList <item> <lista>
+ref1=<ctag.signUID>
 serv.newitem=<argv0>
-new.p=<p>
-new.name=<name>
+new.p=<ref1.p>
+new.name=<ref1.name>
 new.type=t_sign_gump
-new.attr=<attr>
-if (<attr>&01) || (<tag.owner>)		//sou um subitem de aluguel.
- if (<attr>&01)				//Subitem ou item?
-  obj=<tag.SUBITENS>
+new.attr=<ref1.attr>
+if (<ref1.attr>&01) || (<ref1.tag0.owner>)	//sou um subitem de aluguel.
+ if (<ref1.attr>&01)				//Subitem ou item?
+  obj=<ref1.tag.SUBITENS>
   LOCAL.subitens=<OBJ.TAG.subitens>
-  LOCAL.subitens=<RentRemoveList <UID>,<LOCAL.subitens>>;<new.uid>
+  LOCAL.subitens=<RentRemoveList <ref1.UID>,<LOCAL.subitens>>;<new.uid>
   obj.tag.subitens=<LOCAL.subitens>
   new.tag.subitens=<obj.uid>
  else
-  new.tag.subitens=<tag.subitens>
-  new.tag.owner=<tag.owner>
-  new.tag.friends=<tag.friends>
-  new.tag.price=<tag.price>
-  new.tag.time0=<tag.time0>
-  new.tag.timef=<tag.timef>
-  new.tag.fechadura=<tag.fechadura>
-  new.more1=<more1>
-  new.tag.DEED=<tag.DEED>
-  UID.<tag.DEED>.link=<new.uid>
-  RentUpdateSubItens <new.tag.subitens>
+  new.tag.subitens=<ref1.tag.subitens>
+  new.tag.friends=<ref1.tag.friends>
+  new.tag.price=<ref1.tag.price>
+  new.tag.time0=<ref1.tag.time0>
+  new.tag.timef=<ref1.tag.timef>
+  new.tag.fechadura=<ref1.tag.fechadura>
+  new.more1=<ref1.more1>
+  new.tag.DEED=<ref1.tag.DEED>
+  UID.<ref1.tag.DEED>.link=<new.uid>
+  ref1.RentUpdateSubItens <new.tag.subitens>
  endif
 endif
+IF (<ref1.tag0.owner>)
+ new.tag.owner=<ref1.tag.owner>
+ENDIF
+if (<ref1.link>!=04fffffff)
+ ref1.link.link=<new.uid>
+ new.link=<ref1.link>
+endif
 new.update
-remove
+ref1.remove
 src.sysmessagegreen Placa modificada.
 
 //#######################################################
@@ -1214,4 +1285,101 @@ IF (<IsGM>)
  sysmessageorange [GM] Ultima conexao: <uid.<cTAG.rentFriend>.ACCOUNT.LASTCONNECTDATE>
 endif
 DIALOG d_aluguel_3 4
+
+
+//#######################################################
+// d_sign_gump
+//#######################################################
+
+
+[DIALOG d_sign_gump]
+350,200
+page 0
+gumppic 0 0 100
+dhtmlgump 20 24 97 53 0 0 <DEF.CENTER><UID.<cTAG.SignUID>.name>
+IF (<CanUseRented <cTAG.SignUID>>) || (<IsGM>)
+ button 16 108 2445 2445 1 0 1
+ resizepic 0 101 2620 142 37
+ dtext 36 109 4 Gerenciar
+ENDIF
+
+[DIALOG d_sign_gump text]
+.
+Gerenciar
+
+[DIALOG d_sign_gump button]
+ON=1
+// Gerenciar
+DIALOG d_sign_gump_2
+return 1
+
+[DIALOG d_sign_gump_2]
+350,200
+page 0
+OBJ=<cTAG.signUID>
+IF (<OBJ.LINK.TYPE> != t_multi_custom)
+ LOCAL.BUILD=0
+ELSEIF (<OBJ.TAG0.owner> != <SRC.UID>) && !(<SRC.ISGM>)
+ LOCAL.BUILD=0
+ELSEIF (<SRC.REGION.UID> != <OBJ.REGION.UID>)
+ LOCAL.BUILD=0
+ELSE
+ LOCAL.BUILD=1
+ENDIF
+gumppic 0 0 100
+IF (<LOCAL.build>)
+ button 41 91 247 248 1 0 5
+ENDIF
+resizepic 0 3 2620 142 135
+button 16 16 2117 2178 1 0 2
+dtext 37 13 2100 Mudar arte
+button 16 40 2118 248 1 0 3
+dtext 37 37 2100 Mudar posicao
+button 16 65 2117 2118 1 0 4
+dtext 37 62 2100 Mudar dizeres
+IF (<LOCAL.build>)
+ tilepic 55 85 8905
+ENDIF
+
+[DIALOG d_sign_gump_2 text]
+Mudar arte
+Mudar posicao
+Mudar dizeres
+
+[DIALOG d_sign_gump_2 button]
+ON=2
+// Mudar arte
+MENU m_placa_face
+return 1
+
+ON=3
+// Mudar posicao
+UID.<cTAG.signUID>.FLIP
+src.sysmessagegreen Posição da placa alterada.
+src.DIALOG d_sign_gump_2
+return 1
+
+ON=4
+// Mudar dizeres
+src.ctag.placaUID=<cTAG.signUID>
+src.dialog d_placa
+
+ON=5
+// Construir
+OBJ=<src.cTAG.signUID>
+IF (<OBJ.LINK.TYPE> != t_multi_custom)
+ RETURN 2
+ELSEIF (<OBJ.TAG.OWNER> != <SRC.UID>) && !(<SRC.ISGM>)
+ RETURN 2
+ELSEIF (<SRC.REGION.UID> != <OBJ.REGION.UID>)
+ RETURN 2
+ELSEIF (<SRC.HOUSEDESIGN>)
+ SRC.SYSMESSAGERED Voce ja esta projetando <QVAL (<SRC.HOUSEDESIGN.UID> == <LINK.UID>)? este:outro> edificio.
+ RETURN 1
+ELSEIF !(<SRC.ISEVENT.e_house_customize>)
+ SRC.EVENTS +e_house_customize
+ENDIF
+OBJ.LINK.CUSTOMIZE
+RETURN 1
+
 [EOF]
