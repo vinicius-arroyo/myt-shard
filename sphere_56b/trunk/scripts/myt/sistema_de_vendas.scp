@@ -4,14 +4,14 @@
 // SISTEMA DE VENDAS por UsMarine (vinicius.arroyo at gmail.com)
 //
 // Precisa do sistema administrativo (administrative.scp) que contem:
-// 	=>f_sendMessage - para enviar alertas aos players mesmo offline.
-//	=>f_isWeapon - define se o item eh uma arma
-//	=>f_isArmor - define se o item eh uma armadura
-//	=>f_isRegsOrMagic
-//	=>f_isFood
-//	=>f_isMisc
-//	=>f_isWearable
-//	=>f_isRaw
+//  =>f_sendMessage - para enviar alertas aos players mesmo offline.
+//  =>f_isWeapon - define se o item eh uma arma
+//  =>f_isArmor - define se o item eh uma armadura
+//  =>f_isRegsOrMagic
+//  =>f_isFood
+//  =>f_isMisc
+//  =>f_isWearable
+//  =>f_isRaw
 //
 // Para usar:
 // Execute .vendor_addNpc para abrir o menu com as opções de NPC
@@ -27,18 +27,18 @@
 //-Migrar tipos de items para o banco
 
 //TAGS usadas:
-//src.ctag.vendor_op		//1 para colocar o item a venda, 2 para comprar,3 para pegar de volta
-//src.ctag.vendor_numPages	//numero de paginas do dialog do vendedor
-//src.ctag.vendor_page		//pagina atual
-//src.ctag.vendor_numItems	//numero total de itens disponiveis para compra/venda
-//src.ctag.vendor_items		//array com itens disponiveis para compra/venda
-//src.ctag.vendor_owners	//array com os donos dos itens a venda
-//src.ctag.vendor_prices	//array com os precos de venda
-//src.ctag.vendor_selectedItem	//item selecionada para compra/venda
-//src.ctag.vendor_selectedPrice	//preco do item selecionada para compra/venda
-//src.ctag.vendor_selectedOwner	//dono do item selecionada para compra/venda
-//src.ctag.vendor_newNpcType	//tipo do npc sendo criado
-//npc.tag.vendor_type		//tipo do npc
+//src.ctag.vendor_op        //1 para colocar o item a venda, 2 para comprar,3 para pegar de volta
+//src.ctag.vendor_numPages  //numero de paginas do dialog do vendedor
+//src.ctag.vendor_page      //pagina atual
+//src.ctag.vendor_numItems  //numero total de itens disponiveis para compra/venda
+//src.ctag.vendor_items     //array com itens disponiveis para compra/venda
+//src.ctag.vendor_owners    //array com os donos dos itens a venda
+//src.ctag.vendor_prices    //array com os precos de venda
+//src.ctag.vendor_selectedItem  //item selecionada para compra/venda
+//src.ctag.vendor_selectedPrice //preco do item selecionada para compra/venda
+//src.ctag.vendor_selectedOwner //dono do item selecionada para compra/venda
+//src.ctag.vendor_newNpcType    //tipo do npc sendo criado
+//npc.tag.vendor_type       //tipo do npc
 
 //*****************************************************************************
 //*****************************************************************************
@@ -47,12 +47,12 @@
 //*****************************************************************************
 
 [DEFNAME vendor_constants]
-vendor_fee=5				//% de taxa do total que sera retirado pelo NPC na compra.
-vendor_minFeePrice=5		//valor minimo da compra que faz com que o NPC cobre taxa
+vendor_fee=5                //% de taxa do total que sera retirado pelo NPC na compra.
+vendor_minFeePrice=5        //valor minimo da compra que faz com que o NPC cobre taxa
 
-vendor_itemsPerPage=15		//items mostrados na tela do vendedor por pag.
+vendor_itemsPerPage=15      //items mostrados na tela do vendedor por pag.
 
-vendor_type_weapons=1		//lista dos tipos de vendedores
+vendor_type_weapons=1       //lista dos tipos de vendedores
 vendor_type_armor=2
 vendor_type_magic=3
 vendor_type_food=4
@@ -77,17 +77,17 @@ vendor_type_raw=7
 [FUNCTION vendor_createTakebackList]
 SRC.CTAG.vendor_page=1
 SRC.CTAG.vendor_numItems=0
-SRC.CTAG.vendor_op=3	//devolucao
+SRC.CTAG.vendor_op=3    //devolucao
 
 //varre o banco
 if ( <DB.connected> )
-	DB.QUERY "SELECT * FROM vendorItems WHERE idPlayer=<eval <SRC>> && idVendor=<eval <uid>>"
+    DB.QUERY "SELECT * FROM vendorItems WHERE idPlayer=<eval <SRC>> && idVendor=<eval <uid>>"
     if (<DB.ROW.NUMROWS> > 0)
         for R 0 <eval <DB.ROW.NUMROWS>-1>
-		SRC.CTAG.vendor_numItems += 1
-		TRY SRC.CTAG.vendor_items<eval  (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idItem>
-		TRY SRC.CTAG.vendor_owners<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
-		TRY SRC.CTAG.vendor_prices<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.price>
+        SRC.CTAG.vendor_numItems += 1
+        TRY SRC.CTAG.vendor_items<eval  (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idItem>
+        TRY SRC.CTAG.vendor_owners<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+        TRY SRC.CTAG.vendor_prices<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.price>
         end
     endif
 endif
@@ -106,47 +106,47 @@ return 1
 [FUNCTION vendor_createPlayerList]
 SRC.CTAG.vendor_page=1
 SRC.CTAG.vendor_numItems=0
-SRC.CTAG.vendor_op=1	//NPC pega para vender ('compra')
+SRC.CTAG.vendor_op=1    //NPC pega para vender ('compra')
 
 //varre a bag
 LOCAL.type=<TAG.vendor_type>
 forcont <SRC.findlayer.layer_pack.uid> 0
-	LOCAL.match=0
-	
-	if ( <LOCAL.type>==vendor_type_weapons)
-		if ( <f_isWeapon <uid>> )
-			LOCAL.match=1
-		endif
-	elif ( <LOCAL.type>==vendor_type_armor )
-		if ( <f_isArmor <uid>> )
-			LOCAL.match=1
-		endif
-	elif ( <LOCAL.type>==vendor_type_magic )
-		if ( <f_isRegsOrMagic <uid>> )
-			LOCAL.match=1
-		endif
-	elif ( <LOCAL.type>==vendor_type_food )
-		if ( <f_isFood <uid>> )
-			LOCAL.match=1
-		endif
-	elif ( <LOCAL.type>==vendor_type_misc )
-		if ( <f_isMisc <uid>> )
-			LOCAL.match=1
-		endif
-	elif ( <LOCAL.type>==vendor_type_clothes )
-		if ( <f_isWearable <uid>> )
-			LOCAL.match=1
-		endif
-	elif ( <LOCAL.type>==vendor_type_raw )
-		if ( <f_isRaw <uid>> )
-			LOCAL.match=1
-		endif
-	endif
+    LOCAL.match=0
+    
+    if ( <LOCAL.type>==vendor_type_weapons)
+        if ( <f_isWeapon <uid>> )
+            LOCAL.match=1
+        endif
+    elif ( <LOCAL.type>==vendor_type_armor )
+        if ( <f_isArmor <uid>> )
+            LOCAL.match=1
+        endif
+    elif ( <LOCAL.type>==vendor_type_magic )
+        if ( <f_isRegsOrMagic <uid>> )
+            LOCAL.match=1
+        endif
+    elif ( <LOCAL.type>==vendor_type_food )
+        if ( <f_isFood <uid>> )
+            LOCAL.match=1
+        endif
+    elif ( <LOCAL.type>==vendor_type_misc )
+        if ( <f_isMisc <uid>> )
+            LOCAL.match=1
+        endif
+    elif ( <LOCAL.type>==vendor_type_clothes )
+        if ( <f_isWearable <uid>> )
+            LOCAL.match=1
+        endif
+    elif ( <LOCAL.type>==vendor_type_raw )
+        if ( <f_isRaw <uid>> )
+            LOCAL.match=1
+        endif
+    endif
 
-	if ( <LOCAL.match>==1 )
-		SRC.CTAG.vendor_numItems += 1
-		TRY SRC.CTAG.vendor_items<eval (<SRC.CTAG.vendor_numItems>)>=<uid>
-	endif
+    if ( <LOCAL.match>==1 )
+        SRC.CTAG.vendor_numItems += 1
+        TRY SRC.CTAG.vendor_items<eval (<SRC.CTAG.vendor_numItems>)>=<uid>
+    endif
 endfor
 
 SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPerPage) + 1)> 
@@ -163,31 +163,105 @@ return 1
 [FUNCTION vendor_createVendorList]
 SRC.CTAG.vendor_page=1
 SRC.CTAG.vendor_numItems=0
-SRC.CTAG.vendor_op=2	//NPC vende
+SRC.CTAG.vendor_op=2    //NPC vende
 
 local.removedPlayer=0
 
 //varre o banco
 if ( <DB.connected> )
-	DB.QUERY "SELECT * FROM vendorItems WHERE itemType=<eval <TAG.vendor_type>> AND idVendor=<eval <uid>>"
-	if (<DB.ROW.NUMROWS> > 0)
-		for R 0 <eval <DB.ROW.NUMROWS>-1>
-			REF1=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
-			if (<REF1.isplayer>)
-				SRC.CTAG.vendor_numItems += 1
-				TRY SRC.CTAG.vendor_items<eval  (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idItem>
-				TRY SRC.CTAG.vendor_owners<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
-				TRY SRC.CTAG.vendor_prices<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.price>
-			else
-				serv.log [VENDOR] NOT PLAYER: <REF1.uid>
-				local.removedPlayer=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
-			endif
-		end
-	endif
+    DB.QUERY "SELECT * FROM vendorItems WHERE itemType=<eval <TAG.vendor_type>> AND idVendor=<eval <uid>>"
+    if (<DB.ROW.NUMROWS> > 0)
+        for R 0 <eval <DB.ROW.NUMROWS>-1>
+            REF1=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+            if (<REF1.isplayer>)
+                SRC.CTAG.vendor_numItems += 1
+                TRY SRC.CTAG.vendor_items<eval  (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idItem>
+                TRY SRC.CTAG.vendor_owners<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+                TRY SRC.CTAG.vendor_prices<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.price>
+            else
+                serv.log [VENDOR] NOT PLAYER: <REF1.uid>
+                local.removedPlayer=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+            endif
+        end
+    endif
 endif
 
 if (<LOCAL.removedPlayer>)
-	DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer=<eval <LOCAL.removedPlayer>>"
+    DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer=<eval <LOCAL.removedPlayer>>"
+endif
+
+SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPerPage) + 1)> 
+return 1
+
+//*****************************************************************************
+// vendor_createVendorMasterList
+//*****************************************************************************
+//verifica os itens do vendor no banco e cria a lista com tipos de itens a venda.
+//(agrupados por defnames)
+//ira substituir vendor_createVendorList
+//
+//SRC é o player
+//DEFAULT é o vendedor
+[FUNCTION vendor_createVendorMasterList]
+SRC.CTAG.vendor_page=1
+SRC.CTAG.vendor_numItems=0
+SRC.CTAG.vendor_op=2    //NPC vende
+SRC.CTAG.vendor_uid=<uid>
+
+//varre o banco
+if ( <DB.connected> )
+    DB.QUERY "SELECT DISTINCT defName,itemName,COUNT(1) AS cnt FROM vendorItems WHERE idVendor=<eval <uid>> GROUP BY defName ORDER BY itemName"
+    if (<DB.ROW.NUMROWS> > 0)
+        for R 0 <eval <DB.ROW.NUMROWS>-1>
+            SRC.CTAG.vendor_numItems += 1
+            TRY SRC.CTAG.vendor_subname<eval  (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.itemName>
+            TRY SRC.CTAG.vendor_subcnt<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.cnt>
+            TRY SRC.CTAG.vendor_subdef<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.defName>
+        end
+    endif
+endif
+
+SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPerPage) + 1)> 
+return 1
+
+//*****************************************************************************
+// vendor_createVendorSubList( vendor, defNameToFilter )
+//*****************************************************************************
+//verifica os itens do vendor no banco e cria a lista de venda do npc filtrada
+//por defname
+//ira substituir vendor_createVendorList
+//
+//SRC é o player
+//DEFAULT é o vendedor
+[FUNCTION vendor_createVendorSubList]
+SRC.CTAG.vendor_page=1
+SRC.CTAG.vendor_numItems=0
+SRC.CTAG.vendor_op=2    //NPC vende
+
+local.removedPlayer=0
+
+//varre o banco
+if ( <DB.connected> )
+    serv.log SELECT * FROM vendorItems WHERE idVendor=<eval <argv0>> AND defName='<argv1>'
+    DB.QUERY "SELECT * FROM vendorItems WHERE idVendor=<eval <argv0>> AND defName='<argv1>'"
+    if (<DB.ROW.NUMROWS> > 0)
+        for R 0 <eval <DB.ROW.NUMROWS>-1>
+            REF1=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+            if (<REF1.isplayer>)
+                SRC.CTAG.vendor_numItems += 1
+                TRY SRC.CTAG.vendor_items<eval  (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idItem>
+                TRY SRC.CTAG.vendor_owners<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+                TRY SRC.CTAG.vendor_prices<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.price>
+            else
+                serv.log [VENDOR] NOT PLAYER: <REF1.uid>
+                local.removedPlayer=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+            endif
+        end
+    endif
+endif
+
+if (<LOCAL.removedPlayer>)
+    DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer=<eval <LOCAL.removedPlayer>>"
 endif
 
 SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPerPage) + 1)> 
@@ -205,35 +279,35 @@ return 1
 OBJ=<argv[0]>
 
 if !(<DB.connected>)
-	src.sysmessage Erro. O item nao foi colocado a venda.
-	return 1
+    src.sysmessage Erro. O item nao foi colocado a venda.
+    return 1
 endif
 
 //acerta quantidade desejada
 if ( <argv[2]> > <OBJ.amount> )
-	LOCAL.amount = <OBJ.amount>
+    LOCAL.amount = <OBJ.amount>
 else
-	LOCAL.amount = <argv[2]>
+    LOCAL.amount = <argv[2]>
 endif
 
 //se quantidade diferente do disponivel...
 if ( <LOCAL.amount> != <OBJ.amount> )
-	//duplica item, arruma a quantidade com o resto e coloca na bag
-	SERV.NEWDUPE <OBJ>
-	NEW.amount = <eval <OBJ.amount> - <LOCAL.amount>>
-	NEW.bounce
+    //duplica item, arruma a quantidade com o resto e coloca na bag
+    SERV.NEWDUPE <OBJ>
+    NEW.amount = <eval <OBJ.amount> - <LOCAL.amount>>
+    NEW.bounce
 
-	//acerta quantidade que sera vendida	
-	OBJ.amount = <LOCAL.amount>
+    //acerta quantidade que sera vendida    
+    OBJ.amount = <LOCAL.amount>
 endif
 
 //create player vendorbox if doesnt exist
 REF1=<src.findlayer.layer_vendor_extra.uid>
 if (!<REF1>)
-	SERV.NEWITEM i_bankbox
-	NEW.layer=layer_vendor_extra
-	NEW.cont=<SRC>
-	REF1=<NEW>
+    SERV.NEWITEM i_bankbox
+    NEW.layer=layer_vendor_extra
+    NEW.cont=<SRC>
+    REF1=<NEW>
 endif
 
 //remove from players bag and place it inside a new bag in the vendor bankbox
@@ -245,17 +319,17 @@ OBJ.cont=<NEW>
 OBJ.removefromview
 
 //insert item into DB
-DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <SRC>>,idItem=<eval <OBJ>>,quantity=<eval <OBJ.amount>>,price=<eval <argv[1]>>,playerName='<SRC.TAG.name>',itemType=<eval <TAG.vendor_type>>"
+DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <SRC>>,idItem=<eval <OBJ>>,quantity=<eval <OBJ.amount>>,price=<eval <argv[1]>>,playerName='<SRC.TAG.name>',itemType=<eval <TAG.vendor_type>>,defName='<OBJ.baseid>',itemName='<OBJ.name>'"
 
 DB.QUERY "SELECT id FROM vendorItems WHERE idItem=<eval <OBJ>>"
 if (!<DB.ROW.NUMROWS>)
-	SERV.LOG VENDOR: ERRO AO VENDER ITEM!!! I:<OBJ> N:<OBJ.name> S:<SRC>
-	//devolve item
-	OBJ.cont=<SRC>
-	NEW.remove
-	SAY Estou tendo problemas, fique com seu item.
-	SRC.UPDATE
-	return 1
+    SERV.LOG VENDOR: ERRO AO VENDER ITEM!!! I:<OBJ> N:<OBJ.name> S:<SRC>
+    //devolve item
+    OBJ.cont=<SRC>
+    NEW.remove
+    SAY Estou tendo problemas, fique com seu item.
+    SRC.UPDATE
+    return 1
 endif
 
 SRC.UPDATE
@@ -276,72 +350,72 @@ return 1
 OBJ=<argv[0]>
 
 if !(<DB.connected>)
-	SRC.sysmessage Erro. O item nao foi comprado.
-	return 1
+    SRC.sysmessage Erro. O item nao foi comprado.
+    return 1
 endif
 
 //pega detalhes do item
 DB.QUERY "SELECT id, timestamp, idVendor, idPlayer, playerName, itemType FROM vendorItems WHERE idItem=<eval <OBJ>>"
-LOCAL.id	= <DB.ROW.id>
-LOCAL.timestamp	= <DB.ROW.timestamp>
-LOCAL.idVendor	= <DB.ROW.idVendor>
-LOCAL.idPlayer	= <DB.ROW.idPlayer>
-LOCAL.itemType 	= <DB.ROW.itemType>
+LOCAL.id    = <DB.ROW.id>
+LOCAL.timestamp = <DB.ROW.timestamp>
+LOCAL.idVendor  = <DB.ROW.idVendor>
+LOCAL.idPlayer  = <DB.ROW.idPlayer>
+LOCAL.itemType  = <DB.ROW.itemType>
 LOCAL.playerName = <DB.ROW.playerName>
 
 //acerta quantidade desejada
 if ( <argv[2]> > <OBJ.amount> )
-	LOCAL.amount = <OBJ.amount>
+    LOCAL.amount = <OBJ.amount>
 else
-	LOCAL.amount = <argv[2]>
+    LOCAL.amount = <argv[2]>
 endif
 
 //verifica se comprador tem dinheiro suficiente e recolhe
 LOCAL.totalPrice=<eval <argv[1]>*<LOCAL.amount>>
 
 if !( <vendor_getCash <LOCAL.totalPrice>> )
-	SAY Esta achando que vivo de caridade? Volte quando tiver dinheiro suficiente para a compra.
-	return 1
+    SAY Esta achando que vivo de caridade? Volte quando tiver dinheiro suficiente para a compra.
+    return 1
 endif
 
 //se quantidade diferente do disponivel...
 if ( <LOCAL.amount> != <OBJ.amount> )
 
-	//duplica item, arruma a quantidade com o resto e coloca na bag
-	SERV.NEWDUPE <OBJ>
-	NEW.amount = <eval <OBJ.amount> - <LOCAL.amount>>
+    //duplica item, arruma a quantidade com o resto e coloca na bag
+    SERV.NEWDUPE <OBJ>
+    NEW.amount = <eval <OBJ.amount> - <LOCAL.amount>>
 
-	//acerta quantidade que sera comprada
-	OBJ.amount = <LOCAL.amount>
+    //acerta quantidade que sera comprada
+    OBJ.amount = <LOCAL.amount>
 
-	//entrega item ao player comprador
-	OBJ.bounce
-	
-	//atualiza lista de vendas
-	DB.EXECUTE "UPDATE vendorItems SET idItem=<eval <NEW>>, quantity=<eval <NEW.amount>> WHERE id=<eval <LOCAL.id>>"
+    //entrega item ao player comprador
+    OBJ.bounce
+    
+    //atualiza lista de vendas
+    DB.EXECUTE "UPDATE vendorItems SET idItem=<eval <NEW>>, quantity=<eval <NEW.amount>> WHERE id=<eval <LOCAL.id>>"
 
 else
-	//salva bag de 'protecao'
-	REF1=<OBJ.cont>
-	
-	//entrega item ao player comprador
-	OBJ.bounce
+    //salva bag de 'protecao'
+    REF1=<OBJ.cont>
+    
+    //entrega item ao player comprador
+    OBJ.bounce
 
-	//remove bag de 'protecao'
-	REF1.remove
-	
-	//remove item da lista de vendas (e duplicatas caso haja... nunca se sabe)
-	DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>>"
+    //remove bag de 'protecao'
+    REF1.remove
+    
+    //remove item da lista de vendas (e duplicatas caso haja... nunca se sabe)
+    DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>>"
 endif
 
 if ( <LOCAL.totalPrice> >= vendor_minFeePrice )
-	LOCAL.fee=<eval (<LOCAL.totalPrice>*vendor_fee)/100>
-	if ( <LOCAL.fee>==0 )
-		LOCAL.fee=1
-	endif
-	LOCAL.paycheck=<eval <LOCAL.totalPrice>-<LOCAL.fee>>
+    LOCAL.fee=<eval (<LOCAL.totalPrice>*vendor_fee)/100>
+    if ( <LOCAL.fee>==0 )
+        LOCAL.fee=1
+    endif
+    LOCAL.paycheck=<eval <LOCAL.totalPrice>-<LOCAL.fee>>
 else
-	LOCAL.paycheck=<LOCAL.totalPrice>
+    LOCAL.paycheck=<LOCAL.totalPrice>
 endif
 
 //transfere o dinheiro para o banco do player vendedor
@@ -368,17 +442,17 @@ return 1
 OBJ=<argv[0]>
 
 if !(<DB.connected>)
-	SRC.sysmessage Erro. O item nao foi retornado.
-	return 1
+    SRC.sysmessage Erro. O item nao foi retornado.
+    return 1
 endif
 
 //pega detalhes do item
 DB.QUERY "SELECT id, timestamp, idVendor, idPlayer, playerName, itemType FROM vendorItems WHERE idItem=<eval <OBJ>>"
-LOCAL.id	= <DB.ROW.id>
-LOCAL.timestamp	= <DB.ROW.timestamp>
-LOCAL.idVendor	= <DB.ROW.idVendor>
-LOCAL.idPlayer	= <DB.ROW.idPlayer>
-LOCAL.itemType 	= <DB.ROW.itemType>
+LOCAL.id    = <DB.ROW.id>
+LOCAL.timestamp = <DB.ROW.timestamp>
+LOCAL.idVendor  = <DB.ROW.idVendor>
+LOCAL.idPlayer  = <DB.ROW.idPlayer>
+LOCAL.itemType  = <DB.ROW.itemType>
 LOCAL.playerName = <DB.ROW.playerName>
 
 //remove item da lista de vendas (e duplicatas caso haja... nunca se sabe)
@@ -407,27 +481,27 @@ LOCAL.obj=<OBJ>
 OBJ=<argv[0]>
 
 if ( <argv[1]>==vendor_type_weapons )
-	LOCAL.quality=<eval <OBJ.hitpoints> + <OBJ.dam> >
+    LOCAL.quality=<eval <OBJ.hitpoints> + <OBJ.dam> >
 elif ( <argv[1]>==vendor_type_armor )
-	LOCAL.quality=<eval <OBJ.hitpoints> + <OBJ.armor> >
+    LOCAL.quality=<eval <OBJ.hitpoints> + <OBJ.armor> >
 elif ( <argv[1]>==vendor_type_magic )
-	if ( <OBJ.type>==t_potion )
-		LOCAL.quality=<OBJ.more2>
-	elif ( <OBJ.type>==t_wand )
-		LOCAL.quality=<eval <OBJ.hitpoints> + <OBJ.MORE2> > //hits+charges
-	else
-		LOCAL.quality=0
-	endif
+    if ( <OBJ.type>==t_potion )
+        LOCAL.quality=<OBJ.more2>
+    elif ( <OBJ.type>==t_wand )
+        LOCAL.quality=<eval <OBJ.hitpoints> + <OBJ.MORE2> > //hits+charges
+    else
+        LOCAL.quality=0
+    endif
 elif ( <argv[1]>==vendor_type_food )
-	LOCAL.quality=<OBJ.MORE2> //colocar nos itens t_food a quantidade no MORE2
+    LOCAL.quality=<OBJ.MORE2> //colocar nos itens t_food a quantidade no MORE2
 elif ( <argv[1]>==vendor_type_misc )
-//	LOCAL.quality=<OBJ.MORE2> //colocar nos itens crafted o skill do fabricante no MORE2
-	LOCAL.quality=0
+//  LOCAL.quality=<OBJ.MORE2> //colocar nos itens crafted o skill do fabricante no MORE2
+    LOCAL.quality=0
 elif ( <argv[1]>==vendor_type_clothes )
-//	LOCAL.quality=<OBJ.MORE2> //colocar nos itens tailored o skill do fabricante no MORE2
-	LOCAL.quality=0
+//  LOCAL.quality=<OBJ.MORE2> //colocar nos itens tailored o skill do fabricante no MORE2
+    LOCAL.quality=0
 elif ( <argv[1]>==vendor_type_raw )
-	LOCAL.quality=0
+    LOCAL.quality=0
 endif
 
 OBJ=<LOCAL.obj>
@@ -440,11 +514,11 @@ return <LOCAL.quality>
 //use sem parametros para abrir o menu de configuracao
 [FUNCTION vendor_addNpc]
 if (<eval <argv[0]>> == 0) || (<eval <argv[1]>> == 0)
-	menu m_vendor_npcType
-	return 1
+    menu m_vendor_npcType
+    return 1
 else
-	SRC.targetfg vendor_placeNpc <argv[0]>,<argv[1]>
-	SRC.sysmessage Onde deseja colocar o vendedor?
+    SRC.targetfg vendor_placeNpc <argv[0]>,<argv[1]>
+    SRC.sysmessage Onde deseja colocar o vendedor?
 endif
 return 1
 
@@ -461,19 +535,19 @@ NEW.FIX
 NEW.TAG.vendor_type=<argv[0]>
 
 if ( <argv[0]>==vendor_type_weapons )
-	NEW.TITLE = Vendedor de Armas
+    NEW.TITLE = Vendedor de Armas
 elif ( <argv[0]>==vendor_type_armor )
-	NEW.TITLE = Vendedor de Armaduras
+    NEW.TITLE = Vendedor de Armaduras
 elif ( <argv[0]>==vendor_type_magic )
-	NEW.TITLE = Vendedor de Pocoes e Reags
+    NEW.TITLE = Vendedor de Pocoes e Reags
 elif ( <argv[0]>==vendor_type_food )
-	NEW.TITLE = Vendedor de Alimentos
+    NEW.TITLE = Vendedor de Alimentos
 elif ( <argv[0]>==vendor_type_misc )
-	NEW.TITLE = Vendedor
+    NEW.TITLE = Vendedor
 elif ( <argv[0]>==vendor_type_clothes )
-	NEW.TITLE = Vendedor de Roupas e Joias
+    NEW.TITLE = Vendedor de Roupas e Joias
 elif ( <argv[0]>==vendor_type_raw )
-	NEW.TITLE = Vendedor de Materia Prima
+    NEW.TITLE = Vendedor de Materia Prima
 endif
 
 //forca criacao de uma bankbox no NPC para armazenar os itens de venda
@@ -489,8 +563,8 @@ return 1
 //remove dados do vendedor do banco
 [FUNCTION vendor_removeVendor]
 if ( <DB.connected> )
-	SERV.LOG VENDAS: NPC LIMPO!!! <uid> <name>
-	DB.EXECUTE "UPDATE vendorItems SET idVendor=0 WHERE idVendor=<eval <argv[0]>>"
+    SERV.LOG VENDAS: NPC LIMPO!!! <uid> <name>
+    DB.EXECUTE "UPDATE vendorItems SET idVendor=0 WHERE idVendor=<eval <argv[0]>>"
 endif
 return 1
 
@@ -510,48 +584,48 @@ LOCAL.cash=<LOCAL.copper>+(<LOCAL.silver>*10)+(<LOCAL.gold>*100)
 //message Total Cash: <eval <LOCAL.cash>> <LOCAL.copper> <LOCAL.silver> <LOCAL.gold>
 
 if ( <LOCAL.cash> >= <argv[0]> )
-	LOCAL.cash=<argv[0]>
-//	sysmessage *********************
-	
-	if ( <LOCAL.cash> > <LOCAL.copper> )
-		SRC.consume <LOCAL.copper> i_coin_copper
-		LOCAL.cash=<LOCAL.cash>-<LOCAL.copper>
-//		sysmessage Pago em cobre <eval <LOCAL.copper>>. Sobra <eval <LOCAL.cash>>.
-	else
-		SRC.consume <LOCAL.cash> i_coin_copper
-//		sysmessage Pago em cobre <eval <LOCAL.cash>>
-		return 1	
-	endif
+    LOCAL.cash=<argv[0]>
+//  sysmessage *********************
+    
+    if ( <LOCAL.cash> > <LOCAL.copper> )
+        SRC.consume <LOCAL.copper> i_coin_copper
+        LOCAL.cash=<LOCAL.cash>-<LOCAL.copper>
+//      sysmessage Pago em cobre <eval <LOCAL.copper>>. Sobra <eval <LOCAL.cash>>.
+    else
+        SRC.consume <LOCAL.cash> i_coin_copper
+//      sysmessage Pago em cobre <eval <LOCAL.cash>>
+        return 1    
+    endif
 
-	LOCAL.v=<LOCAL.silver>*10
-	if ( <LOCAL.cash> > <LOCAL.v> )
-		SRC.consume <LOCAL.silver> i_coin_silver
-		LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
-//		sysmessage Pago em prata <eval <LOCAL.silver>>. Sobra <eval <LOCAL.cash>>.
-	else
-		LOCAL.amt=((<LOCAL.cash>-1)/10)+1
-		SRC.consume <LOCAL.amt> i_coin_silver
-		LOCAL.pb=(<LOCAL.amt>*10)-<LOCAL.cash>
-		SRC.NEWITEM i_coin_copper
-		NEW.amount=<LOCAL.pb>
-		NEW.bounce
-//		sysmessage Pago em prata <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
-		return 1	
-	endif
-	
-	LOCAL.v=<LOCAL.gold>*100
-	LOCAL.amt=((<LOCAL.cash>-1)/100)+1
-	SRC.consume <LOCAL.amt> i_gold
-	LOCAL.pb=(<LOCAL.amt>*100)-<LOCAL.cash>
-	SRC.NEWITEM i_coin_copper
-	NEW.amount=<LOCAL.pb>
-	NEW.bounce
-//	sysmessage Pago em ouro <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
-	return 1	
+    LOCAL.v=<LOCAL.silver>*10
+    if ( <LOCAL.cash> > <LOCAL.v> )
+        SRC.consume <LOCAL.silver> i_coin_silver
+        LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
+//      sysmessage Pago em prata <eval <LOCAL.silver>>. Sobra <eval <LOCAL.cash>>.
+    else
+        LOCAL.amt=((<LOCAL.cash>-1)/10)+1
+        SRC.consume <LOCAL.amt> i_coin_silver
+        LOCAL.pb=(<LOCAL.amt>*10)-<LOCAL.cash>
+        SRC.NEWITEM i_coin_copper
+        NEW.amount=<LOCAL.pb>
+        NEW.bounce
+//      sysmessage Pago em prata <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+        return 1    
+    endif
+    
+    LOCAL.v=<LOCAL.gold>*100
+    LOCAL.amt=((<LOCAL.cash>-1)/100)+1
+    SRC.consume <LOCAL.amt> i_gold
+    LOCAL.pb=(<LOCAL.amt>*100)-<LOCAL.cash>
+    SRC.NEWITEM i_coin_copper
+    NEW.amount=<LOCAL.pb>
+    NEW.bounce
+//  sysmessage Pago em ouro <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+    return 1    
 
 else
-//	sysmessage cant buy
-	return 0
+//  sysmessage cant buy
+    return 0
 endif
 
 //*****************************************************************************
@@ -561,38 +635,38 @@ endif
 //type of cash (1=copper,2=silver,3=gold,4=kgold,5=kkgold)
 [FUNCTION vendor_cashFormat]
 if ( !<argv[0]> || !<argv[1]> )
-	sysmessage Utilize vendor_cashFormat amount,type
-	return 1
+    sysmessage Utilize vendor_cashFormat amount,type
+    return 1
 endif
 
 //sysmessage Tentando <argv[0]>/<argv[1]>
 
 if ( <argv[1]> <= 2 )
-	LOCAL.x=<argv[0]>/10
-	LOCAL.y=<LOCAL.x>*10
+    LOCAL.x=<argv[0]>/10
+    LOCAL.y=<LOCAL.x>*10
 else
-	LOCAL.x=<argv[0]>/1000
-	LOCAL.y=<LOCAL.x>*1000
+    LOCAL.x=<argv[0]>/1000
+    LOCAL.y=<LOCAL.x>*1000
 endif
 
 if ( <eval <LOCAL.y>>!=<argv[0]> ) || ( <argv[1]>==5 )
-//	sysmessage Nao da para reduzir mais que <argv[0]> <LOCAL.y>
+//  sysmessage Nao da para reduzir mais que <argv[0]> <LOCAL.y>
 
-	if ( <argv[1]>==1 )
-		return <argv[0]> mc
-	elif ( <argv[1]>==2 )
-		return <argv[0]> mp
-	elif ( <argv[1]>==3 )
-		return <argv[0]> mo
-	elif ( <argv[1]>==4 )
-		return <argv[0]>k mo
-	elif ( <argv[1]>==5 )
-		return <argv[0]>kk mo
-	else
-		return Error!
-	endif
+    if ( <argv[1]>==1 )
+        return <argv[0]> mc
+    elif ( <argv[1]>==2 )
+        return <argv[0]> mp
+    elif ( <argv[1]>==3 )
+        return <argv[0]> mo
+    elif ( <argv[1]>==4 )
+        return <argv[0]>k mo
+    elif ( <argv[1]>==5 )
+        return <argv[0]>kk mo
+    else
+        return Error!
+    endif
 else
-	return <vendor_cashFormat <eval <LOCAL.x>>,<eval <argv[1]>+1>>
+    return <vendor_cashFormat <eval <LOCAL.x>>,<eval <argv[1]>+1>>
 endif
 
 //*****************************************************************************
@@ -605,29 +679,29 @@ dialogclose d_vendor_items
 dialogclose d_vendor_item_detail
 
 if ( <SRC.CTAG0.vendor_op>==1 )
-	vendor_createPlayerList
-	if ( <SRC.CTAG0.vendor_numItems> < 1 )
-		message Voce nao tem nada que eu possa vender.
-	else
-		message	O que deseja vender?
-		dialog d_vendor_items
-	endif
+    vendor_createPlayerList
+    if ( <SRC.CTAG0.vendor_numItems> < 1 )
+        message Voce nao tem nada que eu possa vender.
+    else
+        message O que deseja vender?
+        dialog d_vendor_items
+    endif
 elif ( <SRC.CTAG0.vendor_op>==2 )
-	vendor_createVendorList
-	if ( <SRC.CTAG0.vendor_numItems> < 1 )
-		message Nao tenho nada para vender no momento.
-	else
-		message	O que deseja comprar?
-		dialog d_vendor_items
-	endif
+    vendor_createVendorMasterList
+    if ( <SRC.CTAG0.vendor_numItems> < 1 )
+        message Nao tenho nada para vender no momento.
+    else
+        message O que deseja comprar?
+        dialog d_vendor_itemsb
+    endif
 elif ( <SRC.CTAG0.vendor_op>==3 )
-	vendor_createTakebackList
-	if ( <SRC.CTAG0.vendor_numItems> < 1 )
-		message Nao tenho nada seu para devolver
-	else
-		message	O que deseja retirar?
-		dialog d_vendor_items
-	endif
+    vendor_createTakebackList
+    if ( <SRC.CTAG0.vendor_numItems> < 1 )
+        message Nao tenho nada seu para devolver
+    else
+        message O que deseja retirar?
+        dialog d_vendor_items
+    endif
 endif
 
 //*****************************************************************************
@@ -637,12 +711,12 @@ endif
 // SRC  --> char being deleted
 // ARGO --> the client deleting the character
 // RETURN
-//	  0 --> normal action (delete char)
-//	  1 --> denyes deletion
+//    0 --> normal action (delete char)
+//    1 --> denyes deletion
 [FUNCTION f_onchar_delete]
 if ( <DB.connected> )
-	//remove char itens on deletion
-	DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer=<eval <SRC>>"
+    //remove char itens on deletion
+    DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer=<eval <SRC>>"
 endif
 
 //*****************************************************************************
@@ -664,39 +738,39 @@ findlayer.layer_vendor_extra.open
 [MENU m_vendor_npcType]
                 -=Criacao de Vendedor=-
 on=0 Vendedor de Armas
-	SRC.CTAG.vendor_newNpcType = <eval vendor_type_weapons> //t_weapon_axe,t_weapon_mace_smith,t_weapon_mace_sharp,t_weapon_sword,t_weapon_fence,t_weapon_bow,t_weapon_mace_staff,t_weapon_mace_crook,t_weapon_mace_pick,t_weapon_arrow,t_weapon_bolt,t_weapon_xbow
-	menu m_vendor_npcGender
- 	return 1
+    SRC.CTAG.vendor_newNpcType = <eval vendor_type_weapons> //t_weapon_axe,t_weapon_mace_smith,t_weapon_mace_sharp,t_weapon_sword,t_weapon_fence,t_weapon_bow,t_weapon_mace_staff,t_weapon_mace_crook,t_weapon_mace_pick,t_weapon_arrow,t_weapon_bolt,t_weapon_xbow
+    menu m_vendor_npcGender
+    return 1
 
 on=0 Vendedor de Armaduras
-	SRC.CTAG.vendor_newNpcType = <eval vendor_type_armor>	//t_armor,t_armor_leather,t_shield
-	menu m_vendor_npcGender
- 	return 1
+    SRC.CTAG.vendor_newNpcType = <eval vendor_type_armor>   //t_armor,t_armor_leather,t_shield
+    menu m_vendor_npcGender
+    return 1
 
-on=0 Vendedor de Reagentes e Itens Magicos	
-	SRC.CTAG.vendor_newNpcType = <eval vendor_type_magic> 	//t_wand, t_potion, t_reagent, t_reagent_raw, t_potion_empty
-	menu m_vendor_npcGender
- 	return 1
+on=0 Vendedor de Reagentes e Itens Magicos  
+    SRC.CTAG.vendor_newNpcType = <eval vendor_type_magic>   //t_wand, t_potion, t_reagent, t_reagent_raw, t_potion_empty
+    menu m_vendor_npcGender
+    return 1
 
 on=0 Vendedor de Alimentos
-	SRC.CTAG.vendor_newNpcType = <eval vendor_type_food>	//t_food, t_food_raw, t_fish, t_drink, t_fruit, t_meat_raw, t_pitcher
-	menu m_vendor_npcGender
- 	return 1
+    SRC.CTAG.vendor_newNpcType = <eval vendor_type_food>    //t_food, t_food_raw, t_fish, t_drink, t_fruit, t_meat_raw, t_pitcher
+    menu m_vendor_npcGender
+    return 1
 
 on=0 Vendedor de Marcenaria e Tinker
-	SRC.CTAG.vendor_newNpcType = <eval vendor_type_misc>	//t_clock, t_musical, t_carpentry, t_chair,t_sextant, t_table, t_scissors, t_fish_pole, t_shaft, t_sewing_kit, t_tinker_tools, t_mortar
-	menu m_vendor_npcGender
- 	return 1
+    SRC.CTAG.vendor_newNpcType = <eval vendor_type_misc>    //t_clock, t_musical, t_carpentry, t_chair,t_sextant, t_table, t_scissors, t_fish_pole, t_shaft, t_sewing_kit, t_tinker_tools, t_mortar
+    menu m_vendor_npcGender
+    return 1
 
 on=0 Vendedor de Roupas e Joias
-	SRC.CTAG.vendor_newNpcType = <eval vendor_type_clothes> //t_clothing, t_cloth, t_jewelry
-	menu m_vendor_npcGender
-	return 1
+    SRC.CTAG.vendor_newNpcType = <eval vendor_type_clothes> //t_clothing, t_cloth, t_jewelry
+    menu m_vendor_npcGender
+    return 1
 
 on=0 Vendedor de Materia Prima
-	SRC.CTAG.vendor_newNpcType = <eval vendor_type_raw>	//t_log, t_ore, t_ingot, t_seed, t_leather, t_loom, t_feather, t_wool,t_fur, t_thread, t_yarn, t_cotton
-	menu m_vendor_npcGender
-	return 1
+    SRC.CTAG.vendor_newNpcType = <eval vendor_type_raw> //t_log, t_ore, t_ingot, t_seed, t_leather, t_loom, t_feather, t_wool,t_fur, t_thread, t_yarn, t_cotton
+    menu m_vendor_npcGender
+    return 1
 
 //*****************************************************************************
 // m_vendor_npcGender
@@ -705,36 +779,36 @@ on=0 Vendedor de Materia Prima
 [MENU m_vendor_npcGender]
                 -=Criacao de Vendedor=-
 on=0 Humano
-	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
- 	return 1
+    vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
+    return 1
 
 //on=0 Mulher - Humano
-//	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
-// 	return 1
+//  vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
+//  return 1
 
 on=0 Orc
-	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_O_VENDOR_M
- 	return 1
+    vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_O_VENDOR_M
+    return 1
 
 //on=0 Femea - Orc
-//	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
-// 	return 1
+//  vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
+//  return 1
 
 //on=0 Bambi - Elfo
-//	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
-// 	return 1
+//  vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
+//  return 1
 
 on=0 Elfo
-	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_E_VENDOR_F
- 	return 1
+    vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_E_VENDOR_F
+    return 1
 
 on=0 Anao
-	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_D_VENDOR_M
- 	return 1
+    vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_D_VENDOR_M
+    return 1
 
 //on=0 Barbuda - Anao
-//	vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
-// 	return 1
+//  vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
+//  return 1
 
 //*****************************************************************************
 // d_vendor_items
@@ -750,7 +824,7 @@ LOCAL.startItem=<eval ((<SRC.CTAG0.vendor_page> - 1) * vendor_itemsPerPage ) + 1
 LOCAL.endItem=<eval (<SRC.CTAG0.vendor_page> * vendor_itemsPerPage)>
 
 if ( <LOCAL.endItem> > <SRC.CTAG0.vendor_numItems> )
-	LOCAL.endItem = <SRC.CTAG0.vendor_numItems>
+    LOCAL.endItem = <SRC.CTAG0.vendor_numItems>
 endif 
 
 LOCAL.pageLen=<eval 165+(<LOCAL.endItem>-<LOCAL.startItem>)*20>
@@ -758,11 +832,11 @@ LOCAL.pageLen=<eval 165+(<LOCAL.endItem>-<LOCAL.startItem>)*20>
 resizepic 0 0 3500 500 <LOCAL.pageLen>
 
 if (<SRC.CTAG0.vendor_op>==1)
-	dtext 20 30 0 Selecione o item que deseja vender
+    dtext 20 30 0 Selecione o item que deseja vender
 elif (<SRC.CTAG0.vendor_op>==2)
-	dtext 20 30 0 Selecione o item que deseja comprar
+    dtext 20 30 0 Selecione o item que deseja comprar
 else
-	dtext 20 30 0 Selecione o item que deseja de volta
+    dtext 20 30 0 Selecione o item que deseja de volta
 endif
 
 dorigin 20 80
@@ -778,34 +852,34 @@ dtext +400 - 014D Qualidade
 
 for x  <LOCAL.startItem> <LOCAL.endItem> 
 
-	if (<SRC.CTAG0.vendor_op>==2)
-		OBJ=<SRC.CTAG0.vendor_owners<eval <LOCAL.x>>>
-		LOCAL.price=<vendor_cashFormat <eval <SRC.CTAG0.vendor_prices<eval <LOCAL.x>>>>,1>
-		LOCAL.vendor=<OBJ.TAG.name>
-	else
-		LOCAL.price=0
-		LOCAL.vendor=<SRC.TAG.name>
-	endif
+    if (<SRC.CTAG0.vendor_op>==2)
+        OBJ=<SRC.CTAG0.vendor_owners<eval <LOCAL.x>>>
+        LOCAL.price=<vendor_cashFormat <eval <SRC.CTAG0.vendor_prices<eval <LOCAL.x>>>>,1>
+        LOCAL.vendor=<OBJ.TAG.name>
+    else
+        LOCAL.price=0
+        LOCAL.vendor=<SRC.TAG.name>
+    endif
 
-	//carrega item armazenado
-	OBJ=<SRC.CTAG0.vendor_items<eval <LOCAL.x>>>
-	
-	//cria entrada no dialog
-	button - *20 5224 5003 1 0 <eval (1000 + <LOCAL.x>)>
-	dtext +25 -3 0 <OBJ.amount>
-	dtext +70 -3 0 <OBJ.name>
-	dtext +220 -3 0 <LOCAL.price>
-	dtext +290 -3 0 <LOCAL.vendor>
-	dtext +400 -3 0 <eval <f_getItemQuality <OBJ>,<TAG0.vendor_type>>>
+    //carrega item armazenado
+    OBJ=<SRC.CTAG0.vendor_items<eval <LOCAL.x>>>
+    
+    //cria entrada no dialog
+    button - *20 5224 5003 1 0 <eval (1000 + <LOCAL.x>)>
+    dtext +25 -3 0 <OBJ.amount>
+    dtext +70 -3 0 <OBJ.name>
+    dtext +220 -3 0 <LOCAL.price>
+    dtext +290 -3 0 <LOCAL.vendor>
+    dtext +400 -3 0 <eval <f_getItemQuality <OBJ>,<TAG0.vendor_type>>>
 endfor
 
 if (<SRC.CTAG0.vendor_page> > 1)
-	// Back button
-	button 20 <eval <LOCAL.pageLen>-30> 4014 4015 1 0 1
+    // Back button
+    button 20 <eval <LOCAL.pageLen>-30> 4014 4015 1 0 1
 endif
 if (<SRC.CTAG0.vendor_page> < <SRC.CTAG0.vendor_numPages>)
-	// Forward button
-	button 450 <eval <LOCAL.pageLen>-30> 4005 4006 1 0 2
+    // Forward button
+    button 450 <eval <LOCAL.pageLen>-30> 4005 4006 1 0 2
 endif
 dtext 50 <eval <LOCAL.pageLen>-30> 0 Taxa: <eval vendor_fee>%
 dtext 210 <eval <LOCAL.pageLen>-30> 0c1 Pag <eval <SRC.CTAG0.vendor_page>> / <eval <SRC.CTAG0.vendor_numPages>>
@@ -819,14 +893,14 @@ return 1
 on=1 // Back button
 SRC.CTAG0.vendor_page -= 1
 if (<SRC.CTAG.vendor_page> < 1)
-	SRC.CTAG.vendor_page=1
+    SRC.CTAG.vendor_page=1
 endif
 dialog d_vendor_items
 
 on=2 // Forward button
 src.CTAG0.vendor_page += 1
 if (<SRC.CTAG.vendor_page> > <SRC.CTAG0.vendor_numPages>)
-	SRC.CTAG.vendor_page=<SRC.CTAG0.vendor_numPages>
+    SRC.CTAG.vendor_page=<SRC.CTAG0.vendor_numPages>
 endif
 dialog d_vendor_items
 
@@ -836,9 +910,9 @@ SRC.CTAG.vendor_selectedPrice=<SRC.CTAG0.vendor_prices<eval <argn> - 1000>>
 SRC.CTAG.vendor_selectedOwner=<SRC.CTAG0.vendor_owners<eval <argn> - 1000>>
 
 if (<SRC.CTAG0.vendor_op>==3)
-	vendor_takebackItem <SRC.CTAG.vendor_selectedItem>
+    vendor_takebackItem <SRC.CTAG.vendor_selectedItem>
 else
-	dialog d_vendor_item_detail
+    dialog d_vendor_item_detail
 endif
 
 
@@ -854,9 +928,9 @@ resizepic 0 0 3500 350 220
 OBJ=<SRC.CTAG.vendor_selectedItem>
 
 if (<SRC.CTAG0.vendor_op>==1)
-	dtext 20 30 0 Entre com o preco e quantidade do item a vender.
+    dtext 20 30 0 Entre com o preco e quantidade do item a vender.
 else
-	dtext 20 30 0 Entre com a quantidade desejada.
+    dtext 20 30 0 Entre com a quantidade desejada.
 endif
 
 //cria entrada no dialog
@@ -866,14 +940,14 @@ dorigin 20 60
 dtext *60 - 0 Item: <OBJ.name>
 dtext - *20 0 Preco Un. (mc|mp|mo):
 if ( <SRC.CTAG0.vendor_op>==1 )
-	resizepic +130 - 3000 50 20 //130
-	dtextentry +132 - 50 25 0 1 1
-	group 0
-	radio 262 80 210 211 1 1	//copper
-	radio 282 80 210 211 0 2	//silver
-	radio 302 80 210 211 0 3	//gold
+    resizepic +130 - 3000 50 20 //130
+    dtextentry +132 - 50 25 0 1 1
+    group 0
+    radio 262 80 210 211 1 1    //copper
+    radio 282 80 210 211 0 2    //silver
+    radio 302 80 210 211 0 3    //gold
 else
-	dtext +132 - 0 <vendor_cashFormat <eval <SRC.CTAG.vendor_selectedPrice>>,1>
+    dtext +132 - 0 <vendor_cashFormat <eval <SRC.CTAG.vendor_selectedPrice>>,1>
 endif
 
 
@@ -889,15 +963,15 @@ dtext - *20 0 Durabilidade:
 dtext +132 - 0 <OBJ.hitpoints>
 
 if ( <f_isWeapon <OBJ> > )
-	dtext - *20 0 Dano:
-	dtext +132 - 0 <OBJ.dam>
+    dtext - *20 0 Dano:
+    dtext +132 - 0 <OBJ.dam>
 else //if ( <f_isArmor <OBJ> > )
-	dtext - *20 0 Protecao:
-	dtext +132 - 0 <OBJ.armor>
+    dtext - *20 0 Protecao:
+    dtext +132 - 0 <OBJ.armor>
 endif
 
-button 20 180 4014 4015 1 0 1	// Back button
-button 270 180 247 248 1 0 2	// Ok button
+button 20 180 4014 4015 1 0 1   // Back button
+button 270 180 247 248 1 0 2    // Ok button
 
 [DIALOG d_vendor_item_detail BUTTON]
 on=0
@@ -909,37 +983,108 @@ dialog d_vendor_items
 on=2 // Ok button
 OBJ=<SRC.CTAG.vendor_selectedItem>
 if (<SRC.CTAG0.vendor_op>==1)
-	//campos devem ser numericos, preco deve ser maior igual a 1 e a quantidade deve estar correta
-	if !(<isnum <argtxt[1]>>) || !(<isnum <argtxt[2]>>) || (<argtxt[1]> < 1) || (!<argtxt[2]>) || (<argtxt[2]> > <OBJ.amount>)
-		src.sysmessage Campos invalidos. Entre com os dados novamente.
-		dialog d_vendor_item_detail
-		return 1
-	endif
+    //campos devem ser numericos, preco deve ser maior igual a 1 e a quantidade deve estar correta
+    if !(<isnum <argtxt[1]>>) || !(<isnum <argtxt[2]>>) || (<argtxt[1]> < 1) || (!<argtxt[2]>) || (<argtxt[2]> > <OBJ.amount>)
+        src.sysmessage Campos invalidos. Entre com os dados novamente.
+        dialog d_vendor_item_detail
+        return 1
+    endif
 
-	if ( <ARGCHKID>==2 )			//silver
-		LOCAL.price=<argtxt[1]>*10	
-	elif ( <ARGCHKID>==3 )			//gold
-		LOCAL.price=<argtxt[1]>*100
-	else											//copper
-		LOCAL.price=<argtxt[1]>
-	endif
+    if ( <ARGCHKID>==2 )            //silver
+        LOCAL.price=<argtxt[1]>*10  
+    elif ( <ARGCHKID>==3 )          //gold
+        LOCAL.price=<argtxt[1]>*100
+    else                                            //copper
+        LOCAL.price=<argtxt[1]>
+    endif
 
-	vendor_sellItem <SRC.CTAG.vendor_selectedItem>,<LOCAL.price>,<argtxt[2]>
+    vendor_sellItem <SRC.CTAG.vendor_selectedItem>,<LOCAL.price>,<argtxt[2]>
 
-	vendor_buySellTrigger
+    vendor_buySellTrigger
 else
-	//quantidade deve estar correta
-	if !(<isnum <argtxt[2]>>) || (<argtxt[2]> == 0) || (<argtxt[2]> > <OBJ.amount>)
-		src.sysmessage Campos invalidos. Entre com os dados novamente.
-		dialog d_vendor_item_detail
-		return 1
-	endif
+    //quantidade deve estar correta
+    if !(<isnum <argtxt[2]>>) || (<argtxt[2]> == 0) || (<argtxt[2]> > <OBJ.amount>)
+        src.sysmessage Campos invalidos. Entre com os dados novamente.
+        dialog d_vendor_item_detail
+        return 1
+    endif
 
-	vendor_buyItem <SRC.CTAG.vendor_selectedItem>,<SRC.CTAG.vendor_selectedPrice>,<argtxt[2]>
-	
-	vendor_buySellTrigger
+    vendor_buyItem <SRC.CTAG.vendor_selectedItem>,<SRC.CTAG.vendor_selectedPrice>,<argtxt[2]>
+    
+    vendor_buySellTrigger
 endif
 
+
+//*****************************************************************************
+// d_vendor_itemsb
+//*****************************************************************************
+//esse dialogo serve tanto para compra como para venda.
+//SRC.CTAG0.vendor_op define a operacao.
+
+[DIALOG d_vendor_itemsb]
+100, 100
+PAGE 0
+
+LOCAL.startItem=<eval ((<SRC.CTAG0.vendor_page> - 1) * vendor_itemsPerPage ) + 1>
+LOCAL.endItem=<eval (<SRC.CTAG0.vendor_page> * vendor_itemsPerPage)>
+
+if ( <LOCAL.endItem> > <SRC.CTAG0.vendor_numItems> )
+    LOCAL.endItem = <SRC.CTAG0.vendor_numItems>
+endif 
+
+LOCAL.pageLen=<eval 165+(<LOCAL.endItem>-<LOCAL.startItem>)*20>
+
+resizepic 0 0 3500 500 <LOCAL.pageLen>
+
+dtext 20 30 0 Selecione a categoria:
+
+dorigin 20 80
+dtext *0 *0 0  
+dtext +25 - 014D Quant.
+dtext +70 - 014D Categoria
+
+for x  <LOCAL.startItem> <LOCAL.endItem> 
+    //cria entrada no dialog
+    button - *20 5224 5003 1 0 <eval (1000 + <LOCAL.x>)>
+    dtext +25 -3 0 <eval <SRC.CTAG0.vendor_subcnt<eval <LOCAL.x>>>>
+    dtext +70 -3 0 <SRC.CTAG0.vendor_subname<eval <LOCAL.x>>>
+endfor
+
+if (<SRC.CTAG0.vendor_page> > 1)
+    // Back button
+    button 20 <eval <LOCAL.pageLen>-30> 4014 4015 1 0 1
+endif
+if (<SRC.CTAG0.vendor_page> < <SRC.CTAG0.vendor_numPages>)
+    // Forward button
+    button 450 <eval <LOCAL.pageLen>-30> 4005 4006 1 0 2
+endif
+dtext 210 <eval <LOCAL.pageLen>-30> 0c1 Pag <eval <SRC.CTAG0.vendor_page>> / <eval <SRC.CTAG0.vendor_numPages>>
+
+
+[DIALOG d_vendor_itemsb BUTTON]
+on=0
+return 1
+
+on=1 // Back button
+SRC.CTAG0.vendor_page -= 1
+if (<SRC.CTAG.vendor_page> < 1)
+    SRC.CTAG.vendor_page=1
+endif
+dialog d_vendor_itemsb
+
+on=2 // Forward button
+src.CTAG0.vendor_page += 1
+if (<SRC.CTAG.vendor_page> > <SRC.CTAG0.vendor_numPages>)
+    SRC.CTAG.vendor_page=<SRC.CTAG0.vendor_numPages>
+endif
+
+dialog d_vendor_itemsb
+
+on=1001,65535 //itens buttons
+vendor_createVendorSubList <SRC.CTAG0.vendor_uid>,<SRC.CTAG0.vendor_subdef<eval <argn> - 1000>>
+
+dialog d_vendor_items
+endif
 
 
 //*****************************************************************************
@@ -982,11 +1127,11 @@ COLOR=match_hair
 
 ON=@ContextMenuSelect
 if (<argn>==31) //buy
-	SRC.CTAG.vendor_op=2
-	vendor_buySellTrigger
+    SRC.CTAG.vendor_op=2
+    vendor_buySellTrigger
 elif (<argn>==32) //sell
-	SRC.CTAG.vendor_op=1
-	vendor_buySellTrigger
+    SRC.CTAG.vendor_op=1
+    vendor_buySellTrigger
 endif
 
 ON=@NPCRestock
@@ -1005,7 +1150,7 @@ DESCRIPTION=Vendedor (Humano)
 //on=@death
 //newloot=i_axe
 //forcont <uid> 0
-//	serv.b  B <name>
+//  serv.b  B <name>
 //endfor
 //serv.b  B <name> <str>
 
@@ -1041,11 +1186,11 @@ ITEMNEWBIE=i_head_orc
 
 ON=@ContextMenuSelect
 if (<argn>==31) //buy
-	SRC.CTAG.vendor_op=2
-	vendor_buySellTrigger
+    SRC.CTAG.vendor_op=2
+    vendor_buySellTrigger
 elif (<argn>==32) //sell
-	SRC.CTAG.vendor_op=1
-	vendor_buySellTrigger
+    SRC.CTAG.vendor_op=1
+    vendor_buySellTrigger
 endif
 
 ON=@NPCRestock
@@ -1090,11 +1235,11 @@ NEED=i_gold
 
 ON=@ContextMenuSelect
 if (<argn>==31) //buy
-	SRC.CTAG.vendor_op=2
-	vendor_buySellTrigger
+    SRC.CTAG.vendor_op=2
+    vendor_buySellTrigger
 elif (<argn>==32) //sell
-	SRC.CTAG.vendor_op=1
-	vendor_buySellTrigger
+    SRC.CTAG.vendor_op=1
+    vendor_buySellTrigger
 endif
 
 ON=@NPCRestock
@@ -1140,11 +1285,11 @@ NEED=i_gold
 
 ON=@ContextMenuSelect
 if (<argn>==31) //buy
-	SRC.CTAG.vendor_op=2
-	vendor_buySellTrigger
+    SRC.CTAG.vendor_op=2
+    vendor_buySellTrigger
 elif (<argn>==32) //sell
-	SRC.CTAG.vendor_op=1
-	vendor_buySellTrigger
+    SRC.CTAG.vendor_op=1
+    vendor_buySellTrigger
 endif
 
 ON=@NPCRestock
@@ -1171,40 +1316,40 @@ DESCRIPTION=Vendedor (Anao)
 ON=*gostaria*vender*
 ON=*quero*vender*
 
-	SRC.CTAG.vendor_op=1
-	vendor_buySellTrigger
-	return 1
+    SRC.CTAG.vendor_op=1
+    vendor_buySellTrigger
+    return 1
 
 ON=*gostaria*comprar*
 ON=*quero*comprar*
 ON=*gostaria*ver*
 ON=*quero*ver*
 
-	SRC.CTAG.vendor_op=2
-	vendor_buySellTrigger
-	return 1
+    SRC.CTAG.vendor_op=2
+    vendor_buySellTrigger
+    return 1
 
 ON=*gostaria*pegar*
 ON=*devolver*
 ON=*retirar*
 
-	SRC.CTAG.vendor_op=3
-	vendor_buySellTrigger
-	return 1
+    SRC.CTAG.vendor_op=3
+    vendor_buySellTrigger
+    return 1
 
 ON=limpeza
-	if ( <SRC.isGM> )
+    if ( <SRC.isGM> )
 
-		//clear database
-		vendor_removeVendor <uid>
-		
-		SRC.sysmessage <name> resetado!!
-	endif
+        //clear database
+        vendor_removeVendor <uid>
+        
+        SRC.sysmessage <name> resetado!!
+    endif
 
 return 1
 
 ON=oi
 ON=ola
 ON=olá
-	say Gostaria de comprar ou vender algo? Retirar talvez?
+    say Gostaria de comprar ou vender algo? Retirar talvez?
 [EOF]
