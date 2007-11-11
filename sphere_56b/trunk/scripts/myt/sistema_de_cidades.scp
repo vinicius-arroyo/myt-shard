@@ -1,0 +1,205 @@
+//############################################################################
+//
+//				TOWN
+//
+//############################################################################
+
+
+
+
+//*****************************************************************************
+// Elfa
+//*****************************************************************************
+
+//TAGS da region de Town
+//TAG.TOWN_TYPE
+//	1	Reino
+//	2	Cidade
+//	3	Vila
+//TAG.TOWN_RACE
+//	Elfo
+//	Anao
+//	Humano
+//	Drow
+//	Orc
+//	Misc
+//TAG.TOWN_RACE_FORBIDDEN	Raças separadas por ;
+//TAG.TOWN_RACE_FRIEND		Raças separadas por ;
+//TAG.TOWN_UID_FORBIDDEN	UIDs sepadaras por ;
+//TAG.TOWN_UID_FRIEND		UIDs separadas por ;
+//TAG.TOWN_MASTER		UID do mestre da Town
+//TAG.TOWN_COUNSELORS		UIDs dos conselheiros da Town separadas por ;
+//TAG.TOWN_GUARD		DEFNAME do guarda da Town
+
+
+
+
+[CHARDEF c_e_town_f]
+ID=c_woman
+NAME=#NAMES_HUMANFEMALE
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+
+
+TSPEECH=jobTOWN
+
+ON=@Create
+COLOR=0412
+STR={71 85}
+DEX={66 80}
+INT={66 80}
+
+tag.raca Elfo
+
+SWORDSMANSHIP={15.0 38.0}
+ITEMID={50.0 70.0}
+TACTICS={15.0 38.0}
+
+NPC=BRAIN_HUMAN
+NEED=i_gold
+
+ON=@NPCRestock
+ITEM=i_hair_long
+COLOR=035
+ITEM=i_shirt_fancy
+COLOR=colors_green
+ITEM=i_skirt_long
+COLOR=colors_yellow
+
+CATEGORY=MYT - NPCs
+SUBSECTION=Town
+DESCRIPTION=Funcionaria (Elfa)
+
+[SPEECH jobTOWN]
+on=*vigie*porta
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>, 2>)
+ SAY Que porta quer que eu vigie?
+ targetf TOWN_ADD_DOOR <UID>
+ENDIF
+return 1
+
+on=*pare*vigiar*porta
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>, 2>)
+ SAY Que porta quer que eu deixe de vigiar?
+ targetf TOWN_REM_DOOR <UID>
+ENDIF
+return 1
+
+on=*abra*porta*
+on=*abra*portao*
+on=*abra*portal*
+on=*abra*portoes*
+on=*abra*portais*
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>, 1>)
+ TOWN_OPEN_DOOR
+ENDIF
+return 1
+
+on=*feche*porta*
+on=*feche*portao*
+on=*feche*portal*
+on=*feche*portoes*
+on=*feche*portais*
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>, 1>)
+ TOWN_CLOSE_DOOR
+ENDIF
+return 1
+
+[FUNCTION TOWN_ADD_DOOR]
+OBJ=<argv[0]>
+say Esta aqui.
+if (<argo.type> != t_door) && (<argo.type> != t_door_locked) && (<argo.type> != t_portculis)
+ obj.timerf 1,say,Isso nao me parece com uma porta <sex senhor/senhora>.
+ return 1
+endif
+IF (STRMATCH(*<argo.uid>*,<obj.tag.TOWN_DOORS>)
+ Obj.timerf 1,say,Esta porta ja esta sendo figiada.
+ return 1
+endif
+obj.timerf 1,say,Muito bem <sex senhor/senhora>. Guardarei para que seja segura.
+obj.tag.TOWN_DOORS .=;<argo.uid>
+
+[FUNCTION TOWN_REM_DOOR]
+OBJ=<argv[0]>
+say Esta aqui.
+if (<argo.type> != t_door) && (<argo.type> != t_door_locked) && (<argo.type> != t_portculis)
+ obj.timerf 1,say,Isso nao me parece com uma porta <sex senhor/senhora>.
+ return 1
+endif
+IF !(STRMATCH(*<argo.uid>*,<obj.tag.TOWN_DOORS>)
+ Obj.timerf 1,say,Mas eu nao estou vigiando esta porta...
+ return 1
+endif
+obj.timerf 1,say,Certo <sex senhor/senhora>. Nao guardarei mais esta porta.
+obj.tag.TOWN_DOORS =<f_RemoveList <argo.uid>,<obj.tag.TOWN_DOORS>>
+
+[FUNCTION TOWN_OPEN_DOOR]
+LOCAL.doors=<EXPLODE ;,<tag.TOWN_DOORS>>
+LOCAL.doors=<STRSUB 1 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
+_TOWN_OPEN_DOOR <LOCAL.doors>
+
+[FUNCTION _TOWN_OPEN_DOOR]
+for i 0 <eval <argv>-1>
+ IF (<UID.<argv[<LOCAL.i>]>.type> != t_portculis)
+  if (!<UID.<argv[<LOCAL.i>]>.tag0.open>)
+   UID.<argv[<LOCAL.i>]>.timerd=1
+   UID.<argv[<LOCAL.i>]>.tag.open=1
+   UID.<argv[<LOCAL.i>]>.timerf 1,timer,-1
+  endif
+ ELSE
+  IF (!<UID.<argv[<LOCAL.i>]>.moreX>) && (!<UID.<argv[<LOCAL.i>]>.morey>)
+   //Esta fechada E nao esta em uso
+   UID.<argv[<LOCAL.i>]>.f_portculis
+  ENDIF
+ ENDIF
+endfor
+
+[FUNCTION TOWN_CLOSE_DOOR]
+LOCAL.doors=<EXPLODE ;,<tag.TOWN_DOORS>>
+LOCAL.doors=<STRSUB 1 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
+_TOWN_CLOSE_DOOR <LOCAL.doors>
+
+[FUNCTION _TOWN_CLOSE_DOOR]
+for i 0 <eval <argv>-1>
+ IF (<UID.<argv[<LOCAL.i>]>.type> != t_portculis)
+  if (<UID.<argv[<LOCAL.i>]>.tag0.open>)
+   UID.<argv[<LOCAL.i>]>.timerd=1
+   UID.<argv[<LOCAL.i>]>.tag.open=
+  endif
+ ELSE
+  IF (<UID.<argv[<LOCAL.i>]>.moreX>) && (!<UID.<argv[<LOCAL.i>]>.morey>)
+   //Esta aberta E nao esta em uso
+   UID.<argv[<LOCAL.i>]>.f_portculis
+  ENDIF
+ ENDIF
+endfor
+
+[FUNCTION TOWN_CHECK_SPK_PRIVS]
+obj=<argv[0]>
+IF (<ISGM>)
+ RETURN 1
+ENDIF
+IF (<argv1>==2)
+ IF !(STRMATCH(*<UID>*,<obj.region.tag.TAG.TOWN_COUNCELORS><obj.region.tag.TAG.TOWN_MASTER>))
+  obj.timerf 1,say,Esta ordem so pode ser dada pelo conselho de <obj.region.name>.
+  return 0
+ ENDIF
+ELIF (<argv1>==3)
+ IF !(STRMATCH(*<UID>*,<obj.region.tag.TAG.TOWN_MASTER>))  
+  obj.timerf 1,say,Esta ordem so pode ser dada pelo responsavel de <obj.region.name>.
+  return 0
+ ENDIF
+ENDIF
+IF (<tag0.comcapuz>)
+ obj.timerf 1,say,E quem eh voce? Nao posso ver seu rosto!
+ return 0
+ELIF (STRMATCH(*<UID>*,<obj.region.tag.TAG.TOWN_UID_FORBIDDEN>))
+ obj.timerf 1,say,Voce esta <sex proibido/proibida> de entrar em <obj.region.name>. Va embora.
+ return 0
+ELIF (STRMATCH(*<UID>*,<obj.region.tag.TAG.TOWN_UID_FRIEND>))
+ return 1
+ELIF (STRMATCH(*<tag.raca>*,<obj.region.tag.TAG.TOWN_RACE_FORBIDDEN>))
+ obj.timerf 1,say,Nenhum <tag.raca> deve entrar em <obj.region.name>. Va embora.
+ return 0
+endif
+RETURN 1
