@@ -334,9 +334,14 @@ else
 endif
 
 //verifica se comprador tem dinheiro suficiente e recolhe
-FLOAT.totalPrice=<FLOATVAL ( <argv[1]> * <eval <LOCAL.amount>>) + 0.9>
-LOCAL.i=<strpos 0 . <FLOAT.totalPrice>>
-LOCAL.totalPrice=<strsub 0 <LOCAL.i> <FLOAT.totalPrice>>
+
+if (<strpos 0 . <argv[1]>> > 0)
+    FLOAT.totalPrice=<FLOATVAL ( <argv[1]> * <eval <LOCAL.amount>>) + 0.9>
+    LOCAL.i=<strpos 0 . <FLOAT.totalPrice>>
+    LOCAL.totalPrice=<strsub 0 <LOCAL.i> <FLOAT.totalPrice>>
+else
+    LOCAL.totalPrice=<eval <argv[1]> * <LOCAL.amount>>
+endif
 
 if !( <vendor_getCash <LOCAL.totalPrice>> )
     SAY Esta achando que vivo de caridade? Volte quando tiver dinheiro suficiente para a compra.
@@ -393,7 +398,13 @@ SAY Obrigado pela compra e volte sempre!
 f_sendMessage <LOCAL.idPlayer>,Voce vendeu <eval <LOCAL.amount>> <OBJ.name> por <eval <LOCAL.totalPrice>>. <eval <LOCAL.paycheck>> esta no banco.,SM_GREEN
 
 //insere na lista de trocas
-DB.EXECUTE "INSERT INTO tradeItems SET postDate='<LOCAL.timestamp>',sellDate=NOW(),idVendor=<eval <LOCAL.idVendor>>,idPlayerVendor=<eval <LOCAL.idPlayer>>,idPlayerBuyer=<eval <SRC.uid>>,playerVendorName='<LOCAL.playerName>',playerBuyerName='<SRC.TAG.name>',idItem=<eval <OBJ>>,quantity=<eval <LOCAL.amount>>,price=<argv[1]>,itemType='<LOCAL.itemType>', itemName='<OBJ.name>',defName='<OBJ.baseid>'"
+if (<strpos 0 . <argv[1]>> > 0)
+    DB.EXECUTE "INSERT INTO tradeItems SET postDate='<LOCAL.timestamp>',sellDate=NOW(),idVendor=<eval <LOCAL.idVendor>>,idPlayerVendor=<eval <LOCAL.idPlayer>>,idPlayerBuyer=<eval <SRC.uid>>,playerVendorName='<LOCAL.playerName>',playerBuyerName='<SRC.TAG.name>',idItem=<eval <OBJ>>,quantity=<eval <LOCAL.amount>>,price=<argv[1]>,itemType='<LOCAL.itemType>', itemName='<OBJ.name>',defName='<OBJ.baseid>'"
+else
+    DB.EXECUTE "INSERT INTO tradeItems SET postDate='<LOCAL.timestamp>',sellDate=NOW(),idVendor=<eval <LOCAL.idVendor>>,idPlayerVendor=<eval <LOCAL.idPlayer>>,idPlayerBuyer=<eval <SRC.uid>>,playerVendorName='<LOCAL.playerName>',playerBuyerName='<SRC.TAG.name>',idItem=<eval <OBJ>>,quantity=<eval <LOCAL.amount>>,price=<eval <argv[1]>>,itemType='<LOCAL.itemType>', itemName='<OBJ.name>',defName='<OBJ.baseid>'"
+endif
+
+
 
 return 1
 
@@ -618,15 +629,15 @@ if ( <eval <LOCAL.y>>!=<argv[0]> ) || ( <argv[1]>==5 )
 //  serv.log Nao da para reduzir mais que <argv[0]> <LOCAL.y>
 
     if ( <argv[1]>==1 )
-        return <argv[0]> mc
+        return <formatDecimal <argv[0]>> mc
     elif ( <argv[1]>==2 )
-        return <argv[0]> mp
+        return <formatDecimal <argv[0]>> mp
     elif ( <argv[1]>==3 )
-        return <argv[0]> mo
+        return <formatDecimal <argv[0]>> mo
     elif ( <argv[1]>==4 )
-        return <argv[0]>k mo
+        return <formatDecimal <argv[0]>>k mo
     elif ( <argv[1]>==5 )
-        return <argv[0]>kk mo
+        return <formatDecimal <argv[0]>>kk mo
     else
         return Error!
     endif
@@ -884,7 +895,6 @@ endif
 
 for x  <LOCAL.startItem> <LOCAL.endItem> 
 
-    LOCAL.price=<vendor_cashFormat <SRC.CTAG0.vendor_prices<eval <LOCAL.x>>>,1>
     OBJ=<SRC.CTAG0.vendor_owners<eval <LOCAL.x>>>
     LOCAL.vendor=<OBJ.TAG.name>
 
@@ -904,7 +914,7 @@ for x  <LOCAL.startItem> <LOCAL.endItem>
         dtext +70 -3 2100 <LOCAL.name>
     else
         dtext +70 -3 2100 <strsub 0 25 <LOCAL.name>>
-        dtext +240 -3 2100 <LOCAL.price>
+        dtext +240 -3 2100 <vendor_cashFormat <SRC.CTAG0.vendor_prices<eval <LOCAL.x>>>,1>
         dtext +310 -3 2100 <LOCAL.vendor>
     endif
 endfor
