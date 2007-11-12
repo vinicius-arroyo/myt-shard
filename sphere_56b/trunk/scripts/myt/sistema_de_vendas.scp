@@ -152,65 +152,29 @@ endfor
 SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPerPage) + 1)> 
 return 1
 
-
 //*****************************************************************************
-// vendor_createVendorList
-//*****************************************************************************
-//verifica os itens do vendor no banco e cria a lista de venda do npc
-//
-//SRC é o player
-//DEFAULT é o vendedor
-[FUNCTION vendor_createVendorList]
-SRC.CTAG.vendor_page=1
-SRC.CTAG.vendor_numItems=0
-SRC.CTAG.vendor_op=2    //NPC vende
-
-local.removedPlayer=0
-
-//varre o banco
-if ( <DB.connected> )
-    DB.QUERY "SELECT * FROM vendorItems WHERE itemType=<eval <TAG.vendor_type>> AND idVendor=<eval <uid>>"
-    if (<DB.ROW.NUMROWS> > 0)
-        for R 0 <eval <DB.ROW.NUMROWS>-1>
-            REF1=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
-            if (<REF1.isplayer>)
-                SRC.CTAG.vendor_numItems += 1
-                TRY SRC.CTAG.vendor_items<eval  (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idItem>
-                TRY SRC.CTAG.vendor_owners<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
-                TRY SRC.CTAG.vendor_prices<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.price>
-            else
-                serv.log [VENDOR] NOT PLAYER: <REF1.uid>
-                local.removedPlayer=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
-            endif
-        end
-    endif
-endif
-
-if (<LOCAL.removedPlayer>)
-    DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer=<eval <LOCAL.removedPlayer>>"
-endif
-
-SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPerPage) + 1)> 
-return 1
-
-//*****************************************************************************
-// vendor_createVendorMasterList
+// vendor_createVendorMasterList ([npcUid])
 //*****************************************************************************
 //verifica os itens do vendor no banco e cria a lista com tipos de itens a venda.
 //(agrupados por defnames)
-//ira substituir vendor_createVendorList
 //
 //SRC é o player
 //DEFAULT é o vendedor
 [FUNCTION vendor_createVendorMasterList]
+if (0<argv0>)
+    OBJ=<argv0>
+else
+    OBJ=<uid>
+endif
+
 SRC.CTAG.vendor_page=1
 SRC.CTAG.vendor_numItems=0
 SRC.CTAG.vendor_op=2    //NPC vende
-SRC.CTAG.vendor_uid=<uid>
+SRC.CTAG.vendor_uid=<OBJ>
 
 //varre o banco
 if ( <DB.connected> )
-    DB.QUERY "SELECT DISTINCT defName,itemName,COUNT(1) AS cnt FROM vendorItems WHERE idVendor=<eval <uid>> GROUP BY defName ORDER BY itemName"
+    DB.QUERY "SELECT DISTINCT defName,itemName,COUNT(1) AS cnt FROM vendorItems WHERE idVendor=<eval <OBJ>> GROUP BY defName ORDER BY itemName"
     if (<DB.ROW.NUMROWS> > 0)
         for R 0 <eval <DB.ROW.NUMROWS>-1>
             SRC.CTAG.vendor_numItems += 1
@@ -229,7 +193,6 @@ return 1
 //*****************************************************************************
 //verifica os itens do vendor no banco e cria a lista de venda do npc filtrada
 //por defname
-//ira substituir vendor_createVendorList
 //
 //SRC é o player
 //DEFAULT é o vendedor
@@ -268,7 +231,7 @@ SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPe
 return 1
 
 //*****************************************************************************
-// vendor_sellItem( item, preco, quantidade )
+// vendor_sellItem( item, preco TOTAL, quantidade )
 //*****************************************************************************
 //preco deve ser na menor moeda de menor valor, neste caso o cobre.
 //
@@ -319,7 +282,7 @@ OBJ.cont=<NEW>
 OBJ.removefromview
 
 //insert item into DB
-DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <SRC>>,idItem=<eval <OBJ>>,quantity=<eval <OBJ.amount>>,price=<eval <argv[1]>>,playerName='<SRC.TAG.name>',itemType=<eval <TAG.vendor_type>>,defName='<OBJ.baseid>',itemName='<OBJ.name>'"
+DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <SRC>>,idItem=<eval <OBJ>>,quantity=<eval <OBJ.amount>>,price=(<eval <argv[1]>>/<eval <OBJ.amount>>),playerName='<SRC.TAG.name>',itemType=<eval <TAG.vendor_type>>,defName='<OBJ.baseid>',itemName='<OBJ.name>'"
 
 DB.QUERY "SELECT id FROM vendorItems WHERE idItem=<eval <OBJ>>"
 if (!<DB.ROW.NUMROWS>)
@@ -339,7 +302,7 @@ SAY Obrigado. Seu produto esta a venda.
 return 1
 
 //*****************************************************************************
-// vendor_buyItem( item, preco, quantidade )
+// vendor_buyItem( item, preco UNITARIO, quantidade )
 //*****************************************************************************
 //preco deve ser na menor moeda de menor valor, neste caso o cobre.
 //
@@ -371,7 +334,9 @@ else
 endif
 
 //verifica se comprador tem dinheiro suficiente e recolhe
-LOCAL.totalPrice=<eval <argv[1]>*<LOCAL.amount>>
+FLOAT.totalPrice=<FLOATVAL ( <argv[1]> * <eval <LOCAL.amount>>) + 0.9>
+LOCAL.i=<strpos 0 . <FLOAT.totalPrice>>
+LOCAL.totalPrice=<strsub 0 <LOCAL.i> <FLOAT.totalPrice>>
 
 if !( <vendor_getCash <LOCAL.totalPrice>> )
     SAY Esta achando que vivo de caridade? Volte quando tiver dinheiro suficiente para a compra.
@@ -428,7 +393,7 @@ SAY Obrigado pela compra e volte sempre!
 f_sendMessage <LOCAL.idPlayer>,Voce vendeu <eval <LOCAL.amount>> <OBJ.name> por <eval <LOCAL.totalPrice>>. <eval <LOCAL.paycheck>> esta no banco.,SM_GREEN
 
 //insere na lista de trocas
-DB.EXECUTE "INSERT INTO tradeItems SET postDate='<LOCAL.timestamp>',sellDate=NOW(),idVendor=<eval <LOCAL.idVendor>>,idPlayerVendor=<eval <LOCAL.idPlayer>>,idPlayerBuyer=<eval <SRC.uid>>,playerVendorName='<LOCAL.playerName>',playerBuyerName='<SRC.TAG.name>',idItem=<eval <OBJ>>,quantity=<eval <LOCAL.amount>>,price=<eval <argv[1]>>,itemType='<LOCAL.itemType>', itemName='<OBJ.name>'"
+DB.EXECUTE "INSERT INTO tradeItems SET postDate='<LOCAL.timestamp>',sellDate=NOW(),idVendor=<eval <LOCAL.idVendor>>,idPlayerVendor=<eval <LOCAL.idPlayer>>,idPlayerBuyer=<eval <SRC.uid>>,playerVendorName='<LOCAL.playerName>',playerBuyerName='<SRC.TAG.name>',idItem=<eval <OBJ>>,quantity=<eval <LOCAL.amount>>,price=<argv[1]>,itemType='<LOCAL.itemType>', itemName='<OBJ.name>',defName='<OBJ.baseid>'"
 
 return 1
 
@@ -639,7 +604,7 @@ if ( !<argv[0]> || !<argv[1]> )
     return 1
 endif
 
-//sysmessage Tentando <argv[0]>/<argv[1]>
+//serv.log Tentando <argv[0]>/<argv[1]>
 
 if ( <argv[1]> <= 2 )
     LOCAL.x=<argv[0]>/10
@@ -650,7 +615,7 @@ else
 endif
 
 if ( <eval <LOCAL.y>>!=<argv[0]> ) || ( <argv[1]>==5 )
-//  sysmessage Nao da para reduzir mais que <argv[0]> <LOCAL.y>
+//  serv.log Nao da para reduzir mais que <argv[0]> <LOCAL.y>
 
     if ( <argv[1]>==1 )
         return <argv[0]> mc
@@ -675,7 +640,8 @@ endif
 //trigger a buy or sell action (choose using SRC.CTAG0.vendor_op)
 [FUNCTION vendor_buySellTrigger]
 
-dialogclose d_vendor_items
+dialogclose d_vendor_categories
+dialogclose d_vendor_list
 dialogclose d_vendor_item_detail
 
 if ( <SRC.CTAG0.vendor_op>==1 )
@@ -684,7 +650,7 @@ if ( <SRC.CTAG0.vendor_op>==1 )
         message Voce nao tem nada que eu possa vender.
     else
         message O que deseja vender?
-        dialog d_vendor_items
+        dialog d_vendor_list
     endif
 elif ( <SRC.CTAG0.vendor_op>==2 )
     vendor_createVendorMasterList
@@ -692,7 +658,7 @@ elif ( <SRC.CTAG0.vendor_op>==2 )
         message Nao tenho nada para vender no momento.
     else
         message O que deseja comprar?
-        dialog d_vendor_itemsb
+        dialog d_vendor_categories
     endif
 elif ( <SRC.CTAG0.vendor_op>==3 )
     vendor_createTakebackList
@@ -700,7 +666,7 @@ elif ( <SRC.CTAG0.vendor_op>==3 )
         message Nao tenho nada seu para devolver
     else
         message O que deseja retirar?
-        dialog d_vendor_items
+        dialog d_vendor_list
     endif
 endif
 
@@ -810,15 +776,15 @@ on=0 Anao
 //  vendor_addNpc <SRC.CTAG.vendor_newNpcType>,C_H_VENDOR_M
 //  return 1
 
-//*****************************************************************************
-// d_vendor_items
-//*****************************************************************************
-//esse dialogo serve tanto para compra como para venda.
-//SRC.CTAG0.vendor_op define a operacao.
 
-[DIALOG d_vendor_items]
-100, 100
-PAGE 0
+
+
+//*****************************************************************************
+// d_vendor_categories - lista tipos de itens de um NPC vendor
+//*****************************************************************************
+[DIALOG d_vendor_categories]
+100,100
+page 0
 
 LOCAL.startItem=<eval ((<SRC.CTAG0.vendor_page> - 1) * vendor_itemsPerPage ) + 1>
 LOCAL.endItem=<eval (<SRC.CTAG0.vendor_page> * vendor_itemsPerPage)>
@@ -827,66 +793,35 @@ if ( <LOCAL.endItem> > <SRC.CTAG0.vendor_numItems> )
     LOCAL.endItem = <SRC.CTAG0.vendor_numItems>
 endif 
 
-LOCAL.pageLen=<eval 165+(<LOCAL.endItem>-<LOCAL.startItem>)*20>
+LOCAL.pageLen=<eval 103+(<LOCAL.endItem>-<LOCAL.startItem>)*20>
 
-resizepic 0 0 3500 500 <LOCAL.pageLen>
+resizepic 0 0 83 454 <LOCAL.pageLen>
+dtext 12 9 37 Selecione o tipo:
 
-if (<SRC.CTAG0.vendor_op>==1)
-    dtext 20 30 0 Selecione o item que deseja vender
-elif (<SRC.CTAG0.vendor_op>==2)
-    dtext 20 30 0 Selecione o item que deseja comprar
-else
-    dtext 20 30 0 Selecione o item que deseja de volta
-endif
-
-dorigin 20 80
+dorigin 14 29
 dtext *0 *0 0  
-dtext +25 - 014D Quant.
-dtext +70 - 014D Nome
-dtext +220 - 014D Preco Unit.
-dtext +290 - 014D Vendedor
-dtext +400 - 014D Qualidade
-
-//botao sort by
-//button 358 17 2117 2118 1 0 5
+dtext +25 - 2100 Quant.
+dtext +70 - 2100 Tipo.
 
 for x  <LOCAL.startItem> <LOCAL.endItem> 
-
-    if (<SRC.CTAG0.vendor_op>==2)
-        OBJ=<SRC.CTAG0.vendor_owners<eval <LOCAL.x>>>
-        LOCAL.price=<vendor_cashFormat <eval <SRC.CTAG0.vendor_prices<eval <LOCAL.x>>>>,1>
-        LOCAL.vendor=<OBJ.TAG.name>
-    else
-        LOCAL.price=0
-        LOCAL.vendor=<SRC.TAG.name>
-    endif
-
-    //carrega item armazenado
-    OBJ=<SRC.CTAG0.vendor_items<eval <LOCAL.x>>>
-    
     //cria entrada no dialog
-    button - *20 5224 5003 1 0 <eval (1000 + <LOCAL.x>)>
-    dtext +25 -3 0 <OBJ.amount>
-    dtext +70 -3 0 <OBJ.name>
-    dtext +220 -3 0 <LOCAL.price>
-    dtext +290 -3 0 <LOCAL.vendor>
-    dtext +400 -3 0 <eval <f_getItemQuality <OBJ>,<TAG0.vendor_type>>>
+    button - *20 2117 2118 1 0 <eval (1000 + <LOCAL.x>)>
+    dtext +25 -3 2100 <eval <SRC.CTAG0.vendor_subcnt<eval <LOCAL.x>>>>
+    dtext +70 -3 2100 <SRC.CTAG0.vendor_subname<eval <LOCAL.x>>>
 endfor
 
 if (<SRC.CTAG0.vendor_page> > 1)
     // Back button
-    button 20 <eval <LOCAL.pageLen>-30> 4014 4015 1 0 1
+    button 12 <eval <LOCAL.pageLen>-30> 9766 9767 1 0 1
 endif
 if (<SRC.CTAG0.vendor_page> < <SRC.CTAG0.vendor_numPages>)
     // Forward button
-    button 450 <eval <LOCAL.pageLen>-30> 4005 4006 1 0 2
+    button 428 <eval <LOCAL.pageLen>-30> 9762 9703 1 0 2
 endif
-dtext 50 <eval <LOCAL.pageLen>-30> 0 Taxa: <eval vendor_fee>%
-dtext 210 <eval <LOCAL.pageLen>-30> 0c1 Pag <eval <SRC.CTAG0.vendor_page>> / <eval <SRC.CTAG0.vendor_numPages>>
+dtext 190 <eval <LOCAL.pageLen>-30> 2100 Pag <eval <SRC.CTAG0.vendor_page>> / <eval <SRC.CTAG0.vendor_numPages>>
 
 
-
-[DIALOG d_vendor_items BUTTON]
+[DIALOG d_vendor_categories button]
 on=0
 return 1
 
@@ -895,14 +830,122 @@ SRC.CTAG0.vendor_page -= 1
 if (<SRC.CTAG.vendor_page> < 1)
     SRC.CTAG.vendor_page=1
 endif
-dialog d_vendor_items
+dialog d_vendor_categories
 
 on=2 // Forward button
 src.CTAG0.vendor_page += 1
 if (<SRC.CTAG.vendor_page> > <SRC.CTAG0.vendor_numPages>)
     SRC.CTAG.vendor_page=<SRC.CTAG0.vendor_numPages>
 endif
-dialog d_vendor_items
+
+dialog d_vendor_categories
+
+on=1001,65535 //itens buttons
+vendor_createVendorSubList <SRC.CTAG0.vendor_uid>,<SRC.CTAG0.vendor_subdef<eval <argn> - 1000>>
+dialog d_vendor_list
+
+
+//*****************************************************************************
+// d_vendor_list - 
+//*****************************************************************************
+//na compra, lista itens de um NPC vendor de acordo com a categoria
+//na venda, lista os itens que um player pode vender
+[DIALOG d_vendor_list]
+100,100
+page 0
+
+LOCAL.startItem=<eval ((<SRC.CTAG0.vendor_page> - 1) * vendor_itemsPerPage ) + 1>
+LOCAL.endItem=<eval (<SRC.CTAG0.vendor_page> * vendor_itemsPerPage)>
+
+if ( <LOCAL.endItem> > <SRC.CTAG0.vendor_numItems> )
+    LOCAL.endItem = <SRC.CTAG0.vendor_numItems>
+endif 
+
+LOCAL.pageLen=<eval 103+(<LOCAL.endItem>-<LOCAL.startItem>)*20>
+
+resizepic 0 0 83 454 <LOCAL.pageLen>
+
+doswitch <SRC.CTAG0.vendor_op>
+    dtext 12 9 37 Erro!
+    dtext 12 9 37 Selecione o que deseja vender:
+    dtext 12 9 37 Selecione para ver mais detalhes:
+    dtext 12 9 37 Selecione o que quer retirar:
+enddo
+
+dorigin 14 29
+dtext *0 *0 0  
+dtext +25 - 2100 Quant.
+dtext +70 - 2100 Nome.
+if ( <SRC.CTAG0.vendor_op>!=1 )
+    dtext +240 - 2100 Preco Un.
+    dtext +310 - 2100 Vendedor
+endif
+
+
+for x  <LOCAL.startItem> <LOCAL.endItem> 
+
+    LOCAL.price=<vendor_cashFormat <SRC.CTAG0.vendor_prices<eval <LOCAL.x>>>,1>
+    OBJ=<SRC.CTAG0.vendor_owners<eval <LOCAL.x>>>
+    LOCAL.vendor=<OBJ.TAG.name>
+
+    //carrega item armazenado
+    OBJ=<SRC.CTAG0.vendor_items<eval <LOCAL.x>>>
+    
+    if ( <OBJ.attr>&attr_identified )    
+        LOCAL.name=<def.<OBJ.baseid>_IDNAME>
+    else
+        LOCAL.name=<OBJ.name>
+    endif
+
+    //cria entrada no dialog
+    button - *20 2117 2118 1 0 <eval (1000 + <LOCAL.x>)>
+    dtext +25 -3 2100 <OBJ.amount>
+    if ( <SRC.CTAG0.vendor_op>==1 )
+        dtext +70 -3 2100 <LOCAL.name>
+    else
+        dtext +70 -3 2100 <strsub 0 25 <LOCAL.name>>
+        dtext +240 -3 2100 <LOCAL.price>
+        dtext +310 -3 2100 <LOCAL.vendor>
+    endif
+endfor
+
+if (<SRC.CTAG0.vendor_page> > 1)
+    // Back button
+    button 12 <eval <LOCAL.pageLen>-30> 9766 9767 1 0 1
+endif
+if (<SRC.CTAG0.vendor_page> < <SRC.CTAG0.vendor_numPages>)
+    // Forward button
+    button 428 <eval <LOCAL.pageLen>-30> 9762 9703 1 0 2
+endif
+dtext 50 <eval <LOCAL.pageLen>-30> 2100 Taxa: <eval vendor_fee>%
+dtext 190 <eval <LOCAL.pageLen>-30> 2100 Pag <eval <SRC.CTAG0.vendor_page>> / <eval <SRC.CTAG0.vendor_numPages>>
+if (<SRC.CTAG0.vendor_op>==2)
+    button 330 <eval <LOCAL.pageLen>-27> 2117 2118 1 0 3
+    dtext 350 <eval <LOCAL.pageLen>-30> 2100 Voltar
+endif
+
+[DIALOG d_vendor_list button]
+on=0
+return 1
+
+on=1 // Back button
+SRC.CTAG0.vendor_page -= 1
+if (<SRC.CTAG.vendor_page> < 1)
+    SRC.CTAG.vendor_page=1
+endif
+dialog d_vendor_list
+
+on=2 // Forward button
+src.CTAG0.vendor_page += 1
+if (<SRC.CTAG.vendor_page> > <SRC.CTAG0.vendor_numPages>)
+    SRC.CTAG.vendor_page=<SRC.CTAG0.vendor_numPages>
+endif
+dialog d_vendor_list
+
+on=3 // Return to categories button
+vendor_createVendorMasterList <SRC.CTAG0.vendor_uid>
+dialog d_vendor_categories
+
 
 on=1001,65535 //itens buttons
 SRC.CTAG.vendor_selectedItem=<SRC.CTAG0.vendor_items<eval <argn> - 1000>>
@@ -915,72 +958,76 @@ else
     dialog d_vendor_item_detail
 endif
 
-
-
 //*****************************************************************************
-// d_vendor_item_detail
+// d_vendor_item_detail - mostra detalhes do item 
 //*****************************************************************************
 [DIALOG d_vendor_item_detail]
 100, 100
 PAGE 0
-resizepic 0 0 3500 350 220
+resizepic 0 0 83 320 260
 
 OBJ=<SRC.CTAG.vendor_selectedItem>
 
-if (<SRC.CTAG0.vendor_op>==1)
-    dtext 20 30 0 Entre com o preco e quantidade do item a vender.
+LOCAL.name=<OBJ.name>
+if ( <f_isWeapon <OBJ> >)
+    LOCAL.desc=<OBJ.f_weaponTooltip 1>
+elif ( <f_isArmor <OBJ> >)
+    LOCAL.desc=<OBJ.f_armorTooltip 1>
 else
-    dtext 20 30 0 Entre com a quantidade desejada.
+    if ( <OBJ.attr>&attr_identified )    
+        LOCAL.desc=<def.<OBJ.baseid>_IDTIP>
+        LOCAL.name=<def.<OBJ.baseid>_IDNAME>
+    else
+        LOCAL.desc=<def.<OBJ.baseid>_NIDTIP>
+    endif
+
+    if ( <eval strlen(<LOCAL.desc>)> < 2 )
+        LOCAL.desc=Sem descricao disponivel.
+    endif
 endif
 
-//cria entrada no dialog
-tilepichue 20 90 <OBJ.id> <eval <OBJ.color>>
+tilepichue 235 41 <OBJ.id> <eval <OBJ.color>>
+dtext 14 12 37 <LOCAL.name>
+button 16 225 12015 12017 1 0 1
+button 229 225 12000 12002 1 0 2
+dhtmlgump 14 36 225 100 1 1 <LOCAL.desc>
 
-dorigin 20 60
-dtext *60 - 0 Item: <OBJ.name>
-dtext - *20 0 Preco Un. (mc|mp|mo):
 if ( <SRC.CTAG0.vendor_op>==1 )
-    resizepic +130 - 3000 50 20 //130
-    dtextentry +132 - 50 25 0 1 1
+    dtext 14 140 2100 Vendedor: <SRC.TAG.name>
+    dtext 14 160 2100 Preco Total:
+    gumppic 90 158 2443
+    dtextentry 95 160 50 17 0 1 1
+
     group 0
-    radio 262 80 210 211 1 1    //copper
-    radio 282 80 210 211 0 2    //silver
-    radio 302 80 210 211 0 3    //gold
+    radio 164 160 210 211 1 1    //copper
+    radio 184 160 210 211 0 2    //silver
+    radio 204 160 210 211 0 3    //gold
+    dtext 228 160 2100 (mc/mp/mo)
+    dtext 14 180 2100 Vender
 else
-    dtext +132 - 0 <vendor_cashFormat <eval <SRC.CTAG.vendor_selectedPrice>>,1>
+    dtext 14 140 2100 Vendedor: <uid.<SRC.CTAG.vendor_selectedOwner>.tag.name>
+    dtext 14 160 2100 Preco Unitario: <vendor_cashFormat <SRC.CTAG.vendor_selectedPrice>,1>
+    dtext 14 180 2100 Comprar
 endif
 
+gumppic 75 180 2443
+dtextentry 80 182 50 17 0 2 <OBJ.amount>
+dtext 149 180 2100 unidade(s) (Max: <OBJ.amount>).
 
-dtext - *20 0 Quantidade:
-resizepic +130 - 3000 50 20
-dtextentry +132 - 50 25 0 2 <OBJ.amount>
-dtext +180 - 0 max: <OBJ.amount>
-
-dtext - *20 0 Vendedor:
-dtext +132 - 0 <uid.<SRC.CTAG.vendor_selectedOwner>.tag.name>
-
-dtext - *20 0 Durabilidade:
-dtext +132 - 0 <OBJ.hitpoints>
-
-if ( <f_isWeapon <OBJ> > )
-    dtext - *20 0 Dano:
-    dtext +132 - 0 <OBJ.dam>
-else //if ( <f_isArmor <OBJ> > )
-    dtext - *20 0 Protecao:
-    dtext +132 - 0 <OBJ.armor>
+if (<src.isgm>)
+    button 125 225 2117 2118 1 0 3
+    button 181 225 2117 2118 1 0 4
+    dtext 101 209 2100 Devolver
+    dtext 163 209 2100 Remover
 endif
 
-button 20 180 4014 4015 1 0 1   // Back button
-button 270 180 247 248 1 0 2    // Ok button
+[DIALOG d_vendor_item_detail button]
+ON=1
+// btBack
+dialog d_vendor_list
 
-[DIALOG d_vendor_item_detail BUTTON]
-on=0
-return 1
-
-on=1 // Back button
-dialog d_vendor_items
-
-on=2 // Ok button
+ON=2
+// btAccept
 OBJ=<SRC.CTAG.vendor_selectedItem>
 if (<SRC.CTAG0.vendor_op>==1)
     //campos devem ser numericos, preco deve ser maior igual a 1 e a quantidade deve estar correta
@@ -994,7 +1041,7 @@ if (<SRC.CTAG0.vendor_op>==1)
         LOCAL.price=<argtxt[1]>*10  
     elif ( <ARGCHKID>==3 )          //gold
         LOCAL.price=<argtxt[1]>*100
-    else                                            //copper
+    else                            //copper
         LOCAL.price=<argtxt[1]>
     endif
 
@@ -1015,77 +1062,13 @@ else
 endif
 
 
-//*****************************************************************************
-// d_vendor_itemsb
-//*****************************************************************************
-//esse dialogo serve tanto para compra como para venda.
-//SRC.CTAG0.vendor_op define a operacao.
+ON=3
+// btTakeback
+src.sysmessageyellow Nao implementado
 
-[DIALOG d_vendor_itemsb]
-100, 100
-PAGE 0
-
-LOCAL.startItem=<eval ((<SRC.CTAG0.vendor_page> - 1) * vendor_itemsPerPage ) + 1>
-LOCAL.endItem=<eval (<SRC.CTAG0.vendor_page> * vendor_itemsPerPage)>
-
-if ( <LOCAL.endItem> > <SRC.CTAG0.vendor_numItems> )
-    LOCAL.endItem = <SRC.CTAG0.vendor_numItems>
-endif 
-
-LOCAL.pageLen=<eval 165+(<LOCAL.endItem>-<LOCAL.startItem>)*20>
-
-resizepic 0 0 3500 500 <LOCAL.pageLen>
-
-dtext 20 30 0 Selecione a categoria:
-
-dorigin 20 80
-dtext *0 *0 0  
-dtext +25 - 014D Quant.
-dtext +70 - 014D Categoria
-
-for x  <LOCAL.startItem> <LOCAL.endItem> 
-    //cria entrada no dialog
-    button - *20 5224 5003 1 0 <eval (1000 + <LOCAL.x>)>
-    dtext +25 -3 0 <eval <SRC.CTAG0.vendor_subcnt<eval <LOCAL.x>>>>
-    dtext +70 -3 0 <SRC.CTAG0.vendor_subname<eval <LOCAL.x>>>
-endfor
-
-if (<SRC.CTAG0.vendor_page> > 1)
-    // Back button
-    button 20 <eval <LOCAL.pageLen>-30> 4014 4015 1 0 1
-endif
-if (<SRC.CTAG0.vendor_page> < <SRC.CTAG0.vendor_numPages>)
-    // Forward button
-    button 450 <eval <LOCAL.pageLen>-30> 4005 4006 1 0 2
-endif
-dtext 210 <eval <LOCAL.pageLen>-30> 0c1 Pag <eval <SRC.CTAG0.vendor_page>> / <eval <SRC.CTAG0.vendor_numPages>>
-
-
-[DIALOG d_vendor_itemsb BUTTON]
-on=0
-return 1
-
-on=1 // Back button
-SRC.CTAG0.vendor_page -= 1
-if (<SRC.CTAG.vendor_page> < 1)
-    SRC.CTAG.vendor_page=1
-endif
-dialog d_vendor_itemsb
-
-on=2 // Forward button
-src.CTAG0.vendor_page += 1
-if (<SRC.CTAG.vendor_page> > <SRC.CTAG0.vendor_numPages>)
-    SRC.CTAG.vendor_page=<SRC.CTAG0.vendor_numPages>
-endif
-
-dialog d_vendor_itemsb
-
-on=1001,65535 //itens buttons
-vendor_createVendorSubList <SRC.CTAG0.vendor_uid>,<SRC.CTAG0.vendor_subdef<eval <argn> - 1000>>
-
-dialog d_vendor_items
-endif
-
+ON=4
+// btRemove
+src.sysmessageyellow Nao implementado
 
 //*****************************************************************************
 //*****************************************************************************
