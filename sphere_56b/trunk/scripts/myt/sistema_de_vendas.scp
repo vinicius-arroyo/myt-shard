@@ -409,7 +409,7 @@ endif
 return 1
 
 //*****************************************************************************
-// vendor_takebackItem( item )
+// vendor_takebackItem( item, destination )
 //*****************************************************************************
 //SRC deve ser o player comprador
 //DEFAULT deve ser o NPC vendor
@@ -438,12 +438,11 @@ DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>>"
 REF1=<OBJ.cont>
 
 //entrega item ao player 
-OBJ.bounce
+OBJ.cont=<uid.<argv1>.findlayer.layer_pack>
+OBJ.sfx 87
 
 //remove bag de 'protecao'
 REF1.remove
-
-SAY Aqui esta, volte sempre.
 
 return 1
 
@@ -963,7 +962,8 @@ SRC.CTAG.vendor_selectedPrice=<SRC.CTAG0.vendor_prices<eval <argn> - 1000>>
 SRC.CTAG.vendor_selectedOwner=<SRC.CTAG0.vendor_owners<eval <argn> - 1000>>
 
 if (<SRC.CTAG0.vendor_op>==3)
-    vendor_takebackItem <SRC.CTAG.vendor_selectedItem>
+    vendor_takebackItem <SRC.CTAG.vendor_selectedItem>,<src>
+    SAY Aqui esta, volte sempre.
 else
     dialog d_vendor_item_detail
 endif
@@ -1024,11 +1024,11 @@ gumppic 75 180 2443
 dtextentry 80 182 50 17 0 2 <OBJ.amount>
 dtext 149 180 2100 unidade(s) (Max: <OBJ.amount>).
 
-if (<src.isgm>)
+if (<src.isgm>) && (<SRC.CTAG0.vendor_op>==2)
     button 125 225 2117 2118 1 0 3
     button 181 225 2117 2118 1 0 4
     dtext 101 209 2100 Devolver
-    dtext 163 209 2100 Remover
+    dtext 163 209 2100 Retirar
 endif
 
 [DIALOG d_vendor_item_detail button]
@@ -1074,11 +1074,20 @@ endif
 
 ON=3
 // btTakeback
-src.sysmessageyellow Nao implementado
+if (<src.isgm>)
+    vendor_takebackItem <SRC.CTAG.vendor_selectedItem>,<SRC.CTAG.vendor_selectedOwner>
+    src.sysmessagegreen Item devolvido ao player.
+    f_sendMessage <SRC.CTAG.vendor_selectedOwner>,O seguinte item foi retirado da venda e devolvido: <uid.<SRC.CTAG.vendor_selectedItem>.name>,SM_YELLOW
+endif
 
 ON=4
 // btRemove
-src.sysmessageyellow Nao implementado
+if (<src.isgm>)
+    vendor_takebackItem <SRC.CTAG.vendor_selectedItem>,<SRC>
+    src.sysmessagegreen Item retirado.
+    f_sendMessage <SRC.CTAG.vendor_selectedOwner>,O seguinte item foi confiscado da venda: <uid.<SRC.CTAG.vendor_selectedItem>.name>,SM_YELLOW
+endif
+
 
 //*****************************************************************************
 //*****************************************************************************
