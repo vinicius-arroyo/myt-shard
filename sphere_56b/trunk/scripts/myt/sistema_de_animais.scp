@@ -35,7 +35,7 @@
 [DEFNAME animais]
 minReprodAge    = 216000    //6 horas de tempo minimo antes de poder reproduzir
 minReprodDelay  = 72000     //2 horas de tempo minimo antes reproduzir novamente
-
+minRetryDelay   = 600       //1 minuto antes de tentar apos falha
 //*****************************************************************************
 //*****************************************************************************
 // FUNTCIONs
@@ -55,56 +55,50 @@ dorand 2
 enddo
 
 //*****************************************************************************
+// anim_tool_dclick
 //*****************************************************************************
-// TYPEDEFs
-//*****************************************************************************
-//*****************************************************************************
-
-//*****************************************************************************
-// t_procriador
-//*****************************************************************************
-[TYPEDEF t_procriador]
-ON=@DCLICK
-bounce
-src.sysmessageyellow Selecione a femea que deseja acasalar:
-target 
+[FUNCTION anim_tool_dclick]
+src.menu anim_commands
 return 1
 
-ON=@TARGON_CHAR
-if (<src.targ.memoryfindtype.memory_ipet.link>==<src.uid>)
-    consume
-//    src.targ.food += 1
-    sfx <serv.chardef.<src.targ.id>.sound>
 
-    if (<src.animallore> <= 450) 
-        src.sysmessageyellow Voce nao possui conhecimento suficiente.
-    elif (0<src.targ.tag.sexo>==1)
-        src.sysmessageyellow Voce deve selecionar uma femea...
-    elif (<eval <serv.time>-<src.targ.tag.born>> <= minReprodAge ) 
-        src.sysmessageyellow Muito jovem para reproduzir.
-    elif (<eval <serv.time>-<src.targ.tag.prenha>> <= minReprodDelay )
-        src.sysmessageyellow Deve esperar antes de reproduzir novamente.
-    //so inicia acasalamento se for femea, com idade, nao prenha e com animallore suficiente
-    else
-        serv.newitem i_criador
-        new.link=<src.targ.uid>
-        new.cont=<src.uid>  
-        new.dclick
-        return 1
+[FUNCTION anim_tool_target]
+
+//É NPC?
+if (0<argo>==0) || (<argo>>=040000000) || (0<argo.npc>!=brain_animal)
+ src.sysmessageyellow Femea invalida.
+ return 1
+endif
+
+//so aceita se for o dono do animal/npc
+if (<argo.memoryfindtype.memory_ipet.link>==<src.uid>)
+
+    sfx <serv.chardef.<argo.id>.sound>
+
+    if (<src.ctag.anim_action>==1)
+        if (<src.animallore> <= 450) 
+            src.sysmessageyellow Voce nao possui conhecimento suficiente.
+        elif (0<argo.tag.sexo>==1)
+            src.sysmessageyellow Voce deve selecionar uma femea...
+        elif (<eval <serv.time>-<argo.tag.born>> <= minReprodAge ) 
+            src.sysmessageyellow Muito jovem para reproduzir.
+        elif ( <serv.time> < 0<argo.tag.prenha> )
+            src.sysmessageyellow Deve esperar antes de reproduzir novamente.
+        //so inicia acasalamento se for femea, com idade, nao prenha e com animallore suficiente
+        else
+            serv.newitem i_criador
+            new.link=<argo.uid>
+            new.cont=<src.uid>  
+            new.dclick
+            return 1
+        endif
+        src.sysmessageyellow O animal volta a sua rotina.
     endif
-    src.sysmessageyellow O animal come e volta a sua rotina.
 else
     src.sysmessageyellow Esse animal nao lhe pertence.
 endif
 return 1
 
-ON=@TARGON_GROUND
-src.sysmessageyellow Alvo invalido.
-return 1
-
-ON=@TARGON_ITEM
-src.sysmessageyellow Alvo invalido.
-return 1 
  
 //*****************************************************************************
 //*****************************************************************************
@@ -176,7 +170,7 @@ enddo
 while (<local.c>>0)
     LOCAL.c -= 1
     serv.newnpc <LOCAL.f>
-    new.movenear <link> 3
+    new.movenear <link> 1
     new.str=<LOCAL.str>
     new.dex=<LOCAL.dex>
     new.int=<LOCAL.int>
@@ -277,36 +271,6 @@ timer=60
 attr=attr_decay
 
 //*****************************************************************************
-// i_milho
-//*****************************************************************************
-[ITEMDEF 0c7f]
-DEFNAME=i_milho
-DEFNAME=i_fruit_corn
-RESOURCES=I_CROP_CORN
-TYPE=t_procriador
-VALUE={2 4}
-WEIGHT=0.2
-CATEGORY=MyT - Vegetation
-SUBSECTION=Fruits and Vegetables
-DESCRIPTION=Milho
-DUPELIST=0c80,0c81,0c82
-
-//*****************************************************************************
-// i_feno
-//*****************************************************************************
-[ITEMDEF i_feno]
-ID=0100c
-NAME=Feno
-TYPE=t_procriador
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Farmer
-DESCRIPTION=feno
-
-ON=@CREATE
-MORE2=1
-COLOR=089f
-
-//*****************************************************************************
 // i_criador
 //*****************************************************************************
 [ITEMDEF i_criador]
@@ -315,7 +279,7 @@ NAME=Criador
 TYPE=t_eq_script
 
 ON=@DCLICK
-src.sysmessageyellow Selecione o macho para acasalar:
+src.sysmessageyellow Selecione o macho:
 target 
 return 1
 
@@ -343,12 +307,25 @@ else
     endif
 
     src.skill_gain skill_animallore
+    src.skill_gain skill_herding
     src.sysmessagegreen Aguarde enquanto a natureza segue seu curso.
+
+    //testa herding comparando com o do animal ou random se nao tiver configurado
+    if (<link.herding>) && (<R<src.herding>> > <link.herding>)
+        morey=1     //vai sair filhote no final?
+        link.tag.prenha=<eval <serv.time>+minReprodDelay>
+    elif (<src.herding> > <R1000>)
+        morey=1     //vai sair filhote no final?
+        link.tag.prenha=<eval <serv.time>+minReprodDelay>
+    else
+        morey=0     //vai sair filhote no final?
+        link.tag.prenha=<eval <serv.time>+minRetryDelay>
+    endif
+
     
     cont=<src.targ> //move memory to father
-    morex=15
     timer=1
-    link.tag.prenha=<serv.time>
+    morex=15        //tempo de acasalamento (s)
     return 1
 endif
 
@@ -364,11 +341,10 @@ remove
 return 1
 
 ON=@TIMER
-
+timer=1
 if (<link.distance <cont>> > 1)
     cont.f_npcRunStepToUid <link>,1
-    timer 1
-    return
+    return 1
 endif
 
 morex -= 1
@@ -377,7 +353,11 @@ dorand 2
 enddo
 
 if !(<morex>)
-    f_giveBirth
+    if (<morey>)
+        f_giveBirth
+    else
+        link.emoteyellow nao engravidou
+    endif
     remove
 else
     if (<link.id>==c_pig_big) || (<link.id>==c_pig)
@@ -396,8 +376,20 @@ else
         link.emoteyellow <LOCAL.s>
         cont.emoteyellow <LOCAL.s>
     enddo
-    timer=1
 endif
 return 1
 
+//*****************************************************************************
+//*****************************************************************************
+// MENUs
+//*****************************************************************************
+//*****************************************************************************
+
+[MENU anim_commands]
+O que deseja fazer?
+
+on=0 Reprocriar
+    src.ctag.anim_action=1
+    src.sysmessageyellow Selecione a femea que deseja acasalar:
+    targetf anim_tool_target
 [EOF]
