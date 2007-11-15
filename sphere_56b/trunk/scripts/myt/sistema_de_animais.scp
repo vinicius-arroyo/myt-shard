@@ -62,6 +62,9 @@ src.menu anim_commands
 return 1
 
 
+//*****************************************************************************
+// anim_tool_target
+//*****************************************************************************
 [FUNCTION anim_tool_target]
 
 //É NPC?
@@ -93,18 +96,66 @@ if (<argo.memoryfindtype.memory_ipet.link>==<src.uid>)
             return 1
         endif
         src.sysmessageyellow O animal volta a sua rotina.
+    elif (<src.ctag.anim_action>==2)
+        src.sysmessageyellow Para onde quer que ele(a) va?
+        targetfg anim_move <argo>
+    elif (<src.ctag.anim_action>==3)
+        src.sysmessageyellow Quem quer que ataque?
+        targetf anim_attack <argo>
     endif
 else
     src.sysmessageyellow Esse animal nao lhe pertence.
 endif
 return 1
 
- 
 //*****************************************************************************
+// anim_move
 //*****************************************************************************
-// FUNCTIONs
+[FUNCTION anim_move]
+REF1=<argv0>
+if (<src.anim_skillcheck <REF1>>)
+    REF1.emotered aceita o comando
+    anim_move_ <argv0>,<targp>
+else
+    REF1.emotered ignora o comando
+endif
+
+[FUNCTION anim_move_]
+LOCAL.x=0<argv3>
+LOCAL.x=<eval <LOCAL.x>+1>
+OBJ=<argv0>
+if (<OBJ.distance <argv1>,<argv2>> > 1) && (<LOCAL.x> < 10)
+    OBJ.f_npcRunStepToUid 0,1,<argv1>,<argv2>
+    timerf 1,anim_move_ <argv0>,<argv1>,<argv2>,<LOCAL.x>
+endif
+
 //*****************************************************************************
+// anim_attack
 //*****************************************************************************
+[FUNCTION anim_attack]
+REF1=<argv0>
+if (<src.anim_skillcheck <REF1>>)
+    REF1.emotered atacando
+    REF1.attack <argo>
+else
+    REF1.emotered ignora o comando
+endif
+
+//*****************************************************************************
+// anim_skillcheck( checkAgainsUid )
+//*****************************************************************************
+[FUNCTION anim_skillcheck]
+OBJ=<argv0>
+skill_gain skill_animallore
+skill_gain skill_herding
+
+//testa herding comparando com o do animal ou random se nao tiver configurado
+if (<obj.herding>) && (<R<herding>> > <obj.herding>)
+    return 1
+elif (<herding> > <R1000>)
+    return 1
+endif
+return 0
 
 //*****************************************************************************
 // f_giveBirth
@@ -306,22 +357,16 @@ else
         return 1
     endif
 
-    src.skill_gain skill_animallore
-    src.skill_gain skill_herding
     src.sysmessagegreen Aguarde enquanto a natureza segue seu curso.
 
-    //testa herding comparando com o do animal ou random se nao tiver configurado
-    if (<link.herding>) && (<R<src.herding>> > <link.herding>)
-        morey=1     //vai sair filhote no final?
-        link.tag.prenha=<eval <serv.time>+minReprodDelay>
-    elif (<src.herding> > <R1000>)
+
+    if ( <src.anim_skillcheck <link.herding>> )
         morey=1     //vai sair filhote no final?
         link.tag.prenha=<eval <serv.time>+minReprodDelay>
     else
         morey=0     //vai sair filhote no final?
         link.tag.prenha=<eval <serv.time>+minRetryDelay>
     endif
-
     
     cont=<src.targ> //move memory to father
     timer=1
@@ -391,5 +436,15 @@ O que deseja fazer?
 on=0 Reprocriar
     src.ctag.anim_action=1
     src.sysmessageyellow Selecione a femea que deseja acasalar:
+    targetf anim_tool_target
+
+on=0 Mover
+    src.ctag.anim_action=2
+    src.sysmessageyellow Selecione o animal:
+    targetf anim_tool_target
+
+on=0 Atacar
+    src.ctag.anim_action=3
+    src.sysmessageyellow Selecione o animal:
     targetf anim_tool_target
 [EOF]
