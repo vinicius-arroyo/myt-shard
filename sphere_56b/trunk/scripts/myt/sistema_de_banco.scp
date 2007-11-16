@@ -2,8 +2,8 @@
 //*****************************************************************************
 //
 // SISTEMA DE BANCO por
-//	Galthar
-//	UsMarine (vinicius.arroyo at gmail.com)
+//  Galthar
+//  UsMarine (vinicius.arroyo at gmail.com)
 //
 //*****************************************************************************
 //*****************************************************************************
@@ -21,24 +21,23 @@
 //*****************************************************************************
 [TYPEDEF t_eq_bank_box]
 ON=@PICKUP_SELF
-	if ( <weight> > <TAG.OVERRIDE.MAXWEIGHT> ) && (<src.isgm>==0)
-		src.sysmessageyellow Sua caixa bancaria esta cheia. Remova algo.
-	endif
+    if ( <weight> > <TAG.OVERRIDE.MAXWEIGHT> ) && (<src.isgm>==0)
+        src.sysmessageyellow Sua caixa bancaria esta cheia. Remova algo.
+    endif
 
 ON=@DROPON_SELF
-	if ( <TAG0.OVERRIDE.MAXWEIGHT>=!350)
-		TAG.OVERRIDE.MAXWEIGHT=350
-	endif
+//    if ( <TAG0.OVERRIDE.MAXWEIGHT>=!350)
+        TAG.OVERRIDE.MAXWEIGHT=7500
+//    endif
 
 //src.sysmessageyellow w: <weight> i: <argo.weight> n:<argo.amount>
 
-	FORCONT <UID> 10
-		LOCAL.weight += <weight>
-	ENDFOR
-	if ( <eval <LOCAL.weight>+<argo.weight>> > <TAG.OVERRIDE.MAXWEIGHT> ) && (<src.isgm>==0)
-		src.sysmessageyellow Sua caixa bancaria esta cheia.
-		return 1
-	endif
+    if ( <eval <weight>+<argo.weight>> > <TAG.OVERRIDE.MAXWEIGHT> )
+        src.sysmessageyellow Sua caixa bancaria esta cheia.
+        if !(<src.isgm>)
+            return 1
+        endif
+    endif
 
 //*****************************************************************************
 //*****************************************************************************
@@ -59,9 +58,9 @@ LOCAL.gold=<SRC.rescount i_gold>
 
 //Check bank?
 if (<argv[1]> > 0)
-	LOCAL.copper += <SRC.findlayer(layer_bankbox).rescount i_coin_copper>
-	LOCAL.silver += <SRC.findlayer(layer_bankbox).rescount i_coin_silver>
-	LOCAL.gold += <SRC.findlayer(layer_bankbox).rescount i_gold>
+    LOCAL.copper += <SRC.findlayer(layer_bankbox).rescount i_coin_copper>
+    LOCAL.silver += <SRC.findlayer(layer_bankbox).rescount i_coin_silver>
+    LOCAL.gold += <SRC.findlayer(layer_bankbox).rescount i_gold>
 endif
 LOCAL.cash=<EVAL <LOCAL.copper>+(<LOCAL.silver>*10)+(<LOCAL.gold>*100)>
 if (<LOCAL.cash> >= <argv[0]>)
@@ -75,15 +74,15 @@ return 0
 [FUNCTION bank_consume]
 LOCAL.q=<argv[1]>
 FORCONT <SRC.findlayer(layer_bankbox).uid> 10
-	if ( <baseid>==<argv[0]> )
-		if ( <LOCAL.q> > <amount> )
-			LOCAL.q=<eval <LOCAL.q>-<amount>>
-			remove
-		else
-			consume <LOCAL.q>
-			return 1
-		endif
-	endif
+    if ( <baseid>==<argv[0]> )
+        if ( <LOCAL.q> > <amount> )
+            LOCAL.q=<eval <LOCAL.q>-<amount>>
+            remove
+        else
+            consume <LOCAL.q>
+            return 1
+        endif
+    endif
 ENDFOR
 
 //*****************************************************************************
@@ -101,113 +100,113 @@ LOCAL.cash=<EVAL <LOCAL.pcopper>+(<LOCAL.psilver>*10)+(<LOCAL.pgold>*100)>
 
 //count bank cash if needed
 if (<argv[1]> > 0)
-	LOCAL.bcopper=<SRC.findlayer(layer_bankbox).rescount i_coin_copper>
-	LOCAL.bsilver=<SRC.findlayer(layer_bankbox).rescount i_coin_silver>
-	LOCAL.bgold=<SRC.findlayer(layer_bankbox).rescount i_gold>
-	LOCAL.cash=<EVAL <LOCAL.cash>+<LOCAL.bcopper>+(<LOCAL.bsilver>*10)+(<LOCAL.bgold>*100)>
+    LOCAL.bcopper=<SRC.findlayer(layer_bankbox).rescount i_coin_copper>
+    LOCAL.bsilver=<SRC.findlayer(layer_bankbox).rescount i_coin_silver>
+    LOCAL.bgold=<SRC.findlayer(layer_bankbox).rescount i_gold>
+    LOCAL.cash=<EVAL <LOCAL.cash>+<LOCAL.bcopper>+(<LOCAL.bsilver>*10)+(<LOCAL.bgold>*100)>
 else
-	LOCAL.bcopper=0
-	LOCAL.bsilver=0
-	LOCAL.bgold=0
+    LOCAL.bcopper=0
+    LOCAL.bsilver=0
+    LOCAL.bgold=0
 endif
 
 //message [BNK] Total Cash: <eval <LOCAL.cash>> (<LOCAL.pcopper>,<LOCAL.psilver>,<LOCAL.pgold>)/(<LOCAL.bcopper>,<LOCAL.bsilver>,<LOCAL.bgold>)
 
 if ( <LOCAL.cash> >= <argv[0]> )
-//	sysmessage [BNK] ***************
+//  sysmessage [BNK] ***************
 
-	LOCAL.cash=<argv[0]>
-	
-	if ( <LOCAL.pcopper> > 0 ) 
-		if ( <LOCAL.cash> > <LOCAL.pcopper> )
-			SRC.consume <LOCAL.pcopper> i_coin_copper
-			LOCAL.cash=<LOCAL.cash>-<LOCAL.pcopper>
-//			sysmessage [BNK] Pago em cobre da bag: <eval <LOCAL.pcopper>>. Sobra <eval <LOCAL.cash>>.
-		else
-		  SRC.consume <LOCAL.cash> i_coin_copper
-//			sysmessage [BNK] Pago em cobre da bag: <eval <LOCAL.cash>>
-			return 1	
-		endif
-	endif
+    LOCAL.cash=<argv[0]>
+    
+    if ( <LOCAL.pcopper> > 0 ) 
+        if ( <LOCAL.cash> > <LOCAL.pcopper> )
+            SRC.consume <LOCAL.pcopper> i_coin_copper
+            LOCAL.cash=<LOCAL.cash>-<LOCAL.pcopper>
+//          sysmessage [BNK] Pago em cobre da bag: <eval <LOCAL.pcopper>>. Sobra <eval <LOCAL.cash>>.
+        else
+          SRC.consume <LOCAL.cash> i_coin_copper
+//          sysmessage [BNK] Pago em cobre da bag: <eval <LOCAL.cash>>
+            return 1    
+        endif
+    endif
 
-	if ( <LOCAL.bcopper> > 0 ) 
-		if ( <LOCAL.cash> > <LOCAL.bcopper> )
-			bank_consume i_coin_copper,<LOCAL.bcopper>
-			LOCAL.cash=<LOCAL.cash>-<LOCAL.bcopper>
-//			sysmessage [BNK] Pago em cobre do bank: <eval <LOCAL.bcopper>>. Sobra <eval <LOCAL.cash>>.
-		else
-		  bank_consume i_coin_copper,<LOCAL.cash>
-//			sysmessage [BNK] Pago em cobre do bank: <eval <LOCAL.cash>>
-			return 1	
-		endif
-	endif
-	
-	if ( <LOCAL.psilver> > 0 )
-		LOCAL.v=<LOCAL.psilver>*10
-		if ( <LOCAL.cash> > <LOCAL.v> )
-			SRC.consume <LOCAL.psilver> i_coin_silver
-			LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
-//			sysmessage [BNK] Pago em prata da bag: <eval <LOCAL.psilver>>. Sobra <eval <LOCAL.cash>>.
-		else
-			LOCAL.amt=((<LOCAL.cash>-1)/10)+1
-			SRC.consume <LOCAL.amt> i_coin_silver
-			LOCAL.pb=(<LOCAL.amt>*10)-<LOCAL.cash>
-			SRC.NEWITEM i_coin_copper
-			NEW.amount=<LOCAL.pb>
-			NEW.bounce
-//			sysmessage [BNK] Pago em prata da bag: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
-			return 1	
-		endif
-	endif
+    if ( <LOCAL.bcopper> > 0 ) 
+        if ( <LOCAL.cash> > <LOCAL.bcopper> )
+            bank_consume i_coin_copper,<LOCAL.bcopper>
+            LOCAL.cash=<LOCAL.cash>-<LOCAL.bcopper>
+//          sysmessage [BNK] Pago em cobre do bank: <eval <LOCAL.bcopper>>. Sobra <eval <LOCAL.cash>>.
+        else
+          bank_consume i_coin_copper,<LOCAL.cash>
+//          sysmessage [BNK] Pago em cobre do bank: <eval <LOCAL.cash>>
+            return 1    
+        endif
+    endif
+    
+    if ( <LOCAL.psilver> > 0 )
+        LOCAL.v=<LOCAL.psilver>*10
+        if ( <LOCAL.cash> > <LOCAL.v> )
+            SRC.consume <LOCAL.psilver> i_coin_silver
+            LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
+//          sysmessage [BNK] Pago em prata da bag: <eval <LOCAL.psilver>>. Sobra <eval <LOCAL.cash>>.
+        else
+            LOCAL.amt=((<LOCAL.cash>-1)/10)+1
+            SRC.consume <LOCAL.amt> i_coin_silver
+            LOCAL.pb=(<LOCAL.amt>*10)-<LOCAL.cash>
+            SRC.NEWITEM i_coin_copper
+            NEW.amount=<LOCAL.pb>
+            NEW.bounce
+//          sysmessage [BNK] Pago em prata da bag: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+            return 1    
+        endif
+    endif
 
-	if ( <LOCAL.bsilver> > 0 )
-		LOCAL.v=<LOCAL.bsilver>*10
-		if ( <LOCAL.cash> > <LOCAL.v> )
-			bank_consume i_coin_silver,<LOCAL.bsilver> 
-			LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
-//			sysmessage [BNK] Pago em prata do bank: <eval <LOCAL.bsilver>>. Sobra <eval <LOCAL.cash>>.
-		else
-			LOCAL.amt=((<LOCAL.cash>-1)/10)+1
-			bank_consume i_coin_silver,<LOCAL.amt>
-			LOCAL.pb=(<LOCAL.amt>*10)-<LOCAL.cash>
-			SRC.NEWITEM i_coin_copper
-			NEW.amount=<LOCAL.pb>
-			NEW.bounce
-//			sysmessage [BNK] Pago em prata do bank: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
-			return 1	
-		endif
-	endif
-	
-	if ( <LOCAL.pgold> > 0 )
-		LOCAL.v=<LOCAL.pgold>*100
-		if ( <LOCAL.cash> > <LOCAL.v> )
-			SRC.consume <LOCAL.pgold> i_gold
-			LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
-//			sysmessage [BNK] Pago em ouro da bag: <eval <LOCAL.pgold>>. Sobra <eval <LOCAL.cash>>.
-		else
-			LOCAL.amt=((<LOCAL.cash>-1)/100)+1
-			SRC.consume <LOCAL.amt> i_gold
-			LOCAL.pb=(<LOCAL.amt>*100)-<LOCAL.cash>
-			SRC.NEWITEM i_coin_copper
-			NEW.amount=<LOCAL.pb>
-			NEW.bounce
-//			sysmessage [BNK] Pago em ouro da bag: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
-			return 1	
-		endif
-	endif
+    if ( <LOCAL.bsilver> > 0 )
+        LOCAL.v=<LOCAL.bsilver>*10
+        if ( <LOCAL.cash> > <LOCAL.v> )
+            bank_consume i_coin_silver,<LOCAL.bsilver> 
+            LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
+//          sysmessage [BNK] Pago em prata do bank: <eval <LOCAL.bsilver>>. Sobra <eval <LOCAL.cash>>.
+        else
+            LOCAL.amt=((<LOCAL.cash>-1)/10)+1
+            bank_consume i_coin_silver,<LOCAL.amt>
+            LOCAL.pb=(<LOCAL.amt>*10)-<LOCAL.cash>
+            SRC.NEWITEM i_coin_copper
+            NEW.amount=<LOCAL.pb>
+            NEW.bounce
+//          sysmessage [BNK] Pago em prata do bank: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+            return 1    
+        endif
+    endif
+    
+    if ( <LOCAL.pgold> > 0 )
+        LOCAL.v=<LOCAL.pgold>*100
+        if ( <LOCAL.cash> > <LOCAL.v> )
+            SRC.consume <LOCAL.pgold> i_gold
+            LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
+//          sysmessage [BNK] Pago em ouro da bag: <eval <LOCAL.pgold>>. Sobra <eval <LOCAL.cash>>.
+        else
+            LOCAL.amt=((<LOCAL.cash>-1)/100)+1
+            SRC.consume <LOCAL.amt> i_gold
+            LOCAL.pb=(<LOCAL.amt>*100)-<LOCAL.cash>
+            SRC.NEWITEM i_coin_copper
+            NEW.amount=<LOCAL.pb>
+            NEW.bounce
+//          sysmessage [BNK] Pago em ouro da bag: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+            return 1    
+        endif
+    endif
 
-	LOCAL.amt=((<LOCAL.cash>-1)/100)+1
-	bank_consume i_gold,<LOCAL.amt>
-	LOCAL.pb=(<LOCAL.amt>*100)-<LOCAL.cash>
-	SRC.NEWITEM i_coin_copper
-	NEW.amount=<LOCAL.pb>
-	NEW.bounce
-//	sysmessage [BNK] Pago em ouro do bank: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
-	return 1	
+    LOCAL.amt=((<LOCAL.cash>-1)/100)+1
+    bank_consume i_gold,<LOCAL.amt>
+    LOCAL.pb=(<LOCAL.amt>*100)-<LOCAL.cash>
+    SRC.NEWITEM i_coin_copper
+    NEW.amount=<LOCAL.pb>
+    NEW.bounce
+//  sysmessage [BNK] Pago em ouro do bank: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+    return 1    
 
 else
-//	sysmessage [BNK] cant buy, no cash
-	return 0
+//  sysmessage [BNK] cant buy, no cash
+    return 0
 endif
 
 //*****************************************************************************
@@ -223,28 +222,28 @@ endif
 
 // -- Calculando valores de conversao --
 if (<src.ctag.moeda1>==i_gold)
-	if (<src.ctag.moeda2>==i_coin_silver)
- 		LOCAL.q=<eval <argn>*10>
- 	else //cobre
- 		LOCAL.q=<eval <argn>*100>
- 	endif
+    if (<src.ctag.moeda2>==i_coin_silver)
+        LOCAL.q=<eval <argn>*10>
+    else //cobre
+        LOCAL.q=<eval <argn>*100>
+    endif
 elif (<src.ctag.moeda1>==i_coin_silver)
-	if (<src.ctag.moeda2>==i_gold)
- 		LOCAL.q=<eval <argn>/10>
- 	else //cobre
- 		LOCAL.q=<eval <argn>*10>
- 	endif
+    if (<src.ctag.moeda2>==i_gold)
+        LOCAL.q=<eval <argn>/10>
+    else //cobre
+        LOCAL.q=<eval <argn>*10>
+    endif
 else //cobre
-	if (<src.ctag.moeda2>==i_gold)
- 		LOCAL.q=<eval <argn>/100>
- 	else //prata
- 		LOCAL.q=<eval <argn>/10>
- 	endif
+    if (<src.ctag.moeda2>==i_gold)
+        LOCAL.q=<eval <argn>/100>
+    else //prata
+        LOCAL.q=<eval <argn>/10>
+    endif
 endif
 
  if (!<LOCAL.q> )
   src.sysmessageyellow Voce nao pode trocar somente <argn> <SERV.ITEMDEF.<src.ctag.moeda1>.name> em <SERV.ITEMDEF.<src.ctag.moeda2>.name>
- 	return 1
+    return 1
  endif
 
 // -- Fazendo a troca --
@@ -284,7 +283,6 @@ src.sysmessageorange Seu aluguel expira em 2 semanas (reais).
 [FUNCTION bankbalance]
 FORCONT <findlayer.layer_bankbox.uid> 10
  LOCAL.i += 1
- LOCAL.w += <weight>
  if (<baseID>==i_gold)
   LOCAL.g += <amount>
  elif (<baseID>==i_coin_copper)
@@ -294,7 +292,7 @@ FORCONT <findlayer.layer_bankbox.uid> 10
  endif
 endfor
 sysmessagered Balanco bancario:
-sysmessageyellow Peso no banco <eval <LOCAL.w>/10> (max: <eval <findlayer.layer_bankbox.tag0.OVERRIDE.MAXWEIGHT>/10>)
+sysmessageyellow Peso no banco <eval <findlayer.layer_bankbox.weight>/10> (max: <eval <findlayer.layer_bankbox.tag0.OVERRIDE.MAXWEIGHT>/10>)
 sysmessageyellow Itens: <dLOCAL.i>
 sysmessageyellow Ouro: <dLOCAL.g>
 sysmessageyellow Prata: <dLOCAL.s>
@@ -333,9 +331,9 @@ ON=@CREATE
 attr=attr_decay
 
 ON=@TIMER
-	link.findlayer(layer_bankbox).TAG.OVERRIDE.MAXWEIGHT=10000	//volta bank para 1000 stones
-	remove
-	return 1
+    link.findlayer(layer_bankbox).TAG.OVERRIDE.MAXWEIGHT=10000  //volta bank para 1000 stones
+    remove
+    return 1
 
 //*****************************************************************************
 //*****************************************************************************
