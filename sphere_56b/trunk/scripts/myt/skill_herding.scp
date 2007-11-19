@@ -165,7 +165,7 @@ src.sysmessageyellow O animal volta a sua rotina.
 [FUNCTION anim_move]
 REF1=<argv0>
 if (<src.anim_skillcheck <REF1>>)
-    REF1.emotered aceita o comando
+    REF1.emotegreen aceita o comando
     anim_move_ <argv0>,<targp>,0,0
 else
     REF1.emotered ignora o comando
@@ -215,7 +215,9 @@ if (<src.anim_skillcheck <REF1>>)
     REF1.transfer <argo>
 else
     REF1.emotered rejeita o novo dono
-    REF1.attack <argo>
+    if !(<R2>)
+        REF1.attack <argo>
+    endif
 endif
 
 //*****************************************************************************
@@ -228,7 +230,9 @@ if (<src.anim_skillcheck <REF1>>)
     REF1.friend <argo>
 else
     REF1.emotered rejeita o amigo
-    REF1.attack <argo>
+    if !(<R2>)
+        REF1.attack <argo>
+    endif
 endif
 
 //*****************************************************************************
@@ -259,18 +263,28 @@ endif
 // anim_skillcheck( checkAgainsUid )
 //*****************************************************************************
 [FUNCTION anim_skillcheck]
+
+if (<serv.time> > <src.ctag0.an_ts>)
+    dorand 2
+        skill_gain skill_animallore
+        skill_gain skill_herding
+    enddo
+    //so ganha skill a cada 3 segundos, para evitar abuso do sistema
+    src.ctag0.an_ts=<eval <serv.time>+30>
+endif
+
 OBJ=<argv0>
 
-dorand 2
-    skill_gain skill_animallore
-    skill_gain skill_herding
-enddo    
+//faz uma ponderacao entre herding e animallore
+LOCAL.sk=<eval (<src.herding>*7)+(<src.animallore>*3)>
+LOCAL.sk=<eval <LOCAL.sk>/10>
 
-//testa herding comparando com o do animal ou random se nao tiver configurado
-if (<obj.herding>) && (<R<herding>> > <obj.herding>)
-    return 1
-elif (<herding> > <R1000>)
-    return 1
+//testa comparando com taming do alvo
+if (<R<LOCAL.sk>> > <R<obj.taming>>)
+    //tem que passar em um teste de fome tambem
+    if (<R100> < <obj.food>)
+        return 1
+    endif
 endif
 return 0
 
@@ -562,9 +576,9 @@ on=0 Atacar
     src.ctag.anim_action=3
     src.sysmessageyellow Use o cajado no animal que quer comandar:
 
-//on=0 Defender
-//    src.ctag.anim_action=4
-//    src.sysmessageyellow Use o cajado no animal que quer comandar:
+on=0 Defender
+    src.ctag.anim_action=4
+    src.sysmessageyellow Use o cajado no animal que quer comandar:
     
 on=0 Transferir
     src.ctag.anim_action=5
