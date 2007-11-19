@@ -1,0 +1,611 @@
+//******************************************************************************
+//******************************************************************************
+//
+//				Mystical tales Shard
+//				Systema de caldeirão
+//
+//******************************************************************************
+//				Jean Gabin
+//				Galthar, o Errante
+//
+//				Versão 2.0b
+//
+//******************************************************************************
+//******************************************************************************
+
+[COMMENT sismta_de_caldeirao.scp]
+Engloba o sistema de cera derretida e o de óleo utilizando como principal
+ferramenta o sistema de recipientes 1.1.
+- Permite transformasr líquidos em outros líquidos (como piche em óleo)
+- Permite derreter cera para fazer velas.
+- Permite criar bebídas alcoólicas.
+- Permite criar bebidas por raça.
+
+//******************************************************************************
+//******************************************************************************
+//
+//				TYPEDEFs
+//
+//******************************************************************************
+//******************************************************************************
+
+//******************************************************************************
+// TYPEs para compatibilidade
+//******************************************************************************
+[TYPEDEF t_oleo]
+//Compatibilidade com o sistema de vendas
+
+[TYPEDEF t_wax_hard]
+//Para funcionar o sistema de recipientes
+
+[TYPEDEF t_wax_melt]
+//Para funcionar o sistema de recipientes
+
+//******************************************************************************
+// t_caldron
+//******************************************************************************
+[TYPEDEF t_caldron]
+on=@dclick
+IF (<link>!=04fffffff)
+ if (<link.more1>
+  src.sysmessagered O caldeirao esta muito quente para voce encostar nele.
+  return 1
+ endif
+endif
+
+on=@tryfill
+obj=<UID>
+IF (!<CaldronCheckFire>)
+ src.sysmessagered Voce precisa colocar o caldeirao em cima de uma fogueira.
+ return 1
+endif
+
+on=@FillEnd
+attr |= 08000
+timer -1
+
+//******************************************************************************
+// t_stew
+//******************************************************************************
+[TYPEDEF t_stew]
+//Conteúdo de caldeirão
+on=@clientToolTip
+if (<more1>)
+ f_sendToolTip <DEF.LIQUID_<more2>_name>,(aquecendo)
+else
+ f_sendToolTip <DEF.LIQUID_<more2>_name>,(pronto)
+endif
+return 1
+
+on=@click
+if (<more1>)
+ message <DEF.LIQUID_<more2>_name>
+ message (aquecendo)
+else
+ message <DEF.LIQUID_<more2>_name>
+ message (frio)
+endif
+return 1
+
+on=@timer
+IF (!<LINK.CaldronCheckFire>)
+ more1=0
+ emotered esfriou
+ update
+ELIF (<more1>)
+ more1 -= 1
+ timer 3
+ DORAND 5
+  emotered aquecendo
+  effect 2,i_fx_smoke,0,14,0
+  sfx 05aF
+  sfx 021
+  effect 2,i_fx_smoke,0,14,0
+ ENDDO
+ELSE
+ //terminou
+ if (<Isempty <DEF.LIQUID_<more2>_BOIL>>)
+  link.emotegreen evaporou
+  link.EmptyRecipient
+ else
+  link.more2=<DEF.LIQUID_<more2>_BOIL>
+  link.GenerateCaldronFill
+  link.emotegreen virou <DEF.LIQUID_<link.more2>_name>
+ endif
+ remove
+ENDIF
+return 1
+
+ON=@DClick
+if (<src.distance <UID>> > 1) && (!<src.IsGM>)
+ src.sysmessagered Muito longe...
+ return 1
+endif
+if (<more2>==LIQUID_WATER)
+ more1 90
+ src.cTAG.caldron=<link>
+ src.skillmenu sm_caldron_water
+ return 1
+ELIF (<more2>==LIQUID_SWAMP)
+ more1 90
+ src.cTAG.caldron=<link>
+ src.skillmenu sm_caldron_swamp
+ return 1
+endif
+
+//******************************************************************************
+//******************************************************************************
+//
+//				ITEMDEFs
+//
+//******************************************************************************
+//******************************************************************************
+
+//******************************************************************************
+// i_poco_piche*
+//******************************************************************************
+//Para pegar piche e fazer óleo.
+[ITEMDEF i_poco_piche1]
+id=03236
+NAME= Poco de piche
+TYPE=t_tar
+
+CATEGORY=MyT - Sistemas
+SUBSECTION=Oleo
+DESCRIPTION=poco de piche 01
+
+on=@create
+attr=08010
+color=038
+
+
+[ITEMDEF i_poco_piche2]
+ID=03241
+//ID=0322c
+NAME= Poco de piche
+TYPE=t_tar
+
+CATEGORY=MyT - Sistemas
+SUBSECTION=Oleo
+DESCRIPTION=poco de piche 01
+
+on=@create
+attr=08010
+color=038
+
+
+[ITEMDEF i_poco_piche3]
+ID=0320d
+NAME= Poco de piche
+TYPE=t_tar
+
+CATEGORY=MyT - Sistemas
+SUBSECTION=Oleo
+DESCRIPTION=poco de piche 01
+
+on=@create
+attr=08010
+color=038
+
+[ITEMDEF i_poco_piche4]
+ID=03213
+NAME= Poco de piche
+TYPE=t_tar
+
+CATEGORY=MyT - Sistemas
+SUBSECTION=Oleo
+DESCRIPTION=poco de piche 01
+
+on=@create
+attr=08010
+color=038
+
+//******************************************************************************
+// i_frasco_oleo_vazio
+//******************************************************************************
+//Para encher de óleo e poder aplicar em flechas/couro.
+[ITEMDEF i_frasco_oleo_vazio]
+ID=01c18
+NAME= Frasco de piche (vazio)
+TYPE=t_oleo
+pile=1
+WEIGHT=1
+
+CATEGORY=MyT - Sistemas
+SUBSECTION=Oleo
+DESCRIPTION=frasco vazio de oleo
+
+on=@Dclick
+src.sysmessage Este frasco esta vazio.
+return 1
+
+
+//******************************************************************************
+// i_bowl_stew
+//******************************************************************************
+//Animação do caldeirão. Quando chega no timer, troca de tipo de líquido
+[ITEMDEF 0970]
+DEFNAME=i_bowl_stew
+TYPE=T_STEW
+NAME=liquido
+
+//******************************************************************************
+// i_kettle
+//******************************************************************************
+//Caldeirão. Cria e permite que o i_bowl_stew trabalhe
+[ITEMDEF 09ED]
+DEFNAME=i_kettle
+TYPE=T_RECIPIENT
+NAME=caldeirao
+WEIGHT=150
+TDATA1=14
+TDATA2=RECIPIENT_TARG_FULL
+TEVENTS=t_caldron
+
+on=@dclick
+say Sem essa
+return 1
+
+on=@FillEnd
+IF (<LINK>==04fffffff)
+ GenerateCaldronFill
+endif
+
+on=@EmptyRecipient
+uid.<link>.remove
+link=-1
+attr ^= 08000
+timer=3600
+update
+
+//******************************************************************************
+// i_beeswax
+//******************************************************************************
+[ITEMDEF 01422]
+//cera dura para derreter
+DEFNAME=i_beeswax
+name=Cera de abelha
+WEIGHT=1
+type=t_buy_raw
+DUPELIST=01423,01424,01425,01426,01427
+
+on=@click
+message <amount> <NAME>
+return 1
+
+on=@dclick
+src.sysmessageyellow Selecione o caldeirao que voce quer usar para derreter a cera
+Target
+return 1
+
+on=@targon_char
+src.sysmessagered se voce quer jogar a cera use o comando .arremessar
+return 1
+
+
+ON=@Targon_ground 
+ SRC.SYSMESSAGERED se voce quer colocar a cera ai, arraste e solte. 
+RETURN 1  
+
+
+ON=@Targon_item
+if (<src.targ.baseid>==i_kettle)
+ IF (!<src.targ.more2>) || (<src.targ.more2>==LIQUID_WAX)
+  IF (<src.targ.CaldronCheckFire>)
+   WaxFillCalrdon <src.targ.uid>
+  else
+   src.sysmessagered O caldeirao deve estar sobre fogo.
+  endif
+ ELSE
+  src.sysmessagered Ja existe outro conteudo no caldeirao.
+ ENDIF
+ENDIF
+return 1
+
+//******************************************************************************
+// i_molde_vela
+//******************************************************************************
+[ITEMDEF i_molde_vela]
+//Molde para fazer velas.
+id=01428
+NAME=Molde para fazer velas
+WEIGHT=1
+type=t_script
+DUPELIST=01429
+
+CATEGORY=MyT - Sistemas
+SUBSECTION=Ceras
+DESCRIPTION=Molde para fazer velas
+
+on=@create
+more1=0
+
+on=@click
+if (<more1>)
+ message <NAME> (<eval <more1>> velas prontas)
+else
+ message <NAME> (molde vazio)
+endif
+return 1
+
+ON=@CLIENTTOOLTIP
+f_sendTooltip <name>,Velas: <QVAL <more1> ? <eval <more1>> velas prontas:molde vazio>
+return 1
+
+on=@dclick
+if (<more1>)
+ IF (<src.restest 1 i_castical_madeira>)
+  serv.newitem=i_candle
+  src.consume 1 i_castical_madeira
+  src.sfx 033C
+  src.emotegreen montando vela
+ else
+  serv.newitem=i_candle_lg
+  src.emotegreen desmoldando
+ endif
+ src.bounce <new>
+ more1 -= 1
+ update
+else
+ src.sysmessageyellow Selecione o caldeirao com cera derretida quente
+ target
+endif
+return 1
+
+
+on=@targon_char
+src.sysmessagered Se voce quer jogar o molde use o comando .arremessar
+return 1
+
+
+ON=@Targon_ground 
+SRC.SYSMESSAGERED se voce quer colocar o molde ai, arraste e solte. 
+RETURN 1  
+
+
+ON=@Targon_item
+if (<src.targ.baseid>==i_kettle) && (<src.targ.more2>==LIQUID_WAX_MELT)
+ obj=<src.targ.uid>
+ELIF (<src.targ.type>==t_stew) && (<src.targ.more2>==LIQUID_WAX_MELT)
+ obj=<src.targ.link>
+else
+ src.sysmessagered Use o molde apenas em cera derretida quente.
+ return 1
+endif
+IF (<obj.more1> >= 3)
+ LOCAL.amt=3
+ELSE
+ LOCAL.amt=<obj.more1>
+endif
+more1=<LOCAL.amt>
+update
+obj.ConsumeRecipient <LOCAL.amt>
+src.emotegreen moldando velas
+src.anim 30
+src.sfx 05AB
+return 1
+
+//******************************************************************************
+// i_castical_madeira
+//******************************************************************************
+[ITEMDEF i_castical_madeira]
+ID=09EA
+NAME=castical de madeira
+TYPE=t_buy_raw
+PILE=1
+
+on=@create
+color=040f
+
+on=@dclick
+src.sysmessageyellow Seleciona a vela.
+target
+return 1
+
+on=@targon_item
+if (<src.targ.baseid>==i_candle)
+ src.sysmessagered Esta vela ja tem um castical de madeira.
+ return 1
+ELIF (<src.targ.baseid>==i_candle_lg)
+ src.sfx 033C
+ src.emotegreen montando vela
+ serv.newitem i_candle
+ src.bounce <new>
+ src.targ.decrement
+ decrement
+ return 1
+endif
+
+//******************************************************************************
+//******************************************************************************
+//
+//				FUNCTIONs
+//
+//******************************************************************************
+//******************************************************************************
+
+//******************************************************************************
+// GenerateCaldronFill
+//******************************************************************************
+[FUNCTION GenerateCaldronFill]
+//Gera i_bowl_stew no caldeirão
+ link=-1
+ serv.newitem i_bowl_stew
+ new.more2=<more2>
+ if (<more2>!=LIQUID_WATER)
+  new.color=<DEF.LIQUID_<more2>_color>
+ else
+  new.color=05f
+ endif
+ new.p=<p.x>,<p.y>,<eval <p.z>+6>,<p.m>
+ new.attr=08010
+ new.update
+ new.link=<uid>
+ new.more1=30// x*3segundos para terminar
+ new.timer 1
+ link=<new.uid>
+ update
+ link.update
+
+//******************************************************************************
+// CaldronCheckFire
+//******************************************************************************
+[FUNCTION CaldronCheckFire]
+//Checa se há fogo perto do caldeirão
+foritems 1
+ if ( (<baseid>==i_campfire) || (<type>==t_fire) )&& (<p>==<obj.p>)
+  LOCAL.can=1
+ endif
+endfor
+return <LOCAL.can>
+
+//******************************************************************************
+// WaxFillCalrdon <uid do caldeirao>
+//******************************************************************************
+[FUNCTION WaxFillCalrdon]
+//Adiciona cera no caldeirao.
+obj=<argn>
+LOCAL.space=<eval <obj.tdata1>-<obj.more1>>
+IF (<LOCAL.space> >= <amount>)
+ local.amt=<amount>
+else
+ local.amt=<LOCAL.space>
+endif
+
+obj.FillRecipient LIQUID_WAX,<LOCAL.space>
+
+src.emoteyellow esmigalhando cera no caldeirao
+src.sfx 05A9
+
+for <LOCAL.amt>
+ decrement
+endfor
+
+//******************************************************************************
+// CaldronMakeDrink
+//******************************************************************************
+[FUNCTION CaldronMakeDrink]
+//Adiciona um preparo para bebeida/líquido no caldeirão depois de crafting.
+obj=<argv[0]>
+obj.more2=<argv[1]>
+obj.link.remove
+obj.GenerateCaldronFill
+sfx=05AE
+emotegreen terminou <DEF.LIQUID_<argv[1]>_name>
+sysmessagegreen Agora eh so esperar e pronto!
+
+//******************************************************************************
+//******************************************************************************
+//
+//				MENUS
+//
+//******************************************************************************
+//******************************************************************************
+
+[SKILLMENU sm_caldron_water]
+O que deseja preparar?
+on=i_garrafa @026 vinho
+TESTIF=(<src.cooking> > 550)
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.delay=30
+obj.tag.skill=cooking
+obj.tag.dif=60
+obj.tag.anim=34
+obj.tag.sfx=05AC
+obj.tag.res1=i_fruit_grapes
+obj.tag.nam1=uvas
+obj.tag.amt1=10
+obj.tag.item=1
+obj.tag.emote=amacando uvas
+obj.tag.selection=<cTAG0.caldron>,<DEF.LIQUID_PRE_WINE>
+obj.tag.f_end=CaldronMakeDrink
+emoteyellow amaca umas uvas
+src.fazitem
+
+on=i_garrafa @02C cidra
+TESTIF=(<src.cooking> > 650)
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.delay=35
+obj.tag.skill=cooking
+obj.tag.dif=70
+obj.tag.anim=34
+obj.tag.sfx=05AC
+obj.tag.res1=i_fruit_apple
+obj.tag.nam1=macas
+obj.tag.amt1=12
+obj.tag.item=1
+obj.tag.emote=misturando macas
+obj.tag.selection=<cTAG0.caldron>,<DEF.LIQUID_PRE_CIDER>
+obj.tag.f_end=CaldronMakeDrink
+emoteyellow corta umas macas
+src.fazitem
+
+on=i_garrafa @0164 rum
+TESTIF=(<src.cooking> > 750)
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.delay=40
+obj.tag.skill=cooking
+obj.tag.dif=80
+obj.tag.anim=34
+obj.tag.sfx=05AC
+obj.tag.res1=i_fruit_apple
+obj.tag.nam1=macas
+obj.tag.amt1=6
+obj.tag.res2=i_fruit_grapes
+obj.tag.nam2=uvas
+obj.tag.amt2=8
+obj.tag.item=1
+obj.tag.emote=amacando frutas
+obj.tag.selection=<cTAG0.caldron>,<DEF.LIQUID_PRE_RUM>
+obj.tag.f_end=CaldronMakeDrink
+emoteyellow pica umas frutas
+src.fazitem
+
+on=i_garrafa @0fe cerveja
+TESTIF=(<src.cooking> > 550) && (STRMATCH(<tag.raca>,Anao))
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.delay=30
+obj.tag.skill=cooking
+obj.tag.dif=60
+obj.tag.anim=34
+obj.tag.sfx=05AC
+obj.tag.res1=i_wheat_sheaf
+obj.tag.nam1=bagos de trigo
+obj.tag.amt1=6
+obj.tag.item=1
+obj.tag.emote=debulhando trigo
+obj.tag.selection=<cTAG0.caldron>,<DEF.LIQUID_PRE_BEER>
+obj.tag.f_end=CaldronMakeDrink
+emoteyellow debulha o trigo
+src.fazitem
+
+on=i_garrafa @0122 morvor
+TESTIF=(<src.cooking> > 650) && (STRMATCH(<tag.raca>,Elfo))
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.delay=40
+obj.tag.skill=cooking
+obj.tag.dif=70
+obj.tag.anim=34
+obj.tag.sfx=05AC
+obj.tag.res1=i_r_ginseng
+obj.tag.nam1=ginseng
+obj.tag.amt1=1
+obj.tag.res2=i_fruit_banana
+obj.tag.nam2=banana
+obj.tag.amt2=3
+obj.tag.res3=i_fruit_apple
+obj.tag.nam3=maca
+obj.tag.amt3=2
+obj.tag.item=1
+obj.tag.emote=mistura ingredientes
+obj.tag.selection=<cTAG0.caldron>,<DEF.LIQUID_PRE_MORVOR>
+obj.tag.f_end=CaldronMakeDrink
+emoteyellow cortando
+src.fazitem
+
+[SKILLMENU sm_caldron_swamp]
