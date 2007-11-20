@@ -1064,4 +1064,77 @@ else
     return 1
 endif
 
+//*****************************************************************************
+// liquidcont <LIQUID_*>
+//*****************************************************************************
+//Verifica o quanto de liquido LIQUID_* o default tem.
+[FUNCTION liquidcont]
+IF (<IsEmpty <argv[0]>>)
+ return 0
+endif
+IF (!<IsNum <argv[0]>>)
+ IF (STRMATCH(LIQUID_*,<argv[0]>))
+  LOCAL.liq=<DEF.<argv[0]>>
+ ELSE
+  RETURN 0
+ ENDIF
+ELSE
+ LOCAL.liq=<argv[0]>
+ENDIF
+FORCONTTYPE t_recipient 2
+ if (<more2>==<LOCAL.liq>)
+  LOCAL.ret += <more1>
+ endif
+ENDFOR
+RETURN <LOCAL.ret>
+
+//*****************************************************************************
+// liquidtest <amount>,<LIQUID_*>
+//*****************************************************************************
+//Retorna 1 se o DEFAULT tem <amount> doses de LIQUID_*. Retorna 0 se não tiver.
+[FUNCTION liquidtest]
+IF (<IsEmpty <argv[1]>>)
+ LOCAL.qtd=1
+ LOCAL.liq=<argv[0]>
+ELSE
+ LOCAL.qtd=<argv[0]>
+ LOCAL.liq=<argv[1]>
+ENDIF
+IF (<liquidcont <LOCAL.liq>> >= <LOCAL.qtd>)
+ RETURN 1
+ELSE
+ RETURN 0
+ENDIF
+
+//*****************************************************************************
+// consumeliquid <amount>,<LIQUID_*>
+//*****************************************************************************
+//Consome <amount> doses de LIQUID_* e retorna 1. Se não tiver o suficiente,
+// consome tudo que tiver porem retorna 0
+[FUNCTION consumeliquid]
+IF (<IsEmpty <argv[1]>>)
+ LOCAL.qtd=1
+ LOCAL.liq=<argv[0]>
+ELSE
+ LOCAL.qtd=<argv[0]>
+ LOCAL.liq=<argv[1]>
+ENDIF
+IF (!<IsNum <LOCAL.liq>>)
+ IF (STRMATCH(LIQUID_*,<LOCAL.liq>))
+  LOCAL.liq=<DEF.<LOCAL.liq>>
+ ELSE
+  say esquece
+  RETURN 0
+ ENDIF
+ENDIF
+FORCONTTYPE t_recipient 2
+ if (<more2>==<LOCAL.liq>)
+  LOCAL.qtd -= <ConsumeRecipient <LOCAL.qtd>>
+  IF (<LOCAL.qtd> <= 0)
+   RETURN 1
+  ENDIF
+ endif
+ENDFOR
+RETURN 0
+
 [EOF]

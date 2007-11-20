@@ -16,6 +16,15 @@
 
 //*****************************************************************************
 //*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+[TYPEDEF t_cooking_tool]
+//Compatibilidade com sistema de vendas
+
+
+//*****************************************************************************
+//*****************************************************************************
 // ITEMDEFs
 //*****************************************************************************
 //*****************************************************************************
@@ -26,7 +35,7 @@
 [ITEMDEF i_panela]
 NAME=Panela
 ID=09e0
-TYPE=t_panela
+TYPE=t_cooking_tool
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Panela
@@ -41,7 +50,7 @@ RETURN 1
 [ITEMDEF i_frigideira]
 NAME=Frigideira
 ID=09e2
-TYPE=t_frigideira
+TYPE=t_cooking_tool
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Frigideira
@@ -56,7 +65,7 @@ RETURN 1
 [ITEMDEF i_assadeira]
 NAME=assadeira
 ID=014e9
-TYPE=t_assadeira
+TYPE=t_cooking_tool
 RESOURCES=1 i_log, 1 i_board
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
@@ -77,18 +86,33 @@ CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Tigela para massas
 WEIGHT=4
-TYPE=t_script
-//DEFNAME=i_bowl_dough
+TYPE=t_cooking_tool
 
 ON=@DCLICK
 SRC.SKILLMENU sm_massas
 RETURN 1
+
+
+[FUNCTION f_createFood]
+if (<argv[0]>==1)
+ obj=<argv[1]>
+ obj.morex=<BETWEEN 1,<obj.tdata1>,<cooking>,1000>
+ obj.update
+else
+ obj=<findid.i_mry_fazitem>
+ IF (<serv.itemdef.<obj.tag.item>.TDATA2>)
+  serv.newitem <serv.itemdef.<obj.tag.item>.TDATA2>
+  bounce <new>
+ ENDIF
+endif
 
 //*****************************************************************************
 //*****************************************************************************
 // ITEMDEFs - Books
 //*****************************************************************************
 //*****************************************************************************
+
+
 
 //*****************************************************************************
 // i_livro_cozinha_1
@@ -102,6 +126,7 @@ SUBSECTION=Cook
 DESCRIPTION=receitas salgadas
 
 ON=@CREATE
+more2=1
 more1=b_receitas_1
 tag.more1=b_receitas_1
 attr=08010
@@ -184,6 +209,7 @@ attr=08010
 timer=-1
 
 ON=@DCLICK
+more2=1
 more1=<tag.more1>
 return 0
 
@@ -311,8 +337,9 @@ O que deseja fritar?
 ON=i_eggs_fried ovos fritos
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.delay=3
+obj.tag.delay=10
 obj.tag.skill=cooking
+obj.tag.name=ovo%s% frito%s
 obj.tag.dif=12
 obj.tag.anim=6
 obj.tag.sfx=48
@@ -323,13 +350,14 @@ obj.tag.neartype=t_fire
 obj.tag.nearname=fogao ou fogo
 obj.tag.item=i_eggs_fried
 obj.tag.emote=fritando
+obj.tag.f_done=f_createFood
 src.fazitem
 return 1
 
 ON=i_ribs_cooked costelas
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.delay=3
+obj.tag.delay=12
 obj.tag.skill=cooking
 obj.tag.dif=25
 obj.tag.anim=6
@@ -340,6 +368,7 @@ obj.tag.amt1=1
 obj.tag.neartype=t_fire
 obj.tag.nearname=fogao ou fogo
 obj.tag.item=i_ribs_cooked
+obj.tag.f_done=f_createFood
 obj.tag.emote=fritando
 src.fazitem
 return 1
@@ -348,7 +377,7 @@ ON=i_chicken_leg coxa de galinha
 TESTIF (<src.cooking> >= 500)
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.delay=3
+obj.tag.delay=12
 obj.tag.skill=cooking
 obj.tag.dif=30
 obj.tag.anim=6
@@ -359,6 +388,7 @@ obj.tag.amt1=1
 obj.tag.neartype=t_fire
 obj.tag.nearname=fogao ou fogo
 obj.tag.item=i_chicken_leg
+obj.tag.f_done=f_createFood
 obj.tag.emote=fritando
 src.fazitem
 return 1
@@ -367,7 +397,7 @@ ON=i_lamb_leg coxa de carneiro
 TESTIF (<src.cooking> >= 500)
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.delay=3
+obj.tag.delay=20
 obj.tag.skill=cooking
 obj.tag.dif=37
 obj.tag.anim=6
@@ -378,6 +408,7 @@ obj.tag.amt1=1
 obj.tag.neartype=t_fire
 obj.tag.nearname=fogao ou fogo
 obj.tag.item=i_lamb_leg
+obj.tag.f_done=f_createFood
 obj.tag.emote=fritando
 src.fazitem
 return 1
@@ -385,7 +416,7 @@ return 1
 ON=i_fish_cut_cooked peixe frito
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.delay=3
+obj.tag.delay=12
 obj.tag.skill=cooking
 obj.tag.dif=15
 obj.tag.anim=6
@@ -397,6 +428,7 @@ obj.tag.amt=4
 obj.tag.neartype=t_fire
 obj.tag.nearname=fogao ou fogo
 obj.tag.item=i_fish_cut_cooked
+obj.tag.f_done=f_createFood
 obj.tag.emote=fritando
 src.fazitem
 return 1
@@ -404,7 +436,7 @@ return 1
 
 
 //*****************************************************************************
-// sm_frigideira
+// sm_panela
 //*****************************************************************************
 [SKILLMENU sm_panela]
 O que deseja cozinhar?
@@ -413,9 +445,9 @@ ON=i_bird_cooked frango
 TESTIF (<src.cooking> >= 500)
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.delay=6
+obj.tag.delay=20
 obj.tag.skill=cooking
-obj.tag.dif=38
+obj.tag.dif=17
 obj.tag.sfx=0021
 obj.tag.anim=6
 obj.tag.res1=i_bird_raw
@@ -424,6 +456,7 @@ obj.tag.amt1=1
 obj.tag.neartype=t_fire
 obj.tag.nearname=fogao ou fogo
 obj.tag.item=i_bird_cooked
+obj.tag.f_done=f_createFood
 obj.tag.emote=cozinhando
 src.fazitem
 return 1
@@ -432,21 +465,23 @@ ON=i_bowl_pewter_potatoes ensopado de batatas
 TESTIF (<src.cooking> >= 550)
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.delay=6
+obj.tag.delay=25
 obj.tag.skill=cooking
-obj.tag.dif=17
+obj.tag.dif=30
 obj.tag.sfx=0021
 obj.tag.anim=6
 obj.tag.res1=i_batata
-obj.tag.res2=i_bacia_agua
-obj.tag.nam1=batata
-obj.tag.nam2=bacia com agua
+obj.tag.nam1=batatas
 obj.tag.amt1=6
+obj.tag.res2=i_bacia
+obj.tag.nam2=bacia
 obj.tag.amt2=1
+obj.tag.liq=LIQUID_WATER
+obj.tag.liqamt=5
 obj.tag.neartype=t_fire
 obj.tag.nearname=fogao ou fogo
 obj.tag.item=i_bowl_pewter_potatoes
-obj.tag.devolute=i_bacia_vazia
+obj.tag.f_done=f_createFood
 obj.tag.emote=cozinhando
 src.fazitem
 return 1
@@ -455,21 +490,23 @@ ON=i_bowl_wood_carrots ensopado de cenouras
 TESTIF (<src.cooking> >= 550)
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.delay=6
+obj.tag.delay=25
 obj.tag.skill=cooking
-obj.tag.dif=17
+obj.tag.dif=30
 obj.tag.sfx=0021
 obj.tag.anim=6
 obj.tag.res1=i_fruit_carrot
-obj.tag.res2=i_bacia_agua
+obj.tag.res2=i_bacia
 obj.tag.nam1=cenouras
-obj.tag.nam2=bacia com agua
+obj.tag.nam2=bacia
 obj.tag.amt1=6
 obj.tag.amt2=1
+obj.tag.liq=LIQUID_WATER
+obj.tag.liqamt=5
 obj.tag.neartype=t_fire
 obj.tag.nearname=fogao ou fogo
 obj.tag.item=i_bowl_wood_carrots
-obj.tag.devolute=i_bacia_vazia
+obj.tag.f_done=f_createFood
 obj.tag.emote=cozinhando
 src.fazitem
 return 1
@@ -478,78 +515,83 @@ ON=i_bowl_wood_corn ensopado de milho
 TESTIF (<src.cooking> >= 550)
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.delay=6
+obj.tag.delay=25
 obj.tag.skill=cooking
-obj.tag.dif=17
+obj.tag.dif=30
 obj.tag.sfx=0021
 obj.tag.anim=6
 obj.tag.res1=i_fruit_corn
-obj.tag.res2=i_bacia_agua
+obj.tag.res2=i_bacia
 obj.tag.nam1=milhos
-obj.tag.nam2=bacia com agua
+obj.tag.nam2=bacia
 obj.tag.amt1=4
 obj.tag.amt2=1
+obj.tag.liq=LIQUID_WATER
+obj.tag.liqamt=5
 obj.tag.neartype=t_fire
 obj.tag.nearname=fogao ou fogo
 obj.tag.item=i_bowl_wood_corn
-obj.tag.devolute=i_bacia_vazia
+obj.tag.f_done=f_createFood
 obj.tag.emote=cozinhando
 src.fazitem
 return 1
 
 ON=i_bowl_wood_peas caldo verde
-TESTIF (<src.cooking> >= 570)
+TESTIF (<src.cooking> >= 600)
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.delay=6
+obj.tag.delay=30
 obj.tag.skill=cooking
-obj.tag.dif=20
+obj.tag.dif=35
 obj.tag.sfx=0021
 obj.tag.anim=6
 obj.tag.res1=i_ervilha
-obj.tag.res2=i_bacia_agua
+obj.tag.res2=i_bacia
 obj.tag.res3=i_ribs_raw
 obj.tag.nam1=ervilhas
-obj.tag.nam2=bacia com agua
-obj.tag.nam2=costelas cruas
+obj.tag.nam2=bacia
+obj.tag.nam3=costelas cruas
 obj.tag.amt1=2
 obj.tag.amt2=1
 obj.tag.amt3=1
+obj.tag.liq=LIQUID_WATER
+obj.tag.liqamt=5
 obj.tag.neartype=t_fire
 obj.tag.nearname=fogao ou fogo
 obj.tag.item=i_bowl_wood_peas
-obj.tag.name=caldo verde
-obj.tag.devolute=i_bacia_vazia
+obj.tag.f_done=f_createFood
 obj.tag.emote=cozinhando
 src.fazitem
 return 1
 
 ON=i_bowl_wood_lettuce ensopado de legumes 
-TESTIF (<src.cooking> >= 570)
+TESTIF (<src.cooking> >= 600)
 obj=<src.findid.i_faz_item.uid>
 obj.cleartags
-obj.tag.delay=6
+obj.tag.delay=30
 obj.tag.skill=cooking
-obj.tag.dif=56
+obj.tag.dif=35
 obj.tag.sfx=0021
 obj.tag.anim=6
 obj.tag.res1=i_fruit_lettuce
 obj.tag.res2=i_fruit_carrot
 obj.tag.res3=i_batata
-obj.tag.res4=i_bacia_agua
+obj.tag.res4=i_bacia
 obj.tag.nam1=alface
 obj.tag.nam2=cenoura
 obj.tag.nam3=batatas
-obj.tag.nam4=bacia com agua
+obj.tag.nam4=bacia
 obj.tag.amt1=1
 obj.tag.amt2=1
 obj.tag.amt3=3
 obj.tag.amt4=1
+obj.tag.liq=LIQUID_WATER
+obj.tag.liqamt=5
 obj.tag.neartype=t_fire
 obj.tag.nearname=fogao ou fogo
-obj.tag.name=ensopado de legumes
 obj.tag.item=i_bowl_wood_lettuce
 obj.tag.devolute=i_bacia_vazia
+obj.tag.f_done=f_createFood
 obj.tag.emote=cozinhando
 src.fazitem
 return 1
@@ -557,7 +599,7 @@ return 1
 
 
 //*****************************************************************************
-// sm_frigideira
+// sm_massas
 //*****************************************************************************
 [SKILLMENU sm_massas]
 O que deseja preparar?

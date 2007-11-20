@@ -1,0 +1,826 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE ACOGUE por Jean Gabin
+//	modificado por UsMarine (vinicius.arroyo at gmail.com)
+//
+// Para usar:
+// 
+//*****************************************************************************
+//*****************************************************************************
+
+[PLEVEL 1]
+comida
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+[TYPEDEF t_food]
+//morex=mordidas
+//morey=magia/veneno (se houver)
+//morez=Força da magia/veneno (se houver)
+//TDATA1=máximo de mordidas.
+//TDATA2=Item que devolve quando terminar de comer.
+//TAG.SOURCE=DEFNAME do animal que veio (se ouver). Não usei more2 pq quando synca ou restarta fode tudo.
+
+ON=@CLICK
+IF (<amount> > 1)
+ message=@36 <amount> <name>
+else
+ message=@36 <name>
+ message <eval <morex>> mordidas
+endif
+return 1
+
+on=@ClientToolTip
+if (<amount>==1)
+ if (<morex>)
+  src.f_sendToolTip <name>,<eval <morex>> mordidas
+  return 1
+ endif
+endif
+
+on=@dclick
+if (<amount> > 1)
+ src.sysmessageyellow Tire um da pilha para comer.
+else
+ f_consumeFood
+endif
+return 1
+
+[TYPEDEF t_meat_raw]
+ON=@CLICK
+message=@36 <amount> <name>
+return 1
+
+on=@dclick
+IF !(STRMATCH(Orc,<tag.raca>))
+ src.sysmessagered Esta cru...
+ return 1
+endif
+f_consumeFood
+
+[TYPEDEF t_food_raw]
+ON=@CLICK
+message=@36 <amount> <name>
+return 1
+
+on=@dclick
+src.sysmessagered Esta cru...
+return 1
+
+
+[TYPEDEF t_fish]
+ON=@CLICK
+message=@36 <amount> <name>
+return 1
+
+on=@dclick
+IF !(STRMATCH(Orc,<tag.raca>))
+ src.sysmessagered Esta cru...
+ return 1
+endif
+f_consumeFood
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// comida
+//*****************************************************************************
+[FUNCTION comida]
+DOSWITCH <eval <food>/10>
+ sysmessagered Voce esta morrendo de fome!
+ sysmessagered Voce esta faminto!
+ sysmessageorange Voce sente muita fome!
+ sysmessageorange Voce sente fome.
+ sysmessageyellow Voce sente um pouco de fome
+ sysmessageyellow Voce esta alimentado.
+ sysmessagegreen Voce esta bem alimentado.
+ sysmessagegreen Voce esta satisfeito.
+ sysmessageblue Voce esta cheio.
+ sysmessageblue Voce esta muito cheio!
+ sysmessagered Voce esta estufado de comida!
+ENDDO
+return 1
+
+//*****************************************************************************
+// f_consumeFood
+//*****************************************************************************
+//SRC 		- player consumindo
+//DEFAULT	- item sendo consumido
+
+[FUNCTION f_consumeFood]
+IF ( <SRC.food> >= 100 )
+ SRC.sysmessagered Voce esta cheio! Nao consegue comer mais nada!
+ src.f_congestao 30
+ELSE
+ SRC.anim 022
+ SFX 03b
+ SRC.emotegreen comendo <name>
+ SRC.food += <R2,10>
+
+ if ( <SRC.food> >= 90 )
+  SRC.sysmessagered Voce esta cheio!
+ else
+  SRC.sysmessagegreen Voce se sente mais satisfeito.
+ endif
+
+ if ( <morex> > 1 )
+  morex -= 1
+  update
+ else
+  IF !(STRMATCH(,<tdata2>))
+   serv.newitem i_bacia
+   src.bounce <new>
+  ENDIF
+  remove
+ endif
+
+ENDIF
+return 1
+
+[PLEVEL 1] 
+comida
+
+//*****************************************************************************
+// f_congestao <força>
+//*****************************************************************************
+//Dá emotes e consome pontos de FOOD.
+[FUNCTION f_congestao]
+if (<argn>)
+ timerf 4,f_congestao
+ ctag.congestao <argn>
+ emotegreen enjoado
+ sfx <SEX 042B/031B>
+ELIF (<ctag0.congestao>)
+ ctag0.congestao -= 1
+ DORAND 6
+  sfx <SEX 042C/031C>
+  vomitar
+  sfx <SEX 042B/031B>
+  emotegreen passando mal
+  emotegreen enjoado
+  vomitar
+ ENDDO
+ IF (<food> > 35)
+  food -= 15
+ ENDIF
+ timerf <R3,5>,f_congestao
+ELSE
+ sysmessagegreen Sua congestao passou.
+ENDIF
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// COSTELA
+//*****************************************************************************
+
+[ITEMDEF 09f1]
+DEFNAME=i_ribs_raw
+NAME=Costela crua
+TYPE=t_meat_raw
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Carne Crua
+
+
+[ITEMDEF 09f2]
+DEFNAME=i_ribs_cooked
+NAME=costela assada
+RESOURCES=1 i_ribs_raw
+TYPE=t_food
+TDATA1=4
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Costela assada
+
+//*****************************************************************************
+// FRANGO
+//*****************************************************************************
+
+[ITEMDEF 09b9]
+DEFNAME=i_bird_raw
+NAME=Frango cru
+TYPE=t_meat_raw
+TDATA1=i_bird_cooked
+WEIGHT=2
+DUPELIST=09ba
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Frango cru
+
+[ITEMDEF 09b7]
+DEFNAME=i_bird_cooked
+NAME=frango assado
+RESOURCES=1 I_BIRD_RAW
+TYPE=t_food
+WEIGHT=2
+TDATA1=12
+DUPELIST=09b8
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Frango assado
+
+//*****************************************************************************
+// COELHO
+//*****************************************************************************
+
+[ITEMDEF i_rabbit_raw]
+id=01e92
+NAME=Coelho cru
+TYPE=t_meat_raw
+TDATA1=i_rabbit_cooked
+WEIGHT=1
+DUPELIST=01e93
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Coelho cru
+
+[ITEMDEF i_rabbit_cooked]
+id=01e92
+NAME=Coelho assado
+RESOURCES=1 I_rabbit_RAW
+TYPE=t_food
+WEIGHT=1
+DUPELIST=01e93
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Coelho assado
+
+
+//*****************************************************************************
+// PORCO
+//*****************************************************************************
+
+[ITEMDEF i_ham_raw]
+id=09c9
+NAME=Porco cru
+TYPE=t_meat_raw
+TDATA1=i_ham_cooked
+WEIGHT=2
+DUPELIST=09d3
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Porco cru
+
+ON=@CREATE
+color=08d
+
+[ITEMDEF 09c9]
+DEFNAME=i_ham_cooked
+NAME=Porco assado
+RESOURCES=1 I_ham_RAW
+TYPE=t_food
+WEIGHT=2
+DUPEITEM=09d3
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Porco assado
+
+[ITEMDEF 01e1f]
+DEFNAME=i_ham_slices
+NAME=Porco assado fatiado
+RESOURCES=1 i_ham_cooked
+TYPE=t_food
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Porco assado fatiado
+
+
+//*****************************************************************************
+// BACON
+//*****************************************************************************
+
+[ITEMDEF i_bacon_slab_raw]
+id=0976
+NAME=Bacon cru
+TYPE=t_meat_raw
+TDATA1=i_bacon_slab
+WEIGHT=2
+DUPELIST=0977
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Bacon cru
+
+ON=@CREATE
+color=08d
+
+
+[ITEMDEF 0976]
+DEFNAME=i_bacon_slab
+NAME=Bacon assado
+RESOURCES=1 I_bacon_slab_raw
+TYPE=t_food
+WEIGHT=2
+DUPELIST=0977
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Bacon assado
+
+[ITEMDEF 0978]
+DEFNAME=i_bacon_slice
+NAME=Bacon assado fatiado
+RESOURCES=1 I_bacon_slab
+TYPE=t_food
+WEIGHT=0.2
+DUPELIST=0979
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Bacon assado fatiado
+
+
+//*****************************************************************************
+// COXA (frango)
+//*****************************************************************************
+
+[ITEMDEF 01607]
+DEFNAME=I_CHICKEN_LEG_RAW
+NAME=Coxa de frango crua
+TYPE=t_meat_raw
+TDATA1=i_chicken_leg
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Coxa frango crua
+
+[ITEMDEF 01608]
+DEFNAME=i_chicken_leg
+NAME=Coxa de frango assado
+RESOURCES=I_CHICKEN_LEG_RAW
+WEIGHT=1
+TYPE=t_food
+TDATA1=4
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Coxa frango assado
+
+
+//*****************************************************************************
+// COXA (ovelha)
+//*****************************************************************************
+
+
+[ITEMDEF 01609]
+DEFNAME=i_lamb_leg_raw
+NAME=Coxa de ovelha crua
+TYPE=t_meat_raw
+TDATA1=i_lamb_leg
+WEIGHT=2
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Coxa ovelha crua
+
+[ITEMDEF 0160a]
+DEFNAME=i_lamb_leg
+NAME=Coxa de ovelha assada
+RESOURCES=i_lamb_leg_raw
+WEIGHT=2
+TYPE=t_food
+TDATA1=12
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Coxa ovelha assada
+
+
+//*****************************************************************************
+// Peixes
+//*****************************************************************************
+
+
+[ITEMDEF 09cc]
+defNAME=i_fish_big_1
+NAME=Truta%s
+TYPE=t_fish
+
+[ITEMDEF 09cd]
+defNAME=i_fish_big_2
+NAME=Salmao
+TYPE=t_fish
+
+[ITEMDEF 09ce]
+defNAME=i_fish_big_3
+NAME=Atum
+TYPE=t_fish
+
+[ITEMDEF 09cf]
+defNAME=i_fish_big_4
+NAME=Bacalhau
+TYPE=t_fish
+
+[ITEMDEF 0dd6]
+//Small Fish
+DEFNAME=i_fish_small
+NAME=Sardinhas
+TYPE=t_fish
+WEIGHT=1
+DUPELIST=0dd7,0dd8,0dd9
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Sardinhas
+
+
+[ITEMDEF 01e1a]
+defNAME=i_fish_head
+NAME=Cabeca de peixe
+DUPEITEM=01e19
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Cabeca peixe
+
+
+//*****************************************************************************
+// PEIXE PEQUENO
+//*****************************************************************************
+
+[ITEMDEF i_fish_raw_small]
+id=01e1e
+NAME=Sardinha crua
+TYPE=T_FOOD_RAW
+TDATA1=i_fish_cooked_small
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Sardinha crua
+
+ON=@CREATE
+color=08d
+
+[ITEMDEF 01e1e]
+DEFNAME=i_fish_cooked_small
+NAME=Sardinha assada
+RESOURCES=1 i_fish_raw_small
+TYPE=T_FOOD
+WEIGHT=1
+DUPELIST=01e1d
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Sardinha assada
+
+
+//*****************************************************************************
+// PEIXE GRANDE
+//*****************************************************************************
+
+
+[ITEMDEF 01e17]
+DEFNAME=i_fish_raw
+NAME=Peixe cru
+TYPE=T_FOOD_RAW
+TDATA1=i_fish_cooked
+WEIGHT=1
+DUPELIST=01e18
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Peixe cru
+
+[ITEMDEF 01e1c]
+DEFNAME=i_fish_cooked
+NAME=Peixe assado
+RESOURCES=1 i_fish_raw
+TYPE=t_food
+WEIGHT=1
+DUPELIST=01e1d
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Peixe assado
+
+//*****************************************************************************
+// BIFE DE PEIXE
+//*****************************************************************************
+
+[ITEMDEF 097a]
+DEFNAME=i_fish_cut_raw
+NAME=Peixe cru fatiado
+TYPE=T_FOOD_RAW
+TDATA1=i_fish_cut_cooked
+WEIGHT=0.1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Peixe cru fatiado
+
+[ITEMDEF 097b]
+DEFNAME=i_fish_cut_cooked
+NAME=Peixe assado fatiado
+RESOURCES=1 i_fish_cut_raw
+TYPE=t_food
+WEIGHT=0.1
+TDATA1=2
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Peixe assado fatiado
+
+
+//*****************************************************************************
+// OSSOS
+//*****************************************************************************
+
+[ITEMDEF 0f7e]
+defNAME=i_reag_bone
+NAME=Osso%s
+type=t_reagent
+weight=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Osso (reagente)
+
+[ITEMDEF 0f80]
+defNAME=i_reag_daemon_bone
+NAME=Ossos de Demonio
+type=t_reagent
+weight=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Osso de demonio (reagente)
+
+//*****************************************************************************
+// Coracoes
+//*****************************************************************************
+
+
+[ITEMDEF 0f91]
+defNAME=i_reag_worm_heart
+NAME=Coracao de Dragao
+type=t_reagent
+weight=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Coracao de dragao (reagente)
+
+ON=@CREATE
+color=046
+
+[ITEMDEF 01ced]
+DEFNAME=i_flesh_heart
+NAME=Coracao
+TYPE=t_meat_raw
+TDATA1=i_heart_cooked
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Coracao
+
+[ITEMDEF i_heart_cooked]
+id=01ced
+NAME=Coracao assado
+RESOURCES=1 i_flesh_heart
+TYPE=t_food
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Coracao assado
+
+ON=@CREATE
+color=040c
+
+//*****************************************************************************
+// FIGADO
+//*****************************************************************************
+
+
+[ITEMDEF 01cee]
+DEFNAME=i_flesh_liver
+NAME=Figado
+TYPE=t_meat_raw
+TDATA1=i_liver_cooked
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Figado
+
+[ITEMDEF i_liver_cooked]
+id=01cee
+NAME=Figado assado
+RESOURCES=1 i_flesh_liver
+TYPE=t_food
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Figado assado
+
+ON=@CREATE
+color=040c
+
+
+//*****************************************************************************
+// CEREBRO
+//*****************************************************************************
+
+
+[ITEMDEF 01cf0]
+DEFNAME=i_flesh_brain
+NAME=Cerebro
+TYPE=t_meat_raw
+TDATA1=i_brain_cooked
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Cerebro
+
+[ITEMDEF i_brain_cooked]
+id=01cf0
+NAME=Cerebro assado
+RESOURCES=1 i_flesh_brain
+TYPE=t_food
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Cerebro assado
+
+ON=@CREATE
+color=040c
+
+//*****************************************************************************
+// LINGUICA
+//*****************************************************************************
+
+[ITEMDEF 01cef]
+DEFNAME=i_entranhas
+NAME=Entranhas
+TYPE=t_normal
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Entranhas
+
+ON=@DCLICK
+target Selecione a carne de porco crua para fazer linguica.
+return 1
+
+on=@TARGON_ITEM
+if (<src.targ.distance> > 1)&&(<topobj.uid> != <src.uid>)
+	SRC.sysmessage Chegue mais perto.
+elif (<src.targ.baseid>==i_ham_raw)
+	if (<src.cooking> < 30)
+	 src.newitem=i_sausages_raw
+	 src.act.amount=1
+	 src.act.bounce
+	 src.consume 1 i_ham_raw
+	 remove
+	elif (<src.cooking> >= 30)
+	 src.newitem=i_sausages_raw
+	 src.act.amount=4
+	 src.act.bounce
+	 src.consume 1 i_ham_raw
+	 remove
+	endif
+endif
+return 1
+
+
+[ITEMDEF i_sausages_raw]
+id=09c0
+NAME=Linguica crua
+TYPE=t_meat_raw
+TDATA1=i_sausages
+WEIGHT=1
+DUPELIST=09c1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Linguica crua
+
+ON=@CREATE
+color=08d
+
+[ITEMDEF 09c0]
+DEFNAME=i_sausages
+NAME=Linguica assada
+RESOURCES=1 I_HAM_raw
+TYPE=t_food
+WEIGHT=0.3
+DUPELIST=09c1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Linguica assada
+
+
+[ITEMDEF 09b6]
+DEFNAME=i_eggs_fried
+NAME=ovo%s% frito%s%
+RESOURCES=1 i_EGGS_FRESH
+TYPE=T_FOOD
+VALUE={5 9}
+WEIGHT=0.1
+TDATA1=2
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Ovo Frito
+
+[ITEMDEF 01602]
+DEFNAME=i_bowl_pewter_potatoes
+NAME=ensopado de batatas
+VALUE=8
+WEIGHT=1
+TYPE=T_FOOD
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Ensopado de batatas
+TDATA1=16
+TDATA2=i_bacia
+
+[ITEMDEF 015f9]
+//DEFNAME=i_BOWL_CARROTS
+NAME=ensopado de cenouras
+DEFNAME=i_bowl_wood_carrots
+RESOURCES=1 i_bowl_wood, 3 i_fruit_carrot
+WEIGHT=1
+TYPE=T_FOOD
+TDATA1=16
+TDATA2=i_bacia
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Ensopado de cenouras
+
+[ITEMDEF 015fa]
+//DEFNAME=i_BOWL_CORN
+NAME=ensopado de milho
+DEFNAME=i_bowl_wood_corn
+RESOURCES=1 i_bowl_wood, 1 i_fruit_corn
+WEIGHT=1
+TYPE=T_FOOD
+TDATA1=16
+TDATA2=i_bacia
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Ensopado de milho
+
+[ITEMDEF 015fb]
+//DEFNAME=i_BOWL_LETTUCE
+NAME=ensopado de legumes
+DEFNAME=i_bowl_wood_lettuce
+RESOURCES=1 i_bowl_wood, 1 i_fruit_lettuce
+WEIGHT=1
+type=t_food
+TDATA1=20
+TDATA2=i_bacia
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Ensopado de legumes
+
+[ITEMDEF 015fc]
+DEFNAME=i_bowl_wood_peas
+NAME=caldo verde
+VALUE=8
+WEIGHT=1
+TYPE=T_FOOD
+TDATA1=20
+TDATA2=i_bacia
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Caldo verde
+
+[EOF]
