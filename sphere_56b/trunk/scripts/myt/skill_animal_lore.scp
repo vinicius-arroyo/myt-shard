@@ -38,6 +38,29 @@ anlr_fom9=esta satisfeito
 anlr_fom10=esta contente
 anlr_fom11=esta contente
 
+
+anlr_t_arock=pedras
+anlr_t_cloth=roupas
+anlr_t_coin=moedas
+anlr_t_corpse=corpos
+anlr_t_crops=plantacoes
+anlr_t_fire=fogo
+anlr_t_fish=peixes
+anlr_t_foliage=folhagem
+anlr_t_food=alimentos preparados
+anlr_t_fruit=frutas
+anlr_t_garbage=lixo
+anlr_t_gem=gemas
+anlr_t_grain=graos
+anlr_t_grass=grama
+anlr_t_gold=ouro
+anlr_t_ingot=lingotes
+anlr_t_leather=couro
+anlr_t_meat_raw=carne crua
+anlr_t_ore=metais
+anlr_t_water_wash=agua
+
+
 //*****************************************************************************
 //*****************************************************************************
 // FUNCTIONs
@@ -82,7 +105,34 @@ NEW.link=<src.targ>
 NEW.cont=<src>
 NEW.timer=1
 
-return 1    
+return 1
+
+//*****************************************************************************
+// anl_foodtype (uidToReturnFoodType)
+//*****************************************************************************
+//default: player
+[FUNCTION anl_foodtype]
+obj=<argv0>
+split_key_val <obj.foodtype>
+if !(<ctag0.spkv_keys>)
+    return
+endif
+
+LOCAL.m=<eval <ctag.spkv_keys>-1>
+for R 0 <LOCAL.m>
+    LOCAL.f=<def.anlr_<ctag.spkv_r<LOCAL.R>_k>>
+    if (strlen(<LOCAL.f>)<=1)
+        serv.log [ANIMAL LORE] - tipo de item desconhecido: <src.act>/<LOCAL.f>
+        LOCAL.f=desconhecido
+    endif
+    
+    if (<LOCAL.R>>0)
+        LOCAL.s .=,<LOCAL.f>
+    else
+        LOCAL.s =<LOCAL.f>
+    endif
+endfor
+return <local.s>
 
 //*****************************************************************************
 //*****************************************************************************
@@ -120,13 +170,15 @@ if (<more>)
 endif
 
 //transforma em uma escala de 0 a 10
-LOCAL.food=<eval (<link.food>*10)/<link.maxfood>)
+LOCAL.food=<eval (<link.food>*10)/<link.maxfood>>
 
 //muda a escala para cada nivel de skill
 if ( <cont.animallore> < 30.0 )
   LOCAL.food=<eval ((<LOCAL.food>/5)*5)+2>
 elif ( <cont.animallore> < 70.0 )
   LOCAL.food=<eval ((<LOCAL.food>/2)*2)+1>
+else
+    LOCAL.food=<eval <LOCAL.food>+1>
 endif
 
 if ( <LOCAL.food> > 11 )
@@ -134,11 +186,11 @@ if ( <LOCAL.food> > 11 )
 endif
 
 if ( 0<link.tag.sexo>==1 )
-    LOCAL.s=macho,
+    LOCAL.s=: macho,
 elif ( 0<link.tag.sexo>==2 )
-    LOCAL.s=femea,
+    LOCAL.s=: femea,
 else
-    LOCAL.s=
+    LOCAL.s=:
 endif
 
 if (0<link.tag.born>) && (<R0,1000><<cont.animallore>)
@@ -151,7 +203,8 @@ else
     LOCAL.d=nao tem dono
 endif
 
-cont.sysmessagegreen <link.name>: <local.s> <DEF.anlr_fom<eval <LOCAL.food>>>, <LOCAL.d>.
+cont.sysmessagegreen Alimentos: <cont.anl_foodtype <link>> <LOCAL.food>
+cont.sysmessagegreen <link.name><local.s> <DEF.anlr_fom<eval <LOCAL.food>>>, <LOCAL.d>.
 
 cont.skill_gain skill_animallore
 remove
