@@ -109,6 +109,10 @@ ON=@Abort
 RETURN 0
 
 [FUNCTION BARDSONG_VALOR]
+IF !(<INSTRUMENT BATTLE>)
+ sysmessagered Voce nao tem um instrumento
+ return 1
+endif
 emoteyellow entoa uma cancao encorajadora
 LOCAL.timer=<f_rangeValue 8,2,<musicianship>>
 TIMERf <LOCAL.timer>, _BARDSONG_VALOR
@@ -126,14 +130,18 @@ LOCAL.timer=<f_rangeValue 0,35,<musicianship>>
 OBJ=<UID>
 FORCHARS <LOCAL.r>
  IF (!<IsMyEnemy <OBJ.UID>>) && ((<IsMyMaster <OBJ.UID>>) || (<IsPlayer>)) && (!<RESTEST 4 i_mry_COMBAT_MODS>)
-  serv.newitem i_mry_COMBAT_MODS
-  new.more1=<LOCAL.modar>
-  new.more2=<LOCAL.moddam>
-  equip <new.UID>
-  new.timer=<LOCAL.timer>
-  message=@02, *encorajado* 
+  EFFETCT_BARDSONG_VALOR <LOCAL.timer>,<LOCAL.modar>,<LOCAL.moddam>
  ENDIF
 ENDFOR
+
+[FUNCTION EFFETCT_BARDSONG_VALOR]
+//EFFECT_BARDSON_VALOR <time>,<MODAR>,<MODDAM>
+serv.newitem i_mry_COMBAT_MODS
+new.more1=<argv[1]>
+new.more2=<argv[2]>
+equip <new.UID>
+new.timer=<argv[0]>
+message=@02, *encorajado* 
 
 [ITEMDEF i_mry_COMBAT_MODS]
 ID=i_lyre
@@ -285,6 +293,33 @@ IF (!<RESTEST 4 i_mry_COMBAT_MODS>)
  obj.skill_gain skill_musicianship
 ENDIF
 
+[FUNCTION BARDSONG_SCARE]
+emoteyellow entoa uma cancao de fantasmagorica
+INSTRUMENT DRAMA
+TIMERF 5,_BARDSONG_SCARE
 
+[FUNCTION _BARDSONG_SCARE]
+OBJ=<UID>
+FORCHARS 12
+ IF ((<IsMyEnemy <OBJ.UID>>) || (!<IsMyMaster <OBJ.UID>>) || (!<IsPlayer>)) && (<CanSeeLos <OBJ.UID>>) && (<UID> != <obj.uid>)
+  EFFETCT_BARDSONG_SCARE <OBJ.UID>
+ ENDIF
+ENDFOR
 
+[FUNCTION EFFETCT_BARDSONG_SCARE]
+if (<BELLTEST <obj.Musicianship>,80.0>) && (<R<INT>> <= <obj.int>)
+ emotered apavorado
+ flags ^= statf_war
+ events +e_scared
+ timerf <BETWEEN 10,40,<obj.musicianship>,200.0>,events,-e_scared
+endif
+
+[EVENTS e_scared]
+on=@NPCActFight
+argn2=-20
+
+on=@USERWARMODE
+sysmessagered Voce esta muito assustado para lutar.
+flags ^= statf_war
+return 1
 [EOF]
