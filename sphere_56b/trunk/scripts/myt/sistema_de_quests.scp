@@ -819,11 +819,18 @@ if (<DB.ROW.NUMROWS> <= 0)
     return 1
 endif
 
-dtext 150 60 1152 Quest: <DB.ROW.name>
-
+dtext 150 60 1152 Quest:
 dorigin 110 120
 dtext *0 *0 1152 Objetivo:
-dhtmlgump *0 +20 340 100 0 1 <DB.ROW.description>
+
+if (<src.isgm>)
+    dtextentry 190 60 200 17 1152 1 <DB.ROW.name>
+    dtextentry  *0 +20 340 100 1152 2 <DB.ROW.description>
+else
+    dtext 190 60 1152 <DB.ROW.name>
+    dhtmlgump *0 +20 340 100 0 1 <DB.ROW.description>
+endif
+
 
 dorigin 110 220
 DB.QUERY "SELECT description, type+0 FROM questSteps AS steps LEFT JOIN questState AS state USING (idQuest) WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idPlayer=<eval <SRC>> AND steps.idStep <= state.idStep AND type+0 IN (1,2,3,4,5,6,7,9) ORDER BY idStep"
@@ -847,7 +854,16 @@ dialog d_quest_list
 return 1
 
 on=2 // Accept button
-quest_startSelectedQuest
+if (<src.isgm>)
+    DB.EXECUTE "UPDATE quests SET name='<argtxt[1]>', description='<argtxt[2]>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>>"
+    serv.log [QUEST] (<src.account>) Modificado para: <argtxt[1]>: <argtxt[2]>
+    src.sysmessageyellow Quest modificada.
+    quest_closeDialogs
+    quest_createNpcQuestList
+    dialog d_quest_list    
+else
+    quest_startSelectedQuest
+endif
 return 1
 
 on=3 // Refuse button
