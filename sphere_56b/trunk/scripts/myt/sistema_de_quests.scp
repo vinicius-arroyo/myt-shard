@@ -645,6 +645,24 @@ if ( <DB.connected> )
     DB.EXECUTE "UPDATE quests SET idNpc=<eval <argo>> WHERE idQuest=<eval <argv[0]>>"
 endif
 
+//*****************************************************************************
+// quest_remove( idQuest )
+//*****************************************************************************
+[FUNCTION quest_remove]
+
+if !( 0<argv[0]> )
+    return 1
+endif
+
+if ( <DB.connected> )
+    DB.EXECUTE "DELETE FROM quests WHERE idQuest=<eval <argv[0]>>"
+    serv.log [QUEST] (<account>) Removido: <argv0>
+    sysmessageyellow Quest Removida
+    quest_closeDialogs
+    quest_createNpcQuestList
+    dialog d_quest_list
+endif
+
 
 //*****************************************************************************
 //*****************************************************************************
@@ -726,9 +744,19 @@ endif
 
 dorigin 110 110
 if ( <SRC.CTAG0.quest_numQuests> > 0 )
+
+    if (<src.isgm>)
+        dtext +315 *0 1152 Rem
+    endif
+    
     for x  <LOCAL.startQuest> <LOCAL.endQuest> 
-        button *0 *20 9702 9703 1 0 <eval 1000 + <SRC.CTAG0.quest_ids<eval <LOCAL.x>>>>
+        button *0 *20 9702 9703 1 0 <eval 1000 + <LOCAL.x>>
         dtext +25 -3 1152 <SRC.CTAG0.quest_names<eval <LOCAL.x>>>
+        
+        if (<src.isgm>)
+            //remove
+            button +320 +1 2117 2118 1 0 <eval 2000 + <LOCAL.x>>
+        endif
     endfor
 
     if (<SRC.CTAG0.quest_page> > 1)
@@ -745,7 +773,7 @@ endif
 
 button 282 435 12012 12013 1 0 1    //OK button
 if (<src.isgm>)
-    button 192 435 2117 2118 1 0 1  //new quest button
+    button 192 435 2117 2118 1 0 2  //new quest button
     dtext 212 432 2100 Adicionar
 endif
 
@@ -770,11 +798,14 @@ if (<SRC.CTAG.quest_page> > <SRC.CTAG0.quest_numPages>)
 endif
 dialog d_quest_list
 
-on=1001,65535 //itens buttons
-SRC.CTAG.quest_selectedQuest=<argn> - 1000
-
+on=1000,1999 //itens buttons
+SRC.CTAG.quest_selectedQuest=<SRC.CTAG0.quest_ids<eval <argn> - 1000>>
 dialog d_quest_info
 
+on=2000,2999 //remove buttons
+if (<src.isgm>)
+    src.quest_remove <SRC.CTAG0.quest_ids<eval <argn> - 2000>>
+endif
 
 //*****************************************************************************
 // d_quest_info
