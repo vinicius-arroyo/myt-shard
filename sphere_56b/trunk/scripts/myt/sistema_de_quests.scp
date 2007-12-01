@@ -33,6 +33,8 @@
 //src.ctag.quest_names      //array com nomes das quests
 //src.ctag.quest_ids        //array com os ids das quests
 //src.ctag.quest_selectedQuest  //quest selecionada
+//src.ctag.quest_selectedStep   //step selecionado
+//src.ctag.quest_selectedStepType //tipo de step selecionado
 //src.ctag.quest_selectedNpc //npc selecionado
 
 //LINK.TAG0.quest_destination
@@ -659,12 +661,33 @@ endif
 if ( <DB.connected> )
     DB.EXECUTE "DELETE FROM quests WHERE idQuest=<eval <argv[0]>>"
     serv.log [QUEST] (<account>) Removido: <argv0>
-    sysmessageyellow Quest Removida
+    sysmessageyellow Quest removida
     quest_closeDialogs
     quest_createNpcQuestList
     dialog d_quest_list
 endif
 
+//*****************************************************************************
+// quest_createStep( idQuest, stepType )
+//*****************************************************************************
+//return id step
+[FUNCTION quest_createStep]
+
+DB.QUERY "SELECT MAX(idStep) AS mstep FROM questSteps WHERE idQuest=<eval <argv0>>"
+if (<DB.ROW.NUMROWS><=0)
+    LOCAL.idstep=0
+else
+    LOCAL.idstep=<eval <DB.ROW.mstep>+1>
+endif
+
+DB.EXECUTE "INSERT INTO questSteps SET idQuest=<eval <argv0>>, idStep=<eval <LOCAL.idstep>>,type=<eval <argv1>>"
+return <LOCAL.idstep>
+
+//*****************************************************************************
+// quest_removeStep( idQuest, idStep )
+//*****************************************************************************
+[FUNCTION quest_removeStep]
+DB.EXECUTE "DELETE FROM questSteps WHERE idQuest=<eval <argv0>> AND idStep=<eval <argv1>> "
 
 //*****************************************************************************
 //*****************************************************************************
@@ -727,6 +750,51 @@ on=0 Anao
 //  quest_addNpc C_H_QUEST_M
 //  return 1
     
+//*****************************************************************************
+// quest_addstep
+//*****************************************************************************
+[MENU quest_addstep]
+Criar qual tipo de step
+
+on=0 Matar NPC
+    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_kill_mob>
+    src.dialog d_quest_step_editor
+
+on=0 Pegar ITEM do NPC (matar e pegar)
+    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_get_mob_item>
+    src.dialog d_quest_step_editor
+
+//on=0 Pegar ITEM
+//    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_get_item>
+//    src.dialog d_quest_step_editor
+
+//on=0 Manufaturar ITEM
+//    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_craft_item>
+//    src.dialog d_quest_step_editor
+    
+//on=0 Achar ITEM
+//    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_find_item>
+//    src.dialog d_quest_step_editor    
+    
+on=0 Escoltar
+    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_escort>
+    src.dialog d_quest_step_editor
+    
+on=0 Entregar
+    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_delivery>
+    src.dialog d_quest_step_editor
+ 
+on=0 Fala (mensagem)
+    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_text>
+    src.dialog d_quest_step_editor
+
+on=0 Falar com NPC
+    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_talkto>
+    src.dialog d_quest_step_editor
+
+on=0 Recompensar
+    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_reward>
+    src.dialog d_quest_step_editor
 
 //*****************************************************************************
 // d_quest_list
@@ -832,22 +900,37 @@ dorigin 110 120
 dtext *0 *0 1152 Objetivo:
 
 if (<src.isgm>)
+    button 292 +3 2117 2118 1 0 4  //new step button
+    dtext 312 *0 2100 Novo Step
+    dtext 425 220 1152 Rem
+    
     dtextentry 190 60 200 17 1152 1 <DB.ROW.name>
     dtextentry  *0 +20 340 100 1152 2 <DB.ROW.description>
+    
+    DB.QUERY "SELECT description, type+0, idStep FROM questSteps AS steps WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>>"
 else
     dtext 190 60 1152 <DB.ROW.name>
     dhtmlgump *0 +20 340 100 0 1 <DB.ROW.description>
+    
+    DB.QUERY "SELECT description, type+0 FROM questSteps AS steps LEFT JOIN questState AS state USING (idQuest) WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idPlayer=<eval <SRC>> AND steps.idStep <= state.idStep AND type+0 IN (1,2,3,4,5,6,7,9) ORDER BY steps.idStep"
 endif
 
 
 dorigin 110 220
-DB.QUERY "SELECT description, type+0 FROM questSteps AS steps LEFT JOIN questState AS state USING (idQuest) WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idPlayer=<eval <SRC>> AND steps.idStep <= state.idStep AND type+0 IN (1,2,3,4,5,6,7,9) ORDER BY steps.idStep"
 if ( <DB.ROW.NUMROWS> > 0 )
     for x 0 <eval <DB.ROW.NUMROWS>-1>
-        gumppic - *20 9702 0
+        if (<src.isgm>)
+            button - +20 9702 9703 1 0 <eval 1000+<DB.ROW.<eval <LOCAL.x>>.idStep>>
+            button +320 *20 2117 2118 1 0 <eval 2000+<DB.ROW.<eval <LOCAL.x>>.idStep>>
+        else
+            gumppic - *20 9702 0
+        endif
         dtext +25 -3 1152 <DB.ROW.<eval <LOCAL.x>>.description>
     endfor
     button 192 435 12015 12016 1 0 1    // Previous button
+    if (<src.isgm>)
+        button 282 435 12000 12001 1 0 2    //Accept button
+    endif
 else
     button 282 435 12000 12001 1 0 2    //Accept button
     button 192 435 12018 12019 1 0 3    //Refuse button
@@ -883,6 +966,89 @@ return 1
 on=3 // Refuse button
 dialog d_quest_list
 return 1
+
+on=4 // New step button
+if (<src.isgm>)
+    src.menu quest_addstep
+endif
+return 1
+
+on=1000,1999 //edit step buttons
+if (<src.isgm>)
+    SRC.CTAG0.quest_selectedStep=<eval <argn>-1000>
+    src.dialog d_quest_step_editor
+endif
+
+on=2000,2999 //remove step buttons
+if (<src.isgm>)
+    SRC.CTAG0.quest_selectedStep=<eval <argn>-2000>
+    quest_removeStep <SRC.CTAG0.quest_selectedQuest>,<SRC.CTAG0.quest_selectedStep>
+    src.dialog d_quest_info
+endif
+//*****************************************************************************
+// d_quest_step_editor
+//*****************************************************************************
+[DIALOG d_quest_step_editor]
+0,0
+page 0
+
+DB.QUERY "SELECT type+0 AS type, quantity, param1, param2, description FROM questSteps WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idStep=<eval <SRC.CTAG0.quest_selectedStep>>"
+
+LOCAL.type=<DB.ROW.type>
+LOCAL.quant=<DB.ROW.quantity>
+LOCAL.param1=<DB.ROW.param1>
+LOCAL.param2=<DB.ROW.param2>
+LOCAL.desc=<DB.ROW.description>
+SRC.CTAG0.quest_selectedStepType=<LOCAL.type>
+
+doswitch <LOCAL.type>
+    return 1
+    LOCAL.help=Matar NPC<def.br>Param1: NPC defname<def.br>Quantidade: numero de NPCs para matar
+    LOCAL.help=Matar NPC e pegar ITEM<def.br>Param1: NPC defname<def.br>Param2: ITEM defname<def.br>Quantidade: numero de NPCs para matar
+    LOCAL.help=get item
+    LOCAL.help=craft item
+    LOCAL.help=find item
+    LOCAL.help=Escoltar NPC<def.br>Param1: x,y,z destino
+    LOCAL.help=Entregar ITEM para NPC<def.br>Param1: ITEM defname<def.br>Param2: NPC UID ou 0 para mesmo NPC<def.br>Quantidade: numero de ITEMs para entregar
+    LOCAL.help=Fala do NPC<def.br>Param1: tempo de duracao da fala<def.br>Descricao: Fala que o NPC ira usar
+    LOCAL.help=Falar com NPC<def.br>Param1: ITEM defname para entregar ao NPC (opcional)<def.br>Param2: NPC UID ou 0 para mesmo NPC<def.br>Quantidade: numero de ITEMs para entregar (param1)
+    LOCAL.help=Recompensar<def.br>Param1: ITEM defname<def.br>Param2: NPC UID ou 0 para mesmo NPC que entrega a recompensa<def.br>Quantidade: numero de ITEMSs para recompensar
+enddo
+
+resizepic 0 0 83 320 399
+dtext 14 12 37 Editor de Step:
+dtext 14 327 2100 Parametro 2:
+button 16 368 12015 12017 1 0 1
+button 229 368 12000 12002 1 0 2
+button 287 264 2117 2118 1 0 3
+dhtmlgump 14 36 288 80 1 1 <LOCAL.help>
+button 287 328 2117 2118 1 0 4
+dtext 14 263 2100 Parametro 1:
+dtextentry 14 344 291 17 2100 4 <LOCAL.param2>
+dtextentry 14 280 291 17 2100 3 <LOCAL.param1>
+dtext 14 303 2100 Quantidade (p1):
+gumppic 197 302 2445
+dtext 17 122 2100 Descricao:
+dtextentry 16 145 287 106 2100 1 <LOCAL.desc>
+dtextentry 203 304 95 17 0 2 <eval <LOCAL.quant>>
+
+[DIALOG d_quest_step_editor button]
+ON=1 // btBack
+src.dialog d_quest_info
+
+ON=2 // btAccept
+DB.EXECUTE "UPDATE questSteps SET description='<argtxt[1]>', quantity='<eval <argtxt[2]>>', param1='<argtxt[3]>', param2='<argtxt[4]>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idStep=<eval <SRC.CTAG0.quest_selectedStep>>"
+serv.log [QUEST] (<src.account>) Q:<SRC.CTAG0.quest_selectedQuest> S:<SRC.CTAG0.quest_selectedStep> Modificado para: <argtxt[1]> (<argtxt[2]>) [<argtxt[3]>,<argtxt[4]>]
+src.sysmessageyellow Step modificado.
+src.dialog d_quest_info
+
+ON=3 // btParam1
+src.sysmessageyellow Nao implementado
+src.dialog d_quest_step_editor
+
+ON=4 // btParam2
+src.sysmessageyellow Nao implementado
+src.dialog d_quest_step_editor
 
 //*****************************************************************************
 //*****************************************************************************
