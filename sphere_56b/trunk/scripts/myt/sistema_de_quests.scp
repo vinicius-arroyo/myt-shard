@@ -690,6 +690,52 @@ return <LOCAL.idstep>
 DB.EXECUTE "DELETE FROM questSteps WHERE idQuest=<eval <argv0>> AND idStep=<eval <argv1>> "
 
 //*****************************************************************************
+// quest_stepParam1( idQuest, idStep, stepType )
+//*****************************************************************************
+[FUNCTION quest_stepParam1]
+src.sysmessageyellow <argv0>/<argv1>/<argv2>::<argo>/<argo.id>/<targp>
+LOCAL.t=<argv2>
+LOCAL.p=0
+if (<LOCAL.t>==1) || (<LOCAL.t>==2) //chardef
+    if (0<argo> > 0) && (0<argo> < 040000000)
+        LOCAL.p=<argo.id>
+    endif
+elif (<LOCAL.t>==3) //npc uid
+    if (0<argo> > 0) && (0<argo> < 040000000)
+        LOCAL.p=<argo>
+    endif
+elif (<LOCAL.t>==4) || (<LOCAL.t>==5) || (<LOCAL.t>==7) || (<LOCAL.t>==9) || (<LOCAL.t>==10) //itemdef
+    if (0<argo> >= 040000000)
+        LOCAL.p=<argo.baseid>
+    endif
+elif (<LOCAL.t>==6) //x,y,z
+    if (!0<argo>)
+        LOCAL.p=<targp>
+    endif
+endif
+
+DB.EXECUTE "UPDATE questSteps SET param1='<LOCAL.p>' WHERE idQuest=<eval <argv0>> AND idStep=<eval <argv1>> "
+src.dialog d_quest_step_editor
+
+//*****************************************************************************
+// quest_stepParam2( idQuest, idStep, stepType )
+//*****************************************************************************
+[FUNCTION quest_stepParam2]
+LOCAL.t=<argv2>
+LOCAL.p=0
+if (<LOCAL.t>==7) || (<LOCAL.t>==9) || (<LOCAL.t>==10) //npc uid
+    if (0<argo> > 0) && (0<argo> < 040000000)
+        LOCAL.p=<argo>
+    endif
+elif (<LOCAL.t>==2) || (<LOCAL.t>==3)  //itemdef
+    if (0<argo> >= 040000000)
+        LOCAL.p=<argo.baseid>
+    endif
+endif
+DB.EXECUTE "UPDATE questSteps SET param2='<LOCAL.p>' WHERE idQuest=<eval <argv0>> AND idStep=<eval <argv1>> "
+src.dialog d_quest_step_editor
+
+//*****************************************************************************
 //*****************************************************************************
 // DIALOGOS E MENUS
 //*****************************************************************************
@@ -978,6 +1024,7 @@ if (<src.isgm>)
     SRC.CTAG0.quest_selectedStep=<eval <argn>-1000>
     src.dialog d_quest_step_editor
 endif
+return 1
 
 on=2000,2999 //remove step buttons
 if (<src.isgm>)
@@ -985,6 +1032,8 @@ if (<src.isgm>)
     quest_removeStep <SRC.CTAG0.quest_selectedQuest>,<SRC.CTAG0.quest_selectedStep>
     src.dialog d_quest_info
 endif
+return 1
+
 //*****************************************************************************
 // d_quest_step_editor
 //*****************************************************************************
@@ -1035,20 +1084,64 @@ dtextentry 203 304 95 17 0 2 <eval <LOCAL.quant>>
 [DIALOG d_quest_step_editor button]
 ON=1 // btBack
 src.dialog d_quest_info
+return 1
 
 ON=2 // btAccept
 DB.EXECUTE "UPDATE questSteps SET description='<argtxt[1]>', quantity='<eval <argtxt[2]>>', param1='<argtxt[3]>', param2='<argtxt[4]>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idStep=<eval <SRC.CTAG0.quest_selectedStep>>"
 serv.log [QUEST] (<src.account>) Q:<SRC.CTAG0.quest_selectedQuest> S:<SRC.CTAG0.quest_selectedStep> Modificado para: <argtxt[1]> (<argtxt[2]>) [<argtxt[3]>,<argtxt[4]>]
 src.sysmessageyellow Step modificado.
 src.dialog d_quest_info
+return 1
 
 ON=3 // btParam1
-src.sysmessageyellow Nao implementado
-src.dialog d_quest_step_editor
+
+doswitch <SRC.CTAG0.quest_selectedStepType>
+    LOCAL.help=0 //invalid
+    LOCAL.help=Selecione o NPC (chardef) que deve ser morto na quest
+    LOCAL.help=Selecione o NPC (chardef) que deve ser morto no quest
+    LOCAL.help=0 //get item
+    LOCAL.help=0 //craft item
+    LOCAL.help=0 //find item
+    LOCAL.help=Selecione o destino (x,y,z) que o NPC deve ser levado
+    LOCAL.help=Selecione o ITEM (itemdef) que sera dado pelo NPC1 para entregar ao NPC2
+    LOCAL.help=0 //talk
+    LOCAL.help=Selecione o ITEM (itemdef) que sera tomado pelo NPC
+    LOCAL.help=Selecione o ITEM (itemdef) que sera dado de recompensa ao player
+enddo
+
+if (strlen(<LOCAL.help>) > 3)
+    src.sysmessageyellow <LOCAL.help>
+    targetfg quest_stepParam1 <SRC.CTAG0.quest_selectedQuest>,<SRC.CTAG0.quest_selectedStep>,<SRC.CTAG0.quest_selectedStepType>
+else
+    src.sysmessageyellow Parametro nao usado
+    src.dialog d_quest_step_editor
+endif
+return 1
 
 ON=4 // btParam2
-src.sysmessageyellow Nao implementado
-src.dialog d_quest_step_editor
+LOCAL.help=1
+doswitch <SRC.CTAG0.quest_selectedStepType>
+    LOCAL.help=1 //invalid
+    LOCAL.help=1 //kill mob
+    LOCAL.help=Selecione o ITEM (itemdef) que o NPC ira dar quando morrer
+    LOCAL.help=1 //get item
+    LOCAL.help=1 //craft item
+    LOCAL.help=1 //find item
+    LOCAL.help=1 //escort
+    LOCAL.help=Selecione o NPC (uid) que deve receber o ITEM
+    LOCAL.help=1 //talk
+    LOCAL.help=Selecione o NPC (uid) que o player deve conversar
+    LOCAL.help=Selecione o NPC (uid) que ira entregar a recompensa.
+enddo
+
+if (strlen(<LOCAL.help>) > 3)
+    src.sysmessageyellow <LOCAL.help>
+    targetfg quest_stepParam2 <SRC.CTAG0.quest_selectedQuest>,<SRC.CTAG0.quest_selectedStep>,<SRC.CTAG0.quest_selectedStepType>
+else
+    src.sysmessageyellow Parametro nao usado
+    src.dialog d_quest_step_editor
+endif
+return 1
 
 //*****************************************************************************
 //*****************************************************************************
