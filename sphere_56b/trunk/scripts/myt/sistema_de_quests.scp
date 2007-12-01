@@ -30,9 +30,11 @@
 //src.ctag.quest_numPages   //numero de paginas do dialog do vendedor
 //src.ctag.quest_page       //pagina atual
 //src.ctag.quest_numQuests  //numero total de itens disponiveis para compra/venda
-//src.ctag.quest_names      //array com itens disponiveis para compra/venda
-//src.ctag.quest_ids        //array com os donos dos itens a venda
-//src.ctag.quest_selectedQuest  //item selecionada para compra/venda
+//src.ctag.quest_names      //array com nomes das quests
+//src.ctag.quest_ids        //array com os ids das quests
+//src.ctag.quest_selectedQuest  //quest selecionada
+//src.ctag.quest_selectedNpc //npc selecionado
+
 //LINK.TAG0.quest_destination
 //LINK.TAG0.quest_home
 //LINK.TAG0.quest_npcMoving
@@ -361,9 +363,9 @@ SRC.CTAG.quest_numQuests=0
 if ( <DB.connected> )
     //gm must see all quests
     if (<src.isgm>)
-        DB.QUERY "SELECT idQuest, name FROM quests WHERE idNpc=<eval <uid>> ORDER BY name"
+        DB.QUERY "SELECT idQuest, name FROM quests WHERE idNpc=<eval <SRC.CTAG.quest_selectedNpc>> ORDER BY name"
     else
-        DB.QUERY "SELECT idQuest, name FROM quests WHERE idNpc=<eval <uid>> AND idQuest NOT IN (SELECT idQuest FROM questState WHERE idPlayer=<eval <SRC>>) ORDER BY name"
+        DB.QUERY "SELECT idQuest, name FROM quests WHERE idNpc=<eval <SRC.CTAG.quest_selectedNpc>> AND idQuest NOT IN (SELECT idQuest FROM questState WHERE idPlayer=<eval <SRC>>) ORDER BY name"
     endif
     if (<DB.ROW.NUMROWS> > 0)
         for R 0 <eval <DB.ROW.NUMROWS>-1>
@@ -773,7 +775,7 @@ endif
 
 button 282 435 12012 12013 1 0 1    //OK button
 if (<src.isgm>)
-    button 192 435 2117 2118 1 0 2  //new quest button
+    button 192 435 2117 2118 1 0 4  //new quest button
     dtext 212 432 2100 Adicionar
 endif
 
@@ -798,6 +800,12 @@ if (<SRC.CTAG.quest_page> > <SRC.CTAG0.quest_numPages>)
 endif
 dialog d_quest_list
 
+on=4 // New quest button
+if (<src.isgm>)
+    SRC.CTAG.quest_selectedQuest=0 //new quest
+    dialog d_quest_info
+endif
+
 on=1000,1999 //itens buttons
 SRC.CTAG.quest_selectedQuest=<SRC.CTAG0.quest_ids<eval <argn> - 1000>>
 dialog d_quest_info
@@ -815,9 +823,9 @@ endif
 quest_drawGumps
 
 DB.QUERY "SELECT name, description FROM quests WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>>"
-if (<DB.ROW.NUMROWS> <= 0)
-    return 1
-endif
+//if (<DB.ROW.NUMROWS> <= 0)
+//    return 1
+//endif
 
 dtext 150 60 1152 Quest:
 dorigin 110 120
@@ -833,7 +841,7 @@ endif
 
 
 dorigin 110 220
-DB.QUERY "SELECT description, type+0 FROM questSteps AS steps LEFT JOIN questState AS state USING (idQuest) WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idPlayer=<eval <SRC>> AND steps.idStep <= state.idStep AND type+0 IN (1,2,3,4,5,6,7,9) ORDER BY idStep"
+DB.QUERY "SELECT description, type+0 FROM questSteps AS steps LEFT JOIN questState AS state USING (idQuest) WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idPlayer=<eval <SRC>> AND steps.idStep <= state.idStep AND type+0 IN (1,2,3,4,5,6,7,9) ORDER BY steps.idStep"
 if ( <DB.ROW.NUMROWS> > 0 )
     for x 0 <eval <DB.ROW.NUMROWS>-1>
         gumppic - *20 9702 0
@@ -854,14 +862,20 @@ dialog d_quest_list
 return 1
 
 on=2 // Accept button
-if (<src.isgm>)
-    DB.EXECUTE "UPDATE quests SET name='<argtxt[1]>', description='<argtxt[2]>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>>"
-    serv.log [QUEST] (<src.account>) Modificado para: <argtxt[1]>: <argtxt[2]>
-    src.sysmessageyellow Quest modificada.
+if (<src.isgm>) //update quest if GM
+    if (<SRC.CTAG0.quest_selectedQuest> > 0) //edit quest
+        DB.EXECUTE "UPDATE quests SET name='<argtxt[1]>', description='<argtxt[2]>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>>"
+        serv.log [QUEST] (<src.account>) Modificado para: <argtxt[1]>: <argtxt[2]>
+        src.sysmessageyellow Quest modificada.
+    else //new quest
+        DB.EXECUTE "INSERT INTO quests SET idNpc=<eval <SRC.CTAG.quest_selectedNpc>>, name='<argtxt[1]>', description='<argtxt[2]>'"
+        serv.log [QUEST] (<src.account>) Criada: <argtxt[1]>: <argtxt[2]>
+        src.sysmessageyellow Quest criada.
+    endif
     quest_closeDialogs
     quest_createNpcQuestList
     dialog d_quest_list    
-else
+else //start quest if PLAYER
     quest_startSelectedQuest
 endif
 return 1
@@ -1080,6 +1094,7 @@ ON=*boa noite*
     
     quest_closeDialogs
     
+    SRC.CTAG.quest_selectedNpc=<uid>
     quest_createNpcQuestList
     if ( <SRC.CTAG0.quest_numQuests> < 1 ) && !( <src.isgm> )
         message Nao tenho nenhuma missao para voce no momento.
