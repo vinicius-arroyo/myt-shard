@@ -118,13 +118,13 @@ endif
 
 forcont <SRC> 0
     if ( <baseid>==i_quest_system )
-//      SRC.SYSMESSAGE LOOP <morex> <SRC.ACT.baseid> <more1>
+//      SRC.SYSMESSAGE LOOP <morex> <SRC.ACT.baseid> <tag.param1>
         if ( <morex> == quest_type_kill_mob ) 
-            if ( <SRC.ACT.baseid>==<more1> )
+            if ( <SRC.ACT.baseid>==<tag.param1> )
                 quest_updateKillMobQuest <uid>
             endif
         elif ( <morex> == quest_type_get_mob_item )
-            if ( <SRC.ACT.baseid>==<more1> )
+            if ( <SRC.ACT.baseid>==<tag.param1> )
                 quest_updateGetMobItemQuest <uid>
             endif
         endif
@@ -168,8 +168,8 @@ TYPE=t_eq_script
 LAYER=layer_special
 WEIGHT=0
 
-//MORE1 - Quest Parameter 1
-//MORE2 - Quest Parameter 2
+//tag.param1 - Quest Parameter 1
+//tag.param2 - Quest Parameter 2
 //MOREX - Quest Type
 //MOREY - Quest ID
 //MOREZ - Quest Step
@@ -240,7 +240,7 @@ OBJ=<argv[0]>
 if ( <OBJ.amount> > 0 )
     OBJ.amount=<OBJ.amount>-1
 
-    SRC.NEWITEM <more2>
+    SRC.NEWITEM <tag.param2>
     NEW.cont=<SRC.findlayer.layer_pack.uid>
 
     if ( <OBJ.amount> == 0 )    //acabou de completar o step
@@ -260,12 +260,12 @@ return 1
 OBJ=<argv[0]>
 
 if ( <OBJ.amount> > 0 )
-    if ( <OBJ.cont.restest <OBJ.amount> <OBJ.more1>>)
-        OBJ.cont.consume <OBJ.amount> <OBJ.more1>
+    if ( <OBJ.cont.restest <OBJ.amount> <OBJ.tag.param1>>)
+        OBJ.cont.consume <OBJ.amount> <OBJ.tag.param1>
         OBJ.cont.sysmessage Voce finalizou um objetivo da quest.    
         quest_nextStep <OBJ>
     else
-        TRYSRV uid.<OBJ.more2>.message Voce nao tem o que preciso. Volte quando tiver.
+        TRYSRV uid.<OBJ.tag.param2>.message Voce nao tem o que preciso. Volte quando tiver.
     endif
 else
     quest_nextStep <OBJ>
@@ -341,12 +341,12 @@ return 1
 
 OBJ=<argv[0]>
 
-if ( <OBJ.cont.restest <OBJ.amount> <OBJ.more1>>)
-    OBJ.cont.consume <OBJ.amount> <OBJ.more1>
+if ( <OBJ.cont.restest <OBJ.amount> <OBJ.tag.param1>>)
+    OBJ.cont.consume <OBJ.amount> <OBJ.tag.param1>
     OBJ.cont.sysmessage Voce finalizou um objetivo da quest.    
     quest_nextStep <OBJ>
 else
-    TRYSRV uid.<OBJ.more2>.message Voce nao tem o que preciso. Volte quando tiver.
+    TRYSRV uid.<OBJ.tag.param2>.message Voce nao tem o que preciso. Volte quando tiver.
 endif
 return 1
 
@@ -452,7 +452,7 @@ if ( <DB.connected> )
     NEW.cont = <SRC> //player
     NEW.link = <uid> //npc
     NEW.morey = <SRC.CTAG.quest_selectedQuest>  
-    
+    NEW.morez = -1
     quest_nextStep <NEW>
 endif
 return 1
@@ -488,8 +488,8 @@ if ( <DB.ROW.quantity> > 0 )
 else
     OBJ.amount = 1
 endif
-OBJ.more1 = <DB.ROW.param1>
-OBJ.more2 = <DB.ROW.param2>
+OBJ.tag.param1 = <DB.ROW.param1>
+OBJ.tag.param2 = <DB.ROW.param2>
 OBJ.morex = <DB.ROW.type>
 OBJ.morez = <DB.ROW.idStep>
 OBJ.timer = -1
@@ -498,18 +498,18 @@ OBJ.cont.EVENTS +e_quest
 
 if ( <OBJ.morex> == quest_type_text )
     OBJ.link.message <DB.ROW.description>
-    if ( <OBJ.more1> > 0 )
-        OBJ.timer = <OBJ.more1>
+    if ( <OBJ.tag.param1> > 0 )
+        OBJ.timer = <OBJ.tag.param1>
     else
         OBJ.timer = 1
     endif
 elif ( <DB.ROW.type> == quest_type_talkto )
     //set default NPC to the MAIN QUEST NPC
-    if ( !<OBJ.more2> )
-        OBJ.more2=<OBJ.link>
+    if ( !<OBJ.tag.param2> )
+        OBJ.tag.param2=<OBJ.link>
     endif
     
-    OBJ.cont.sysmessage Fale com <uid.<OBJ.more2>.name>
+    OBJ.cont.sysmessage Fale com <uid.<OBJ.tag.param2>.name>
 elif ( <DB.ROW.type> == quest_type_escort )
     OBJ.LINK.TAG.quest_npcInQuest=1
     OBJ.LINK.TAG.quest_destination=<DB.ROW.param1>
@@ -517,22 +517,22 @@ elif ( <DB.ROW.type> == quest_type_escort )
     OBJ.LINK.TAG.quest_npcQuestMry=<OBJ>
     OBJ.timer = 1
 elif ( <DB.ROW.type> == quest_type_delivery )
-    SERV.NEWITEM <OBJ.more1>
+    SERV.NEWITEM <OBJ.tag.param1>
     NEW.amount=<OBJ.amount>
     NEW.cont=<OBJ.cont.findlayer.layer_pack.uid>
 
     //set default NPC to the MAIN QUEST NPC
-    if ( !<OBJ.more2> )
-        OBJ.more2=<OBJ.link>
+    if ( !<OBJ.tag.param2> )
+        OBJ.tag.param2=<OBJ.link>
     endif
 
 elif ( <DB.ROW.type> == quest_type_reward )
-    SERV.NEWITEM <OBJ.more1>
+    SERV.NEWITEM <OBJ.tag.param1>
     NEW.amount=<OBJ.amount>
     NEW.cont=<OBJ.cont.findlayer.layer_pack.uid>
 
-    if ( <OBJ.more2> )
-        TRYSRV uid.<OBJ.more2>.message <DB.ROW.description>
+    if ( <OBJ.tag.param2> )
+        TRYSRV uid.<OBJ.tag.param2>.message <DB.ROW.description>
     else
         OBJ.link.message <DB.ROW.description>
     endif
@@ -1324,11 +1324,11 @@ ON=*
     forcont <SRC> 0
         if ( <baseid>==i_quest_system )
             if ( <morex> == quest_type_talkto ) 
-                if ( <LOCAL.uid>==<more2> )
+                if ( <LOCAL.uid>==<tag.param2> )
                     quest_updateTalktoQuest <uid>
                 endif
             elif ( <morex> == quest_type_delivery ) 
-                if ( <LOCAL.uid>==<more2> )
+                if ( <LOCAL.uid>==<tag.param2> )
                     quest_updateDeliveryQuest <uid>
                 endif
             endif
