@@ -183,44 +183,6 @@ sfx 0217
 return <obj.uid>
 
 
-[FUNCTION f_spl_polymorph]
-//Polymorph undead. Tira stats
-//<argv0> = body
-//<argv1> = skill
-if (0<argv1>==0)
- local.skill 500
- local.timer 30
-else
- local.timer <eval <argv1>/16>
- local.skill <argv1>
-endif
-local.body=<argv0>
-if (!<serv.resources.<local.body>>)
- local.body=c_zombie
-else
- local.body=<argv0>
-endif
-// Já estou polymorphado? Se sim, aumente o tempo apenas.
-if (<restest 1 i_spl_polymorph>)
- findid.i_spl_polymorph.timer=<findid.i_spl_polymorph.timer>+<local.timer>
- effect 3 i_fx_curse 0 16 0 017d
- sfx 01fa
- return 1
-endif
-//modstats de -5 a -25
-local.modstr=-<eval {5 (<local.skill>/40)}>
-local.moddex=-<eval {5 (<local.skill>/40)}>
-local.modint=-<eval {5 (<local.skill>/40)}>
-serv.newitem i_spl_polymorph
-new.morex=<local.modstr>
-new.morey=<local.moddex>
-new.morez=<local.modint>
-new.more1=<local.body>
-equip <new.uid>
-new.timer=<local.timer>
-effect 3 i_fx_curse 0 16 0 017d
-sfx 01fa
-
 [FUNCTION f_polymorph]
 //Polymorph genérico
 //f_polymorph <body> <tempo> <modstr> <moddex> <modint>
@@ -251,7 +213,8 @@ new.morey=<local.moddex>
 new.morez=<local.modint>
 new.more1=<local.body>
 equip <new.UID>
-new.timer=<local.timer>
+new.timer=1
+new.more2=<local.timer>
 effect 3 i_fx_curse 0 16 0 017d
 sfx 01fa
 
@@ -265,6 +228,9 @@ on=@create
 attr=022
 
 on=@equip
+if (<cont.tag0.comcapuz>)
+ cont.capuz
+endif
 cont.modstr=<cont.modstr>+<morex>
 cont.moddex=<cont.moddex>+<morey>
 cont.modint=<cont.modint>+<morez>
@@ -282,9 +248,20 @@ color=<cont.color>
 local.body <cont.body>
 cont.body <more1>
 more1=<local.body>
+cont.flags |= 0400
 cont.update
 
 on=@timer
+if (!<more2>) || !(<cont.flags>&0400) || (<cont.flags>&012)	//Dead ou sleep
+ TRIGGER=@destroy
+ remove
+else
+ timer = 1
+ more2 -= 1
+endif
+return 1
+
+on=@destroy
 cont.modstr=<eval <cont.modstr>-<morex>>
 cont.moddex=<eval <cont.moddex>-<morey>>
 cont.modint=<eval <cont.modint>-<morez>>
@@ -300,11 +277,11 @@ IF (<tag0.beard>)
  new.color=<tag.beardcolor>
  new.timer=<tag.beardtimer>
 ENDIF
+cont.flags ^= 0400
 cont.update
 cont.effect 3 i_fx_curse 0 16 0 017d
 cont.sfx 01fa
-remove
-return 1
+
 
 [FUNCTION f_field_sparce]
 //Cria um campo de <item>s ao redor do SRC.
