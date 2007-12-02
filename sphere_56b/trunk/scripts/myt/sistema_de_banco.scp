@@ -215,9 +215,12 @@ endif
 [FUNCTION bank_cambio]
 
 // -- Checando posse --
-if ( (<src.findlayer(layer_bankbox).rescount <src.ctag.moeda1>> + <src.rescount <src.ctag.moeda1>>) < <argn>)
-  src.sysmessageyellow Voce nao possui esta quantia...
-  return 1
+LOCAL.b=<src.findlayer.layer_bankbox.rescount <src.ctag.moeda1>>
+LOCAL.p=<src.rescount <src.ctag.moeda1>>
+
+if ( (<LOCAL.b> + <LOCAL.p>) < <argn>)
+    src.sysmessageyellow Voce nao possui esta quantia...
+    return 1
 endif
 
 // -- Calculando valores de conversao --
@@ -241,21 +244,28 @@ else //cobre
     endif
 endif
 
- if (!<LOCAL.q> )
-  src.sysmessageyellow Voce nao pode trocar somente <argn> <SERV.ITEMDEF.<src.ctag.moeda1>.name> em <SERV.ITEMDEF.<src.ctag.moeda2>.name>
+if (!<LOCAL.q> )
+    src.sysmessageyellow Voce nao pode trocar somente <argn> <SERV.ITEMDEF.<src.ctag.moeda1>.name> em <SERV.ITEMDEF.<src.ctag.moeda2>.name>
     return 1
- endif
+endif
+
+if (!<src.isgm>)
+return 1
+endif
 
 // -- Fazendo a troca --
- src.findid.i_bankbox.type=t_container
- src.findid.i_bankbox.cont=<src.findlayer(layer_pack).uid>
- src.consume <argn> <src.ctag.moeda1>
- src.findid.i_bankbox.type=t_eq_bank_box
- src.findid.i_bankbox.equip
- src.newitem <src.ctag.moeda2>
- NEW.amount <LOCAL.q>
- NEW.cont <src.findlayer(layer_pack).uid>
- src.sysmessageorange Troca de moedas concluida...
+if (<LOCAL.p> >= <argn>)
+    src.consume <argn> <src.ctag.moeda1>
+else
+    src.consume <LOCAL.p> <src.ctag.moeda1>
+    LOCAL.b=<eval <argn>-<LOCAL.p>>
+    bank_consume <src.ctag.moeda1>,<LOCAL.b>
+endif
+
+src.newitem <src.ctag.moeda2>
+NEW.amount <LOCAL.q>
+NEW.cont <src.findlayer.layer_pack.uid>
+src.sysmessageorange Troca de moedas concluida...
 
 
 //*****************************************************************************
