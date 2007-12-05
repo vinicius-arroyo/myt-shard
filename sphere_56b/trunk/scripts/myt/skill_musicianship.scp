@@ -188,46 +188,44 @@ BONUS_STATS=10
 
 on=@Start
 IF (<tag0.bard.action>==BARD_ACTION_PLAY)
+ ctag.action=<DEF.skill_musicianship>
  emoteyellow tocando <act.name>
  IF (!<BELLTEST <R300,<R300,650>>,<musicianship>>)
   INSTRUMENT <tag.bard.item>
-  timerf 3,ctag.action,
+  timerf 5,ctag.action,
  ELSE
   INSTRUMENT BAD
-  timerf 5,ctag.action,
+  timerf 8,ctag.action,
   sysmessageyellow Voce tocou muito mal.
  ENDIF
 ELIF (<tag0.bard.action>==BARD_ACTION_SONG)
+ ctag.action=<DEF.skill_musicianship>
  IF (<tag0.bard.item>)
   TRY <DEF.BARD_P<tag0.bard.item>_FUNC>
  ELSE
   TRY <DEF.BARD_P0_FUNC>
  ENDIF
- timerf 5,ctag.action,
 ELSE
  INSTRUMENT
  emoteyellow tocando <act.name>
- return 1
 ENDIF
 action=-1
-src.ctag.action=<DEF.skill_musicianship>
 return 1
 
 0n=@success
 	src.ctag.action=<DEF.skill_musicianship>
-	src.timerf 3,ctag.action,
+//	src.timerf 3,ctag.action,
 	return 1
 
 ON=@Fail
 	src.ctag.action=<DEF.skill_musicianship>
-	src.timerf 3,ctag.action,
+//	src.timerf 3,ctag.action,
 	return 1
 
 ON=@Abort
 	src.ctag.action=<DEF.skill_musicianship>
-	src.timerf 3,ctag.action,
+//	src.timerf 3,ctag.action,
 	return 1
-
 
 
 
@@ -373,6 +371,7 @@ FORCHARS <LOCAL.r>
   EFFETCT_BARDSONG_VALOR <LOCAL.timer>,<LOCAL.modar>,<LOCAL.moddam>
  ENDIF
 ENDFOR
+ctag.action=
 
 [FUNCTION EFFETCT_BARDSONG_VALOR]
 //EFFECT_BARDSON_VALOR <time>,<MODAR>,<MODDAM>
@@ -381,18 +380,18 @@ new.more1=<argv[1]>
 new.more2=<argv[2]>
 equip <new.UID>
 new.timer=<argv[0]>
-message=@02, *encorajado* 
+message=@02, *encorajad<sex o/a>* 
+sysmessagegreen Voce se sente mais corajos<sex o/a>!
 
 [ITEMDEF i_mry_COMBAT_MODS]
 ID=i_lyre
-NAME=VALOR
+NAME=Comat Mod (Bardsong)
 TYPE=t_eq_script
 LAYER=30
 
 on=@equip
 cont.modar += <more1>
 cont.tag0.moddam += <more2>
-src.sysmessagegreen Voce se sente mais corajoso!
 
 on=@timer
 cont.modar -= <more1>
@@ -415,18 +414,21 @@ TIMERF 5,_BARDSONG_LULABY
 [FUNCTION _BARDSONG_LULABY]
 IF !(<INSTRUMENT PEACE>)
  sysmessagered Voce nao tem um instrumento
+ ctag.action=
  return 1
 endif
-IF (<FLAGS>&statf_war|statf_dead|statf_freeze|statf_war|statf_stone) || (<cTAG0.DISTURB>) || (!<IsOnline>) || (!<BARDSONG_TEST>) || (!<R12>)
+IF (<FLAGS>&statf_war|statf_dead|statf_freeze|statf_stone) || (<cTAG0.DISTURB>) || (!<IsOnline>) || (!<BARDSONG_TEST>) || (!<R12>)
  sysmessagered Voce foi perturbado
  emotered para de cantar
  events -e_no_attack
  events -e_no_dclick
  cTAG.DISTURB
+ ctag.action=
  return 1
 ENDIF
 IF !(<INSTRUMENT PEACE>)
  sysmessagered Voce nao tem um instrumento
+ ctag.action=
  return 1
 endif
 DOSWITCH <EVAL <cTAG.ESTROFE>>
@@ -444,8 +446,8 @@ IF (<cTAG0.ESTROFE>=8)
  cTAG.ESTROFE
 ENDIF
 OBJ=<UID>
-FORCHARS 12
- IF ((<IsMyEnemy <OBJ.UID>>) || (!<IsMyMaster <OBJ.UID>>) || (!<IsPlayer>)) && (<CanSeeLos <OBJ.UID>>) && (<UID> != <obj.uid>)
+FORCHARS 6
+ IF ((<IsMyEnemy <OBJ.UID>>) || (!<IsPlayer>)) && (!<IsMyMaster <OBJ.UID>>) && (<obj.CanSeeLos <UID>>) && (<UID> != <obj.uid>)
   EFFETCT_BARDSONG_LULABY <OBJ.UID>
  ENDIF
 ENDFOR
@@ -453,23 +455,23 @@ TIMERF 3,_BARDSONG_LULABY
 
 [FUNCTION EFFETCT_BARDSONG_LULABY]
 obj=<argn1>
-DORAND 3
- F_SONOLENTO <argn1>
-ENDDO
 IF ((<R<obj.int>> > <INT>) || (<BELLTEST <obj.Musicianship>,120.0>)) && (!<R6>)
  f_faint
  timerF <BETWEEN 10,60,<obj.Musicianship>,2000>,f_WakeUp
+elif (!<R2>)
+ F_SONOLENTO <argn1>
 ENDIF
 
 [FUNCTION f_sonolento]
 OBJ=<argn1>
-say=@038, *sonolento*
+say=@038, *sonolent<sex o/a>*
 IF (!<RESTEST 4 i_mry_COMBAT_MODS>)
  serv.newitem i_mry_COMBAT_MODS
  new.more1=-<BETWEEN 0,25,<obj.Musicianship>,2000>
  new.more2=-<BETWEEN 0,4,<obj.Musicianship>,2000>
  equip <new.UID>
  new.timer=<BETWEEN 0,120,<obj.Musicianship>,2000>
+ sysmessageorange Voce se sente sonolent<sex o/a>...
 ENDIF
 
 
@@ -487,14 +489,16 @@ TIMERF <BETWEEN2 2,6,<musicianship>,200.0>,_BARDSONG_CHARM
 
 [FUNCTION _BARDSONG_CHARM]
 IF (!<BARDSONG_TEST>)
+ ctag.action=
  RETURN 1
 ENDIF
 OBJ=<UID>
 FORCHARS 12
- IF ((<IsMyEnemy <OBJ.UID>>) || (!<IsMyMaster <OBJ.UID>>) || (!<IsPlayer>)) && (<CanSeeLos <OBJ.UID>>) && (<UID> != <obj.uid>)
+ IF ((<IsMyEnemy <OBJ.UID>>) || (!<IsPlayer>)) && (!<IsMyMaster <OBJ.UID>>) && (<CanSeeLos <OBJ.UID>>) && (<UID> != <obj.uid>)
   EFFETCT_BARDSONG_CHARM <OBJ.UID>
  ENDIF
 ENDFOR
+ctag.action=
 
 [FUNCTION EFFETCT_BARDSONG_CHARM]
 if (<BELLTEST <obj.Musicianship>,60.0>) && (<R<INT>> <= <obj.int>)
@@ -531,6 +535,7 @@ ENDIF
 argo.effect 0 i_fx_ebolt 6 6 0
 LOCAL.DAM=<R5,<eval <musicianship>/50>>
 argo.DAMAGE <LOCAL.DAM> DAM_PHYSICAL <UID>
+ctag.action=
 
 
 //***********************************************************************
@@ -547,10 +552,11 @@ TIMERF <BETWEEN2 2,6,<musicianship>,200.0>,_BARDSONG_SCARE
 [FUNCTION _BARDSONG_SCARE]
 OBJ=<UID>
 FORCHARS 8
- IF ((<IsMyEnemy <OBJ.UID>>) || (!<IsMyMaster <OBJ.UID>>) || (!<IsPlayer>)) && (<CanSeeLos <OBJ.UID>>) && (<UID> != <obj.uid>)
+ IF ((<IsMyEnemy <OBJ.UID>>) || (!<IsPlayer>)) && (!<IsMyMaster <OBJ.UID>>) && (<CanSeeLos <OBJ.UID>>) && (<UID> != <obj.uid>)
   EFFETCT_BARDSONG_SCARE <OBJ.UID>
  ENDIF
 ENDFOR
+ctag.action=
 
 [FUNCTION EFFETCT_BARDSONG_SCARE]
 if (<OBJ.BARDSONG_TEST>) && (<R<INT>> <= <obj.int>)
