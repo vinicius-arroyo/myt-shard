@@ -372,15 +372,15 @@ endif
 [TYPEDEF t_recipient]
 on=@click
 IF (<more2>)
- message=@036 <name> de <DEF.LIQUID_<more2>_NAME>
+ message=@036 <serv.itemdef.<baseid>.name> de <DEF.LIQUID_<more2>_NAME>
 ELSE
- message=@036 <name> vazio(a)
+ message=@036 <serv.itemdef.<baseid>.name> vazio(a)
 ENDIF
 message Doses: <eval <more1>>/<eval <tdata1>>
 RETURN 1
 
 on=@clientToolTip
-f_sendToolTip <name>,(<DEF.LIQUID_<more2>_NAME>)<DEF.BR>Doses: <eval <more1>>/<eval <tdata1>>
+f_sendToolTip <serv.itemdef.<baseid>.name>,(<DEF.LIQUID_<more2>_NAME>)<DEF.BR>Doses: <eval <more1>>/<eval <tdata1>>
 return 1
 
 on=@Dropon_ground
@@ -409,7 +409,7 @@ ELIF (<GetRecipientCan>&RECIPIENT_DRINK) && (<more2>)
  DrinkRecipient
 ELIF (<GetRecipientCan>&RECIPIENT_TARG_EMPTY) && (!<more2>)
  //está vazio e dclick vazio abre target
- src.sysmessageyellow Com o que voce deseja encher <name>?
+ src.sysmessageyellow Com o que voce deseja encher <serv.itemdef.<baseid>.name>?
  src.targetfg recip_targ <UID>
 ELIF (<GetRecipientCan>&RECIPIENT_TARG_FULL) && (<more2>)
  //está cheio e dclick cheio abre target
@@ -478,7 +478,7 @@ IF (!<ISEMPTY <DEF.LIQUID_<LOCAL.liquid>>>) || (!<LOCAL.liquid>)
 ENDIF
 IF (<LOCAL.liquid>!=<more2>) && (<more2>)
 //Tem coisa dentro mas é diferente do que quer se por.
- src.sysmessagered <name> ja contem <DEF.LIQUID_<MORE2>_NAME>
+ src.sysmessagered <serv.itemdef.<baseid>.name> ja contem <DEF.LIQUID_<MORE2>_NAME>
  return 1
 ENDIF
 trigger @Fill,<DEF.TAT_AS_ARGS>,<LOCAL.liquid>,<argv[1]>
@@ -508,9 +508,11 @@ ELSE
  src.sfx 05A4
  src.BOW
 ENDIF
-src.EMOTEYELLOW enchendo <name> com <DEF.LIQUID_<argv[0]>_NAME>
+f_renameRecipient
+src.EMOTEYELLOW enchendo <serv.itemdef.<baseid>.name> com <DEF.LIQUID_<argv[0]>_NAME>
 
-
+on=@EmptyRecipient
+f_renameRecipient
 
 
 on=@TARGON_ITEM
@@ -529,10 +531,10 @@ ELSE
    src.targ.type=<TYPE>
    src.targ.trigger @TryFill,<DEF.TAT_AS_ARGS>,<TYPE>,<UID>  
   ELIF (<src.targ.more2>!=<more2>)
-   src.sysmessagered <src.targ.name> ja contem <DEF.LIQUID_<src.targ.more2>_NAME>.
+   src.sysmessagered <serv.itemdef.<src.targ.baseid>.name> ja contem <DEF.LIQUID_<src.targ.more2>_NAME>.
    return 1
   ELIF (<src.targ.more1> >= <src.targ.TDATA1>)
-   src.sysmessagered <src.targ.name> ja esta ate a boca.
+   src.sysmessagered <serv.itemdef.<src.targ.baseid>.name> ja esta ate a boca.
    return 1
   ENDIF
   src.targ.trigger @TryFill,<DEF.TAT_AS_ARGS>,<TYPE>,<UID>
@@ -790,6 +792,12 @@ else
  return <TDATA2>
 endif
 
+[FUNCTION f_renameRecipient]
+if (<more1>)
+ name=<serv.itemdef.<baseid>.name> com <eval <more1>> doses de <DEF.LIQUID_<more2>_NAME>
+else
+ name=<serv.itemdef.<baseid>.name> vazio(a)
+endif
 
 //**************************************************************************************************
 //**************************************************************************************************
@@ -1262,7 +1270,7 @@ IF (<more2>==LIQUID_WATER)
  update
 endif
 
-on=@EmptyRecipient
+on=@EmptyRecipient f_renameRecipient
 IF (!<more1>) && (!<more2>)
  TYPE=t_container
  update
