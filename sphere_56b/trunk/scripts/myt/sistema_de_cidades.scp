@@ -5,12 +5,6 @@
 //############################################################################
 
 
-
-
-//*****************************************************************************
-// Elfa
-//*****************************************************************************
-
 //TAGS da region de Town
 //TAG.TOWN_TYPE
 //	1	Reino
@@ -23,6 +17,8 @@
 //	Drow
 //	Orc
 //	Misc
+//TAG.TOWN_CAPITAL		AREADEF da área que comanda as leis.
+//TAG.TOWN_TRESURE		Quantidade de mc que a town possue.
 //TAG.TOWN_RACE_FORBIDDEN	Raças separadas por ;
 //TAG.TOWN_RACE_FRIEND		Raças separadas por ;
 //TAG.TOWN_UID_FORBIDDEN	UIDs sepadaras por ;
@@ -30,9 +26,195 @@
 //TAG.TOWN_MASTER		UID do mestre da Town
 //TAG.TOWN_COUNSELORS		UIDs dos conselheiros da Town separadas por ;
 //TAG.TOWN_GUARD		DEFNAME do guarda da Town
+//TAG.TOWN_CHPRICE		Preço do tile² do terreno para construção. Proibido contruir se empty
 
+[DEFNAME TOWN]
+TOWN_TYPE_KINGDOM	1
+TOWN_TYPE_CITY		2
+TOWN_TYPE_VILLAGE	3
 
+[DEFNAME guards_task]
+GUARD_TASK_IDLE		0
+GUARD_TASK_PATROL	1
 
+//****************************************************************************
+//****************************************************************************
+//
+//				MECANISMOS DA TOWN
+//
+//****************************************************************************
+//****************************************************************************
+
+//****************************************************************************
+//					ITEMDEFS
+//****************************************************************************
+[ITEMDEF I_BOX_TOWN_TRESURE]
+ID=i_box_brass
+TYPE=t_container
+NAME=Tesouro do governo
+
+on=@ClientToolTip
+f_sendTooltip <name>, <TOWN_GET_TRESURE>
+return 1
+
+on=@dclick
+IF (<findcont.0>)
+ timerd=1
+ src.timerf 1,dclick,<uid>
+ src.sysmessagegreen Calculando tesouro
+ return 1
+ENDIF
+IF (<region.tag0.TOWN_TRESURE>)
+ CALL TOWN_GET_TRESURE
+ IF (<LOCAL.g>)
+  serv.newitem i_gold
+  new.amount=<LOCAL.g>
+  new.cont=<UID>
+ ENDIF
+ IF (<LOCAL.s>)
+  serv.newitem i_coin_silver
+  new.amount=<LOCAL.s>
+  new.cont=<UID>
+ ENDIF
+ IF (<LOCAL.c>)
+  serv.newitem i_coin_copper
+  new.amount=<LOCAL.c>
+  new.cont=<UID>
+ ENDIF
+ region.tag.town_tresure=
+ timer=60
+ update
+ENDIF
+
+on=@timer
+FORCONT <UID>
+ if (<baseid>==i_gold)
+  region.tag0.town_tresure += <eval <amount>*100>
+ elif (<baseid>==i_coin_silver)
+  region.tag0.town_tresure += <eval <amount>*10>
+ elif (<baseid>==i_coin_copper)
+  region.tag0.town_tresure += <amount>
+ endif
+endfor
+empty
+update
+return 1
+
+//****************************************************************************
+//					FUNCTIONS
+//****************************************************************************
+
+[FUNCTION town]
+//Configura town
+if (STRMATCH(*world*,<region.defname>))
+ sysmessagered O mundo eh selvagem...
+ return 1
+elif (!<region.tag0.town_type>)
+ MENU m_new_town
+else
+ dialog d_town
+endif
+
+[FUNCTION TOWN_GET_TRESURE]
+//Retorna uma string representando o tesouro de uma town.
+LOCAL.c=<region.tag0.town_tresure>
+WHILE (<LOCAL.c> > 100)
+ LOCAL.g += 1
+ LOCAL.c -= 100
+ENDDO
+WHILE (<LOCAL.c> > 10)
+ LOCAL.s += 1
+ LOCAL.c -= 10
+ENDDO
+return <dLOCAL.g>mo <dLOCAL.s>mp <dLOCAL.c>mc
+
+[FUNCTION TOWN_RESOLV_DEMENCES]
+//Seta LOCAL.KINGDOM, LOCAL.CITY e LOCAL.VILLAGE pro gump d_town
+IF (<region.tag.TOWN_TYPE>==TOWN_TYPE_KINGDOM)
+ LOCAL.Kingdom=Autonomo
+ call TOWN_RESOLV_CITIES <EXPLODE ;,<region.tag.town_demences>>
+ call TOWN_RESOLV_VILLAGES <EXPLODE ;,<region.tag.town_demences>> 
+ELIF (<region.tag.TOWN_TYPE>==TOWN_TYPE_CITY)
+ IF (<serv.resources.<region.tag.TOWN_CAPITAL>>)
+  LOCAL.KINGDOM=<serv.resources.<region.tag.TOWN_CAPITAL>.name>
+ ELSE
+  LOCAL.KINGDOM=Autonomo
+ ENDIF
+ LOCAL.CITY=<region.name>
+ CALL TOWN_RESOLV_VILLAGES <EXPLODE ;,<region.tag.town_demences>> 
+ENDIF
+
+[FUNCTION TOWN_RESOLV_CITIES]
+FOR i 1 <argv>
+ IF (<serv.resources.<argv[<LOCAL.i>]>.tag.TOWN_TYPE>==TOWN_TYPE_CITY)
+  LOCAL.CITY += 1
+ ENDIF
+ENDFOR
+
+[FUNCTION TOWN_RESOLV_VILLAGES]
+FOR i 1 <argv>
+ IF (<serv.resources.<argv[<LOCAL.i>]>.tag.TOWN_TYPE>==TOWN_TYPE_VILLAGE)
+  LOCAL.VILLAGE += 1 
+ ENDIF
+ENDFOR
+
+[MENU m_new_town]
+<region.name> nao eh uma vila. Que vila faremos?
+on=0 Reino
+region.tag.town_type=<DEF.TOWN_TYPE_KINGDOM>
+MENU m_NEW_TOWN_RACE
+
+on=0 Cidade
+region.tag.town_type=<DEF.TOWN_TYPE_CITY>
+MENU m_NEW_TOWN_RACE
+
+on=0 Vila
+region.tag.town_type=<DEF.TOWN_TYPE_VILLAGE>
+MENU m_NEW_TOWN_RACE
+
+[MENU m_NEW_TOWN_RACE]
+Que habitantes tera <region.name>?
+on=0 Elfo
+region.TAG.TOWN_RACE=Elfo
+promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
+
+on=0 Anao
+region.TAG.TOWN_RACE=Anao
+promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
+
+on=0 Humano
+region.TAG.TOWN_RACE=Humano
+promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
+
+on=0 Drow
+region.TAG.TOWN_RACE=Drow
+promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
+
+on=0 Orc
+region.TAG.TOWN_RACE=Orc
+promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
+
+on=0 Misto
+region.TAG.TOWN_RACE=Misc
+promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
+
+[FUNCTION new_town_capital]
+IF (<serv.resources.<args>.tag0.TOWN_TYPE>)
+ region.tag.town_capital=<args>
+ if (<IsEmpty <serv.resources.<args>.tag.TOWN_DEMENCES>>)
+  serv.resources.<args>.tag.TOWN_DEMENCES=<region.defname>
+ else
+  serv.resources.<args>.tag.TOWN_DEMENCES .= ;<region.defname>
+ endif 
+ELSE
+ region.tag.town_capital=<region.defname>
+endif
+region.tag.TOWN_MASTER=<UID>
+sysmessagegreen Sua town foi configurada com sucesso! A capital eh <serv.resources.<region.tag.town_capital>.name>.
+
+//*****************************************************************************
+// Porteira Elfa
+//*****************************************************************************
 
 [CHARDEF c_e_town_f]
 ID=c_woman
@@ -41,7 +223,7 @@ DESIRES=i_gold,e_notoriety
 AVERSIONS=t_TRAP,t_eerie_stuff
 
 
-TSPEECH=jobTOWN
+TSPEECH=jobTOWNDoor
 
 ON=@Create
 COLOR=0412
@@ -66,11 +248,11 @@ COLOR=colors_green
 ITEM=i_skirt_long
 COLOR=colors_yellow
 
-CATEGORY=MYT - NPCs
-SUBSECTION=Town
-DESCRIPTION=Funcionaria (Elfa)
+CATEGORY=MYT - Town
+SUBSECTION=Porteiros
+DESCRIPTION=Porteiro (Elfa)
 
-[SPEECH jobTOWN]
+[SPEECH jobTOWNdoor]
 on=*vigie*porta
 IF (<src.TOWN_CHECK_SPK_PRIVS <UID>, 2>)
  SAY Que porta quer que eu vigie?
@@ -203,3 +385,212 @@ ELIF (STRMATCH(*<tag.raca>*,<obj.region.tag.TAG.TOWN_RACE_FORBIDDEN>))
  return 0
 endif
 RETURN 1
+
+
+
+
+
+
+
+
+
+
+
+//*****************************************************************************
+// guarda maça
+//*****************************************************************************
+[CHARDEF c_a_guard_m]
+ID=c_man
+NAME=#NAMES_HUMANMALE
+ICON=i_pet_MAN
+CAN=MT_EQUIP|MT_WALK|MT_RUN|MT_USEHANDS
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2
+FOODTYPE=15 t_food, t_fruit
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+BLOODCOLOR=0
+SOUND=snd_human_moomph01
+//TEVENTS=e_guard_town
+TEVENTS=e_PvM
+TEVENTS=e_combat 
+
+TSPEECH=jobTOWNGuard
+
+CATEGORY=MYT - Town
+SUBSECTION=Guardas
+DESCRIPTION=Guarda (Anao)
+
+ON=@Create
+NPC=brain_guard
+COLOR=colors_skin
+KARMA=5000
+
+MACEFIGHTING=100.0
+TACTICS=100.0
+FENCING=100.0
+
+STR=100
+DEX=110
+INT=50
+MAXHITS=200
+
+ITEM=i_kryss
+ITEM={i_maca 1 i_maca_guerra 1}
+ITEMNEWBIE=i_peito_malha
+ITEMNEWBIE=i_braco_malha
+ITEMNEWBIE=i_perna_malha
+ITEMNEWBIE=i_luva_malha
+ITEMNEWBIE=i_pescoco_malha
+ITEMNEWBIE={i_escudo_batalham 1 i_escudo_madeira 1 i_broquel 1}
+ITEM=i_coin_copper,{3 10}
+ITEM=i_boots_calf
+ITEMNEWBIE={i_hair_long 1 i_hair_2_pigtails 1}
+COLOR=colors_brown
+ITEMNEWBIE={i_beard_long_med 1 i_beard_long}
+COLOR=match_hair
+
+
+[SPEECH jobTOWNGuard]
+on=*pare*patrulhar*
+say Certo. Nao patrulharei mais.
+GUARD_NO_PATROL
+
+on=*pare*
+GUARD_STOP
+say Poins nao, <sex senhor/senhora>
+
+on=*patrulhar*
+GUARD_START_PATROL
+return 1
+
+on=*patrulhe*ponto*
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>, 2>)
+ say O que <sex o/a> <sex senhor/senhora> quer que eu guarde?
+ targetfg TOWN_GUARD_GUARD <UID>
+ENDIF
+return 1
+
+[FUNCTION TOWN_GUARD_GUARD]
+IF (<argo>)
+ uid.<argn>.GUARD_ADD_GUARD <argo.uid>
+else
+ uid.<argn>.GUARD_ADD_GUARD <targp>
+endif
+
+[FUNCTION GUARD_ADD_GUARD]
+say guardando <args>
+for i 0 2
+ if (<IsEmpty <tag.guard_<LOCAL.i>>>)
+  tag.guard_<LOCAL.i>=<args>
+  return 1
+ endif
+endfor
+
+LOCAL.old=<tag0.guard_00>
+for i 0 2
+ if (!<IsEmpty <tag.guard_<hval <LOCAL.i>+1>>>
+  tag.guard_<LOCAL.i>=<tag0.guard_<hval <LOCAL.i>+1>>
+ else
+  tag.guard_<LOCAL.i>=<args>
+ endif
+endfor
+say Deixei de guardar <local.old>
+
+[FUNCTION GUARD_START_PATROL]
+if (<IsEmpty <tag.waypoint>>)
+ tag.guarding=0
+ tag.waypoint=<tag.guard_00>
+elif (<tag0.guarding> < 2) && (!<IsEmpty <tag.guard_<hval <tag0.guarding>+1>>>)
+ tag.guarding += 1
+ tag.waypoint=<tag.guard_<tag.guarding>>
+else
+ tag.guarding=0
+ tag.waypoint=<tag.guard_00>
+endif
+tag.task=GUARD_TASK_PATROL
+GUARD_AI
+say novo destino: <tag0.guarding>
+
+[FUNCTION GUARD_PATROL]
+if (!<tag0.task>)
+ action=65
+ return 1
+endif
+if (<distance <tag.waypoint>> > 1)
+ goto <tag.waypoint>
+ timerf 5,GUARD_AI
+else
+ timerf 5,GUARD_START_PATROL
+endif
+
+[FUNCTION GUARD_STOP]
+timerf clear
+action=065
+timerf 20,GUARD_AI
+
+[FUNCTION GUARD_NO_PATROL]
+for i 0 2
+ tag.guard_<LOCAL.i>=
+endfor
+tag.task=
+tag.waypoint=
+tag.gurading=
+GUARD_STOP
+
+[FUNCTION GUARD_AI]
+IF (<tag0.task>==GUARD_TASK_PATROL)
+ GUARD_PATROL
+ELif (!<tag0.task>)
+ say Que chato ficar sem fazer nada...
+ IF (<action>=067)
+  action=065
+ ENDIF
+ TIMERF 50,GUARD_AI
+endif
+return 1
+
+[DIALOG d_town]
+100,75
+page 0
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+gumppic 0 0 10400
+gumppic 0 160 10401
+gumppic 0 356 10402
+gumppic 518 -2 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+gumppic 225 45 2501
+dtext 276 45 26 <region.name>
+resizepic 92 88 2620 416 70
+dtext 108 96 66 Responsavel:
+dtext 192 96 4 <uid.<region.tag.town_master>.tag.name>
+dtext 108 112 66 Tesouro:
+dtext 168 112 4 <TOWN_GET_TRESURE>
+dtext 328 112 66 Funcionarios:
+dtext 416 112 4 (funcionarios)
+call TOWN_RESOLV_DEMENCES
+dtext 108 128 66 Reino:
+dtext 152 128 4 <LOCAL.KINGDOM>
+dtext 224 128 66 Cidades:
+dtext 280 128 4 <QVAL <IsNum <LOCAL.CITY>>?<dLOCAL.CITY>:<LOCAL.CITY>>
+dtext 376 128 66 Vilas:
+dtext 416 128 4 <QVAL <LOCAL.VILLAGE>?<dLOCAL.CITY>:Nenhuma>
+
+[DIALOG d_town text]
+<region.name>
+Responsavel:
+<uid.<region.tag.town_master>.tag.name>
+Tesouro:
+(tesouro)
+Funcionarios:
+(funcionarios)
+Reino:
+(reino)
+Cidades:
+(cidades)
+Vilas:
+(vilas)
+
+[DIALOG d_town button]
+on=0
