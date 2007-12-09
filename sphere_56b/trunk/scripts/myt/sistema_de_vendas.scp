@@ -202,6 +202,7 @@ SRC.CTAG.vendor_numItems=0
 SRC.CTAG.vendor_op=2    //NPC vende
 
 local.removedPlayer=0
+local.removedItem=0
 
 //varre o banco
 if ( <DB.connected> )
@@ -210,14 +211,18 @@ if ( <DB.connected> )
     if (<DB.ROW.NUMROWS> > 0)
         for R 0 <eval <DB.ROW.NUMROWS>-1>
             REF1=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
-            if (<REF1.isplayer>)
-                SRC.CTAG.vendor_numItems += 1
-                TRY SRC.CTAG.vendor_items<eval  (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idItem>
-                TRY SRC.CTAG.vendor_owners<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
-                TRY SRC.CTAG.vendor_prices<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.price>
-            else
-                serv.log [VENDOR] NOT PLAYER: <REF1.uid>
+            REF2=<DB.ROW.<eval <LOCAL.R>>.idItem>
+            if (!<REF1.isplayer>)
+                serv.log [VENDOR] NOT PLAYER: <REF1>
                 local.removedPlayer=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+            elif (!<REF2>)
+                local.removedItem=<DB.ROW.<eval <LOCAL.R>>.idItem>
+                serv.log [VENDOR] INVALID ITEM: <local.removedItem>
+            else
+                SRC.CTAG.vendor_numItems += 1
+                TRY SRC.CTAG.vendor_items<eval  (<SRC.CTAG.vendor_numItems>)>=<REF2>
+                TRY SRC.CTAG.vendor_owners<eval (<SRC.CTAG.vendor_numItems>)>=<REF1>
+                TRY SRC.CTAG.vendor_prices<eval (<SRC.CTAG.vendor_numItems>)>=<DB.ROW.<eval <LOCAL.R>>.price>
             endif
         end
     endif
@@ -226,6 +231,11 @@ endif
 if (<LOCAL.removedPlayer>)
     DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer=<eval <LOCAL.removedPlayer>>"
 endif
+
+if (<LOCAL.removedItem>)
+    DB.EXECUTE "DELETE FROM vendorItems WHERE idItem=<eval <LOCAL.removedItem>>"
+endif
+
 
 SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPerPage) + 1)> 
 return 1
@@ -685,6 +695,58 @@ elif ( <SRC.CTAG0.vendor_op>==3 )
     endif
 endif
 
+
+//*****************************************************************************
+// vendor_fix
+//*****************************************************************************
+//remove invalid itens
+[FUNCTION vendor_fix]
+
+LOCAL.i=0
+LOCAL.p=0
+
+//varre o banco
+if ( <DB.connected> )
+    DB.QUERY "SELECT idItem, idPlayer FROM vendorItems"
+    if (<DB.ROW.NUMROWS> > 0)
+        for R 0 <eval <DB.ROW.NUMROWS>-1>
+            REF1=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+            REF2=<DB.ROW.<eval <LOCAL.R>>.idItem>
+            if (!<REF1>)
+                LOCAL.r=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+                if (!<LOCAL.p>)
+                    LOCAL.rp=<dLOCAL.r>
+                else
+                    LOCAL.rp=<LOCAL.rp>,<dLOCAL.r>
+                endif
+                LOCAL.p += 1
+                serv.log [VENDOR] INVALID PLAYER: <LOCAL.r>
+            elif (!<REF2>)
+                LOCAL.r=<DB.ROW.<eval <LOCAL.R>>.idItem>
+                if (!<LOCAL.i>)
+                    LOCAL.ri=<dLOCAL.r>
+                else
+                    LOCAL.ri=<LOCAL.ri>,<dLOCAL.r>
+                endif
+                LOCAL.i += 1
+                serv.log [VENDOR] INVALID ITEM: <LOCAL.r>
+            endif
+        end
+    endif
+endif
+serv.log [VENDOR] - <eval <DB.ROW.NUMROWS>> itens scanned
+
+if (<LOCAL.p>)
+    DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer IN (<LOCAL.rp>)>"
+endif
+
+if (<LOCAL.i>)
+    DB.EXECUTE "DELETE FROM vendorItems WHERE idItem IN (<LOCAL.ri>)>"
+endif
+
+serv.log [VENDOR] - <LOCAL.p> players removed, <LOCAL.i> itens removed.
+
+
 //*****************************************************************************
 // f_onchar_delete
 //*****************************************************************************
@@ -868,6 +930,12 @@ dialog d_vendor_list
 [DIALOG d_vendor_list]
 100,100
 page 0
+
+if (!<SRC.CTAG0.vendor_numItems>)
+    src.sysmessageyellow Erro! Nao ha itens!!
+    vendor_buySellTrigger
+    return 1
+endif
 
 LOCAL.startItem=<eval ((<SRC.CTAG0.vendor_page> - 1) * vendor_itemsPerPage ) + 1>
 LOCAL.endItem=<eval (<SRC.CTAG0.vendor_page> * vendor_itemsPerPage)>
