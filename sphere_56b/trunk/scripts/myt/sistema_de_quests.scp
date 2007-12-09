@@ -13,13 +13,13 @@
 //*****************************************************************************
 //* TIPO ********** PARAM1 ******************* PARAM 2 ************************
 //*****************************************************************************
-//* kill mob     * mob defname              * N/A                             *
-//* get mob item * mob defname              * item defname                    *
-//* get item     * NPC uid                  * item defname                    *
-//* craft item   * item defname             * N/A                             *
-//* find item    * item defname             * N/A                             *
+//* kill mob     * mob defname              * item defname                    *
+//*#get mob item * mob defname              * item defname                    *
+//*#get item     * NPC uid                  * item defname                    *
+//*#craft item   * item defname             * N/A                             *
+//*#find item    * item defname             * N/A                             *
 //* escort       * x,y,z,m                  * N/A                             *
-//* delivery     * item defname (1)         * NPC uid / N/A=NPC QUEST         *
+//*#delivery     * item defname (1)         * NPC uid / N/A=NPC QUEST         *
 //* text         * timeout (s)              * NPC uid / N/A=NPC QUEST         *
 //* talk to      * item defname (1)         * NPC uid / N/A=NPC QUEST         *
 //* reward       * item defname             * NPC uid / N/A=NPC QUEST         *
@@ -88,12 +88,12 @@ quest_itemsPerPage=15
 
 //quest types
 quest_type_kill_mob=1
-quest_type_get_mob_item=2
+quest_type_get_mob_item=2   //NAO SERA USADO POIS TEM A MESMA FUNCIONALIDADE DO KILL MOB
 quest_type_get_item=3       //*
 quest_type_craft_item=4     //*
 quest_type_find_item=5      //*
 quest_type_escort=6         
-quest_type_delivery=7
+quest_type_delivery=7       //NAO SERA USADO POIS TEM A MESMA FUNCIONALIDADE DO TALK TO
 quest_type_text=8
 quest_type_talkto=9
 quest_type_reward=10
@@ -122,10 +122,6 @@ forcont <SRC> 0
         if ( <morex> == quest_type_kill_mob ) 
             if ( <SRC.ACT.baseid>==<tag.param1> )
                 quest_updateKillMobQuest <uid>
-            endif
-        elif ( <morex> == quest_type_get_mob_item )
-            if ( <SRC.ACT.baseid>==<tag.param1> )
-                quest_updateGetMobItemQuest <uid>
             endif
         endif
     endif
@@ -221,33 +217,20 @@ OBJ=<argv[0]>
 //verifica se o step nao foi completado
 if ( <OBJ.amount> > 0 )
     OBJ.amount=<OBJ.amount>-1
-    if ( <OBJ.amount> == 0 )    //acabou de completar o step
-        OBJ.cont.sysmessageyellow Voce finalizou um objetivo da quest.
-        quest_nextStep <OBJ>
-    else                        //ainda nao completou
-        SRC.sysmessageyellow Voce matou um(a) <SRC.ACT.name>. Falta(m) <OBJ.amount>!!
+
+    //salve nome
+    LOCAL.killed=<SRC.ACT.name>
+    
+    if !(strmatch(<serv.itemdef.<OBJ.tag.param2>.name>,0))
+        SRC.NEWITEM <tag.param2>
+        NEW.cont=<SRC.findlayer.layer_pack.uid>
     endif
-endif
-return 1
-
-//*****************************************************************************
-// quest_updateGetMobItemQuest ( questMemory )
-//*****************************************************************************
-[FUNCTION quest_updateGetMobItemQuest]
-OBJ=<argv[0]>
-
-//verifica se o step nao foi completado
-if ( <OBJ.amount> > 0 )
-    OBJ.amount=<OBJ.amount>-1
-
-    SRC.NEWITEM <tag.param2>
-    NEW.cont=<SRC.findlayer.layer_pack.uid>
 
     if ( <OBJ.amount> == 0 )    //acabou de completar o step
         OBJ.cont.sysmessageyellow Voce finalizou um objetivo da quest.
         quest_nextStep <OBJ>
     else                        //ainda nao completou
-        SRC.sysmessageyellow Voce pegou um(a) <NEW.name>. Falta(m) <OBJ.amount>!!
+        SRC.sysmessageyellow Voce matou um(a) <LOCAL.killed>. Falta(m) <OBJ.amount>!!
     endif
 endif
 return 1
@@ -333,22 +316,6 @@ else
 endif
 return 1
 
-
-//*****************************************************************************
-// quest_updateDeliveryQuest ( questMemory )
-//*****************************************************************************
-[FUNCTION quest_updateDeliveryQuest]
-
-OBJ=<argv[0]>
-
-if ( <OBJ.cont.restest <OBJ.amount> <OBJ.tag.param1>>)
-    OBJ.cont.consume <OBJ.amount> <OBJ.tag.param1>
-    OBJ.cont.sysmessageyellow Voce finalizou um objetivo da quest.    
-    quest_nextStep <OBJ>
-else
-    TRYSRV uid.<OBJ.tag.param2>.message Voce nao tem o que preciso. Volte quando tiver.
-endif
-return 1
 
 //*****************************************************************************
 // quest_createNpcQuestList
@@ -517,21 +484,12 @@ elif ( <DB.ROW.type> == quest_type_talkto )
     OBJ.cont.sysmessageyellow Fale com <uid.<OBJ.tag.param2>.name>
 elif ( <DB.ROW.type> == quest_type_escort )
     OBJ.LINK.TAG.quest_npcInQuest=1
+    OBJ.LINK.TAG.quest_npcMoving=1
     OBJ.LINK.TAG.quest_destination=<DB.ROW.param1>
     OBJ.LINK.TAG.quest_home=<OBJ.LINK.home>
     OBJ.LINK.TAG.quest_npcQuestMry=<OBJ>
     OBJ.timer = 1
     OBJ.cont.sysmessageyellow Escolte <OBJ.link.name>
-elif ( <DB.ROW.type> == quest_type_delivery )
-    SERV.NEWITEM <OBJ.tag.param1>
-    NEW.amount=<OBJ.amount>
-    NEW.cont=<OBJ.cont.findlayer.layer_pack.uid>
-
-    //set default NPC to the MAIN QUEST NPC
-    if ( !<OBJ.tag.param2> )
-        OBJ.tag.param2=<OBJ.link>
-    endif
-    OBJ.cont.sysmessageyellow Entregue <new.name> para <uid.<OBJ.tag.param2>.name>
 elif ( <DB.ROW.type> == quest_type_reward )
     SERV.NEWITEM <OBJ.tag.param1>
     NEW.amount=<OBJ.amount>
@@ -544,9 +502,11 @@ elif ( <DB.ROW.type> == quest_type_reward )
     endif
     OBJ.timer = 1
 elif ( <DB.ROW.type> == quest_type_kill_mob )
-    OBJ.cont.sysmessageyellow Mate <OBJ.amount> <serv.chardef.<OBJ.tag.param1>.name>
-elif ( <DB.ROW.type> == quest_type_get_mob_item )
-    OBJ.cont.sysmessageyellow Mate <OBJ.amount> <serv.chardef.<OBJ.tag.param1>.name> e traga <serv.itemdef.<OBJ.tag.param2>.name>
+    if (strmatch(<serv.itemdef.<OBJ.tag.param2>.name>,0))
+        OBJ.cont.sysmessageyellow Mate <OBJ.amount> <serv.chardef.<OBJ.tag.param1>.name>
+    else
+        OBJ.cont.sysmessageyellow Mate <OBJ.amount> <serv.chardef.<OBJ.tag.param1>.name> e traga <serv.itemdef.<OBJ.tag.param2>.name>
+    endif
 endif   
 
 DB.EXECUTE "UPDATE questState SET idStep=<eval <OBJ.morez>> WHERE idQuest=<eval <OBJ.morey>> AND idPlayer=<eval <OBJ.cont>>"
@@ -813,9 +773,9 @@ on=0 Matar NPC
     src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_kill_mob>
     src.dialog d_quest_step_editor
 
-on=0 Pegar ITEM do NPC (matar e pegar)
-    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_get_mob_item>
-    src.dialog d_quest_step_editor
+//on=0 Pegar ITEM do NPC (matar e pegar)
+//    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_get_mob_item>
+//    src.dialog d_quest_step_editor
 
 //on=0 Pegar ITEM
 //    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_get_item>
@@ -833,9 +793,9 @@ on=0 Escoltar
     src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_escort>
     src.dialog d_quest_step_editor
     
-on=0 Entregar
-    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_delivery>
-    src.dialog d_quest_step_editor
+//on=0 Entregar
+//    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_delivery>
+//    src.dialog d_quest_step_editor
  
 on=0 Fala (mensagem)
     src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_text>
@@ -845,7 +805,7 @@ on=0 Falar com NPC
     src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_talkto>
     src.dialog d_quest_step_editor
 
-on=0 Recompensar
+on=0 Dar item
     src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_reward>
     src.dialog d_quest_step_editor
 
@@ -1059,16 +1019,16 @@ SRC.CTAG0.quest_selectedStepType=<LOCAL.type>
 
 doswitch <LOCAL.type>
     return 1
-    LOCAL.help=Matar NPC<def.br>Param1: NPC defname<def.br>Quantidade: numero de NPCs para matar
-    LOCAL.help=Matar NPC e pegar ITEM<def.br>Param1: NPC defname<def.br>Param2: ITEM defname<def.br>Quantidade: numero de NPCs para matar
+    LOCAL.help=Matar NPC<def.br>Param1: NPC defname<def.br>Param2: ITEM defname<def.br>Quantidade: numero de NPCs para matar<def.br>O player tera que matar 1 ou mais NPCs com o chardef especificado. Se PARAM2 for especificado, a cada morte o player recebera o itemdef.
+    LOCAL.help=kill mob get item
     LOCAL.help=get item
     LOCAL.help=craft item
     LOCAL.help=find item
-    LOCAL.help=Escoltar NPC<def.br>Param1: x,y,z destino
-    LOCAL.help=Entregar ITEM para NPC<def.br>Param1: ITEM defname<def.br>Param2: NPC UID ou 0 para mesmo NPC<def.br>Quantidade: numero de ITEMs para entregar
-    LOCAL.help=Fala do NPC<def.br>Param1: tempo de duracao da fala<def.br>Descricao: Fala que o NPC ira usar
+    LOCAL.help=Escoltar NPC<def.br>Param1: x,y,z destino<def.br>
+    LOCAL.help=delivery
+    LOCAL.help=Fala do NPC<def.br>Param1: tempo de duracao da fala<def.br>Param2:NPC UID ou 0 para mesmo NPC que ira falar<def.br>Descricao: Fala que o NPC ira usar
     LOCAL.help=Falar com NPC<def.br>Param1: ITEM defname para entregar ao NPC (opcional)<def.br>Param2: NPC UID ou 0 para mesmo NPC<def.br>Quantidade: numero de ITEMs para entregar (param1)
-    LOCAL.help=Recompensar<def.br>Param1: ITEM defname<def.br>Param2: NPC UID ou 0 para mesmo NPC que entrega a recompensa<def.br>Quantidade: numero de ITEMSs para recompensar
+    LOCAL.help=Dar item<def.br>Param1: ITEM defname<def.br>Param2: NPC UID ou 0 para mesmo NPC que entrega o item<def.br>Quantidade: numero de ITEMSs para recompensar
 enddo
 
 resizepic 0 0 83 320 399
@@ -1129,14 +1089,14 @@ ON=4 // btParam2
 LOCAL.help=1
 doswitch <SRC.CTAG0.quest_selectedStepType>
     LOCAL.help=1 //invalid
-    LOCAL.help=1 //kill mob
+    LOCAL.help=Selecione o ITEM (itemdef) que o NPC ira dar quando morrer
     LOCAL.help=Selecione o ITEM (itemdef) que o NPC ira dar quando morrer
     LOCAL.help=1 //get item
     LOCAL.help=1 //craft item
     LOCAL.help=1 //find item
     LOCAL.help=1 //escort
     LOCAL.help=Selecione o NPC (uid) que deve receber o ITEM
-    LOCAL.help=1 //talk
+    LOCAL.help=Selecione o NPC (uid) que deve falar
     LOCAL.help=Selecione o NPC (uid) que o player deve conversar
     LOCAL.help=Selecione o NPC (uid) que ira entregar a recompensa.
 enddo
@@ -1343,33 +1303,6 @@ DESCRIPTION=Quest (Anao)
 // jobQUEST_SYSTEM
 //*****************************************************************************
 [SPEECH jobQUEST_SYSTEM]
-ON=*oi*
-ON=*ola*
-ON=*bom dia*
-ON=*boa tarde*
-ON=*boa noite*
-
-    if ( <TAG0.quest_npcInQuest> > 0 )
-        if ( <uid.<TAG0.quest_npcQuestMry>.cont> == <SRC> )
-            message Ola!    
-        else
-            message Estou ocupado no momento. Me procure outra hora.
-        endif
-        return 1
-    endif
-    
-    quest_closeDialogs
-    
-    SRC.CTAG.quest_selectedNpc=<uid>
-    quest_createNpcQuestList
-    if ( <SRC.CTAG0.quest_numQuests> < 1 ) && !( <src.isgm> )
-        message Nao tenho nenhuma missao para voce no momento.
-    else
-        message O que deseja fazer?
-    
-        dialog d_quest_list
-    endif
-return 1
 
 //SOMENTE EM QUEST "ESCORT". FAZ NPC SEGUIR
 ON=*venha*
@@ -1415,25 +1348,42 @@ return 1
 
 //FINALIZA QUESTS TIPO "TALK TO"
 ON=*
-
+    
     if ( <TAG0.quest_npcInQuest> > 0 )
+        if ( <uid.<TAG0.quest_npcQuestMry>.cont> == <SRC> )
+            message Ola!    
+        else
+            message Estou ocupado no momento. Me procure outra hora.
+        endif
         return 1
     endif
-
+    
+    LOCAL.d=0
     LOCAL.uid=<uid>
     forcont <SRC> 0
         if ( <baseid>==i_quest_system )
             if ( <morex> == quest_type_talkto ) 
                 if ( <LOCAL.uid>==<tag.param2> )
                     quest_updateTalktoQuest <uid>
-                endif
-            elif ( <morex> == quest_type_delivery ) 
-                if ( <LOCAL.uid>==<tag.param2> )
-                    quest_updateDeliveryQuest <uid>
+                    LOCAL.d=1
                 endif
             endif
         endif
     endfor
+    
+    if !(<LOCAL.d>) && ( strmatch(*oi*,<args>) || strmatch(*ola*,<args>) )
+        quest_closeDialogs
+
+        SRC.CTAG.quest_selectedNpc=<uid>
+        quest_createNpcQuestList
+        if ( <SRC.CTAG0.quest_numQuests> < 1 ) && !( <src.isgm> )
+            message Nao tenho nenhuma missao para voce no momento.
+        else
+            message O que deseja fazer?
+
+            dialog d_quest_list
+        endif
+    endif
 return 1
 
 
