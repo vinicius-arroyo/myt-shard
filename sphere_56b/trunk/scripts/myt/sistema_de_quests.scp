@@ -20,7 +20,7 @@
 //* find item    * item defname             * N/A                             *
 //* escort       * x,y,z,m                  * N/A                             *
 //* delivery     * item defname (1)         * NPC uid / N/A=NPC QUEST         *
-//* text         * timeout (s)              *                                 *
+//* text         * timeout (s)              * NPC uid / N/A=NPC QUEST         *
 //* talk to      * item defname (1)         * NPC uid / N/A=NPC QUEST         *
 //* reward       * item defname             * NPC uid / N/A=NPC QUEST         *
 //*****************************************************************************
@@ -147,7 +147,7 @@ ON=@DEATH
         endif
         OBJ.remove
         
-        sysmessage Um objetivo da missão falhou.
+        sysmessageyellow Um objetivo da missão falhou.
     endif
 
     p=<home>
@@ -222,10 +222,10 @@ OBJ=<argv[0]>
 if ( <OBJ.amount> > 0 )
     OBJ.amount=<OBJ.amount>-1
     if ( <OBJ.amount> == 0 )    //acabou de completar o step
-        OBJ.cont.sysmessage Voce finalizou um objetivo da quest.
+        OBJ.cont.sysmessageyellow Voce finalizou um objetivo da quest.
         quest_nextStep <OBJ>
     else                        //ainda nao completou
-        SRC.sysmessage Voce matou um(a) <SRC.ACT.name>. Falta(m) <OBJ.amount>!!
+        SRC.sysmessageyellow Voce matou um(a) <SRC.ACT.name>. Falta(m) <OBJ.amount>!!
     endif
 endif
 return 1
@@ -244,10 +244,10 @@ if ( <OBJ.amount> > 0 )
     NEW.cont=<SRC.findlayer.layer_pack.uid>
 
     if ( <OBJ.amount> == 0 )    //acabou de completar o step
-        OBJ.cont.sysmessage Voce finalizou um objetivo da quest.
+        OBJ.cont.sysmessageyellow Voce finalizou um objetivo da quest.
         quest_nextStep <OBJ>
     else                        //ainda nao completou
-        SRC.sysmessage Voce pegou um(a) <NEW.name>. Falta(m) <OBJ.amount>!!
+        SRC.sysmessageyellow Voce pegou um(a) <NEW.name>. Falta(m) <OBJ.amount>!!
     endif
 endif
 return 1
@@ -262,7 +262,7 @@ OBJ=<argv[0]>
 if ( <OBJ.amount> > 0 )
     if ( <OBJ.cont.restest <OBJ.amount> <OBJ.tag.param1>>)
         OBJ.cont.consume <OBJ.amount> <OBJ.tag.param1>
-        OBJ.cont.sysmessage Voce finalizou um objetivo da quest.    
+        OBJ.cont.sysmessageyellow Voce finalizou um objetivo da quest.    
         quest_nextStep <OBJ>
     else
         TRYSRV uid.<OBJ.tag.param2>.message Voce nao tem o que preciso. Volte quando tiver.
@@ -299,7 +299,7 @@ endif
 
 if ( <LOCAL.dist> > 30 )
     DORAND 8
-        CONT.sysmessage Me espere!!!
+        CONT.sysmessageyellow Me espere!!!
     ENDDO
 //  CONT.sysmessage medio
 endif
@@ -323,7 +323,7 @@ if ( <LINK.DISTANCE <LINK.TAG0.quest_destination>> <= 7 )
     NEW.timer = 5     //check after 5 secs
 
 
-    CONT.sysmessage Voce finalizou um objetivo da quest.
+    CONT.sysmessageyellow Voce finalizou um objetivo da quest.
     LINK.TAG.quest_npcInQuest=0
     LINK.TAG.quest_npcQuestMry=0
     timer=-1
@@ -343,7 +343,7 @@ OBJ=<argv[0]>
 
 if ( <OBJ.cont.restest <OBJ.amount> <OBJ.tag.param1>>)
     OBJ.cont.consume <OBJ.amount> <OBJ.tag.param1>
-    OBJ.cont.sysmessage Voce finalizou um objetivo da quest.    
+    OBJ.cont.sysmessageyellow Voce finalizou um objetivo da quest.    
     quest_nextStep <OBJ>
 else
     TRYSRV uid.<OBJ.tag.param2>.message Voce nao tem o que preciso. Volte quando tiver.
@@ -473,12 +473,12 @@ endif
 
 OBJ=<ARGV[0]>
 LOCAL.nextStep=<OBJ.morez>+1
-//OBJ.cont.sysmessage INDO STEP <LOCAL.nextStep>
+//OBJ.cont.sysmessageyellow INDO STEP <LOCAL.nextStep>
 
 DB.QUERY "SELECT idQuest, idStep, type+0 AS type, quantity, param1, param2, description FROM questSteps WHERE idQuest=<eval <OBJ.morey>> AND idStep=<eval <LOCAL.nextStep>> LIMIT  1"
 if ( <DB.ROW.NUMROWS> <= 0 )
     DB.EXECUTE "UPDATE questState SET dateCompleted=NOW() WHERE idQuest=<eval <OBJ.morey>> AND idPlayer=<eval <OBJ.cont>>"
-    OBJ.cont.sysmessage Missao Cumprida.
+    OBJ.cont.sysmessageyellow Missao Cumprida.
     OBJ.remove
     return 1
 endif
@@ -497,7 +497,12 @@ OBJ.timer = -1
 OBJ.cont.EVENTS +e_quest
 
 if ( <OBJ.morex> == quest_type_text )
-    OBJ.link.message <DB.ROW.description>
+    if ( <OBJ.tag.param2> )
+        TRYSRV uid.<OBJ.tag.param2>.message <DB.ROW.description>
+    else
+        OBJ.link.message <DB.ROW.description>
+    endif
+
     if ( <OBJ.tag.param1> > 0 )
         OBJ.timer = <OBJ.tag.param1>
     else
@@ -509,13 +514,14 @@ elif ( <DB.ROW.type> == quest_type_talkto )
         OBJ.tag.param2=<OBJ.link>
     endif
     
-    OBJ.cont.sysmessage Fale com <uid.<OBJ.tag.param2>.name>
+    OBJ.cont.sysmessageyellow Fale com <uid.<OBJ.tag.param2>.name>
 elif ( <DB.ROW.type> == quest_type_escort )
     OBJ.LINK.TAG.quest_npcInQuest=1
     OBJ.LINK.TAG.quest_destination=<DB.ROW.param1>
     OBJ.LINK.TAG.quest_home=<OBJ.LINK.home>
     OBJ.LINK.TAG.quest_npcQuestMry=<OBJ>
     OBJ.timer = 1
+    OBJ.cont.sysmessageyellow Escolte <OBJ.link.name>
 elif ( <DB.ROW.type> == quest_type_delivery )
     SERV.NEWITEM <OBJ.tag.param1>
     NEW.amount=<OBJ.amount>
@@ -525,7 +531,7 @@ elif ( <DB.ROW.type> == quest_type_delivery )
     if ( !<OBJ.tag.param2> )
         OBJ.tag.param2=<OBJ.link>
     endif
-
+    OBJ.cont.sysmessageyellow Entregue <new.name> para <uid.<OBJ.tag.param2>.name>
 elif ( <DB.ROW.type> == quest_type_reward )
     SERV.NEWITEM <OBJ.tag.param1>
     NEW.amount=<OBJ.amount>
@@ -537,17 +543,17 @@ elif ( <DB.ROW.type> == quest_type_reward )
         OBJ.link.message <DB.ROW.description>
     endif
     OBJ.timer = 1
+elif ( <DB.ROW.type> == quest_type_kill_mob )
+    OBJ.cont.sysmessageyellow Mate <OBJ.amount> <serv.chardef.<OBJ.tag.param1>.name>
+elif ( <DB.ROW.type> == quest_type_get_mob_item )
+    OBJ.cont.sysmessageyellow Mate <OBJ.amount> <serv.chardef.<OBJ.tag.param1>.name> e traga <serv.itemdef.<OBJ.tag.param2>.name>
 endif   
 
 DB.EXECUTE "UPDATE questState SET idStep=<eval <OBJ.morez>> WHERE idQuest=<eval <OBJ.morey>> AND idPlayer=<eval <OBJ.cont>>"
 
-//elif ( <DB.ROW.type> == quest_type_kill_mob )
-//elif ( <DB.ROW.type> == quest_type_get_mob_item )
 //elif ( <DB.ROW.type> == quest_type_get_item )
 //elif ( <DB.ROW.type> == quest_type_craft_item )
 //elif ( <DB.ROW.type> == quest_type_find_item )
-//elif ( <DB.ROW.type> == quest_type_escort )
-//elif ( <DB.ROW.type> == quest_type_delivery )
 
 //*****************************************************************************
 // quest_drawGumps
@@ -596,7 +602,7 @@ if (<eval <argv[0]>> == 0)
     return 1
 else
     SRC.targetfg quest_placeNpc <argv[0]>
-    SRC.sysmessage Onde deseja colocar o NPC?
+    SRC.sysmessageyellow Onde deseja colocar o NPC?
 endif
 return 1
 
@@ -617,14 +623,14 @@ return 1
 // quest_cleanup
 //*****************************************************************************
 [FUNCTION quest_cleanup]
-forcont <SRC> 0
+forcont <uid> 0
     if ( <baseid>==i_quest_system )
         remove
     endif
 endfor
 
 if ( <DB.connected> )
-    DB.EXECUTE "DELETE FROM questState WHERE idPlayer=<eval <OBJ.cont>>"
+    DB.EXECUTE "DELETE FROM questState WHERE idPlayer=<eval <uid>>"
 endif
 
 //*****************************************************************************
@@ -633,17 +639,17 @@ endif
 [FUNCTION quest_assign]
 
 if !( <argv[0]> )
-    sysmessage Use quest_assign quest_id
+    sysmessageyellow Use quest_assign quest_id
     return 1
 endif
 
 if ( <argo>==0 )
-    sysmessage Selecion o NPC para associar a quest <argv[0]>
+    sysmessageyellow Selecion o NPC para associar a quest <argv[0]>
     targetf quest_assign <argv[0]>
     return 1
 endif
 
-sysmessage Quest associada.
+sysmessageyellow Quest associada.
 
 if ( <DB.connected> )
     DB.EXECUTE "UPDATE quests SET idNpc=<eval <argo>> WHERE idQuest=<eval <argv[0]>>"
