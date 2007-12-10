@@ -288,9 +288,13 @@ if ( <LOCAL.dist> > 30 )
 endif
 
 //corre atras se a distancia for pequena
-if ( <LOCAL.dist> > 7 )
-    if (<link.f_npcRunStepToUid <cont>,5>
-        LINK.home <LINK.p>
+if ( <LOCAL.dist> > 3 )
+    if (<link.canseelos <cont>>)
+        if (<link.f_npcRunStepToUid <cont>,5>
+            LINK.home <LINK.p>
+        endif
+    else
+        link.go <cont.p>
     endif
 //  message seguindo... <CONT.p> <eval <LOCAL.dx>> <eval <LOCAL.dy>>
 //se a distancia for pequena, para e anda por perto
@@ -1304,54 +1308,20 @@ DESCRIPTION=Quest (Anao)
 //*****************************************************************************
 [SPEECH jobQUEST_SYSTEM]
 
-//SOMENTE EM QUEST "ESCORT". FAZ NPC SEGUIR
-ON=*venha*
-ON=*ande*
-
-    if ( <TAG0.quest_npcInQuest> == 0 )
-        return 1
-    endif
-
-    LOCAL.uid=<uid>
-    forcont <SRC> 0
-        if ( <baseid>==i_quest_system )
-            if ( <morex> == quest_type_escort ) 
-                if ( <LOCAL.uid>==<link> )
-                    LINK.SAY Ok, estou indo!!
-                    LINK.TAG.quest_npcMoving=1
-                endif
-            endif
-        endif
-    endfor
-return 1
-
-//SOMENTE EM QUEST "ESCORT". FAZ NPC PARAR
-ON=*pare*
-ON=*espere*
-
-    if ( <TAG0.quest_npcInQuest> == 0 )
-        return 1
-    endif
-
-    LOCAL.uid=<uid>
-    forcont <SRC> 0
-        if ( <baseid>==i_quest_system )
-            if ( <morex> == quest_type_escort ) 
-                if ( <LOCAL.uid>==<link> )
-                    LINK.SAY Ok, esperarei aqui!!
-                    LINK.TAG.quest_npcMoving=0
-                endif
-            endif
-        endif
-    endfor
-return 1
-
 //FINALIZA QUESTS TIPO "TALK TO"
 ON=*
-    
+
     if ( <TAG0.quest_npcInQuest> > 0 )
         if ( <uid.<TAG0.quest_npcQuestMry>.cont> == <SRC> )
-            message Ola!    
+            if (strmatch(*pare*,<args>)) || (strmatch(*espere*,<args>))
+                    SAY Ok, esperarei aqui!!
+                    TAG.quest_npcMoving=0
+                    return 1
+            elif (strmatch(*venha*,<args>)) || (strmatch(*ande*,<args>))
+                    SAY Ok, estou indo!!
+                    TAG.quest_npcMoving=1
+                    return 1
+            endif
         else
             message Estou ocupado no momento. Me procure outra hora.
         endif
