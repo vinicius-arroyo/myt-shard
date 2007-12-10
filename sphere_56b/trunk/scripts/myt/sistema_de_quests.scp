@@ -137,18 +137,12 @@ ON=@DEATH
         TAG0.quest_npcInQuest = 0
         home = <TAG0.quest_home>
         
-        OBJ=<TAG0.quest_npcQuestMry>
-        if ( <DB.connected> )
-            DB.EXECUTE "DELETE FROM questState WHERE idQuest=<eval <OBJ.morey>> AND idPlayer=<eval <OBJ.cont>>"
-        endif
-        OBJ.remove
-        
-        sysmessageyellow Um objetivo da missão falhou.
+        quest_fail <TAG0.quest_npcQuestMry>
     endif
 
     p=<home>
     hits=<str>
-    
+    update
 return 1
 
 //*****************************************************************************
@@ -269,39 +263,6 @@ if ( !<LINK.TAG0.quest_npcMoving> )
     return 1
 endif
 
-//calcula distancia do player
-LOCAL.dist = <LINK.DISTANCE <CONT>>
-
-//para se a distancia for muito grande
-if ( <LOCAL.dist> > 60 )
-    LINK.TAG0.quest_npcMoving=0
-//pede para esperar se a distancia for media
-//  CONT.sysmessage longe
-    return 1
-endif
-
-if ( <LOCAL.dist> > 30 )
-    DORAND 8
-        CONT.sysmessageyellow Me espere!!!
-    ENDDO
-//  CONT.sysmessage medio
-endif
-
-//corre atras se a distancia for pequena
-if ( <LOCAL.dist> > 3 )
-    if (<link.canseelos <cont>>)
-        if (<link.f_npcRunStepToUid <cont>,5>
-            LINK.home <LINK.p>
-        endif
-    else
-        link.go <cont.p>
-    endif
-//  message seguindo... <CONT.p> <eval <LOCAL.dx>> <eval <LOCAL.dy>>
-//se a distancia for pequena, para e anda por perto
-else
-    LINK.home <CONT.p>
-endif
-
 //verifica se esta proximo do destino
 if ( <LINK.DISTANCE <LINK.TAG0.quest_destination>> <= 7 )
     SERV.NEWITEM i_quest_sendNpcBack
@@ -315,8 +276,58 @@ if ( <LINK.DISTANCE <LINK.TAG0.quest_destination>> <= 7 )
     LINK.TAG.quest_npcQuestMry=0
     timer=-1
     quest_nextStep <uid>
+elif (<cont.flags>&statf_dead)
+    LINK.home <LINK.TAG0.quest_home>
+    LINK.go <LINK.TAG0.quest_home>
+    LINK.TAG.quest_npcInQuest=0
+    LINK.TAG.quest_npcQuestMry=0
+    timer=-1
+    quest_fail <uid>
 else
-        
+    //calcula distancia do player
+    LOCAL.dist = <LINK.DISTANCE <CONT>>
+    if (<LOCAL.dist> > <LINK.TAG0.quest_npcdist>)
+        LOCAL.d=<eval <LOCAL.dist>-<LINK.TAG0.quest_npcdist>>
+    else
+        LOCAL.d=<eval <LINK.TAG0.quest_npcdist>-<LOCAL.dist>>
+    endif
+    LINK.TAG0.quest_npcdist=<LOCAL.dist>
+    
+    LOCAL.cs=<link.canseelos <cont>>
+    
+    //pegou teleport?
+    if (<LOCAL.d> > 18)
+        link.p <cont.p>
+        link.update            
+        return 1    
+    //se a distancia for muito grande para e espera
+    elif ( <LOCAL.dist> > 60 )
+        LINK.TAG0.quest_npcMoving=0
+        return 1
+    //se for media, pede pra esperar
+    elif ( <LOCAL.dist> > 18 )
+        DORAND 8
+            CONT.sysmessageyellow Me espere!!!
+        ENDDO
+        //nao persegue se nao puder ver
+        if !(<LOCAL.cs>)
+            return 1 
+        endif
+    //corre atras se a distancia for pequena        
+    elif ( <LOCAL.dist> > 3 )
+        if (<LOCAL.cs>)
+            if (<link.f_npcRunStepToUid <cont>,4>
+                LINK.home <LINK.p>
+            endif
+        else
+            link.p <cont.p>
+            link.update
+        endif
+    //  message seguindo... <CONT.p> <eval <LOCAL.dx>> <eval <LOCAL.dy>>
+    //se a distancia for pequena, para e anda por perto
+    else
+        LINK.home <CONT.p>
+    endif        
 endif
 return 1
 
@@ -492,6 +503,7 @@ elif ( <DB.ROW.type> == quest_type_escort )
     OBJ.LINK.TAG.quest_destination=<DB.ROW.param1>
     OBJ.LINK.TAG.quest_home=<OBJ.LINK.home>
     OBJ.LINK.TAG.quest_npcQuestMry=<OBJ>
+    OBJ.LINK.events +e_quest_npc
     OBJ.timer = 1
     OBJ.cont.sysmessageyellow Escolte <OBJ.link.name>
 elif ( <DB.ROW.type> == quest_type_reward )
@@ -518,6 +530,18 @@ DB.EXECUTE "UPDATE questState SET idStep=<eval <OBJ.morez>> WHERE idQuest=<eval 
 //elif ( <DB.ROW.type> == quest_type_get_item )
 //elif ( <DB.ROW.type> == quest_type_craft_item )
 //elif ( <DB.ROW.type> == quest_type_find_item )
+
+//*****************************************************************************
+// quest_fail( idMryQuest )
+//*****************************************************************************
+[FUNCTION quest_fail]
+OBJ=<argv0>
+if ( <DB.connected> )
+    DB.EXECUTE "DELETE FROM questState WHERE idQuest=<eval <OBJ.morey>> AND idPlayer=<eval <OBJ.cont>>"
+endif
+OBJ.remove
+
+src.sysmessageyellow Um objetivo da missão falhou.
 
 //*****************************************************************************
 // quest_drawGumps
