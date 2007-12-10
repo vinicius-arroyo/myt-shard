@@ -66,6 +66,9 @@ elif (!<src.targ.isweapon>) && (!<src.targ.isarmor>)
 elif (<src.findid.i_armslore_mry>)
     src.sysmessagered Voce ainda nao pode analisar outro item.
     return 1
+elif (<src.targ.attr>&attr_identified)
+    src.sysmessagered Este item ja foi identificado.
+    return 1
 endif
 
 src.emoteyellow Observando <src.targ.name>
@@ -119,77 +122,63 @@ if (!<maxhits>)
     serv.log ALOOOW: <name> <type> <uid> <src>
 endif
 //gm ve tudo
-if (<src.gm>)
-    LOCAL.e=0
+if (<src.isgm>) || (<attr>&attr_identified)
     LOCAL.c=1
 else
-    //calcular erro de 1 a 100
-    LOCAL.e=((1000-<src.armslore>)/10)
-    //variavel que diz se pode mostrar dados numericos
-    LOCAL.c=<src.armslore> > 500
+    LOCAL.c=0
 endif
 
 //definir nome de exibição
-if (<ATTR>&attr_identified) || (<SRC.IsGM>)
- IF (<ISEMPTY <DEF.<BASEID>_IDNAME>>)
-  LOCAL.name=<name>
- ELSE
-  LOCAL.name=<DEF.<BASEID>_IDNAME>
- ENDIF
-ELSE
- LOCAL.name=<name>
-ENDIF
+LOCAL.name=<name>
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
+  LOCAL.name=<DEF.<baseid>_IDNAME>
+endif
 
 //mostrar atributos
-IF !(<attr>&attr_identified) && (!<src.IsGM>)
- LOCAL.t = (nao identificado)<DEF.BR>
-ELSE
- IF (<more2>==20)
-  LOCAL.t = (envenenado)<DEF.BR>
- ELIF (<attr>&ATTR_MAGIC)
-  LOCAL.t = (mágico)<DEF.BR>
-  IF (<more2>) && (<more2>!=20)
-   LOCAL.t .= Magia: <SERV.SPELL.<more2>.NAME><DEF.BR>
-  ENDIF
-  IF (<DMGFIRE>)
-   LOCAL.t .= "+<eval <DMGFIRE>> (fogo)<DEF.BR>"
-  ENDIF
-  IF (<DMGCOLD>)
-   LOCAL.t .= "+<eval <DMGCOLD>> (gelo)<DEF.BR>"
-  ENDIF
-  IF (<DMGPOISON>)
-   LOCAL.t .= "+<eval <DMGPOISON>> (veneno)<DEF.BR>"
-  ENDIF
-  IF (<DMGENERGY>)
-   LOCAL.t .= "+<eval <DMGENERGY>> (eletricidade)<DEF.BR>"
-  ENDIF
- ELSE
-  LOCAL.t = (identificado)<DEF.BR>
- ENDIF
- IF (<attr>&attr_cursed)
-  LOCAL.t .= (amaldiçoado)<DEF.BR>
- ENDIF
- IF (<attr>&attr_cursed2)
-  LOCAL.t .= (maldito)<DEF.BR>
- ENDIF
- IF (<attr>&attr_blessed)
-  LOCAL.t .= (abençoado)<DEF.BR>
- ENDIF
- IF (<attr>&attr_blessed2)
-  LOCAL.t .= (sagrado)<DEF.BR>
- ENDIF
-ENDIF
+if !(<LOCAL.c>)
+ LOCAL.t = (nao identificado)<DEF.br>
+else
+ if (<more2>==20)
+  LOCAL.t = (envenenado)<DEF.br>
+ elif (<attr>&attr_magic)
+  LOCAL.t = (mágico)<DEF.br>
+  if (<more2>) && (<more2>!=20)
+   LOCAL.t .= magia: <serv.spell.<more2>.name><DEF.br>
+  endif
+  if (<dmgfire>)
+   LOCAL.t .= "+<eval <dmgfire>> (fogo)<DEF.br>"
+  endif
+  if (<dmgcold>)
+   LOCAL.t .= "+<eval <dmgcold>> (gelo)<DEF.br>"
+  endif
+  if (<dmgpoison>)
+   LOCAL.t .= "+<eval <dmgpoison>> (veneno)<DEF.br>"
+  endif
+  if (<dmgenergy>)
+   LOCAL.t .= "+<eval <dmgenergy>> (eletricidade)<DEF.br>"
+  endif
+ else
+  LOCAL.t = (identificado)<DEF.br>
+ endif
+ if (<attr>&attr_cursed)
+  LOCAL.t .= (amaldiçoado)<DEF.br>
+ endif
+ if (<attr>&attr_cursed2)
+  LOCAL.t .= (maldito)<DEF.br>
+ endif
+ if (<attr>&attr_blessed)
+  LOCAL.t .= (abençoado)<DEF.br>
+ endif
+ if (<attr>&attr_blessed2)
+  LOCAL.t .= (sagrado)<DEF.br>
+ endif
+endif
 
 //mostra dano
 LOCAL.t .= "Dano: "
-LOCAL.min=<f_spreadValue <dam.lo>,<LOCAL.e>>
-LOCAL.max=<f_spreadValue <dam.hi>,<LOCAL.e>>
+LOCAL.min=<dam.lo>
+LOCAL.max=<dam.hi>
 LOCAL.d=<eval (<dam.hi>+<dam.lo>)/2>
-if (<LOCAL.max> < <LOCAL.min>)
-    LOCAL.x=<LOCAL.max>
-    LOCAL.max=<LOCAL.min>
-    LOCAL.min=<LOCAL.x>
-endif
 if (<LOCAL.d><5)
     LOCAL.t .= Fraco
 elif (<LOCAL.d><10)
@@ -206,15 +195,10 @@ if (<LOCAL.c>)
 endif
 
 //mostra durabilidade
-LOCAL.t .= "<def.br>Qualidade: "
-LOCAL.min=<f_spreadValue <hits>,<LOCAL.e>>
-LOCAL.max=<f_spreadValue <maxhits>,<LOCAL.e>>
+LOCAL.t .= "<DEF.br>Qualidade: "
+LOCAL.min=<hits>
+LOCAL.max=<maxhits>
 LOCAL.d=<eval (<hits>*100)/<maxhits>>
-if (<LOCAL.max> < <LOCAL.min>)
-    LOCAL.x=<LOCAL.max>
-    LOCAL.max=<LOCAL.min>
-    LOCAL.min=<LOCAL.x>
-endif
 if (<LOCAL.d><25)
     LOCAL.t .= Pessimo
 elif (<LOCAL.d><50)
@@ -229,8 +213,8 @@ if (<LOCAL.c>)
 endif
 
 //forca necessaria
-LOCAL.t .= "<def.br>Forca para uso: "
-LOCAL.min=<f_spreadValue <reqstr>,<LOCAL.e>>
+LOCAL.t .= "<DEF.br>Forca para uso: "
+LOCAL.min=<reqstr>
 if (<reqstr><25)
     LOCAL.t .= Nenhuma
 elif (<reqstr><50)
@@ -246,23 +230,18 @@ endif
 
 //duas maos?
 if (<TWOHANDS>)
-    LOCAL.t .= "<def.br>Duas maos"
+    LOCAL.t .= "<DEF.br>Duas maos"
 endif
 
 //definir TOOLTIP se houver
-if (<ATTR>&attr_identified) || (<SRC.IsGM>)
- IF (!<ISEMPTY <DEF.<BASEID>_IDTIP>>)
-  LOCAL.t .= <DEF.BR><DEF.BFONT_CYAN><DEF.<BASEID>_IDTIP>
- ENDIF
-ENDIF
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDTIP>>)
+  LOCAL.t .= <DEF.br><DEF.bfont_cyan><DEF.<baseid>_IDTIP>
+endif
 
-//Sneek Peak de GM?
-IF !(<attr>&attr_identified) && (<src.isgm>)
- LOCAL.t .= <DEF.BR><DEF.BR><DEF.BFONT_LRED>[MODO GM]<DEF.BR><DEF.BFONT_white>(Nao identificado)
-ENDIF
-
-//LOCAL.t .= <def.br> Durabilidade
-//f_sendTooltip <LOCAL.name>,<local.t>
+//sneek peak de gm?
+if !(<attr>&attr_identified) && (<src.isgm>)
+ LOCAL.t .= <DEF.br><DEF.br><DEF.bfont_lred>[MODO GM]<DEF.br><DEF.bfont_white>(nao identificado)
+endif
 
 if !( 0<argv0> )
     src.addcliloc 1042971,<LOCAL.name>
@@ -276,76 +255,63 @@ endif
 //*****************************************************************************
 //mostra tooltip de armaduras de acordo com armslore
 [FUNCTION f_armorTooltip]
+
 //gm ve tudo
-if (<src.gm>)
-    LOCAL.e=0
+if (<src.isgm>) || (<attr>&attr_identified)
     LOCAL.c=1
 else
-    //calcular erro de 1 a 100
-    LOCAL.e=((1000-<src.armslore>)/10)
-    //variavel que diz se pode mostrar dados numericos
-    LOCAL.c=<src.armslore> > 500
+    LOCAL.c=0
 endif
 
 //definir nome de exibição
-if (<ATTR>&attr_identified) || (<SRC.IsGM>)
- IF (<ISEMPTY <DEF.<BASEID>_IDNAME>>)
-  LOCAL.name=<name>
- ELSE
-  LOCAL.name=<DEF.<BASEID>_IDNAME>
- ENDIF
-ELSE
- LOCAL.name=<name>
-ENDIF
+LOCAL.name=<name>
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
+  LOCAL.name=<DEF.<baseid>_IDNAME>
+endif
 
 //mostrar atributos
-IF !(<attr>&attr_identified) && (!<src.IsGM>)
- LOCAL.t = (nao identificado)<DEF.BR>
-ELSE
- IF (<attr>&ATTR_MAGIC)
-  LOCAL.t = (mágico)<DEF.BR>
-  IF (<more2>) && (<more2>!=20)
-   LOCAL.t .= Magia: <SERV.SPELL.<more2>.NAME><DEF.BR>
-  ENDIF
-  IF (<morex>)
-   LOCAL.t .= "+<eval <morex>> (fogo)<DEF.BR>"
-  ENDIF
-  IF (<morey>)
-   LOCAL.t .= "+<eval <morey>> (gelo)<DEF.BR>"
-  ENDIF
-  IF (<morez>)
-   LOCAL.t .= "+<eval <morez>> (veneno)<DEF.BR>"
-  ENDIF
-  IF (<morem>)
-   LOCAL.t .= "+<eval <morem>> (eletricidade)<DEF.BR>"
-  ENDIF
- ELSE
-  LOCAL.t = (identificado)<DEF.BR>
- ENDIF
- IF (<attr>&attr_cursed)
-  LOCAL.t .= (amaldiçoado)<DEF.BR>
- ENDIF
- IF (<attr>&attr_cursed2)
-  LOCAL.t .= (maldito)<DEF.BR>
- ENDIF
- IF (<attr>&attr_blessed)
-  LOCAL.t .= (abençoado)<DEF.BR>
- ENDIF
- IF (<attr>&attr_blessed2)
-  LOCAL.t .= (sagrado)<DEF.BR>
- ENDIF
-ENDIF
+if !(<LOCAL.c>)
+ LOCAL.t = (nao identificado)<DEF.br>
+else
+ if (<attr>&attr_magic)
+  LOCAL.t = (mágico)<DEF.br>
+  if (<more2>) && (<more2>!=20)
+   LOCAL.t .= magia: <serv.spell.<more2>.name><DEF.br>
+  endif
+  if (<morex>)
+   LOCAL.t .= "+<eval <morex>> (fogo)<DEF.br>"
+  endif
+  if (<morey>)
+   LOCAL.t .= "+<eval <morey>> (gelo)<DEF.br>"
+  endif
+  if (<morez>)
+   LOCAL.t .= "+<eval <morez>> (veneno)<DEF.br>"
+  endif
+  if (<morem>)
+   LOCAL.t .= "+<eval <morem>> (eletricidade)<DEF.br>"
+  endif
+ else
+  LOCAL.t = (identificado)<DEF.br>
+ endif
+ if (<attr>&attr_cursed)
+  LOCAL.t .= (amaldiçoado)<DEF.br>
+ endif
+ if (<attr>&attr_cursed2)
+  LOCAL.t .= (maldito)<DEF.br>
+ endif
+ if (<attr>&attr_blessed)
+  LOCAL.t .= (abençoado)<DEF.br>
+ endif
+ if (<attr>&attr_blessed2)
+  LOCAL.t .= (sagrado)<DEF.br>
+ endif
+endif
 
 //mostra dano
 LOCAL.t .= "Protecao: "
-LOCAL.min=<f_spreadValue <armor.lo>,<LOCAL.e>>
-LOCAL.max=<f_spreadValue <armor.hi>,<LOCAL.e>>
+LOCAL.min=<armor.lo>
+LOCAL.max=<armor.hi>
 LOCAL.d=<eval (<armor.hi>+<armor.lo>)/2>
-if (<LOCAL.max> < <LOCAL.min>)
-    LOCAL.x=<LOCAL.max>
-    LOCAL.max=<LOCAL.min>
-    LOCAL.min=<LOCAL.x>
-endif
 if (<LOCAL.d><5)
     LOCAL.t .= Fraca
 elif (<LOCAL.d><10)
@@ -363,14 +329,9 @@ endif
 
 //mostra durabilidade
 LOCAL.t .= "<def.br>Qualidade: "
-LOCAL.min=<f_spreadValue <hits>,<LOCAL.e>>
-LOCAL.max=<f_spreadValue <maxhits>,<LOCAL.e>>
+LOCAL.min=<hits>
+LOCAL.max=<maxhits>
 LOCAL.d=<eval (<hits>*100)/<maxhits>>
-if (<LOCAL.max> < <LOCAL.min>)
-    LOCAL.x=<LOCAL.max>
-    LOCAL.max=<LOCAL.min>
-    LOCAL.min=<LOCAL.x>
-endif
 if (<LOCAL.d><25)
     LOCAL.t .= Pessimo
 elif (<LOCAL.d><50)
@@ -386,7 +347,7 @@ endif
 
 //forca necessaria
 LOCAL.t .= "<def.br>Forca para uso: "
-LOCAL.min=<f_spreadValue <reqstr>,<LOCAL.e>>
+LOCAL.min=<reqstr>
 if (<reqstr><25)
     LOCAL.t .= Nenhuma
 elif (<reqstr><50)
@@ -400,19 +361,16 @@ if (<LOCAL.c>)
     LOCAL.t .= " (<eval <LOCAL.min>>)"
 endif
 
+
 //definir TOOLTIP se houver
-if (<ATTR>&attr_identified) || (<SRC.IsGM>)
- IF (!<ISEMPTY <DEF.<BASEID>_IDTIP>>)
-  LOCAL.t .= <DEF.BR><DEF.BFONT_CYAN><DEF.<BASEID>_IDTIP>
- ENDIF
-ENDIF
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDTIP>>)
+  LOCAL.t .= <DEF.br><DEF.bfont_cyan><DEF.<baseid>_IDTIP>
+endif
 
-//Sneek Peak de GM?
-IF !(<attr>&attr_identified) && (<src.isgm>)
- LOCAL.t .= <DEF.BR><DEF.BR><DEF.BFONT_LRED>[MODO GM]<DEF.BR><DEF.BFONT_white>(Nao identificado)
-ENDIF
-
-//f_sendTooltip <name>,<local.t>
+//sneek peak de gm?
+if !(<attr>&attr_identified) && (<src.isgm>)
+ LOCAL.t .= <DEF.br><DEF.br><DEF.bfont_lred>[MODO GM]<DEF.br><DEF.bfont_white>(nao identificado)
+endif
 
 if !( 0<argv0> )
     src.addcliloc 1042971,<LOCAL.name>
@@ -600,16 +558,9 @@ endif
 
 LOCAL.d=<eval (<link.dam.lo>+<link.dam.hi>)/2>
 LOCAL.a=<eval (<link.armor.lo>+<link.armor.hi>)/2>
-if ( <cont.armslore> < 30.0 )
-    LOCAL.dam=<eval ((<LOCAL.d>/25)*5)+2>
-    LOCAL.armor=<eval ((<LOCAL.a>/25)*5)+2>
-elif ( <cont.armslore> < 70.0 )
-    LOCAL.dam=<eval ((<LOCAL.d>/10)*2)+1>
-    LOCAL.armor=<eval ((<LOCAL.d>/10)*2)+1>
-else
-    LOCAL.dam=<eval (<LOCAL.d>/5)+1>
-    LOCAL.armor=<eval (<LOCAL.d>/5)+1>
-endif
+LOCAL.dam=<eval (<LOCAL.d>/5)+1>
+LOCAL.armor=<eval (<LOCAL.d>/5)+1>
+
 if ( <LOCAL.dam> > 11 )
     LOCAL.dam = 11
 endif
@@ -631,6 +582,16 @@ endif
 
 cont.sysmessagegreen <LOCAL.t> Esta <DEF.arml_dur<eval <LOCAL.h>>>
 
+if (<R1000> < <cont.armslore>)
+    link.attr |= attr_identified
+    link.update
+    
+    if (<link.isweapon>)
+        cont.sysmessageyellow A arma foi corretamente identificada.
+    else
+        cont.sysmessageyellow A armadura foi corretamente identificada.
+    endif
+endif
 cont.skill_gain skill_armslore
 remove
 return 1
