@@ -34,8 +34,20 @@ TOWN_TYPE_CITY		2
 TOWN_TYPE_VILLAGE	3
 
 [DEFNAME guards_task]
-GUARD_TASK_IDLE		0
-GUARD_TASK_PATROL	1
+//TAG.TASK:
+GUARD_TASK_WANDER	0
+GAURD_TASK_WARN		1
+GUARD_TASK_ATTACK	2
+GUARD_TASK_GO		3
+GUARD_TASK_FOLLOW	4
+GUARD_TASK_GUARD	5
+GUARD_TASK_PATROL	6
+GUARD_TASK_DISMISSING	7
+GUARD_TASK_REMOVE	8
+
+GUARD_WARN_WARMODE	1
+GUARD_WARN_WEAPON	2
+GUARD_WARN_FORBIDE	3
 
 //****************************************************************************
 //****************************************************************************
@@ -389,28 +401,153 @@ RETURN 1
 
 
 
+//*****************************************************************************
+//*****************************************************************************
+//
+//					GUARDAS
+//
+//*****************************************************************************
+//*****************************************************************************
+
+[FUNCTION TOWN_BUY_GUARD]
+
+
+[FUNCTION GUARD_LEVEL]
+//ARGN=Iniciar
+IF (<tag0.level>==3)
+ return 0
+ELIF (<tag0.level>==2) && (<FAME> < 5000)
+ return 0
+ELIF (<tag0.level>==1) && (<FAME> < 2500)
+ return 0
+ELIF (!<tag0.level>) && (<FAME> < 1000) && (<FAME> > 0)
+ return 0
+ELIF (!<FAME>)
+ FAME=1
+ELSE
+ tag0.level += 1
+ENDIF
+
+for layer 1 24
+ if (<LOCAL.layer>!= LAYER_HAIR) && (<LOCAL.layer>!= LAYER_BEARD) && (<LOCAL.layer>!= 21)
+  findlayer.<LOCAL.layer>.remove
+ ENDIF
+endfor
+DOSWITCH <tag0.level>
+ take_item i_pescoco_courom
+ take_item i_pescoco_anel
+ take_item i_pescoco_malha
+ take_item i_pescoco_placa
+ENDDO
+
+DOSWITCH <tag0.level>
+ take_item i_braco_courom
+ take_item i_braco_anel
+ take_item i_braco_malha
+ take_item i_braco_placa
+ENDDO
+
+DOSWITCH <tag0.level>
+ take_item i_luva_courom
+ take_item i_luva_anel
+ take_item i_luva_malha
+ take_item i_luva_placa
+ENDDO
+
+DOSWITCH <tag0.level>
+ take_item i_peito_courom
+ take_item i_peito_anel
+ take_item i_peito_malha
+ take_item i_peito_placa
+ENDDO
+
+DOSWITCH <tag0.level>
+ take_item i_perna_courom
+ take_item i_perna_anel
+ take_item i_perna_malha
+ take_item i_perna_placa
+ENDDO
+
+DOSWITCH <tag0.level>
+ take_item i_doublet
+ take_item i_sash
+ take_item i_cape
+ take_item i_cape
+ENDDO
+new.color=<MyTownColor>
+
+if (<tag0.level> == 3)
+ take_item i_sash
+ new.color=<MyTownColor>
+endif
+
+take_weapon
+
+take_item i_boots_calf
+
+[FUNCTION take_item]
+serv.newitem <args>
+equip <new.uid>
+
+[FUNCTION take_weapon]
+for i 0 53
+ LOCAL.skill=<skillbest.<dLOCAL.i>>
+ IF (<LOCAL.skill>==31)
+  DOSWITCH <TAG0.level>
+   take_item i_bow
+   take_item i_bow_long
+   take_item i_bow_composite
+   take_item i_bow_elven
+  ENDDO
+  new.morey 600
+  equip <new.uid>
+  take_item i_arrow
+  new.amount 150
+  return 1
+ ELIF (<LOCAL.skill>==42)
+  DOSWITCH <TAG0.level>
+   takeitem random_faca
+   takeitem i_lanca_curta
+   takeitem i_garfo_guerra
+   takeitem i_lanca
+  ENDDO
+  return 1
+ ELIF (<LOCAL.skill>==41)
+  take_item i_random_maca
+  return 1
+ ELIF (<LOCAL.skill>==40)
+  take_item i_random_espada
+  return 1
+ ENDIF
+endfor
 
 
 
-
-
+[FUNCTION MyTownColor]
+//Retorna a cor da town do NPC
+if (<IsEmpty <tag.town>>)
+ return colors_all
+elif (<IsEmpty <serv.resources.<tag.town>.tag.town_color>>)
+ return colors_all
+endif
+return <serv.resources.<tag.town>.tag.town_color>
 
 
 //*****************************************************************************
-// guarda maça
+// guarda anão
 //*****************************************************************************
-[CHARDEF c_a_guard_m]
+[CHARDEF c_a_guard]
 ID=c_man
 NAME=#NAMES_HUMANMALE
 ICON=i_pet_MAN
 CAN=MT_EQUIP|MT_WALK|MT_RUN|MT_USEHANDS
 RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2
-FOODTYPE=15 t_food, t_fruit
+FOODTYPE=100 t_food, t_fruit
 DESIRES=i_gold,e_notoriety
 AVERSIONS=t_TRAP,t_eerie_stuff
 BLOODCOLOR=0
 SOUND=snd_human_moomph01
-//TEVENTS=e_guard_town
+TEVENTS=e_guard_town
 TEVENTS=e_PvM
 TEVENTS=e_combat 
 
@@ -421,9 +558,11 @@ SUBSECTION=Guardas
 DESCRIPTION=Guarda (Anao)
 
 ON=@Create
-NPC=brain_guard
+NPC=brain_human
 COLOR=colors_skin
 KARMA=5000
+
+speechcolor=colors_all
 
 MACEFIGHTING=100.0
 TACTICS=100.0
@@ -448,106 +587,113 @@ ITEMNEWBIE={i_hair_long 1 i_hair_2_pigtails 1}
 COLOR=colors_brown
 ITEMNEWBIE={i_beard_long_med 1 i_beard_long}
 COLOR=match_hair
+ITEM=i_ribs_cooked
+amount=12
 
 
 [SPEECH jobTOWNGuard]
-on=*pare*patrulhar*
-say Certo. Nao patrulharei mais.
-GUARD_NO_PATROL
-
 on=*pare*
 GUARD_STOP
-say Poins nao, <sex senhor/senhora>
+say Sim, <src.sex senhor/senhora>.
 
-on=*patrulhar*
-GUARD_START_PATROL
-return 1
+on=*venha*
+on=*vamos*
+on=*ande*
+say Sim, <src.sex senhor/senhora>.
+GUARD_FOLLOW
 
-on=*patrulhe*ponto*
-IF (<src.TOWN_CHECK_SPK_PRIVS <UID>, 2>)
- say O que <sex o/a> <sex senhor/senhora> quer que eu guarde?
- targetfg TOWN_GUARD_GUARD <UID>
-ENDIF
-return 1
+on=*va*
+say Ate aonde, <src.sex senhor/senhora>?
+src.targetfg GUARD_GO <uid>,1
 
-[FUNCTION TOWN_GUARD_GUARD]
-IF (<argo>)
- uid.<argn>.GUARD_ADD_GUARD <argo.uid>
+on=*ataque*
+on=*atacar*
+on=*mate*
+say Qual eh o meu alvo, <src.sex senhor/senhora>?
+src.targetf GUARD_ATTACK <UID>
+
+[EVENTS e_guard_town]
+on=@Kill
+FAME += <eval <argo.fame>/20>
 else
- uid.<argn>.GUARD_ADD_GUARD <targp>
+IF (<argo.karma> > 0)
+ KARMA += <eval <argo.KARMA>/20>
+else
+ KARMA -= <eval <argo.KARMA>/20>
 endif
 
-[FUNCTION GUARD_ADD_GUARD]
-say guardando <args>
-for i 0 2
- if (<IsEmpty <tag.guard_<LOCAL.i>>>)
-  tag.guard_<LOCAL.i>=<args>
-  return 1
+on=@Hunger
+if (<food> < 50)
+ if (!<GUARD_FOOD>) && (<food> <= 15)
+  GUARD_BUY
  endif
-endfor
-
-LOCAL.old=<tag0.guard_00>
-for i 0 2
- if (!<IsEmpty <tag.guard_<hval <LOCAL.i>+1>>>
-  tag.guard_<LOCAL.i>=<tag0.guard_<hval <LOCAL.i>+1>>
- else
-  tag.guard_<LOCAL.i>=<args>
- endif
-endfor
-say Deixei de guardar <local.old>
-
-[FUNCTION GUARD_START_PATROL]
-if (<IsEmpty <tag.waypoint>>)
- tag.guarding=0
- tag.waypoint=<tag.guard_00>
-elif (<tag0.guarding> < 2) && (!<IsEmpty <tag.guard_<hval <tag0.guarding>+1>>>)
- tag.guarding += 1
- tag.waypoint=<tag.guard_<tag.guarding>>
-else
- tag.guarding=0
- tag.waypoint=<tag.guard_00>
 endif
-tag.task=GUARD_TASK_PATROL
-GUARD_AI
-say novo destino: <tag0.guarding>
 
-[FUNCTION GUARD_PATROL]
-if (!<tag0.task>)
- action=65
- return 1
-endif
-if (<distance <tag.waypoint>> > 1)
- goto <tag.waypoint>
- timerf 5,GUARD_AI
-else
- timerf 5,GUARD_START_PATROL
-endif
+on=@NPCActFight
+argn2=1000
 
 [FUNCTION GUARD_STOP]
-timerf clear
-action=065
-timerf 20,GUARD_AI
-
-[FUNCTION GUARD_NO_PATROL]
-for i 0 2
- tag.guard_<LOCAL.i>=
+tag.task=GUARD_TASK_WANDER
+act=
+actp=
+forcharlayer 30
+ remove
 endfor
-tag.task=
-tag.waypoint=
-tag.gurading=
-GUARD_STOP
+flags=<flags>~&020
+update
+action=065
 
-[FUNCTION GUARD_AI]
-IF (<tag0.task>==GUARD_TASK_PATROL)
- GUARD_PATROL
-ELif (!<tag0.task>)
- say Que chato ficar sem fazer nada...
- IF (<action>=067)
-  action=065
- ENDIF
- TIMERF 50,GUARD_AI
+[FUNCTION GUARD_FOLLOW]
+tag.oldtask=<tag0.task>
+tag.task.GUARD_TASK_FOLLOW
+act=<src.uid>
+action=064
+
+[FUNCTION GUARD_ATTACK]
+ref1=<argv[0]>
+ref1.tag.oldtask=<tag0.task>
+ref1.tag.task.GUARD_TASK_ATTACK
+ref1.attack <argo>
+
+[FUNCTION GUARD_GO]
+//ARGV0=UID do guarda
+//ARGV1=Se responde por voz ou não.
+say <argv[0]> e <argv[1]>
+ref1=<argv[0]>
+ref1.actp=<targp>
+ref1.action=066
+ref1.tag.task=GUARD_TASK_GO
+if (0<argv[1]>)
+ ref1.say Agora mesmo, <sex senhor/senhora>
 endif
-return 1
+
+[FUNCTION say_action]
+say <action>
+say <actp>
+say <act.name>
+//timerf 1,say_action
+
+[FUNCTION GUARD_FOOD]
+LOCAL.food=<findtype t_food>
+if (<LOCAL.food>)
+ anim 022
+ SFX 03b
+ emotegreen comendo <UID.<LOCAL.FOOD>.name>
+ food += <R20,50>
+ uid.<local.food>.decrement
+ return 1
+endif
+return 0
+
+[FUNCTION GUARD_BUY]
+if (<restest 5 i_coin_copper>)
+ LOCAL.item={i_ribs_cooked 1 i_chicken_leg 1 i_lamb_leg 1 i_fish_cut_cooked 1}
+ consume 5 i_coin_copper
+ serv.newitem <LOCAL.item>
+ new.amount=<R5,10>
+ new.cont=<uid>
+ f_GMLog [GUARDAS] <name> compra <new.name>.
+endif
 
 [DIALOG d_town]
 100,75
