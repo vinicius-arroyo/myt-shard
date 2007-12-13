@@ -40,6 +40,12 @@ horas_por_dia=24
 dias_por_mes=30
 meses_por_ano=12
 
+//Constantes de efeito de estações nos sectores.
+SEASON_primavera	0
+SEASON_inverno		3
+SEASON_verao		1
+SEASON_outono		2
+
 //Constantes de clima
 weather_dry=1
 weather_snow=2
@@ -127,9 +133,15 @@ ON=@ENVIRONCHANGE
 //sysmessageyellow [e_clima] ENVIRONCHANGE
 src.f_correctLight <src.region.flags>
 
-
 [REGIONTYPE r_clima]
 on=@enter
+//Season
+IF (!<IsEmpty <tag.season>>)
+ season=<tag.season>
+ELSE
+ season=<DEF.SEASON_<var.tSeason>>
+ENDIF
+
 light 30
 //src.sysmessageyellow [r_clima] Entrando em <name> (<flags>)
 src.f_correctLight <flags>
@@ -351,7 +363,7 @@ f_connectDB
    var.tSeason=outono
    var.tSeason=inverno
   enddo
-  
+ 
   if (<VAR.tDay> > dias_por_mes)   //dia
    VAR.tDay=1
    VAR.tMonth=<VAR.tMonth>+1
@@ -428,6 +440,8 @@ else
  LOCAL.f=0
 endif
 
+temp_effect <LOCAL.f>
+
 //adiciona neve ou poça
 IF !(<region.flags>&region_flag_underground)
  IF (<LOCAL.temp> >= rain_temp_down) && (<LOCAL.temp> <= rain_temp_up)
@@ -436,8 +450,6 @@ IF !(<region.flags>&region_flag_underground)
   timerf <R3>,temp_addSnow
  ENDIF
 endif
-
-temp_effect <LOCAL.f>
 
 if (0<argn1> > 0 )
  say temp: <eval <LOCAL.temp>> cloth: <eval <LOCAL.cloth>> e:<LOCAL.f>

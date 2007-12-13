@@ -36,18 +36,24 @@ TOWN_TYPE_VILLAGE	3
 [DEFNAME guards_task]
 //TAG.TASK:
 GUARD_TASK_WANDER	0
-GAURD_TASK_WARN		1
-GUARD_TASK_ATTACK	2
-GUARD_TASK_GO		3
-GUARD_TASK_FOLLOW	4
-GUARD_TASK_GUARD	5
-GUARD_TASK_PATROL	6
-GUARD_TASK_DISMISSING	7
-GUARD_TASK_REMOVE	8
+GUARD_TASK_STAND	1
+GUARD_TASK_WARN		2
+GUARD_TASK_ATTACK	3
+GUARD_TASK_GO		4
+GUARD_TASK_FOLLOW	5
+GUARD_TASK_GUARD	6
+GUARD_TASK_POST		7
+GUARD_TASK_PATROL	8
+GUARD_TASK_DISMISSING	9
+GUARD_TASK_REMOVE	10
 
 GUARD_WARN_WARMODE	1
 GUARD_WARN_WEAPON	2
-GUARD_WARN_FORBIDE	3
+GUARD_WARN_FORBIDDEN	3
+
+
+//Máximo de Waypoints que os guardas podem ter.
+GUARD_WP_MAX		3
 
 //****************************************************************************
 //****************************************************************************
@@ -284,7 +290,7 @@ on=*abra*portao*
 on=*abra*portal*
 on=*abra*portoes*
 on=*abra*portais*
-IF (<src.TOWN_CHECK_SPK_PRIVS <UID>, 1>)
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,1>)
  TOWN_OPEN_DOOR
 ENDIF
 return 1
@@ -294,7 +300,7 @@ on=*feche*portao*
 on=*feche*portal*
 on=*feche*portoes*
 on=*feche*portais*
-IF (<src.TOWN_CHECK_SPK_PRIVS <UID>, 1>)
+IF (<SRC.TOWN_CHECK_SPK_PRIVS <UID>,1>)
  TOWN_CLOSE_DOOR
 ENDIF
 return 1
@@ -371,17 +377,24 @@ endfor
 [FUNCTION TOWN_CHECK_SPK_PRIVS]
 obj=<argv[0]>
 IF (<ISGM>)
+ OBJ.SETMEMORY memory_friend,<uid>
  RETURN 1
 ENDIF
-IF (<argv1>==2)
- IF !(STRMATCH(*<UID>*,<obj.region.tag.TAG.TOWN_COUNCELORS><obj.region.tag.TAG.TOWN_MASTER>))
-  obj.timerf 1,say,Esta ordem so pode ser dada pelo conselho de <obj.region.name>.
+IF (0<argv1>==2)
+ IF !(STRMATCH(*<UID>*,<obj.GET_TOWN_COUNCELORS>))
+  obj.timerf 1,say,Esta ordem so pode ser dada pelo conselho de <serv.resources.<obj.GET_TOWN>.name>.
   return 0
+ ELSE
+  OBJ.SETMEMORY memory_friend,<uid>
+  RETURN 1
  ENDIF
-ELIF (<argv1>==3)
- IF !(STRMATCH(*<UID>*,<obj.region.tag.TAG.TOWN_MASTER>))  
-  obj.timerf 1,say,Esta ordem so pode ser dada pelo responsavel de <obj.region.name>.
+ELIF (0<argv1>==3)
+ IF !(STRMATCH(*<UID>*,<obj.GET_TOWN_MASTER>))  
+  obj.timerf 1,say,Esta ordem so pode ser dada por <uid.<obj.GET_TOWN_MASTER>.tag.name>
   return 0
+ ELSE
+  OBJ.SETMEMORY memory_friend,<uid>
+  RETURN 1
  ENDIF
 ENDIF
 IF (<tag0.comcapuz>)
@@ -396,18 +409,26 @@ ELIF (STRMATCH(*<tag.raca>*,<obj.region.tag.TAG.TOWN_RACE_FORBIDDEN>))
  obj.timerf 1,say,Nenhum <tag.raca> deve entrar em <obj.region.name>. Va embora.
  return 0
 endif
-RETURN 1
 
 
 
 
-//*****************************************************************************
-//*****************************************************************************
-//
-//					GUARDAS
-//
-//*****************************************************************************
-//*****************************************************************************
+
+//******************************************************************************
+//******************************************************************************
+//############################################################################**
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$**
+//									      **
+//############################################################################**
+//									      **
+//					GUARDAS				      **
+//									      **
+//#############################################################################*
+//									      **
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$**
+//############################################################################**
+//******************************************************************************
+//******************************************************************************
 
 [FUNCTION TOWN_BUY_GUARD]
 
@@ -532,6 +553,14 @@ elif (<IsEmpty <serv.resources.<tag.town>.tag.town_color>>)
 endif
 return <serv.resources.<tag.town>.tag.town_color>
 
+//*****************************************************************************
+//*****************************************************************************
+//
+// 				   CHARDEFS
+//
+//*****************************************************************************
+//*****************************************************************************
+
 
 //*****************************************************************************
 // guarda anão
@@ -562,6 +591,8 @@ NPC=brain_human
 COLOR=colors_skin
 KARMA=5000
 
+timerf 5,GUARD_AI
+
 speechcolor=colors_all
 
 MACEFIGHTING=100.0
@@ -591,26 +622,138 @@ ITEM=i_ribs_cooked
 amount=12
 
 
+//*****************************************************************************
+//*****************************************************************************
+//
+// 				   SPEECH
+//
+//*****************************************************************************
+//*****************************************************************************
+
+
 [SPEECH jobTOWNGuard]
+on=pare*patrulhar
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ timerf 1,say Nao patrulharei mais meus pontos entao, <sex senhor/senhora>.
+ GUARD_CLEAR_WAYPOINTS
+ action=06D
+ TAG.TASK=GUARD_TASK_POST
+endif
+return 1
+
 on=*pare*
-GUARD_STOP
-say Sim, <src.sex senhor/senhora>.
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ GUARD_STOP
+ TAG.TASK=GUARD_TAKS_STAND
+ timerf 1,say,Sim, <src.sex senhor/senhora>.
+endif
+return 1
 
 on=*venha*
 on=*vamos*
-on=*ande*
-say Sim, <src.sex senhor/senhora>.
-GUARD_FOLLOW
+on=ANDE
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ say Sim, <src.sex senhor/senhora>.
+ TAG.TASK=GUARD_TASK_FOLLOW
+ GUARD_FOLLOW
+ENDIF
+return 1
 
 on=*va*
-say Ate aonde, <src.sex senhor/senhora>?
-src.targetfg GUARD_GO <uid>,1
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ say Ate aonde, <src.sex senhor/senhora>?
+ TAG.TASK=GUARD_TASK_GO
+ src.targetfg GUARD_GO <uid>,1
+endif
+return 1
 
 on=*ataque*
 on=*atacar*
 on=*mate*
-say Qual eh o meu alvo, <src.sex senhor/senhora>?
-src.targetf GUARD_ATTACK <UID>
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ say Qual eh o meu alvo, <src.sex senhor/senhora>?
+ TAG.TASK=GUARD_TASK_ATTACK
+ src.targetf GUARD_ATTACK <UID>
+ENDIF
+return 1
+
+on=guarde
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ say Mas o que eu devo guardar?
+ TAG.TASK=GUARD_TASK_GUARD
+ src.targetf GUARD_GUARD <UID>
+ENDIF
+return 1
+
+on=para*seu*posto
+on=no*seu*posto
+on=ao*seu*posto
+on=para*seus*postos
+on=nos*seus*postos
+on=aos*seus*postos
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ timerf 1,Say,Imediatamente!
+ action=06D
+ TAG.TASK=GUARD_TASK_POST
+ENDIF
+return 1
+
+on=este*seu*posto
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ timerf 1,Say,Ficarei de olho por aqui entao.
+ home=<src.p>
+ HOMEDIST=8
+ action=06D
+ TAG.TASK=GUARD_TASK_POST
+ENDIF
+return 1
+
+on=patrulhe*ponto
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ say Qual ponto devo guardar?
+ src.targetfg GUARD_ADD_WAYPOINT <UID>
+endif
+
+on=esta*demitido
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,3>)
+ say Tem certeza, <sex senhor/senhora>?
+ TAG.TASK=GUARD_TASK_DISMISSING
+ act=<src.uid>
+ENDIF
+
+on=sim
+on=tenho
+on=absoluta
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,3>)
+ IF (<TAG.TASK>==GUARD_TASK_DISMISSING)
+  say Muito bem. Estou indo embora entao.
+  SPEECH -jobTOWNGuard
+  TAG.TASK=GUARD_TASK_REMOVE
+ ELSE
+  say Seja mais <sex especifico/especifica>, <sex meu/minha> <sex senhor/senhora>.
+ ENDIF
+ENDIF
+
+on=nao
+on=esqueca
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,3>)
+ IF (<TAG.TASK>==GUARD_TASK_DISMISSING)
+  say E o que farei agora entao?
+  TAG.TASK=GUARD_TASK_FOLLOW
+  timerf 60,remove
+  act=<src.uid>
+ ELSE
+  say Seja mais <sex especifico/especifica>, <sex meu/minha> <sex senhor/senhora>.
+ ENDIF
+ENDIF
+
+//*****************************************************************************
+//*****************************************************************************
+//
+// 				   EVENTS
+//
+//*****************************************************************************
+//*****************************************************************************
 
 [EVENTS e_guard_town]
 on=@Kill
@@ -621,6 +764,7 @@ IF (<argo.karma> > 0)
 else
  KARMA -= <eval <argo.KARMA>/20>
 endif
+return 0
 
 on=@Hunger
 if (<food> < 50)
@@ -632,33 +776,96 @@ endif
 on=@NPCActFight
 argn2=1000
 
+ON=@NPCLookAtChar
+//Medida drástica para evitar lag:
+if (<R0,<sector.complexity>> > 4) || (<tag0.lastspot> > <serv.time>) || (<tag.task>==GUARD_TASK_ATTACK) || (<tag.task>==GUARD_TASK_WARN) || (<tag.task>==GUARD_TASK_REMOVE) || (<region.defname> != <tag.town>)// !(STRMATCH(<region.defname>,<tag.town>))
+ return 0
+endif
+say Vendo <src.name>
+tag.lastspot=<eval <serv.time>+15>
+
+
+
+
+
+
+
+//*****************************************************************************
+//*****************************************************************************
+//
+// 				   FUNCTIONS
+//
+//*****************************************************************************
+//*****************************************************************************
+
+
+
+//*****************************************************************************
+[FUNCTION GUARD_GET_TOWN]
+//*****************************************************************************
+//Retronar DEFNAME da town do NPC
+IF (!<IsEmpty <tag.town>>)
+ return <tag.town>
+endif
+
+//*****************************************************************************
+[FUNCTION GET_TOWN_MASTER]
+//*****************************************************************************
+//Retorna a UID do MASTER da town do NPC
+LOCAL.town=<GUARD_GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_master>>)
+ return 0
+ENDIF
+return <serv.resources.<LOCAL.town>.tag.town_master>
+
+//*****************************************************************************
+[FUNCTION GET_TOWN_COUNCELORS]
+//*****************************************************************************
+//Retorna uma string com todos os UIDs dos conselors + do master da town
+LOCAL.town=<GUARD_GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return <GUARD_GET_TOWN_MASTER>
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_councelors>>)
+ return <GUARD_GET_TOWN_MASTER>
+ENDIF
+return <serv.resources.<LOCAL.town>.tag.town_master>;<serv.resources.<LOCAL.town>.tag.town_councelors>
+
+//*****************************************************************************
 [FUNCTION GUARD_STOP]
+//*****************************************************************************
+//Para um NPC guarda
 tag.task=GUARD_TASK_WANDER
 act=
 actp=
-forcharlayer 30
- remove
-endfor
 flags=<flags>~&020
 update
 action=065
 
+//*****************************************************************************
 [FUNCTION GUARD_FOLLOW]
+//*****************************************************************************
+//Faz um NPC seguir ARGN
 tag.oldtask=<tag0.task>
 tag.task.GUARD_TASK_FOLLOW
 act=<src.uid>
 action=064
 
+//*****************************************************************************
 [FUNCTION GUARD_ATTACK]
+//*****************************************************************************
+//Faz o guarda atacar ARGN
 ref1=<argv[0]>
 ref1.tag.oldtask=<tag0.task>
 ref1.tag.task.GUARD_TASK_ATTACK
 ref1.attack <argo>
 
+//*****************************************************************************
 [FUNCTION GUARD_GO]
+//*****************************************************************************
 //ARGV0=UID do guarda
 //ARGV1=Se responde por voz ou não.
-say <argv[0]> e <argv[1]>
 ref1=<argv[0]>
 ref1.actp=<targp>
 ref1.action=066
@@ -667,13 +874,54 @@ if (0<argv[1]>)
  ref1.say Agora mesmo, <sex senhor/senhora>
 endif
 
-[FUNCTION say_action]
-say <action>
-say <actp>
-say <act.name>
-//timerf 1,say_action
+//*****************************************************************************
+[FUNCTION GUARD_GUARD]
+//*****************************************************************************
+//Nem eu sei... Seria pra guardar algo ou alguém.
+ref1=<argv[0]>
+if (<argo>)
+ ref1.guard <argo.uid>
+ ref1.say Guardarei para que <argo.name> esteja em seguranca.
+else
+ ref1.say O que exatamente terei de guardar?
+endif
 
+//*****************************************************************************
+[FUNCTION GUARD_ADD_WAYPOINT]
+//*****************************************************************************
+//Adiciona um waypoint na lista
+ref1=<argv[0]>
+for wp 0 <eval <DEF.GUARD_WP_MAX>-1>
+ IF (<IsEmpty <ref1.tag.wp_<LOCAL.wp>>>) && (!<LOCAL.ret>)
+  try ref1.tag.wp_<LOCAL.wp>=<targp>
+  LOCAL.ret=1
+ ENDIF
+endfor
+IF (<LOCAL.ret>)
+ return 1
+ENDIF
+for wp 0 <eval <DEF.GUARD_WP_MAX>-1>
+ LOCAL.l=<ref1.tag.wp_<hval <LOCAL.wp>+1>>
+ try ref1.tag.wp_<LOCAL.wp>=<LOCAL.l>
+endfor
+ref1.tag.wp_<hval <DEF.GUARD_WP_MAX>-1>=<targp>
+obj=<ref1>
+obj.say Tomarei conta deste ponto enquanto patrulhar.
+
+//*****************************************************************************
+[FUNCTION GUARD_CLEAR_WAYPOINTS]
+//*****************************************************************************
+//Remove todos waypoints
+LOCAL.i=0
+WHILE (!<IsEmpty <tag.wp_<LOCAL.i>>>)
+ try tag.wp_<LOCAL.i>=
+ LOCAL.i += 1
+ENDDO
+
+//*****************************************************************************
 [FUNCTION GUARD_FOOD]
+//*****************************************************************************
+//Faz o guarda comer
 LOCAL.food=<findtype t_food>
 if (<LOCAL.food>)
  anim 022
@@ -685,7 +933,10 @@ if (<LOCAL.food>)
 endif
 return 0
 
+//*****************************************************************************
 [FUNCTION GUARD_BUY]
+//*****************************************************************************
+//Faz o guarda comprar provisões.
 if (<restest 5 i_coin_copper>)
  LOCAL.item={i_ribs_cooked 1 i_chicken_leg 1 i_lamb_leg 1 i_fish_cut_cooked 1}
  consume 5 i_coin_copper
@@ -722,6 +973,15 @@ dtext 224 128 66 Cidades:
 dtext 280 128 4 <QVAL <IsNum <LOCAL.CITY>>?<dLOCAL.CITY>:<LOCAL.CITY>>
 dtext 376 128 66 Vilas:
 dtext 416 128 4 <QVAL <LOCAL.VILLAGE>?<dLOCAL.CITY>:Nenhuma>
+
+//*****************************************************************************
+[FUNCTION GUARD_AI]
+//*****************************************************************************
+//Core do AI. Toma decisões.
+
+timerf 5, GUARD_AI
+
+
 
 [DIALOG d_town text]
 <region.name>
