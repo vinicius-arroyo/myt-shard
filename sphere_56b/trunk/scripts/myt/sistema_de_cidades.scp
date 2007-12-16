@@ -80,13 +80,22 @@ GUARD_WP_MAX		10
 
 
 
-//****************************************************************************
-//****************************************************************************
-//
-//				MECANISMOS DA TOWN
-//
-//****************************************************************************
-//****************************************************************************
+//******************************************************************************
+//******************************************************************************
+//############################################################################**
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$**
+//									      **
+//############################################################################**
+//									      **
+//					TOWN				      **
+//									      **
+//#############################################################################*
+//									      **
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$**
+//############################################################################**
+//******************************************************************************
+//******************************************************************************
+
 
 //****************************************************************************
 //					ITEMDEFS
@@ -147,7 +156,10 @@ return 1
 //					FUNCTIONS
 //****************************************************************************
 
+
+//*****************************************************************************
 [FUNCTION town]
+//*****************************************************************************
 //Configura town
 if (STRMATCH(*world*,<region.defname>))
  sysmessagered O mundo eh selvagem...
@@ -158,7 +170,9 @@ else
  dialog d_town
 endif
 
+//*****************************************************************************
 [FUNCTION TOWN_GET_STRTRESURE]
+//*****************************************************************************
 //Retorna uma string representando o tesouro de uma town.
 LOCAL.c=<region.tag0.town_tresure>
 WHILE (<LOCAL.c> > 100)
@@ -171,7 +185,9 @@ WHILE (<LOCAL.c> > 10)
 ENDDO
 return <dLOCAL.g>mo <dLOCAL.s>mp <dLOCAL.c>mc
 
+//*****************************************************************************
 [FUNCTION TOWN_RESOLV_DEMENCES]
+//*****************************************************************************
 //Seta LOCAL.KINGDOM, LOCAL.CITY e LOCAL.VILLAGE pro gump d_town
 IF (<region.tag.TOWN_TYPE>==TOWN_TYPE_CAPITAL)
  LOCAL.Kingdom=Autonomo
@@ -187,21 +203,265 @@ ELIF (<region.tag.TOWN_TYPE>==TOWN_TYPE_CITY)
  CALL TOWN_RESOLV_VILLAGES <EXPLODE ;,<region.tag.town_demences>> 
 ENDIF
 
+//*****************************************************************************
 [FUNCTION TOWN_RESOLV_CITIES]
+//*****************************************************************************
+//Conta o número de cities da town. ARGS é a lista de towns separadas por ;
 FOR i 1 <argv>
  IF (<serv.resources.<argv[<LOCAL.i>]>.tag.TOWN_TYPE>==TOWN_TYPE_CITY)
   LOCAL.CITY += 1
  ENDIF
 ENDFOR
 
+//*****************************************************************************
 [FUNCTION TOWN_RESOLV_VILLAGES]
+//*****************************************************************************
+//Conta o número de villages da town. ARGS é a lista de towns separadas por ;
 FOR i 1 <argv>
  IF (<serv.resources.<argv[<LOCAL.i>]>.tag.TOWN_TYPE>==TOWN_TYPE_VILLAGE)
   LOCAL.VILLAGE += 1 
  ENDIF
 ENDFOR
 
+//*****************************************************************************
+[FUNCTION TOWN_CHECK_SPK_PRIVS]
+//*****************************************************************************
+//Checa se o item DEFAULT tem privilégios (nível 0, 1, 2 e 3) para comandar um NPC.
+obj=<argv[0]>
+IF (<ISGM>)
+ OBJ.SETMEMORY memory_friend,<uid>
+ RETURN 1
+ENDIF
+IF (0<argv1>==2)
+ IF !(STRMATCH(*<UID>*,<obj.GET_TOWN_COUNCELORS>))
+  obj.timerf 1,say,Esta ordem so pode ser dada pelo conselho de <serv.resources.<obj.GET_TOWN>.name>.
+  return 0
+ ELSE
+  OBJ.SETMEMORY memory_friend,<uid>
+  RETURN 1
+ ENDIF
+ELIF (0<argv1>==3)
+ IF !(STRMATCH(*<UID>*,<obj.GET_TOWN_MASTER>))  
+  obj.timerf 1,say,Esta ordem so pode ser dada por <uid.<obj.GET_TOWN_MASTER>.tag.name>
+  return 0
+ ELSE
+  OBJ.SETMEMORY memory_friend,<uid>
+  RETURN 1
+ ENDIF
+ENDIF
+IF (<tag0.comcapuz>)
+ obj.timerf 1,say,E quem eh voce? Nao posso ver seu rosto!
+ return 0
+ELIF (STRMATCH(*<UID>*,<obj.region.tag.TAG.TOWN_UID_FORBIDDEN>))
+ obj.timerf 1,say,Voce esta <sex proibido/proibida> de entrar em <obj.region.name>. Va embora.
+ return 0
+ELIF (STRMATCH(*<UID>*,<obj.region.tag.TAG.TOWN_UID_FRIEND>))
+ return 1
+ELIF (STRMATCH(*<tag.raca>*,<obj.region.tag.TAG.TOWN_RACE_FORBIDDEN>))
+ obj.timerf 1,say,Nenhum <tag.raca> deve entrar em <obj.region.name>. Va embora.
+ return 0
+endif
+
+
+//*****************************************************************************
+[FUNCTION GET_TOWN]
+//*****************************************************************************
+//Retronar DEFNAME da town do NPC
+IF (!<IsEmpty <tag.town>>)
+ return <tag.town>
+endif
+
+//*****************************************************************************
+[FUNCTION GET_TOWN_MASTER]
+//*****************************************************************************
+//Retorna a UID do MASTER da town do NPC
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_master>>)
+ return 0
+ENDIF
+return <serv.resources.<LOCAL.town>.tag.town_master>
+
+//*****************************************************************************
+[FUNCTION GET_TOWN_COUNCELORS]
+//*****************************************************************************
+//Retorna uma string com todos os UIDs dos conselors + do master da town
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_councelors>>)
+ return <GET_TOWN_MASTER>
+ENDIF
+return <serv.resources.<LOCAL.town>.tag.town_master>;<serv.resources.<LOCAL.town>.tag.town_councelors>
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_FRIEND_RACE]
+//*****************************************************************************
+//Retorna a lista de raças amigas da town deste NPC.
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_race_friend>>)
+ return <serv.resources.<LOCAL.town>.tag.town_race>
+ENDIF
+RETURN <serv.resources.<LOCAL.town>.tag.town_race>;<serv.resources.<LOCAL.town>.tag.town_race_friend>
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_TRESURE]
+//*****************************************************************************
+//Retorna o tesouro da town em mc. Se existe <argv[0]>, é o defname da town. Se não, usa a town do NPC.
+IF (!<IsEmpty <argv[0]>>)
+ IF (<serv.resources.<argv[0]>.tag0.town_type>)
+  LOCAL.town=<argv[0]>
+ ELSE
+  return -1
+ ENDIF
+ELSE
+ LOCAL.town=<GET_TOWN>
+ENDIF
+RETURN <serv.resources.<LOCAL.town>.tag0.town_tresure>
+
+//*****************************************************************************
+[FUNCTION TOWN_CONSUME_TRESURE]
+//*****************************************************************************
+//Consome <argn> do tesouro da town em mc.
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ IF (!<IsEmpty <region.tag0.town_type>>)
+  LOCAL.town=<region.defname>
+ ELSE
+  serv.log ALOOOW! <name> (<UID>) nao tem town para consumir tesouro!
+  return 0
+ ENDIF
+ENDIF
+serv.resources.<LOCAL.town>.tag0.town_tresure -= <argn>
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_FRIEND_UID]
+//*****************************************************************************
+//Retorna a lista de UIDs amigas da town deste NPC.
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_UID_friend>>)
+ return 0
+ENDIF
+RETURN <serv.resources.<LOCAL.town>.tag.town_UID_friend>
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_FORB_RACE]
+//*****************************************************************************
+//Retorna a lista de raças proibidas na town deste NPC.
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_race_forbidden>>)
+ return 0
+ENDIF
+RETURN <serv.resources.<LOCAL.town>.tag.town_race_forbidden>
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_FORB_UID]
+//*****************************************************************************
+//Retorna a lista de UIDs proibidas na town deste NPC.
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_UID_forbidden>>)
+ return 0
+ENDIF
+RETURN <serv.resources.<LOCAL.town>.tag.town_UID_forbidden>
+
+//*****************************************************************************
+[FUNCTION TOWN_AZILUM]
+//*****************************************************************************
+//Faz um NPC servo espatriado pertencer a esta town
+if (<IsEmpty <tag.town>>)
+ if !(STRMATCH(*world*,<region.defname>))
+  if (<region.tag.town_type>)
+   DORAND 3
+    say <region.name> eh meu novo lar.
+    say Eu tenho um novo lar. Seu nome eh <region.name>
+    say Ah, eh bom estar em <region.name>. Farei daqui meu lar
+   ENDDO
+   tag.town=<region.defname>
+   home=<p>
+  else
+   say <region.name> nao eh uma capital, nem cidade e nem vila.
+  endif
+ else
+  say O mundo eh selvagem...
+ endif
+else
+ say Nao posso ficar aqui. Meu lar eh <serv.resources.<GET_TOWN>.name>.
+endif
+
+//*****************************************************************************
+[FUNCTION TOWN_REG_SERVANT]
+//*****************************************************************************
+//Registra este NPC como funcionário da town dele
+IF (!<GET_TOWN>)
+ serv.log ALOOOW! <name> (<uid>) nao tem town! Nao pode ser registrado!
+ELIF (STRMATCH(*<UID>*,<serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS>)
+ serv.log ALOOOW! <name> (<uid>) Ja eh registrado em sua town!
+ELSE
+ if (<IsEmpty <serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS>>)
+  serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS = <UID>
+ else
+  serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS .= ;<UID>
+ endif
+ serv.log Hey! Hey! Hey!  <name> (<uid>) registrado como funcionario em <serv.resources.<GET_TOWN>.name>!
+ENDIF
+
+//*****************************************************************************
+[FUNCTION TOWN_UNREG_SERVANT]
+//*****************************************************************************
+//Remove o registro deste NPC como funcionário da town dele
+IF (!<GET_TOWN>)
+ serv.log ALOOOW! <name> (<uid>) nao tem town! Nao pode ser desregistrado!
+ELIF !(STRMATCH(*<UID>*,<serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS>)
+ serv.log ALOOOW! <name> (<uid>) Nao eh registrado em sua town!
+ELSE
+ serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS = <f_RemoveList <uid>,<serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS>>
+ serv.log Hey! Hey! Hey!  <name> (<uid>) perdeu registro de funcionario em <serv.resources.<GET_TOWN>.name>!
+ENDIF
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_SERVANT_PRICE]
+//*****************************************************************************
+//Pega o preço de um funcionário pela fama dele. <argv[0]> é a fama e <argv[1]> é o tipo de
+//funcionário de acordo com <DEF.TOWN_SERVANT_*>
+LOCAL.type=<DEF.<argv[1]>>
+LOCAL.FAME=<argv[0]>
+IF (<LOCAL.type>==TOWN_SERVANT_GUARD)
+ RETURN <eval <DEF.SERVANT_MIN_COST>+(<LOCAL.FAME>/<DEF.FAME_COPPER_RATE_BUY>)>
+ELIF (<LOCAL.type>==TOWN_SERVANT_GATE)
+ RETURN <DEF.SERVANT_MIN_COST>
+ELIF (<LOCAL.type>==TOWN_SERVANT_SENESCAL)
+ RETURN <eval <DEF.SERVANT_MIN_COST>*5>
+ENDIF
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_SERVANT_ORD]
+//*****************************************************************************
+//Pega o ordenado de um funcionário pela fama dele. <argv[0]> é a fama e <argv[1]> é o tipo de
+//funcionário de acordo com <DEF.TOWN_SERVANT_*>
+LOCAL.type=<DEF.<argv[1]>>
+LOCAL.FAME=<argv[0]>
+IF (<LOCAL.type>==TOWN_SERVANT_GUARD)
+ RETURN <eval <DEF.SERVANT_MIN_ORD>+(<LOCAL.FAME>/<DEF.FAME_COPPER_RATE_ORD>)>
+ELIF (<LOCAL.type>==TOWN_SERVANT_GATE)
+ RETURN <DEF.SERVANT_MIN_ORD>
+ELIF (<LOCAL.type>==TOWN_SERVANT_SENESCAL)
+ RETURN <eval <DEF.SERVANT_MIN_ORD>*5>
+ENDIF
+
+
+//*****************************************************************************
 [MENU m_new_town]
+//*****************************************************************************
+//Menu de criação de town chamado pelo comando .town, caso a region não tenha town
 <region.name> nao eh uma vila. Que vila faremos?
 on=0 Capital
 region.tag.town_type=<DEF.TOWN_TYPE_CAPITAL>
@@ -215,7 +475,10 @@ on=0 Vila
 region.tag.town_type=<DEF.TOWN_TYPE_VILLAGE>
 MENU m_NEW_TOWN_RACE
 
+//*****************************************************************************
 [MENU m_NEW_TOWN_RACE]
+//*****************************************************************************
+//Continuação de m_new_town para configurar a raça da town
 Que habitantes tera <region.name>?
 on=0 Elfo
 region.TAG.TOWN_RACE=Elfo
@@ -241,7 +504,10 @@ on=0 Todas
 region.TAG.TOWN_RACE=Elfo;Anao;Humano;Drow;Orc
 promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
 
+//*****************************************************************************
 [FUNCTION new_town_capital]
+//*****************************************************************************
+//Function de prompt para a capital da town.
 IF (<serv.resources.<args>.tag0.TOWN_TYPE>)
  region.tag.town_capital=<args>
  if (<IsEmpty <serv.resources.<args>.tag.TOWN_DEMENCES>>)
@@ -327,7 +593,7 @@ for s 1 <eval <argv>-1>
  ENDIF
  IF (<uid.<argv[<LOCAL.s>]>.tag.servant>==TOWN_SERVANT_GUARD)
   uid.<argv[<LOCAL.s>]>.TIMERF <eval <DEF.TOWN_TRIG_TIME>/3>,GUARD_BUY
-  uid.<argv[<LOCAL.s>]>.TIMERF <eval (<DEF.TOWN_TRIG_TIME>/3*2)>,GUARD_BUY
+  uid.<argv[<LOCAL.s>]>.TIMERF <eval (<DEF.TOWN_TRIG_TIME>/3)*2>,GUARD_BUY
  ENDIF
 endfor
 
@@ -350,6 +616,17 @@ DORAND 3
 ENDDO
 TIMERF 3,say,<LOCAL.message>
 TIMERF <DEF.TOWN_TRIG_TIME>,TOWN_TRIG
+
+//*****************************************************************************
+[FUNCTION MyTownColor]
+//*****************************************************************************
+//Retorna a cor da town do NPC
+if (<IsEmpty <tag.town>>)
+ return colors_all
+elif (<IsEmpty <serv.resources.<tag.town>.tag.town_color>>)
+ return colors_all
+endif
+return <serv.resources.<tag.town>.tag.town_color>
 
 //******************************************************************************
 //******************************************************************************
@@ -595,7 +872,9 @@ IF (<src.TOWN_CHECK_SPK_PRIVS <UID>, 2>)
  src.menu M_TOWN_HIRE
 ENDIF
 
+//*****************************************************************************
 [MENU M_TOWN_HIRE]
+//*****************************************************************************
 O que deseja contratar?
 on=0 Porteiro
 sysmessagered Indisponivel.
@@ -603,7 +882,9 @@ sysmessagered Indisponivel.
 on=0 Guarda
 MENU M_TOWN_HIRE_GUARD
 
+//*****************************************************************************
 [MENU M_TOWN_HIRE_GUARD]
+//*****************************************************************************
 Que tipo de guarda?
 on=0 Recruta por <eval <TOWN_GET_SERVANT_PRICE 0,TOWN_SERVANT_GUARD>>mc (ordenado de <eval <TOWN_GET_SERVANT_ORD 0,TOWN_SERVANT_GUARD>>mc)
 TOWN_BUY_GUARD
@@ -712,7 +993,10 @@ IF (<SRC.TOWN_CHECK_SPK_PRIVS <UID>,1>)
 ENDIF
 return 1
 
+//*****************************************************************************
 [FUNCTION TOWN_ADD_DOOR]
+//*****************************************************************************
+//Adiciona a porta TARGER (argo) a lista de portas do NPC
 OBJ=<argv[0]>
 say Esta aqui.
 if (<argo.type> != t_door) && (<argo.type> != t_door_locked) && (<argo.type> != t_portculis)
@@ -740,7 +1024,10 @@ endif
 obj.timerf 1,say,Certo <sex senhor/senhora>. Nao guardarei mais esta porta.
 obj.tag.TOWN_DOORS =<f_RemoveList <argo.uid>,<obj.tag.TOWN_DOORS>>
 
+//*****************************************************************************
 [FUNCTION TOWN_OPEN_DOOR]
+//*****************************************************************************
+//Abre as portas da lista de portas do NPC porteiro
 LOCAL.doors=<EXPLODE ;,<tag.TOWN_DOORS>>
 LOCAL.doors=<STRSUB 1 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
 _TOWN_OPEN_DOOR <LOCAL.doors>
@@ -761,7 +1048,10 @@ for i 0 <eval <argv>-1>
  ENDIF
 endfor
 
+//*****************************************************************************
 [FUNCTION TOWN_CLOSE_DOOR]
+//*****************************************************************************
+//Fecha as portas da lista de portas do NPC porteiro
 LOCAL.doors=<EXPLODE ;,<tag.TOWN_DOORS>>
 LOCAL.doors=<STRSUB 1 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
 _TOWN_CLOSE_DOOR <LOCAL.doors>
@@ -780,43 +1070,6 @@ for i 0 <eval <argv>-1>
   ENDIF
  ENDIF
 endfor
-
-[FUNCTION TOWN_CHECK_SPK_PRIVS]
-obj=<argv[0]>
-IF (<ISGM>)
- OBJ.SETMEMORY memory_friend,<uid>
- RETURN 1
-ENDIF
-IF (0<argv1>==2)
- IF !(STRMATCH(*<UID>*,<obj.GET_TOWN_COUNCELORS>))
-  obj.timerf 1,say,Esta ordem so pode ser dada pelo conselho de <serv.resources.<obj.GET_TOWN>.name>.
-  return 0
- ELSE
-  OBJ.SETMEMORY memory_friend,<uid>
-  RETURN 1
- ENDIF
-ELIF (0<argv1>==3)
- IF !(STRMATCH(*<UID>*,<obj.GET_TOWN_MASTER>))  
-  obj.timerf 1,say,Esta ordem so pode ser dada por <uid.<obj.GET_TOWN_MASTER>.tag.name>
-  return 0
- ELSE
-  OBJ.SETMEMORY memory_friend,<uid>
-  RETURN 1
- ENDIF
-ENDIF
-IF (<tag0.comcapuz>)
- obj.timerf 1,say,E quem eh voce? Nao posso ver seu rosto!
- return 0
-ELIF (STRMATCH(*<UID>*,<obj.region.tag.TAG.TOWN_UID_FORBIDDEN>))
- obj.timerf 1,say,Voce esta <sex proibido/proibida> de entrar em <obj.region.name>. Va embora.
- return 0
-ELIF (STRMATCH(*<UID>*,<obj.region.tag.TAG.TOWN_UID_FRIEND>))
- return 1
-ELIF (STRMATCH(*<tag.raca>*,<obj.region.tag.TAG.TOWN_RACE_FORBIDDEN>))
- obj.timerf 1,say,Nenhum <tag.raca> deve entrar em <obj.region.name>. Va embora.
- return 0
-endif
-
 
 
 
@@ -837,7 +1090,10 @@ endif
 //******************************************************************************
 //******************************************************************************
 
+//*****************************************************************************
 [FUNCTION TOWN_BUY_GUARD]
+//*****************************************************************************
+//Testa dinheiro, cria e configura um guarda para a town da REGION de quem o chama.
 IF (<IsEmpty <argv[0]>>)
  LOCAL.fame=0
 ELSE
@@ -879,7 +1135,10 @@ new.TOWN_AZILUM
 new.TOWN_REG_SERVANT
 new.GUARD_LEVEL 1
 
+//*****************************************************************************
 [FUNCTION GUARD_LEVEL]
+//*****************************************************************************
+//Verifica se é necessário avançar o nível do guarda
 //ARGN=Iniciar
 IF (<tag0.level>==3)
  return 0
@@ -988,7 +1247,10 @@ take_item i_boots_calf
 serv.newitem <args>
 equip <new.uid>
 
+//*****************************************************************************
 [FUNCTION take_weapon]
+//*****************************************************************************
+//Dá armas conforme a skill de quem o chama
 for i 0 53
  LOCAL.skill=<skillbest.<dLOCAL.i>>
  IF (<LOCAL.skill>==31)
@@ -1021,15 +1283,6 @@ for i 0 53
 endfor
 
 
-
-[FUNCTION MyTownColor]
-//Retorna a cor da town do NPC
-if (<IsEmpty <tag.town>>)
- return colors_all
-elif (<IsEmpty <serv.resources.<tag.town>.tag.town_color>>)
- return colors_all
-endif
-return <serv.resources.<tag.town>.tag.town_color>
 
 //*****************************************************************************
 //*****************************************************************************
@@ -1445,199 +1698,7 @@ endif
 
 
 
-//*****************************************************************************
-[FUNCTION GET_TOWN]
-//*****************************************************************************
-//Retronar DEFNAME da town do NPC
-IF (!<IsEmpty <tag.town>>)
- return <tag.town>
-endif
 
-//*****************************************************************************
-[FUNCTION GET_TOWN_MASTER]
-//*****************************************************************************
-//Retorna a UID do MASTER da town do NPC
-LOCAL.town=<GET_TOWN>
-IF (!<serv.resources.<LOCAL.town>>)
- return 0
-ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_master>>)
- return 0
-ENDIF
-return <serv.resources.<LOCAL.town>.tag.town_master>
-
-//*****************************************************************************
-[FUNCTION GET_TOWN_COUNCELORS]
-//*****************************************************************************
-//Retorna uma string com todos os UIDs dos conselors + do master da town
-LOCAL.town=<GET_TOWN>
-IF (!<serv.resources.<LOCAL.town>>)
- return 0
-ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_councelors>>)
- return <GET_TOWN_MASTER>
-ENDIF
-return <serv.resources.<LOCAL.town>.tag.town_master>;<serv.resources.<LOCAL.town>.tag.town_councelors>
-
-//*****************************************************************************
-[FUNCTION TOWN_GET_FRIEND_RACE]
-//*****************************************************************************
-//Retorna a lista de raças amigas da town deste NPC.
-LOCAL.town=<GET_TOWN>
-IF (!<serv.resources.<LOCAL.town>>)
- return 0
-ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_race_friend>>)
- return <serv.resources.<LOCAL.town>.tag.town_race>
-ENDIF
-RETURN <serv.resources.<LOCAL.town>.tag.town_race>;<serv.resources.<LOCAL.town>.tag.town_race_friend>
-
-//*****************************************************************************
-[FUNCTION TOWN_GET_TRESURE]
-//*****************************************************************************
-//Retorna o tesouro da town em mc. Se existe <argv[0]>, é o defname da town. Se não, usa a town do NPC.
-IF (!<IsEmpty <argv[0]>>)
- IF (<serv.resources.<argv[0]>.tag0.town_type>)
-  LOCAL.town=<argv[0]>
- ELSE
-  return -1
- ENDIF
-ELSE
- LOCAL.town=<GET_TOWN>
-ENDIF
-RETURN <serv.resources.<LOCAL.town>.tag0.town_tresure>
-
-//*****************************************************************************
-[FUNCTION TOWN_CONSUME_TRESURE]
-//*****************************************************************************
-//Consome <argn> do tesouro da town em mc.
-LOCAL.town=<GET_TOWN>
-IF (!<serv.resources.<LOCAL.town>>)
- IF (!<IsEmpty <region.tag0.town_type>>)
-  LOCAL.town=<region.defname>
- ELSE
-  serv.log ALOOOW! <name> (<UID>) nao tem town para consumir tesouro!
-  return 0
- ENDIF
-ENDIF
-serv.resources.<LOCAL.town>.tag0.town_tresure -= <argn>
-
-//*****************************************************************************
-[FUNCTION TOWN_GET_FRIEND_UID]
-//*****************************************************************************
-//Retorna a lista de UIDs amigas da town deste NPC.
-LOCAL.town=<GET_TOWN>
-IF (!<serv.resources.<LOCAL.town>>)
- return 0
-ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_UID_friend>>)
- return 0
-ENDIF
-RETURN <serv.resources.<LOCAL.town>.tag.town_UID_friend>
-
-//*****************************************************************************
-[FUNCTION TOWN_GET_FORB_RACE]
-//*****************************************************************************
-//Retorna a lista de raças proibidas na town deste NPC.
-LOCAL.town=<GET_TOWN>
-IF (!<serv.resources.<LOCAL.town>>)
- return 0
-ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_race_forbidden>>)
- return 0
-ENDIF
-RETURN <serv.resources.<LOCAL.town>.tag.town_race_forbidden>
-
-//*****************************************************************************
-[FUNCTION TOWN_GET_FORB_UID]
-//*****************************************************************************
-//Retorna a lista de UIDs proibidas na town deste NPC.
-LOCAL.town=<GET_TOWN>
-IF (!<serv.resources.<LOCAL.town>>)
- return 0
-ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_UID_forbidden>>)
- return 0
-ENDIF
-RETURN <serv.resources.<LOCAL.town>.tag.town_UID_forbidden>
-
-//*****************************************************************************
-[FUNCTION TOWN_AZILUM]
-//*****************************************************************************
-//Faz um NPC servo espatriado pertencer a esta town
-if (<IsEmpty <tag.town>>)
- if !(STRMATCH(*world*,<region.defname>))
-  if (<region.tag.town_type>)
-   DORAND 3
-    say <region.name> eh meu novo lar.
-    say Eu tenho um novo lar. Seu nome eh <region.name>
-    say Ah, eh bom estar em <region.name>. Farei daqui meu lar
-   ENDDO
-   tag.town=<region.defname>
-   home=<p>
-  else
-   say <region.name> nao eh uma capital, nem cidade e nem vila.
-  endif
- else
-  say O mundo eh selvagem...
- endif
-else
- say Nao posso ficar aqui. Meu lar eh <serv.resources.<GET_TOWN>.name>.
-endif
-
-//*****************************************************************************
-[FUNCTION TOWN_REG_SERVANT]
-//*****************************************************************************
-//Registra este NPC como funcionário da town dele
-IF (!<GET_TOWN>)
- serv.log ALOOOW! <name> (<uid>) nao tem town! Nao pode ser registrado!
-ELIF (STRMATCH(*<UID>*,<serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS>)
- serv.log ALOOOW! <name> (<uid>) Ja eh registrado em sua town!
-ELSE
- if (<IsEmpty <serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS>>)
-  serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS = <UID>
- else
-  serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS .= ;<UID>
- endif
- serv.log Hey! Hey! Hey!  <name> (<uid>) registrado como funcionario em <serv.resources.<GET_TOWN>.name>!
-ENDIF
-
-//*****************************************************************************
-[FUNCTION TOWN_UNREG_SERVANT]
-//*****************************************************************************
-//Remove o registro deste NPC como funcionário da town dele
-IF (!<GET_TOWN>)
- serv.log ALOOOW! <name> (<uid>) nao tem town! Nao pode ser desregistrado!
-ELIF !(STRMATCH(*<UID>*,<serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS>)
- serv.log ALOOOW! <name> (<uid>) Nao eh registrado em sua town!
-ELSE
- serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS = <f_RemoveList <uid>,<serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS>>
- serv.log Hey! Hey! Hey!  <name> (<uid>) perdeu registro de funcionario em <serv.resources.<GET_TOWN>.name>!
-ENDIF
-
-//*****************************************************************************
-[FUNCTION TOWN_GET_SERVANT_PRICE]
-//*****************************************************************************
-//Pega o preço de um funcionário pela fama dele. <argv[0]> é a fama e <argv[1]> é o tipo de
-//funcionário de acordo com <DEF.TOWN_SERVANT_*>
-LOCAL.type=<DEF.<argv[1]>>
-LOCAL.FAME=<argv[0]>
-IF (<LOCAL.type>==TOWN_SERVANT_GUARD)
- RETURN <eval <DEF.SERVANT_MIN_COST>+(<LOCAL.FAME>/<DEF.FAME_COPPER_RATE_BUY>)>
-ELIF (<LOCAL.type>==TOWN_SERVANT_GATE)
- RETURN <DEF.SERVANT_MIN_COST>
-ELIF (<LOCAL.type>==TOWN_SERVANT_SENESCAL)
- RETURN <eval <DEF.SERVANT_MIN_COST>*5>
-ENDIF
-
-//*****************************************************************************
-[FUNCTION TOWN_GET_SERVANT_ORD]
-//*****************************************************************************
-//Pega o ordenado de um funcionário pela fama dele. <argv[0]> é a fama e <argv[1]> é o tipo de
-//funcionário de acordo com <DEF.TOWN_SERVANT_*>
-LOCAL.type=<DEF.<argv[1]>>
-LOCAL.FAME=<argv[0]>
-IF (<LOCAL.type>==TOWN_SERVANT_GUARD)
- RETURN <eval <DEF.SERVANT_MIN_ORD>+(<LOCAL.FAME>/<DEF.FAME_COPPER_RATE_ORD>)>
-ELIF (<LOCAL.type>==TOWN_SERVANT_GATE)
- RETURN <DEF.SERVANT_MIN_ORD>
-ELIF (<LOCAL.type>==TOWN_SERVANT_SENESCAL)
- RETURN <eval <DEF.SERVANT_MIN_ORD>*5>
-ENDIF
 
 
 //*****************************************************************************
@@ -1647,7 +1708,7 @@ ENDIF
 tag.task=GUARD_TASK_WANDER
 act=
 actp=
-flags ^= statf_war
+flags =<flags>&~statf_war
 update
 action=065
 
@@ -1729,14 +1790,14 @@ IF (<IsEmpty <tag.waypoint>>)
   timerf 2,say Mas eu nao tenho o que patrulhar...
  ELSE
   tag.waypoint=0
-  tag.home=<home>
   home=<tag.wp_00>
+  GAURD_CORRECT_HOME
   action=06D
  ENDIF
  return 1
 ENDIF
 
-IF (<distance <actp>> < 2)
+IF (<distance <home>> < 2)
  IF (!<IsEmpty <tag.wp_<hval <tag.waypoint>+1>>>)
   tag.waypoint += 1
   home=<tag.wp_<tag.waypoint>>
@@ -1744,18 +1805,19 @@ IF (<distance <actp>> < 2)
   tag.waypoint=0
   home=<tag.wp_00>
  ENDIF
- sb [GUARDS]: <name> muda para o waypoint <dTAG.Waypoint>
+ sb [GUARDS]: <name> (<region.name>) muda para waypoint <dTAG.waypoint>
  action=06D
 ENDIF
 
 //*****************************************************************************
 [FUNCTION GUARD_SAVE_TASK]
 //*****************************************************************************
-//Salva a ultima satk do guarda
+//Salva a ultima task do guarda
 tag.oldtask=<tag.task>
 tag.oldaction=<action>
 tag.oldact=<act>
 tag.oldactp=<actp>
+tag.oldhome=<home>
 
 //*****************************************************************************
 [FUNCTION GUARD_RETRIEVE_TASK]
@@ -1763,16 +1825,18 @@ tag.oldactp=<actp>
 //Salva a ultima satk do guarda
 IF (!<IsEmpty <tag.oldtask>>)
  tag.task=<tag.oldtask>
- action=<tag.oldaction>
- act=<tag.oldact>
+ action=<tag0.oldaction>
+ act=<tag0.oldact>
  actp=<tag.oldactp>
+ home=<tag.oldhome>
  tag.oldtask=
  tag.oldaction=
  tag.oldact=
  tag.oldactp=
  tag.warn=
  tag.subject=
- flags ^= statf_war
+ tag.target=
+ flags = <flags>&~statf_war
 ELSE
  tag.task=GUARD_TASK_WANDER
 ENDIF
@@ -1782,6 +1846,11 @@ ENDIF
 //*****************************************************************************
 //Persegue e avisa <argv[0]> por alguma coisa errada que ele esteja fazendo.
 obj=<argv[0]>
+GUARD_SAVE_TASK
+tag.task=GUARD_TASK_WARN
+action=064
+act=<obj.uid>
+tag.target=<obj.uid>
 tag.subject=<argv[1]>
 DORAND 4
  say O que eh isso, <obj.name>?
@@ -1794,17 +1863,25 @@ DORAND 3
  obj.sysmessagered <name> grita com voce.
  obj.sysmessagered Voce esta sendo abordado pelo guarda <name>.
 ENDDO
-GUARD_SAVE_TASK
-tag.task=GUARD_TASK_WARN
-action=064
-act=<obj.uid>
 flags |= statf_war
 timerf clear
 timerf 5,GUARD_AI
 
 [FUNCTION GUARD_WARN_STEP]
 //Cada passo da AI com GUARD_TASK_WARN ele fará isso.
-IF (<tag.subject>==GUARD_WARN_WARMODE)
+act=<tag0.target>
+action=064
+
+IF (!<act.ischar>) || ( (<distance <act.p>> > 11) && (!<CanSeeLOS <act>>) ) || ( (<act.isplayer>) && (!<act.isonline>) )
+ act=04fffffff
+ GUARD_RETRIEVE_TASK
+ DORAND 3
+  say Otimo...
+  emotered resmunga
+  say Oras!
+ ENDDO
+
+ELIF (<tag.subject>==GUARD_WARN_WARMODE)
  IF !(<act.flags>&statf_war) || (<act.region.defname> != <GET_TOWN>) || (!<act.IsOnline>)
   DORAND 3
    say E que sirva de aviso para os outros!
@@ -1844,11 +1921,32 @@ ELIF (<tag.subject>==GUARD_WARN_WEAPON)
   act=04fffffff
   GUARD_RETRIEVE_TASK 
  ENDIF
+
+ELIF (<tag.subject>==GUARD_WARN_LOCKPICK)
+ DORAND 3
+  say Minha funcao eh fazer de <region.name> um lugar segudo!
+  say Ladroes! Guardas! Todos aos seus postos!
+  say Ladroes nao sao tolerados em <region.name>!
+ ENDDO
+ GUARD_ATTACK <UID>
+
+ELIF (<tag.subject>==GUARD_WARN_FORBIDDEN)
+ IF (<act.region.defname>==<GET_TOWN>)
+  DOSWITCH <tag0.warn>
+   say Voce nao eh bem <act.sex vindo/vinda> aqui! Va embora!
+   say Deixe <region.name> agora ou sofrera as consequencias!
+   say Meu ultimo aviso, <act.name>... Saia de <region.name>
+   GUARD_ATTACK <UID>
+  ENDDO
+  tag0.warn += 1
+ ELSE
+  say E nao volte!
+  act=04fffffff
+  GUARD_RETRIEVE_TASK 
+ ENDIF
 ENDIF
 
-[COMMENT COMMENT]
-GUARD_WARN_LOCKPICK
-GUARD_WARN_FORBIDDEN
+
 
 
 //*****************************************************************************
@@ -1953,7 +2051,7 @@ endif
 //Retorna se um guarda precisa me alertar sobre meu comportamento errado.
 //ARGV0 é a UID do guarda.
 obj=<argv[0]>
-IF (<IsGM>) || (<IsEvent.e_guard_town>) || ( (<NPC>) && (<karma> > -2000) )
+IF (<IsGM>) || (<IsEvent.e_guard_town>) || ( (<NPC>) && (<karma> > -2000) ) || (!<ischar>)
  return 0
 ELIF (<flags>&statf_war)
  return GUARD_WARN_WARMODE
@@ -1965,9 +2063,9 @@ ELIF (<weapon>)
  return GUARD_WARN_WEAPON
 ELIF (STRMATCH(*<UID>*,<obj.TOWN_GET_FRIEND_UID>))
  return 0
-ELIF (STRMATCH(*<UID>*,<obj.TOWN_GET_FORB_UID>))
+ELIF (STRMATCH(*<UID>*,<obj.TOWN_GET_FORB_UID>)) && (<region.defname>==<obj.GET_TOWN>)
  return GUARD_WARN_FORBIDDEN
-ELIF (STRMATCH(*<tag.raca>*,<obj.TOWN_GET_FORB_RACE>))
+ELIF (STRMATCH(*<tag.raca>*,<obj.TOWN_GET_FORB_RACE>)) && (<region.defname>==<obj.GET_TOWN>)
  return GUARD_WARN_FORBIDDEN
 ENDIF
 
