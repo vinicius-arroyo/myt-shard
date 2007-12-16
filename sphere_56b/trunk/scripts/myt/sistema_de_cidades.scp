@@ -1,70 +1,95 @@
 //############################################################################
 //
-//              TOWN
+//				TOWN
 //
 //############################################################################
 
 
 //TAGS da region de Town
 //TAG.TOWN_TYPE
-//  1   Reino
-//  2   Cidade
-//  3   Vila
+//	1	Cpital
+//	2	Cidade
+//	3	Vila
 //TAG.TOWN_RACE
-//  Elfo
-//  Anao
-//  Humano
-//  Drow
-//  Orc
-//  Misc
-//TAG.TOWN_CAPITAL      AREADEF da área que comanda as leis.
-//TAG.TOWN_TRESURE      Quantidade de mc que a town possue.
-//TAG.TOWN_RACE_FORBIDDEN   Raças separadas por ;
-//TAG.TOWN_RACE_FRIEND      Raças separadas por ;
-//TAG.TOWN_UID_FORBIDDEN    UIDs sepadaras por ;
-//TAG.TOWN_UID_FRIEND       UIDs separadas por ;
-//TAG.TOWN_MASTER       UID do mestre da Town
-//TAG.TOWN_COUNSELORS       UIDs dos conselheiros da Town separadas por ;
-//TAG.TOWN_GUARD        DEFNAME do guarda da Town
-//TAG.TOWN_CHPRICE      Preço do tile² do terreno para construção. Proibido contruir se empty
+//	Elfo
+//	Anao
+//	Humano
+//	Drow
+//	Orc
+//	Misc
+//TAG.TOWN_CAPITAL		AREADEF da área que comanda as leis. Se esta comandar, então é o nome do reino.
+//TAG.TOWN_TRESURE		Quantidade de mc que a town possue.
+//TAG.TOWN_RACE_FORBIDDEN	Raças separadas por ;
+//TAG.TOWN_RACE_FRIEND		Raças separadas por ;
+//TAG.TOWN_UID_FORBIDDEN	UIDs sepadaras por ;
+//TAG.TOWN_UID_FRIEND		UIDs separadas por ;
+//TAG.TOWN_MASTER		UID do mestre da Town
+//TAG.TOWN_COUNSELORS		UIDs dos conselheiros da Town separadas por ;
+//TAG.TOWN_SERVANTS		UIDs dos funcionarios NPC separadas por ;
+//TAG.TOWN_CHPRICE		Preço do tile² do terreno para construção. Proibido contruir se empty
 
 [DEFNAME TOWN]
-TOWN_TYPE_KINGDOM   1
-TOWN_TYPE_CITY      2
-TOWN_TYPE_VILLAGE   3
+TOWN_TYPE_CAPITAL	1
+TOWN_TYPE_CITY		2
+TOWN_TYPE_VILLAGE	3
+
+TOWN_SERVANT_GATE	1
+TOWN_SERVANT_GUARD	2
+TOWN_SERVANT_SENESCAL	3
+
+//Tempo que demora para o Senescal rodar a função TOWN_TRIG
+TOWN_TRIG_TIME		20*60*60
+
+//Razão da fama de um guarda pelo custo em MC para compra.
+//Ex.: Um guarda com 5000 de fama com este número a 10 custaria 500 mc
+FAME_COPPER_RATE_BUY	15
+
+//Razão da fama de um guarda pelo custo em MC para salário.
+//Ex.: Um guarda com 5000 de fama com este número a 50 custaria 50 mc
+FAME_COPPER_RATE_ORD	50
+
+//Mínimo que pode custar um funcionário em mc
+SERVANT_MIN_COST	75
+
+//Salário mínimo do funcionário em mc
+SERVANT_MIN_ORD		6
 
 [DEFNAME guards_task]
 //TAG.TASK:
-GUARD_TASK_WANDER   0
-GUARD_TASK_STAND    1
-GUARD_TASK_WARN     2
-GUARD_TASK_ATTACK   3
-GUARD_TASK_GO       4
-GUARD_TASK_FOLLOW   5
-GUARD_TASK_GUARD    6
-GUARD_TASK_POST     7
-GUARD_TASK_PATROL   8
-GUARD_TASK_DISMISSING   9
-GUARD_TASK_REMOVE   10
+GUARD_TASK_WANDER	0
+GUARD_TASK_STAND	1
+GUARD_TASK_WARN		2
+GUARD_TASK_ATTACK	3
+GUARD_TASK_GO		4
+GUARD_TASK_FOLLOW	5
+GUARD_TASK_GUARD	6
+GUARD_TASK_POST		7
+GUARD_TASK_PATROL	8
+GUARD_TASK_DISMISSING	9
+GUARD_TASK_REMOVE	10
 
-GUARD_WARN_WARMODE  1
-GUARD_WARN_WEAPON   2
-GUARD_WARN_FORBIDDEN    3
-
+GUARD_WARN_WARMODE	1
+GUARD_WARN_WEAPON	2
+GUARD_WARN_LOCKPICK	3
+GUARD_WARN_FORBIDDEN	4
+GUARD_ATTACK_MONSTER	5
 
 //Máximo de Waypoints que os guardas podem ter.
-GUARD_WP_MAX        3
+GUARD_WP_MAX		10
+
+
+
 
 //****************************************************************************
 //****************************************************************************
 //
-//              MECANISMOS DA TOWN
+//				MECANISMOS DA TOWN
 //
 //****************************************************************************
 //****************************************************************************
 
 //****************************************************************************
-//                  ITEMDEFS
+//					ITEMDEFS
 //****************************************************************************
 [ITEMDEF I_BOX_TOWN_TRESURE]
 ID=i_box_brass
@@ -72,7 +97,7 @@ TYPE=t_container
 NAME=Tesouro do governo
 
 on=@ClientToolTip
-f_sendTooltip <name>, <TOWN_GET_TRESURE>
+f_sendTooltip <name>, <TOWN_GET_STRTRESURE>
 return 1
 
 on=@dclick
@@ -83,7 +108,7 @@ IF (<findcont.0>)
  return 1
 ENDIF
 IF (<region.tag0.TOWN_TRESURE>)
- CALL TOWN_GET_TRESURE
+ CALL TOWN_GET_STRTRESURE
  IF (<LOCAL.g>)
   serv.newitem i_gold
   new.amount=<LOCAL.g>
@@ -119,7 +144,7 @@ update
 return 1
 
 //****************************************************************************
-//                  FUNCTIONS
+//					FUNCTIONS
 //****************************************************************************
 
 [FUNCTION town]
@@ -133,7 +158,7 @@ else
  dialog d_town
 endif
 
-[FUNCTION TOWN_GET_TRESURE]
+[FUNCTION TOWN_GET_STRTRESURE]
 //Retorna uma string representando o tesouro de uma town.
 LOCAL.c=<region.tag0.town_tresure>
 WHILE (<LOCAL.c> > 100)
@@ -148,7 +173,7 @@ return <dLOCAL.g>mo <dLOCAL.s>mp <dLOCAL.c>mc
 
 [FUNCTION TOWN_RESOLV_DEMENCES]
 //Seta LOCAL.KINGDOM, LOCAL.CITY e LOCAL.VILLAGE pro gump d_town
-IF (<region.tag.TOWN_TYPE>==TOWN_TYPE_KINGDOM)
+IF (<region.tag.TOWN_TYPE>==TOWN_TYPE_CAPITAL)
  LOCAL.Kingdom=Autonomo
  call TOWN_RESOLV_CITIES <EXPLODE ;,<region.tag.town_demences>>
  call TOWN_RESOLV_VILLAGES <EXPLODE ;,<region.tag.town_demences>> 
@@ -178,8 +203,8 @@ ENDFOR
 
 [MENU m_new_town]
 <region.name> nao eh uma vila. Que vila faremos?
-on=0 Reino
-region.tag.town_type=<DEF.TOWN_TYPE_KINGDOM>
+on=0 Capital
+region.tag.town_type=<DEF.TOWN_TYPE_CAPITAL>
 MENU m_NEW_TOWN_RACE
 
 on=0 Cidade
@@ -212,8 +237,8 @@ on=0 Orc
 region.TAG.TOWN_RACE=Orc
 promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
 
-on=0 Misto
-region.TAG.TOWN_RACE=Misc
+on=0 Todas
+region.TAG.TOWN_RACE=Elfo;Anao;Humano;Drow;Orc
 promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
 
 [FUNCTION new_town_capital]
@@ -229,6 +254,387 @@ ELSE
 endif
 region.tag.TOWN_MASTER=<UID>
 sysmessagegreen Sua town foi configurada com sucesso! A capital eh <serv.resources.<region.tag.town_capital>.name>.
+
+
+
+//*****************************************************************************
+[FUNCTION TOWN_SERVANTS]
+//*****************************************************************************
+//Retorna o número de funionários da TOWN.
+//Se usado com CALL também seta LOCAL.GUARDS, LOCAL.SENESCAL e LOCAL.GATE
+//ARGS=Defname da TOWN.
+IF (!<serv.resources.<args>>)
+ return 0
+ENDIF
+LOCAL.servants=<explode ;,<serv.resources.<args>.tag.TOWN_SERVANTS>>
+call _TOWN_SERVANTS <LOCAL.servants>
+RETURN <LOCAL.SERVANTS>
+
+[FUNCTION _TOWN_SERVANTS]
+for s 1 <eval <argv>-1>
+ IF (<uid.<argv[<LOCAL.s>]>.tag.servant>==TOWN_SERVANT_GUARD)
+  LOCAL.GUARDS += 1
+ ELIF (<uid.<argv[<LOCAL.s>]>.tag.servant>==TOWN_SERVANT_GATE)
+  LOCAL.GATE += 1
+ ELIF (<uid.<argv[<LOCAL.s>]>.tag.servant>==TOWN_SERVANT_SENESCAL)
+  LOCAL.SENESCAL += 1
+ ENDIF
+endfor
+LOCAL.servants=<eval <argv>-1>
+
+//*****************************************************************************
+[FUNCTION TOWN_PAY_SERVANTS]
+//*****************************************************************************
+//Paga o que é devido aos funcionários da Town <args>. Retorna a quantidade de mc usada.
+IF (!<serv.resources.<args>>)
+ return 0
+ENDIF
+LOCAL.servants=<explode ;,<serv.resources.<args>.tag.TOWN_SERVANTS>>
+call _TOWN_PAY_SERVANTS <LOCAL.servants>
+RETURN <LOCAL.PAY>
+
+[FUNCTION _TOWN_PAY_SERVANTS]
+for s 1 <eval <argv>-1>
+ LOCAL.ORD=<TOWN_GET_SERVANT_ORD <uid.<argv[<LOCAL.s>]>.fame>,<uid.<argv[<LOCAL.s>]>.tag.servant>>
+ IF (!<LOCAL.ord>)
+  serv.log ALOOOW! <uid.<argv[<LOCAL.s>]>.name> (<argv[<LOCAL.s>]>) nao recebe ordenado?
+  LOCAL.ORD=1
+ ENDIF
+ IF (<TOWN_GET_TRESURE> >= <LOCAL.ORD>)
+  serv.newitem i_coin_copper
+  new.amount=<LOCAL.ord>
+  new.cont=<argv[<LOCAL.s>]>
+  IF (<uid.<argv[<LOCAL.s>]>.tag.servant>!=TOWN_SERVANT_SENESCAL)
+   DORAND 4
+    LOCAL.message=Meu dinheiro suado. <dLOCAL.ord> cobres.
+    LOCAL.message=<dLOCAL.ord> moedas pelo meu servico? Nao acho o suficiente.
+    LOCAL.message=Chegou o pagamento! <dLOCAL.ord> moedas de cobre.
+    LOCAL.message=Como podem me pagar apenas <dLOCAL.ord> moedas de cobre?
+   ENDDO
+  ENDIF
+  uid.<argv[<LOCAL.s>]>.timerf <R2,5>,say,<LOCAL.message>
+  TOWN_CONSUME_TRESURE <LOCAL.ord>
+  LOCAL.pay += <LOCAL.ord>
+ ELSE
+  uid.<argv[<LOCAL.s>]>.tag0.nopay += 1
+  DORAND 4
+   LOCAL.message=Nao me pagaram o ordenado. Vou sair de <serv.resources.<GET_TOWN>.name> logo!
+   LOCAL.message=Fiquei sem pagamento... <serv.resources.<GET_TOWN>.name> deve estar sem fundos!
+   LOCAL.message=Ah! Vou reclamar com <uid.<serv.resources.<GET_TOWN>.tag.town_master>.tag.name>! Como deixam de pagr meu ordanado?
+   LOCAL.message=Sem pagamento desta vez? Vou mendigar comida nas portas de <serv.resources.<GET_TOWN>.name> se continuar assim.
+  ENDDO
+  uid.<argv[<LOCAL.s>]>.timerf <R2,5>,say,<LOCAL.message>  
+ ENDIF
+ IF (<uid.<argv[<LOCAL.s>]>.tag.servant>==TOWN_SERVANT_GUARD)
+  uid.<argv[<LOCAL.s>]>.TIMERF <eval <DEF.TOWN_TRIG_TIME>/3>,GUARD_BUY
+  uid.<argv[<LOCAL.s>]>.TIMERF <eval (<DEF.TOWN_TRIG_TIME>/3*2)>,GUARD_BUY
+ ENDIF
+endfor
+
+
+//*****************************************************************************
+[FUNCTION TOWN_TRIG]
+//*****************************************************************************
+//O senescal roda esta função a cada <DEF.TOWN_TRIG_TIME> segundos.
+//funcionário de acordo com <DEF.TOWN_SERVANT_*>
+DORAND 3
+ say Um momento. Vou pagar os funcionarios de <serv.resources.<tag.town>.name>.
+ say Bem, eh hora de pagar os servidores de <serv.resources.<tag.town>.name>.
+ say Pronto! O proximo servico sera pagar os servidores de <serv.resources.<tag.town>.name>.
+ENDDO
+LOCAL.pay = <TOWN_PAY_SERVANTS <tag.town>>
+DORAND 3
+ LOCAL.message=<dLOCAL.pay> moedas de cobre no total. Agora vamos contabilizar os animais da fazernda.
+ LOCAL.message=Foram <dLOCAL.pay> cobres. Vou anotar e voltar ao relatorio de vendas.
+ LOCAL.message=Pagando <dLOCAL.pay> cobres, com o atual tesouro so poderei fazer o pagamento por mais <eval <TOWN_GET_TRESURE>/<LOCAL.pay>> vezes.
+ENDDO
+TIMERF 3,say,<LOCAL.message>
+TIMERF <DEF.TOWN_TRIG_TIME>,TOWN_TRIG
+
+//******************************************************************************
+//******************************************************************************
+//############################################################################**
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$**
+//									      **
+//############################################################################**
+//									      **
+//				SENESCAIS				      **
+//									      **
+//#############################################################################*
+//									      **
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$**
+//############################################################################**
+//******************************************************************************
+//******************************************************************************
+
+//*****************************************************************************
+// Senescal Homem
+//*****************************************************************************
+[CHARDEF c_h_senescal]
+ID=0190
+Name=#NAMES_HUMANMALE, o Senescal
+ICON=i_pet_MAN
+CAN=MT_EQUIP|MT_WALK|MT_RUN|MT_USEHANDS
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2
+FOODTYPE=100 t_food, t_fruit
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+BLOODCOLOR=0
+SOUND=snd_human_moomph01
+
+TEVENTS=e_combat 
+TSPEECH=spk_senescal
+TEVENTS=e_Human_HearUnk
+
+CATEGORY=MYT - Town
+SUBSECTION=Senescal
+DESCRIPTION=Senescal (Humano)
+
+ON=@Create
+NPC=brain_towncrier
+COLOR=colors_skin
+
+FENCING={15.0 38.0}
+PARRYING={15.0 38.0}
+SWORDSMANSHIP={15.0 38.0}
+WRESTLING={15.0 38.0}
+MACEFIGHTING={15.0 38.0}
+MAGICRESISTANCE={15.0 38.0}
+TACTICS={15.0 38.0}
+
+STR={40 60}
+DEX={50 70}
+INT={60 80}
+
+timerf 1,TOWN_START_SENESCAL
+
+SPEECHCOLOR=colors_blue
+TAG.RACA=Humano
+TAG.SERVANT=TOWN_SERVANT_SENESCAL
+
+ON=@NPCRestock
+	ITEM={ i_hair_ponytail 1 i_hair_short 1 i_hair_pageboy 1}
+	COLOR=colors_hair
+	ITEM { i_beard_vandyke 1 i_beard_goatee 1 i_beard_mustache 1 0 2}
+	COLOR=match_hair
+	ITEM=RANDOM_LIGHT
+	ITEM=i_shirt_fancy
+	COLOR=colors_all
+	ITEM=i_pants_long
+	COLOR=colors_all
+	ITEM=i_cape
+	ITEM=i_SASH
+	ITEM=random_boots
+	ITEM={ i_hat_feather 1 i_cap 1 0 2}
+	COLOR=COLORS_ALL
+	
+on=@Destroy
+TOWN_UNREG_SERVANT
+serv.log Hey! Hey! Hey! Senescal <name> (<uid>) foi destruido!!!
+
+//*****************************************************************************
+// Senescal Elfo
+//*****************************************************************************
+[CHARDEF c_e_senescal]
+ID=0190
+Name=#NAMES_HUMANMALE, o Senescal
+ICON=i_pet_MAN
+CAN=MT_EQUIP|MT_WALK|MT_RUN|MT_USEHANDS
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2
+FOODTYPE=100 t_food, t_fruit
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+BLOODCOLOR=0
+SOUND=snd_human_moomph01
+
+TEVENTS=e_combat 
+TSPEECH=spk_senescal
+TEVENTS=e_Human_HearUnk
+
+CATEGORY=MYT - Town
+SUBSECTION=Senescal
+DESCRIPTION=Senescal (Elfo)
+
+ON=@Create
+NPC=brain_towncrier
+COLOR=083EA
+
+FENCING={15.0 38.0}
+PARRYING={15.0 38.0}
+SWORDSMANSHIP={15.0 38.0}
+WRESTLING={15.0 38.0}
+MACEFIGHTING={15.0 38.0}
+MAGICRESISTANCE={15.0 38.0}
+TACTICS={15.0 38.0}
+
+STR={40 60}
+DEX={50 70}
+INT={60 80}
+
+timerf 1,TOWN_START_SENESCAL
+
+SPEECHCOLOR=colors_blue
+TAG.RACA=HumanoElfoNT=TOWN_SERVANT_SENESCAL
+
+ON=@NPCRestock
+	ITEM=i_hair_long
+	COLOR=035
+	ITEM=i_shirt_plain
+	COLOR=colors_all
+	ITEM=i_pants_short
+	COLOR=colors_all
+	ITEM=i_cape
+	ITEM=i_SASH
+	ITEM=i_sandals
+	
+on=@Destroy
+TOWN_UNREG_SERVANT
+serv.log Hey! Hey! Hey! Senescal <name> (<uid>) foi destruido!!!
+
+//*****************************************************************************
+// Senescal Anão
+//*****************************************************************************
+[CHARDEF c_a_senescal]
+ID=0190
+Name=#NAMES_HUMANMALE, o Senescal
+ICON=i_pet_MAN
+CAN=MT_EQUIP|MT_WALK|MT_RUN|MT_USEHANDS
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2
+FOODTYPE=100 t_food, t_fruit
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+BLOODCOLOR=0
+SOUND=snd_human_moomph01
+
+TEVENTS=e_combat 
+TSPEECH=spk_senescal
+TEVENTS=e_Human_HearUnk
+
+CATEGORY=MYT - Town
+SUBSECTION=Senescal
+DESCRIPTION=Senescal (Anao)
+
+ON=@Create
+NPC=brain_towncrier
+COLOR=083EA
+
+FENCING={15.0 38.0}
+PARRYING={15.0 38.0}
+SWORDSMANSHIP={15.0 38.0}
+WRESTLING={15.0 38.0}
+MACEFIGHTING={15.0 38.0}
+MAGICRESISTANCE={15.0 38.0}
+TACTICS={15.0 38.0}
+
+STR={40 60}
+DEX={50 70}
+INT={60 80}
+
+timerf 1,TOWN_START_SENESCAL
+
+SPEECHCOLOR=colors_blue
+TAG.RACA=Anao
+TAG.SERVANT=TOWN_SERVANT_SENESCAL
+
+ON=@NPCRestock
+	ITEM={ i_hair_long 1 i_hair_ponytail 1  i_hair_2_pigtails 1 }
+	COLOR=COLORS_HAIR
+	ITEM={ i_beard_long 1 i_beard_short_med 1 i_beard_long_med 1 }
+	COLOR=match_hair
+	ITEM=i_shirt_fancy
+	COLOR=colors_all
+	ITEM=i_pants_long
+	COLOR=colors_all
+	ITEM=i_cape
+	ITEM=i_SASH
+	ITEM=RANDOM_BOOTS
+	
+on=@Destroy
+TOWN_UNREG_SERVANT
+serv.log Hey! Hey! Hey! Senescal <name> (<uid>) foi destruido!!!
+
+[FUNCTION TOWN_START_SENESCAL]
+TOWN_AZILUM
+TOWN_REG_SERVANT
+FINDID.i_cape.color=<region.tag0.TOWN_COLOR>
+FINDID.i_sash.color=<region.tag0.TOWN_COLOR>
+
+[SPEECH spk_senescal]
+on=*venha*
+on=*vamos*
+on=ANDE
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ flags=<flags>&~04
+ timerf 1,say,Certamente, <src.sex senhor/senhora>.
+ act=<src.uid>
+ action=064
+ENDIF
+return 1
+
+on=*fique*
+on=*permaneca*
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ flags = <flags>|04
+ timerf 1,say,De certo que ficarei aqui, <src.sex senhor/senhora>.
+ act=
+ action=065
+ENDIF
+return 1
+
+on=*como*esta*reino*
+on=*como*esta*cidade*
+on=*como*esta*vila*
+timerf 1,say Oh, sim! Veja meus relatos.
+timerf 2,emoteyellow,entrega uns papeis
+src.timerf 2,town
+
+on=*contratar*
+on=*contrate*
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>, 2>)
+ say Vamos ver o que temos disponivel entao.
+ src.menu M_TOWN_HIRE
+ENDIF
+
+[MENU M_TOWN_HIRE]
+O que deseja contratar?
+on=0 Porteiro
+sysmessagered Indisponivel.
+
+on=0 Guarda
+MENU M_TOWN_HIRE_GUARD
+
+[MENU M_TOWN_HIRE_GUARD]
+Que tipo de guarda?
+on=0 Recruta por <eval <TOWN_GET_SERVANT_PRICE 0,TOWN_SERVANT_GUARD>>mc (ordenado de <eval <TOWN_GET_SERVANT_ORD 0,TOWN_SERVANT_GUARD>>mc)
+TONW_BUY_GUARD
+
+on=0 Soldado por <eval <TOWN_GET_SERVANT_PRICE 1001,TOWN_SERVANT_GUARD>>mc (ordenado de <eval <TOWN_GET_SERVANT_ORD 1001,TOWN_SERVANT_GUARD>>mc)
+TOWN_BUY_GUARD 1001
+
+on=0 Tenente por <eval <TOWN_GET_SERVANT_PRICE 2501,TOWN_SERVANT_GUARD>>mc (ordenado de <eval <TOWN_GET_SERVANT_ORD 2501,TOWN_SERVANT_GUARD>>mc)
+TOWN_BUY_GUARD 2501
+
+on=0 Capitao por <eval <TOWN_GET_SERVANT_PRICE 5001,TOWN_SERVANT_GUARD>>mc (ordenado de <eval <TOWN_GET_SERVANT_ORD 5001,TOWN_SERVANT_GUARD>>mc)
+TOWN_BUY_GUARD 5001
+
+//******************************************************************************
+//******************************************************************************
+//############################################################################**
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$**
+//									      **
+//############################################################################**
+//									      **
+//				PORTEIROS				      **
+//									      **
+//#############################################################################*
+//									      **
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$**
+//############################################################################**
+//******************************************************************************
+//******************************************************************************
+
+
+
 
 //*****************************************************************************
 // Porteira Elfa
@@ -250,6 +656,7 @@ DEX={66 80}
 INT={66 80}
 
 tag.raca Elfo
+TAG.SERVANT=TOWN_SERVANT_GATE
 
 SWORDSMANSHIP={15.0 38.0}
 ITEMID={50.0 70.0}
@@ -418,20 +825,57 @@ endif
 //******************************************************************************
 //############################################################################**
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$**
-//                                        **
+//									      **
 //############################################################################**
-//                                        **
-//                  GUARDAS                   **
-//                                        **
+//									      **
+//					GUARDAS				      **
+//									      **
 //#############################################################################*
-//                                        **
+//									      **
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$**
 //############################################################################**
 //******************************************************************************
 //******************************************************************************
 
 [FUNCTION TOWN_BUY_GUARD]
+IF (<IsEmpty <argv[0]>>)
+ LOCAL.fame=0
+ELSE
+ LOCAL.fame=<argv[0]>
+ENDIF
 
+LOCAL.price=<TOWN_GET_SERVANT_PRICE <LOCAL.fame>,TOWN_SERVANT_GUARD>
+IF (<LOCAL.price> > <TOWN_GET_TRESURE <region.defname>>)
+ sysmessagered <region.name> nao tem <dLOCAL.price>mc para contratar este funcionario.
+ return 1
+ELSE
+ TOWN_CONSUME_TRESURE <LOCAL.price>
+ENDIF
+
+if (STRMATCH(Anao,<region.tag.town_race>))
+ LOCAL.guard=c_a_guard
+elif (STRMATCH(Humano,<region.tag.town_race>))
+ LOCAL.guard=c_h_guard
+elif (STRMATCH(Elfo,<region.tag.town_race>))
+ LOCAL.guard=c_e_guard
+ELSE
+ DORAND 3
+  LOCAL.guard=c_a_guard
+  LOCAL.guard=c_e_guard
+  LOCAL.guard=c_h_guard
+ ENDDO
+endif
+
+serv.newnpc <LOCAL.guard>
+
+new.movenear <UID>,2
+new.GUARD_FOLLOW <UID>
+if (0<argv[0]>)
+ new.fame=<argv[0]>
+endif
+new.TOWN_AZILUM
+new.TOWN_REG_SERVANT
+new.GUARD_LEVEL 1
 
 [FUNCTION GUARD_LEVEL]
 //ARGN=Iniciar
@@ -445,8 +889,40 @@ ELIF (!<tag0.level>) && (<FAME> < 1000) && (<FAME> > 0)
  return 0
 ELIF (!<FAME>)
  FAME=1
+ELIF (<FAME>) && (<argn>) && (!<tag0.level>)
+ if (<FAME> > 4999)
+  tag.level 3
+ ELIF (<FAME> > 2499)
+  tag.level 2
+ ELIF (<FAME> > 999)
+  tag.level 1
+ ENDIF
 ELSE
  tag0.level += 1
+ENDIF
+
+IF (<argn>) && (<tag0.level>)
+ str += <BETWEEN 0,50,<FAME>,5001>
+ dex += <BETWEEN 0,50,<FAME>,5001>
+ int += <BETWEEN 0,50,<FAME>,5001>
+ maxhits += <BETWEEN 0,150,<FAME>,5001>
+ LOCAL.bonus 500
+ for i 0 3
+  LOCAL.skill=<skillbest.<dLOCAL.i>>
+  IF (<LOCAL.skill>==31)
+   archery += <BETWEEN 0,<LOCAL.bonus>,<FAME>,5001>
+   LOCAL.bonus -= 100
+  ELIF (<LOCAL.skill>==42)
+   fencing += <BETWEEN 0,<LOCAL.bonus>,<FAME>,5001>
+   LOCAL.bonus -= 100
+  ELIF (<LOCAL.skill>==41)
+   macefighting += <BETWEEN 0,<LOCAL.bonus>,<FAME>,5001>
+   LOCAL.bonus -= 100
+  ELIF (<LOCAL.skill>==40)
+   swordsmanship += <BETWEEN 0,<LOCAL.bonus>,<FAME>,5001>
+   LOCAL.bonus -= 100
+  ENDIF
+ endfor
 ENDIF
 
 for layer 1 24
@@ -527,10 +1003,10 @@ for i 0 53
   return 1
  ELIF (<LOCAL.skill>==42)
   DOSWITCH <TAG0.level>
-   takeitem random_faca
-   takeitem i_lanca_curta
-   takeitem i_garfo_guerra
-   takeitem i_lanca
+   take_item random_faca
+   take_item i_lanca_curta
+   take_item i_garfo_guerra
+   take_item i_lanca
   ENDDO
   return 1
  ELIF (<LOCAL.skill>==41)
@@ -556,10 +1032,117 @@ return <serv.resources.<tag.town>.tag.town_color>
 //*****************************************************************************
 //*****************************************************************************
 //
-//                 CHARDEFS
+// 				   CHARDEFS
 //
 //*****************************************************************************
 //*****************************************************************************
+
+//*****************************************************************************
+// guarda Humano
+//*****************************************************************************
+[CHARDEF c_h_guard]
+ID=c_man
+NAME=#NAMES_HUMANMALE
+ICON=i_pet_MAN
+CAN=MT_EQUIP|MT_WALK|MT_RUN|MT_USEHANDS
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2
+FOODTYPE=100 t_food, t_fruit
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff,t_tar,t_fire
+BLOODCOLOR=0
+SOUND=snd_human_moomph01
+TEVENTS=e_guard_town
+TEVENTS=e_PvM
+TEVENTS=e_combat 
+
+TSPEECH=jobTOWNGuard
+
+CATEGORY=MYT - Town
+SUBSECTION=Guardas
+DESCRIPTION=Guarda (Humano)
+
+ON=@Create
+NPC=brain_human
+COLOR=colors_skin
+KARMA=5000
+
+timerf 5,GUARD_AI
+
+TAG.RACA=Humano
+TAG.SERVANT=TOWN_SERVANT_GUARD
+
+speechcolor={ colors_red 1 colors_orange 1 colors_blue 1 }
+
+MACEFIGHTING={50.0 60.0}
+SWORDSMANSHIP={50.0 60.0
+ARCHERY={50.0 58.0}
+FENCING={50.0 60.0}
+TACTICS=60.0
+
+STR=60
+DEX=70
+INT=80
+MAXHITS=100
+
+ITEM=i_coin_copper,{3 10}
+ITEMNEWBIE={ i_hair_short 1 i_hair_long 1 i_hair_ponytail 1 i_hair_receding 1 }
+COLOR=colors_brown
+ITEMNEWBIE={ i_beard_short 1 i_beard_goatee 1 i_beard_mustache 3 i_beard_short_med 1 i_beard_vandyke 1 }
+COLOR=match_hair
+ITEM=i_ribs_cooked
+amount=12
+
+//*****************************************************************************
+// guarda Elfo
+//*****************************************************************************
+[CHARDEF c_e_guard]
+ID=c_man
+NAME=#NAMES_HUMANMALE
+ICON=i_pet_MAN
+CAN=MT_EQUIP|MT_WALK|MT_RUN|MT_USEHANDS
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2
+FOODTYPE=100 t_food, t_fruit
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff,t_tar,t_fire
+BLOODCOLOR=0
+SOUND=snd_human_moomph01
+TEVENTS=e_guard_town
+TEVENTS=e_PvM
+TEVENTS=e_combat 
+
+TSPEECH=jobTOWNGuard
+
+CATEGORY=MYT - Town
+SUBSECTION=Guardas
+DESCRIPTION=Guarda (Humano)
+
+ON=@Create
+NPC=brain_human
+COLOR=colors_skin
+KARMA=5000
+
+timerf 5,GUARD_AI
+
+TAG.RACA=Elfo
+TAG.SERVANT=TOWN_SERVANT_GUARD
+
+speechcolor={ colors_red 1 colors_orange 1 colors_blue 1 }
+
+SWORDSMANSHIP={50.0 60.0}
+ARCHERY={53.0 62.0 }
+FENCING={50.0 60.0}
+TACTICS=60.0
+
+STR=60
+DEX=70
+INT=80
+MAXHITS=100
+
+ITEM=i_coin_copper,{3 10}
+ITEMNEWBIE={ i_hair_short 1 i_hair_long 2 i_hair_ponytail 2 }
+COLOR=035
+ITEM=i_ribs_cooked
+amount=12
 
 
 //*****************************************************************************
@@ -573,7 +1156,7 @@ CAN=MT_EQUIP|MT_WALK|MT_RUN|MT_USEHANDS
 RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2
 FOODTYPE=100 t_food, t_fruit
 DESIRES=i_gold,e_notoriety
-AVERSIONS=t_TRAP,t_eerie_stuff
+AVERSIONS=t_TRAP,t_eerie_stuff,t_tar,t_fire
 BLOODCOLOR=0
 SOUND=snd_human_moomph01
 TEVENTS=e_guard_town
@@ -593,27 +1176,22 @@ KARMA=5000
 
 timerf 5,GUARD_AI
 
-speechcolor=colors_all
+TAG.RACA=Anao
+TAG.SERVANT=TOWN_SERVANT_GUARD
 
-MACEFIGHTING=100.0
-TACTICS=100.0
-FENCING=100.0
+speechcolor={ colors_red 1 colors_orange 1 colors_blue 1 }
 
-STR=100
-DEX=110
-INT=50
-MAXHITS=200
+MACEFIGHTING={50.0 70.0}
+SWORDSMANSHIP={50.0 60.0}
+TACTICS=60.0
+FENCING={50.0 60.0}
 
-ITEM=i_kryss
-ITEM={i_maca 1 i_maca_guerra 1}
-ITEMNEWBIE=i_peito_malha
-ITEMNEWBIE=i_braco_malha
-ITEMNEWBIE=i_perna_malha
-ITEMNEWBIE=i_luva_malha
-ITEMNEWBIE=i_pescoco_malha
-ITEMNEWBIE={i_escudo_batalham 1 i_escudo_madeira 1 i_broquel 1}
+STR=60
+DEX=70
+INT=80
+MAXHITS=100
+
 ITEM=i_coin_copper,{3 10}
-ITEM=i_boots_calf
 ITEMNEWBIE={i_hair_long 1 i_hair_2_pigtails 1}
 COLOR=colors_brown
 ITEMNEWBIE={i_beard_long_med 1 i_beard_long}
@@ -625,7 +1203,7 @@ amount=12
 //*****************************************************************************
 //*****************************************************************************
 //
-//                 SPEECH
+// 				   SPEECH
 //
 //*****************************************************************************
 //*****************************************************************************
@@ -637,14 +1215,24 @@ IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
  timerf 1,say Nao patrulharei mais meus pontos entao, <sex senhor/senhora>.
  GUARD_CLEAR_WAYPOINTS
  action=06D
- TAG.TASK=GUARD_TASK_POST
+ GUARD_FOLLOW
+endif
+return 1
+
+on=sua*patrulha
+on=va*patrulha
+on=va*patrulhar
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ timerf 1,say,Entendido!
+ GUARD_PATROL
+ TAG.TASK=GUARD_TASK_PATROL
 endif
 return 1
 
 on=*pare*
 IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
  GUARD_STOP
- TAG.TASK=GUARD_TAKS_STAND
+ TAG.TASK=GUARD_TASK_STAND
  timerf 1,say,Sim, <src.sex senhor/senhora>.
 endif
 return 1
@@ -657,14 +1245,6 @@ IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
  TAG.TASK=GUARD_TASK_FOLLOW
  GUARD_FOLLOW
 ENDIF
-return 1
-
-on=*va*
-IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
- say Ate aonde, <src.sex senhor/senhora>?
- TAG.TASK=GUARD_TASK_GO
- src.targetfg GUARD_GO <uid>,1
-endif
 return 1
 
 on=*ataque*
@@ -693,16 +1273,19 @@ on=nos*seus*postos
 on=aos*seus*postos
 IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
  timerf 1,Say,Imediatamente!
+ GUARD_CORRECT_HOME
  action=06D
  TAG.TASK=GUARD_TASK_POST
 ENDIF
 return 1
 
 on=este*seu*posto
+on=*novo*posto*aqui
 IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
  timerf 1,Say,Ficarei de olho por aqui entao.
  home=<src.p>
- HOMEDIST=8
+ tag.home=<src.p>
+ HOMEDIST=5
  action=06D
  TAG.TASK=GUARD_TASK_POST
 ENDIF
@@ -711,15 +1294,35 @@ return 1
 on=patrulhe*ponto
 IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
  say Qual ponto devo guardar?
+ GUARD_FOLLOW <src.uid>
  src.targetfg GUARD_ADD_WAYPOINT <UID>
 endif
 
-on=esta*demitido
+on=*volte*trabalho*
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ if (<IsEmpty <tag.oldtask>>)
+  timerf 1,say E qual era meu trabalho?
+ else
+  say Agora mesmo, <sex senhor/senhora>.
+  GUARD_RETRIEVE_TASK
+ endif
+endif
+return 1
+
+on=*esta*demitido*
 IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,3>)
  say Tem certeza, <sex senhor/senhora>?
  TAG.TASK=GUARD_TASK_DISMISSING
  act=<src.uid>
 ENDIF
+
+on=*va*
+IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,2>)
+ say Ate aonde, <src.sex senhor/senhora>?
+ TAG.TASK=GUARD_TASK_GO
+ src.targetfg GUARD_GO <uid>,1
+endif
+return 1
 
 on=sim
 on=tenho
@@ -729,6 +1332,7 @@ IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,3>)
   say Muito bem. Estou indo embora entao.
   SPEECH -jobTOWNGuard
   TAG.TASK=GUARD_TASK_REMOVE
+  timerf 120,remove
  ELSE
   say Seja mais <sex especifico/especifica>, <sex meu/minha> <sex senhor/senhora>.
  ENDIF
@@ -750,7 +1354,7 @@ ENDIF
 //*****************************************************************************
 //*****************************************************************************
 //
-//                 EVENTS
+// 				   EVENTS
 //
 //*****************************************************************************
 //*****************************************************************************
@@ -758,18 +1362,33 @@ ENDIF
 [EVENTS e_guard_town]
 on=@Kill
 FAME += <eval <argo.fame>/20>
-else
 IF (<argo.karma> > 0)
  KARMA += <eval <argo.KARMA>/20>
-else
+ELIF (<argo.karm> < -2000)
  KARMA -= <eval <argo.KARMA>/20>
 endif
 return 0
+DORAND 5
+ TACTICS += <R5,25>
+ FENCING += <R5,25>
+ ARCHERY += <R5,25>
+ MACEFIGHTING += <R5,25>
+ SWORDSMANSHIP += <R5,25>
+ENDDO
+DORAND 3
+ STR += 2
+ DEX += 2
+ INT += 1
+ENDDO
+MAXHITS += <R1,5>
 
 on=@Hunger
 if (<food> < 50)
- if (!<GUARD_FOOD>) && (<food> <= 15)
+ if (!<GUARD_FOOD>)
   GUARD_BUY
+ elif (!<food>)
+  say Chega disto! Estou me demitindo!
+  timerf 15,remove
  endif
 endif
 
@@ -778,14 +1397,38 @@ argn2=1000
 
 ON=@NPCLookAtChar
 //Medida drástica para evitar lag:
-if (<R0,<sector.complexity>> > 4) || (<tag0.lastspot> > <serv.time>) || (<tag0.task>==GUARD_TASK_ATTACK) || (<tag0.task>==GUARD_TASK_WARN) || (<tag0.task>==GUARD_TASK_REMOVE) || (<region.defname> != <tag0.town>)// !(STRMATCH(<region.defname>,<tag.town>))
+//say vendo <src.name>
+if (<R0,<sector.complexity>>) || (<tag.task>==GUARD_TASK_ATTACK) || (<tag.task>==GUARD_TASK_WARN) || (<tag.task>==GUARD_TASK_REMOVE) || (<region.defname> != <tag.town>)
  return 0
 endif
-say Vendo <src.name>
-tag.lastspot=<eval <serv.time>+15>
+LOCAL.Warn=<src.GuardMustWarn <UID>>
+IF (<LOCAL.Warn>)
+ GUARD_WARN <src.UID>,<LOCAL.WARN>
+ENDIF
 
+on=@NPCLOSTTELEPORT
+serv.log <name> tentou teleportar por estar perdido. Dist: <argn1> - Try: <eval <actarg1>>
+IF (<actarg1> > 149)
+ actarg1=
+ return 0
+endif
+actarg1 += 1
+return 1
 
+on=@SPELLEFFECT
+serv.log <name> castando <argn1>???
 
+on=@Destroy
+TOWN_UNREG_SERVANT
+serv.log Hey! Hey! Hey! Guarda <name> (<uid>) foi destruido!!!
+
+on=@GetHit
+if (<src.ischar>)
+ if (<src.isgm>) || (<src.flags>&01f) || (<memoryfindtype.memory_wartarg>)
+  return 1
+ endif
+ GUARD_ATTACK <src.uid> 
+endif
 
 
 
@@ -793,7 +1436,7 @@ tag.lastspot=<eval <serv.time>+15>
 //*****************************************************************************
 //*****************************************************************************
 //
-//                 FUNCTIONS
+// 				   FUNCTIONS
 //
 //*****************************************************************************
 //*****************************************************************************
@@ -801,7 +1444,7 @@ tag.lastspot=<eval <serv.time>+15>
 
 
 //*****************************************************************************
-[FUNCTION GUARD_GET_TOWN]
+[FUNCTION GET_TOWN]
 //*****************************************************************************
 //Retronar DEFNAME da town do NPC
 IF (!<IsEmpty <tag.town>>)
@@ -812,7 +1455,7 @@ endif
 [FUNCTION GET_TOWN_MASTER]
 //*****************************************************************************
 //Retorna a UID do MASTER da town do NPC
-LOCAL.town=<GUARD_GET_TOWN>
+LOCAL.town=<GET_TOWN>
 IF (!<serv.resources.<LOCAL.town>>)
  return 0
 ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_master>>)
@@ -824,13 +1467,176 @@ return <serv.resources.<LOCAL.town>.tag.town_master>
 [FUNCTION GET_TOWN_COUNCELORS]
 //*****************************************************************************
 //Retorna uma string com todos os UIDs dos conselors + do master da town
-LOCAL.town=<GUARD_GET_TOWN>
+LOCAL.town=<GET_TOWN>
 IF (!<serv.resources.<LOCAL.town>>)
- return <GUARD_GET_TOWN_MASTER>
+ return 0
 ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_councelors>>)
- return <GUARD_GET_TOWN_MASTER>
+ return <GET_TOWN_MASTER>
 ENDIF
 return <serv.resources.<LOCAL.town>.tag.town_master>;<serv.resources.<LOCAL.town>.tag.town_councelors>
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_FRIEND_RACE]
+//*****************************************************************************
+//Retorna a lista de raças amigas da town deste NPC.
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_race_friend>>)
+ return <serv.resources.<LOCAL.town>.tag.town_race>
+ENDIF
+RETURN <serv.resources.<LOCAL.town>.tag.town_race>;<serv.resources.<LOCAL.town>.tag.town_race_friend>
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_TRESURE]
+//*****************************************************************************
+//Retorna o tesouro da town em mc. Se existe <argv[0]>, é o defname da town. Se não, usa a town do NPC.
+IF (!<IsEmpty <argv[0]>>)
+ IF (<serv.resources.<argv[0]>.tag0.town_type>)
+  LOCAL.town=<argv[0]>
+ ELSE
+  return -1
+ ENDIF
+ELSE
+ LOCAL.town=<GET_TOWN>
+ENDIF
+RETURN <serv.resources.<LOCAL.town>.tag0.town_tresure>
+
+//*****************************************************************************
+[FUNCTION TOWN_CONSUME_TRESURE]
+//*****************************************************************************
+//Consome <argn> do tesouro da town em mc.
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ IF (!<IsEmpty <region.tag0.town_type>>)
+  LOCAL.town=<region.defname>
+ ELSE
+  serv.log ALOOOW! <name> (<UID>) nao tem town para consumir tesouro!
+  return 0
+ ENDIF
+ENDIF
+serv.resources.<LOCAL.town>.tag0.town_tresure -= <argn>
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_FRIEND_UID]
+//*****************************************************************************
+//Retorna a lista de UIDs amigas da town deste NPC.
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_UID_friend>>)
+ return 0
+ENDIF
+RETURN <serv.resources.<LOCAL.town>.tag.town_UID_friend>
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_FORB_RACE]
+//*****************************************************************************
+//Retorna a lista de raças proibidas na town deste NPC.
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_race_forbidden>>)
+ return 0
+ENDIF
+RETURN <serv.resources.<LOCAL.town>.tag.town_race_forbidden>
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_FORB_UID]
+//*****************************************************************************
+//Retorna a lista de UIDs proibidas na town deste NPC.
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_UID_forbidden>>)
+ return 0
+ENDIF
+RETURN <serv.resources.<LOCAL.town>.tag.town_UID_forbidden>
+
+//*****************************************************************************
+[FUNCTION TOWN_AZILUM]
+//*****************************************************************************
+//Faz um NPC servo espatriado pertencer a esta town
+if (<IsEmpty <tag.town>>)
+ if !(STRMATCH(*world*,<region.defname>))
+  if (<region.tag.town_type>)
+   DORAND 3
+    say <region.name> eh meu novo lar.
+    say Eu tenho um novo lar. Seu nome eh <region.name>
+    say Ah, eh bom estar em <region.name>. Farei daqui meu lar
+   ENDDO
+   tag.town=<region.defname>
+   home=<p>
+  else
+   say <region.name> nao eh uma capital, nem cidade e nem vila.
+  endif
+ else
+  say O mundo eh selvagem...
+ endif
+else
+ say Nao posso ficar aqui. Meu lar eh <serv.resources.<GET_TOWN>.name>.
+endif
+
+//*****************************************************************************
+[FUNCTION TOWN_REG_SERVANT]
+//*****************************************************************************
+//Registra este NPC como funcionário da town dele
+IF (!<GET_TOWN>)
+ serv.log ALOOOW! <name> (<uid>) nao tem town! Nao pode ser registrado!
+ELIF (STRMATCH(*<UID>*,<serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS>)
+ serv.log ALOOOW! <name> (<uid>) Ja eh registrado em sua town!
+ELSE
+ if (<IsEmpty <serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS>>)
+  serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS = <UID>
+ else
+  serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS .= ;<UID>
+ endif
+ serv.log Hey! Hey! Hey!  <name> (<uid>) registrado como funcionario em <serv.resources.<GET_TOWN>.name>!
+ENDIF
+
+//*****************************************************************************
+[FUNCTION TOWN_UNREG_SERVANT]
+//*****************************************************************************
+//Remove o registro deste NPC como funcionário da town dele
+IF (!<GET_TOWN>)
+ serv.log ALOOOW! <name> (<uid>) nao tem town! Nao pode ser desregistrado!
+ELIF !(STRMATCH(*<UID>*,<serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS>)
+ serv.log ALOOOW! <name> (<uid>) Nao eh registrado em sua town!
+ELSE
+ serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS = <f_RemoveList <uid>,<serv.resources.<GET_TOWN>.tag.TOWN_SERVANTS>>
+ serv.log Hey! Hey! Hey!  <name> (<uid>) perdeu registro de funcionario em <serv.resources.<GET_TOWN>.name>!
+ENDIF
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_SERVANT_PRICE]
+//*****************************************************************************
+//Pega o preço de um funcionário pela fama dele. <argv[0]> é a fama e <argv[1]> é o tipo de
+//funcionário de acordo com <DEF.TOWN_SERVANT_*>
+LOCAL.type=<DEF.<argv[1]>>
+LOCAL.FAME=<argv[0]>
+IF (<LOCAL.type>==TOWN_SERVANT_GUARD)
+ RETURN <eval <DEF.SERVANT_MIN_COST>+(<LOCAL.FAME>/<DEF.FAME_COPPER_RATE_BUY>)>
+ELIF (<LOCAL.type>==TOWN_SERVANT_GATE)
+ RETURN <DEF.SERVANT_MIN_COST>
+ELIF (<LOCAL.type>==TOWN_SERVANT_SENESCAL)
+ RETURN <eval <DEF.SERVANT_MIN_COST>*5>
+ENDIF
+
+//*****************************************************************************
+[FUNCTION TOWN_GET_SERVANT_ORD]
+//*****************************************************************************
+//Pega o ordenado de um funcionário pela fama dele. <argv[0]> é a fama e <argv[1]> é o tipo de
+//funcionário de acordo com <DEF.TOWN_SERVANT_*>
+LOCAL.type=<DEF.<argv[1]>>
+LOCAL.FAME=<argv[0]>
+IF (<LOCAL.type>==TOWN_SERVANT_GUARD)
+ RETURN <eval <DEF.SERVANT_MIN_ORD>+(<LOCAL.FAME>/<DEF.FAME_COPPER_RATE_ORD>)>
+ELIF (<LOCAL.type>==TOWN_SERVANT_GATE)
+ RETURN <DEF.SERVANT_MIN_ORD>
+ELIF (<LOCAL.type>==TOWN_SERVANT_SENESCAL)
+ RETURN <eval <DEF.SERVANT_MIN_ORD>*5>
+ENDIF
+
 
 //*****************************************************************************
 [FUNCTION GUARD_STOP]
@@ -839,27 +1645,51 @@ return <serv.resources.<LOCAL.town>.tag.town_master>;<serv.resources.<LOCAL.town
 tag.task=GUARD_TASK_WANDER
 act=
 actp=
-flags=<flags>~&020
+flags ^= statf_war
 update
 action=065
+
+//*****************************************************************************
+[FUNCTION GUARD_CORRECT_HOME]
+//*****************************************************************************
+//Salva ou usa a TAG.HOME para o NPC nunca perder a home.
+//Para quase todos os comandos de andar até um ponto se usa o HOME para evitar teleport
+IF (<IsEmpty <tag.home>>)
+ IF (<IsEmpty <home>>)
+  home=<p>
+ endif
+ tag.home=<home>
+ELSE
+ HOME=<tag.home>
+ENDIF
+
 
 //*****************************************************************************
 [FUNCTION GUARD_FOLLOW]
 //*****************************************************************************
 //Faz um NPC seguir ARGN
-tag.oldtask=<tag0.task>
-tag.task.GUARD_TASK_FOLLOW
-act=<src.uid>
+GUARD_SAVE_TASK
+tag.task=GUARD_TASK_FOLLOW
+IF (<argn>)
+ act=<argn>
+else
+ act=<src.uid>
+endif
 action=064
 
 //*****************************************************************************
 [FUNCTION GUARD_ATTACK]
 //*****************************************************************************
-//Faz o guarda atacar ARGN
+//Faz o guarda de UID <argv[0]> atacar o TARGET <ARGO>. Se não houver <ARGO>, acata ACT.
 ref1=<argv[0]>
-ref1.tag.oldtask=<tag0.task>
-ref1.tag.task.GUARD_TASK_ATTACK
-ref1.attack <argo>
+IF (<argo>)
+ ref1.GUARD_SAVE_TASK
+ ref1.tag.task.GUARD_TASK_ATTACK
+ ref1.attack <argo>
+ELSE
+ ref1.tag.task=GUARD_TASK_ATTACK
+ ref1.attack <ref1.act>
+ENDIF
 
 //*****************************************************************************
 [FUNCTION GUARD_GO]
@@ -887,26 +1717,164 @@ else
 endif
 
 //*****************************************************************************
+[FUNCTION GUARD_PATROL]
+//*****************************************************************************
+//Faz o guarda patrulhar pelos WAYPOINTS dele.
+IF (<IsEmpty <tag.waypoint>>)
+ IF (<IsEmpty <tag.wp_00>>)
+  tag.task=GUARD_TASK_WANDER
+  action=06D
+  timerf 2,say Mas eu nao tenho o que patrulhar...
+ ELSE
+  tag.waypoint=0
+  tag.home=<home>
+  home=<tag.wp_00>
+  action=06D
+ ENDIF
+ return 1
+ENDIF
+
+IF (<distance <actp>> < 2)
+ IF (!<IsEmpty <tag.wp_<hval <tag.waypoint>+1>>>)
+  tag.waypoint += 1
+  home=<tag.wp_<tag.waypoint>>
+ ELSE
+  tag.waypoint=0
+  home=<tag.wp_00>
+ ENDIF
+ sb [GUARDS]: <name> muda para o waypoint <dTAG.Waypoint>
+ action=06D
+ENDIF
+
+//*****************************************************************************
+[FUNCTION GUARD_SAVE_TASK]
+//*****************************************************************************
+//Salva a ultima satk do guarda
+tag.oldtask=<tag.task>
+tag.oldaction=<action>
+tag.oldact=<act>
+tag.oldactp=<actp>
+
+//*****************************************************************************
+[FUNCTION GUARD_RETRIEVE_TASK]
+//*****************************************************************************
+//Salva a ultima satk do guarda
+IF (!<IsEmpty <tag.oldtask>>)
+ tag.task=<tag.oldtask>
+ action=<tag.oldaction>
+ act=<tag.oldact>
+ actp=<tag.oldactp>
+ tag.oldtask=
+ tag.oldaction=
+ tag.oldact=
+ tag.oldactp=
+ tag.warn=
+ tag.subject=
+ flags ^= statf_war
+ELSE
+ tag.task=GUARD_TASK_WANDER
+ENDIF
+
+//*****************************************************************************
+[FUNCTION GUARD_WARN]
+//*****************************************************************************
+//Persegue e avisa <argv[0]> por alguma coisa errada que ele esteja fazendo.
+obj=<argv[0]>
+tag.subject=<argv[1]>
+DORAND 4
+ say O que eh isso, <obj.name>?
+ say Hey! O que esta fazendo?
+ say Voce, <obj.name>!
+ say Auto!
+ENDDO
+DORAND 3
+ obj.sysmessagered O guarda esta ralhando com voce.
+ obj.sysmessagered <name> grita com voce.
+ obj.sysmessagered Voce esta sendo abordado pelo guarda <name>.
+ENDDO
+GUARD_SAVE_TASK
+tag.task=GUARD_TASK_WARN
+action=064
+act=<obj.uid>
+flags |= statf_war
+timerf clear
+timerf 5,GUARD_AI
+
+[FUNCTION GUARD_WARN_STEP]
+//Cada passo da AI com GUARD_TASK_WARN ele fará isso.
+IF (<tag.subject>==GUARD_WARN_WARMODE)
+ IF !(<act.flags>&statf_war) || (<act.region.defname> != <GET_TOWN>) || (!<act.IsOnline>)
+  DORAND 3
+   say E que sirva de aviso para os outros!
+   say Obrigado pela cooperacao.
+   say Por favor, nao me obrigue a fazer isto de novo.
+  ENDDO
+  act=04fffffff
+  GUARD_RETRIEVE_TASK
+ ELSE
+  DOSWITCH <tag0.warn>
+   say Acalme-se! Baixe esta arma!
+   say Vamos! Abaixe esta arma!
+   say Vou avisar pela ultima vez: Abaixe a arma!
+   GUARD_ATTACK <uid>
+  ENDDO
+  timerf clear
+  timerf 5,GUARD_AI
+  tag0.warn += 1
+ ENDIF
+
+ELIF (<tag.subject>==GUARD_ATTACK_MONSTER)
+ DORAND 3
+  say Morra, <act.name> imund<act.sex o/a>
+  say Fora de <region.name> sua desgraca!
+  say <region.name> deve ser segura!
+ ENDDO
+ GUARD_ATTACK <uid>
+
+ELIF (<tag.subject>==GUARD_WARN_WEAPON)
+ IF (<act.weapon>)
+  DORAND 3
+   say <uid.<GET_TOWN_MASTER>.tag.name> nao quer pessoas andando armadas pela cidade!
+   say Pessoas andando armadas por <region.name> nao sao bem vistas.
+   say Por que anda armado por <region.name>?
+  ENNDO
+ ELSE
+  act=04fffffff
+  GUARD_RETRIEVE_TASK 
+ ENDIF
+ENDIF
+
+[COMMENT COMMENT]
+GUARD_WARN_LOCKPICK
+GUARD_WARN_FORBIDDEN
+
+
+//*****************************************************************************
 [FUNCTION GUARD_ADD_WAYPOINT]
 //*****************************************************************************
 //Adiciona um waypoint na lista
 ref1=<argv[0]>
+say Este aqui.
 for wp 0 <eval <DEF.GUARD_WP_MAX>-1>
  IF (<IsEmpty <ref1.tag.wp_<LOCAL.wp>>>) && (!<LOCAL.ret>)
   try ref1.tag.wp_<LOCAL.wp>=<targp>
   LOCAL.ret=1
+  sysmessageorange Agora <ref1.name> tem <eval <LOCAL.wp>+1>/<eval <DEF.GUARD_WP_MAX>> waypoints.
  ENDIF
 endfor
 IF (<LOCAL.ret>)
+ ref1.timerf 1,say,Tomarei conta deste ponto enquanto patrulhar.
  return 1
 ENDIF
 for wp 0 <eval <DEF.GUARD_WP_MAX>-1>
  LOCAL.l=<ref1.tag.wp_<hval <LOCAL.wp>+1>>
  try ref1.tag.wp_<LOCAL.wp>=<LOCAL.l>
+ sysmessageorange <ref1.name> ja tinha <eval <DEF.GUARD_WP_MAX>> waypoints. O primeiro foi substituido.
 endfor
 ref1.tag.wp_<hval <DEF.GUARD_WP_MAX>-1>=<targp>
 obj=<ref1>
-obj.say Tomarei conta deste ponto enquanto patrulhar.
+obj.GAURD_FOLLOW <uid>
+obj.timerf 1,say,Tomarei conta deste ponto enquanto patrulhar.
 
 //*****************************************************************************
 [FUNCTION GUARD_CLEAR_WAYPOINTS]
@@ -917,6 +1885,8 @@ WHILE (!<IsEmpty <tag.wp_<LOCAL.i>>>)
  try tag.wp_<LOCAL.i>=
  LOCAL.i += 1
 ENDDO
+tag.waypoint=
+src.sysmessageorange Todos os waypoints foram apagandos.
 
 //*****************************************************************************
 [FUNCTION GUARD_FOOD]
@@ -937,14 +1907,96 @@ return 0
 [FUNCTION GUARD_BUY]
 //*****************************************************************************
 //Faz o guarda comprar provisões.
-if (<restest 5 i_coin_copper>)
- LOCAL.item={i_ribs_cooked 1 i_chicken_leg 1 i_lamb_leg 1 i_fish_cut_cooked 1}
+if (<restest 5 i_coin_copper>) && (<food> < 50)
+ LOCAL.item={ i_ribs_cooked 1 i_chicken_leg 1 i_lamb_leg 1 i_fish_cut_cooked 1 }
  consume 5 i_coin_copper
  serv.newitem <LOCAL.item>
+ new.more1=<R2,4>
  new.amount=<R5,10>
  new.cont=<uid>
- f_GMLog [GUARDAS] <name> compra <new.name>.
 endif
+if (!<restest <tag0.level> i_bottle_yellow>) && (<restest 15 i_coin_copper>)
+ consume 15 i_coin_copper
+ serv.newitem=i_bottle_yellow
+ new.more2=890
+ new.cont=<uid>
+elif (!<restest 1 i_bottle_orange>) && (<restest 10 i_coin_copper>)
+ consume 10 i_coin_copper
+ serv.newitem=i_bottle_orange
+ new.more2=890
+ new.cont=<uid>
+elif (!<restest <tag0.level> i_bottle_red>) && (<restest 10 i_coin_copper>)
+ consume 10 i_coin_copper
+ serv.newitem=i_bottle_red
+ new.more2=890
+ new.cont=<uid>
+elif (!<restest 2 i_bottle_white>) && (<restest 20 i_coin_copper>)
+ consume 20 i_coin_copper
+ serv.newitem=i_bottle_white
+ new.more2=890
+ new.cont=<uid>
+endif
+if (<restest 1 i_bow>) || (<restest 1 i_bow_long>) || (<restest 1 i_bow_composite>) || (<restest 1 i_bow_elven>)
+ if (!<restest 40 i_arrow>) && (<restest 4 i_coin_copper>)
+  consume 4 i_coin_copper
+  serv.newitem i_arrow
+  new.amount=<R40,70>
+  new.cont=<uid>
+ endif
+endif
+
+//*****************************************************************************
+[FUNCTION GuardMustWarn]
+//*****************************************************************************
+//Retorna se um guarda precisa me alertar sobre meu comportamento errado.
+//ARGV0 é a UID do guarda.
+obj=<argv[0]>
+IF (<IsGM>) || (<IsEvent.e_guard_town>) || ( (<NPC>) && (<karma> > -2000) )
+ return 0
+ELIF (<flags>&statf_war)
+ return GUARD_WARN_WARMODE
+ELIF (<restest 1 i_mry_lockpick_fechadura>)
+ return GUARD_WARN_LOCKPICK
+ELIF (<npc>==BRAIN_MONSTER)
+ return GUARD_ATTACK_MONSTER
+ELIF (<weapon>)
+ return GUARD_WARN_WEAPON
+ELIF (STRMATCH(*<UID>*,<obj.TOWN_GET_FRIEND_UID>))
+ return 0
+ELIF (STRMATCH(*<UID>*,<obj.TOWN_GET_FORB_UID>))
+ return GUARD_WARN_FORBIDDEN
+ELIF (STRMATCH(*<tag.raca>*,<obj.TOWN_GET_FORB_RACE>))
+ return GUARD_WARN_FORBIDDEN
+ENDIF
+
+
+//*****************************************************************************
+[FUNCTION GUARD_AI]
+//*****************************************************************************
+//Core do AI. Toma decisões.
+//say <tag.task>
+IF (<tag.task>==GUARD_TASK_WARN)
+ GUARD_WARN_STEP
+ELIF (<tag.task>==GUARD_TASK_ATTACK)
+ if (<act>==04fffffff)
+  GUARD_RETRIEVE_TASK
+ endif
+ELIF (<tag.task>==GUARD_TASK_REMOVE)
+ IF (<act.distance <p>> > 20)
+  remove
+  return 1
+ ENDIF
+ELIF (<tag.task>==GUARD_TASK_PATROL)
+ GUARD_PATROL
+ELIF (<tag.task>==GUARD_TASK_GO)
+ IF (<distance <actp>> < 2)
+  HOME=<actp>
+  TAG.home=<actp>
+  TAG.TASK=GUARD_TASK_WANDER
+ ENDIF
+ENDIF
+timerf 3,GUARD_AI
+
 
 [DIALOG d_town]
 100,75
@@ -963,9 +2015,9 @@ resizepic 92 88 2620 416 70
 dtext 108 96 66 Responsavel:
 dtext 192 96 4 <uid.<region.tag.town_master>.tag.name>
 dtext 108 112 66 Tesouro:
-dtext 168 112 4 <TOWN_GET_TRESURE>
+dtext 168 112 4 <TOWN_GET_STRTRESURE>
 dtext 328 112 66 Funcionarios:
-dtext 416 112 4 (funcionarios)
+dtext 416 112 4 <eval <TOWN_SERVANTS <region.defname>>>
 call TOWN_RESOLV_DEMENCES
 dtext 108 128 66 Reino:
 dtext 152 128 4 <LOCAL.KINGDOM>
@@ -973,14 +2025,6 @@ dtext 224 128 66 Cidades:
 dtext 280 128 4 <QVAL <IsNum <LOCAL.CITY>>?<dLOCAL.CITY>:<LOCAL.CITY>>
 dtext 376 128 66 Vilas:
 dtext 416 128 4 <QVAL <LOCAL.VILLAGE>?<dLOCAL.CITY>:Nenhuma>
-
-//*****************************************************************************
-[FUNCTION GUARD_AI]
-//*****************************************************************************
-//Core do AI. Toma decisões.
-
-timerf 5, GUARD_AI
-
 
 
 [DIALOG d_town text]
