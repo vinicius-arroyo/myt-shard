@@ -37,6 +37,10 @@ TOWN_SERVANT_GATE	1
 TOWN_SERVANT_GUARD	2
 TOWN_SERVANT_SENESCAL	3
 
+TOWN_LIST_COUNSELORS	1
+TOWN_LIST_FRIENDS	2
+TOWN_LIST_FORBIDDEN	3
+
 //Tempo que demora para o Senescal rodar a função TOWN_TRIG
 TOWN_TRIG_TIME		20*60*60
 
@@ -175,22 +179,23 @@ endif
 //*****************************************************************************
 //Retorna uma string representando o tesouro de uma town.
 LOCAL.c=<region.tag0.town_tresure>
-WHILE (<LOCAL.c> > 100)
+WHILE (<LOCAL.c> >= 100)
  LOCAL.g += 1
  LOCAL.c -= 100
 ENDDO
-WHILE (<LOCAL.c> > 10)
+WHILE (<LOCAL.c> >= 10)
  LOCAL.s += 1
  LOCAL.c -= 10
 ENDDO
 return <dLOCAL.g>mo <dLOCAL.s>mp <dLOCAL.c>mc
+
 
 //*****************************************************************************
 [FUNCTION TOWN_RESOLV_DEMENCES]
 //*****************************************************************************
 //Seta LOCAL.KINGDOM, LOCAL.CITY e LOCAL.VILLAGE pro gump d_town
 IF (<region.tag.TOWN_TYPE>==TOWN_TYPE_CAPITAL)
- LOCAL.Kingdom=Autonomo
+ LOCAL.Kingdom=do reino de <region.tag.TOWN_KINGDOM>
  call TOWN_RESOLV_CITIES <EXPLODE ;,<region.tag.town_demences>>
  call TOWN_RESOLV_VILLAGES <EXPLODE ;,<region.tag.town_demences>> 
 ELIF (<region.tag.TOWN_TYPE>==TOWN_TYPE_CITY)
@@ -233,7 +238,7 @@ IF (<ISGM>)
  RETURN 1
 ENDIF
 IF (0<argv1>==2)
- IF !(STRMATCH(*<UID>*,<obj.GET_TOWN_COUNCELORS>))
+ IF !(STRMATCH(*<UID>*,<obj.GET_TOWN_COUNSELORS>))
   obj.timerf 1,say,Esta ordem so pode ser dada pelo conselho de <serv.resources.<obj.GET_TOWN>.name>.
   return 0
  ELSE
@@ -262,6 +267,24 @@ ELIF (STRMATCH(*<tag.raca>*,<obj.region.tag.TAG.TOWN_RACE_FORBIDDEN>))
  return 0
 endif
 
+//*****************************************************************************
+[FUNCTION TOWN_CHECK_PRIVS]
+//*****************************************************************************
+//Checa se o item DEFAULT tem privilégios (nível 0, 1, 2 e 3) na town.
+IF (<ISGM>)
+ RETURN 4
+ELIF (STRMATCH(*<UID>*,<GET_TOWN_MASTER>))  
+ RETURN 3
+ELIF (STRMATCH(*<UID>*,<GET_TOWN_COUNSELORS>))
+ return 2
+ELIF (STRMATCH(*<UID>*,<region.tag.TAG.TOWN_UID_FRIEND>))
+ return 1
+ELIF (STRMATCH(*<UID>*,<region.tag.TAG.TOWN_UID_FORBIDDEN>))
+ return 0
+ELIF (STRMATCH(*<tag.raca>*,<region.tag.TAG.TOWN_RACE_FORBIDDEN>))
+ return 0
+endif
+return 1
 
 //*****************************************************************************
 [FUNCTION GET_TOWN]
@@ -269,7 +292,33 @@ endif
 //Retronar DEFNAME da town do NPC
 IF (!<IsEmpty <tag.town>>)
  return <tag.town>
+ELIF (<region.tag.TOWN_TYPE>)
+ return <region.defname>
 endif
+
+//*****************************************************************************
+[FUNCTION TOWN_COUNSELORS]
+//*****************************************************************************
+//Retorna quantos counselors tem a town
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_counselors>>)
+ return 0
+ENDIF
+IF (!<argn>)
+ call _TOWN_COUNSELORS <explode ;,<serv.resources.<LOCAL.town>.tag.town_counselors>>
+ELSE
+ LOCAL.i=<argn>
+ call _TOWN_COUNSELORS_ <explode ;,<serv.resources.<LOCAL.town>.tag.town_counselors>>
+ENDIF
+return <LOCAL.ret>
+
+[FUNCTION _TOWN_COUNSELORS]
+LOCAL.ret=<eval <argv>-1>
+
+[FUNCTION _TOWN_COUNSELORS_]
+LOCAL.ret=<argv[<LOCAL.i>]>
 
 //*****************************************************************************
 [FUNCTION GET_TOWN_MASTER]
@@ -284,16 +333,16 @@ ENDIF
 return <serv.resources.<LOCAL.town>.tag.town_master>
 
 //*****************************************************************************
-[FUNCTION GET_TOWN_COUNCELORS]
+[FUNCTION GET_TOWN_COUNSELORS]
 //*****************************************************************************
 //Retorna uma string com todos os UIDs dos conselors + do master da town
 LOCAL.town=<GET_TOWN>
 IF (!<serv.resources.<LOCAL.town>>)
  return 0
-ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_councelors>>)
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_counselors>>)
  return <GET_TOWN_MASTER>
 ENDIF
-return <serv.resources.<LOCAL.town>.tag.town_master>;<serv.resources.<LOCAL.town>.tag.town_councelors>
+return <serv.resources.<LOCAL.town>.tag.town_master>;<serv.resources.<LOCAL.town>.tag.town_counselors>
 
 //*****************************************************************************
 [FUNCTION TOWN_GET_FRIEND_RACE]
@@ -482,27 +531,33 @@ MENU m_NEW_TOWN_RACE
 Que habitantes tera <region.name>?
 on=0 Elfo
 region.TAG.TOWN_RACE=Elfo
-promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
+sysmessageorange Digite o DEFNAME da regiao que manda nesta town ou nome do reino.
+promptconsole new_town_capital
 
 on=0 Anao
 region.TAG.TOWN_RACE=Anao
-promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
+sysmessageorange Digite o DEFNAME da regiao que manda nesta town ou nome do reino.
+promptconsole new_town_capital
 
 on=0 Humano
 region.TAG.TOWN_RACE=Humano
-promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
+sysmessageorange Digite o DEFNAME da regiao que manda nesta town ou nome do reino.
+promptconsole new_town_capital
 
 on=0 Drow
 region.TAG.TOWN_RACE=Drow
-promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
+sysmessageorange Digite o DEFNAME da regiao que manda nesta town ou nome do reino.
+promptconsole new_town_capital
 
 on=0 Orc
 region.TAG.TOWN_RACE=Orc
-promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
+sysmessageorange Digite o DEFNAME da regiao que manda nesta town ou nome do reino.
+promptconsole new_town_capital
 
 on=0 Todas
 region.TAG.TOWN_RACE=Elfo;Anao;Humano;Drow;Orc
-promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. Se for autonoma, rasure.
+sysmessageorange Digite o DEFNAME da regiao que manda nesta town ou nome do reino.
+promptconsole new_town_capital
 
 //*****************************************************************************
 [FUNCTION new_town_capital]
@@ -510,18 +565,19 @@ promptconsole new_town_capital Digite o DEFNAME da regiao que manda nesta town. 
 //Function de prompt para a capital da town.
 IF (<serv.resources.<args>.tag0.TOWN_TYPE>)
  region.tag.town_capital=<args>
+ region.tag.town_kingdom=<serv.resources.<args>.tag0.TOWN_KINGDOM>
  if (<IsEmpty <serv.resources.<args>.tag.TOWN_DEMENCES>>)
   serv.resources.<args>.tag.TOWN_DEMENCES=<region.defname>
  else
   serv.resources.<args>.tag.TOWN_DEMENCES .= ;<region.defname>
  endif 
 ELSE
+ region.tag.town_kingdom=<args>
  region.tag.town_capital=<region.defname>
 endif
 region.tag.TOWN_MASTER=<UID>
-sysmessagegreen Sua town foi configurada com sucesso! A capital eh <serv.resources.<region.tag.town_capital>.name>.
-
-
+sysmessagegreen Sua town foi configurada com sucesso! A capital eh <serv.resources.<region.tag.town_capital>.name> e o reino <serv.resources.<region.defname>.tag.TOWN_KINGDOM>.
+TOWN_ADD_SENESCAL
 
 //*****************************************************************************
 [FUNCTION TOWN_SERVANTS]
@@ -577,8 +633,8 @@ for s 1 <eval <argv>-1>
     LOCAL.message=Chegou o pagamento! <dLOCAL.ord> moedas de cobre.
     LOCAL.message=Como podem me pagar apenas <dLOCAL.ord> moedas de cobre?
    ENDDO
+   uid.<argv[<LOCAL.s>]>.timerf <R2,5>,say,<LOCAL.message>
   ENDIF
-  uid.<argv[<LOCAL.s>]>.timerf <R2,5>,say,<LOCAL.message>
   TOWN_CONSUME_TRESURE <LOCAL.ord>
   LOCAL.pay += <LOCAL.ord>
  ELSE
@@ -614,6 +670,7 @@ DORAND 3
  LOCAL.message=Foram <dLOCAL.pay> cobres. Vou anotar e voltar ao relatorio de vendas.
  LOCAL.message=Pagando <dLOCAL.pay> cobres, com o atual tesouro so poderei fazer o pagamento por mais <eval <TOWN_GET_TRESURE>/<LOCAL.pay>> vezes.
 ENDDO
+region.tag.TOWN_LASTPAY=<LOCAL.pay>
 TIMERF 3,say,<LOCAL.message>
 TIMERF <DEF.TOWN_TRIG_TIME>,TOWN_TRIG
 
@@ -687,7 +744,7 @@ timerf 1,TOWN_START_SENESCAL
 
 SPEECHCOLOR=colors_blue
 TAG.RACA=Humano
-TAG.SERVANT=TOWN_SERVANT_SENESCAL
+tag.servant=TOWN_SERVANT_SENESCAL
 
 ON=@NPCRestock
 	ITEM={ i_hair_ponytail 1 i_hair_short 1 i_hair_pageboy 1}
@@ -751,7 +808,8 @@ INT={60 80}
 timerf 1,TOWN_START_SENESCAL
 
 SPEECHCOLOR=colors_blue
-TAG.RACA=HumanoElfoNT=TOWN_SERVANT_SENESCAL
+TAG.RACA=Elfo
+tag.servant=TOWN_SERVANT_SENESCAL
 
 ON=@NPCRestock
 	ITEM=i_hair_long
@@ -811,7 +869,7 @@ timerf 1,TOWN_START_SENESCAL
 
 SPEECHCOLOR=colors_blue
 TAG.RACA=Anao
-TAG.SERVANT=TOWN_SERVANT_SENESCAL
+tag.servant=TOWN_SERVANT_SENESCAL
 
 ON=@NPCRestock
 	ITEM={ i_hair_long 1 i_hair_ponytail 1  i_hair_2_pigtails 1 }
@@ -1134,6 +1192,32 @@ endif
 new.TOWN_AZILUM
 new.TOWN_REG_SERVANT
 new.GUARD_LEVEL 1
+
+//*****************************************************************************
+[FUNCTION TOWN_ADD_SENESCAL]
+//*****************************************************************************
+//Cria e configura um senescal para a town da REGION de quem o chama.
+if (STRMATCH(Anao,<region.tag.town_race>))
+ LOCAL.guard=c_a_senescal
+elif (STRMATCH(Humano,<region.tag.town_race>))
+ LOCAL.guard=c_h_senescal
+elif (STRMATCH(Elfo,<region.tag.town_race>))
+ LOCAL.guard=c_e_senescal
+ELSE
+ DORAND 5
+  LOCAL.guard=c_a_senescal
+  LOCAL.guard=c_h_senescal
+  LOCAL.guard=c_a_senescal
+  LOCAL.guard=c_e_senescal
+  LOCAL.guard=c_h_senescal
+ ENDDO
+endif
+
+serv.newnpc <LOCAL.guard>
+
+new.movenear <UID>,2
+new.act <UID>
+new.action 064
 
 //*****************************************************************************
 [FUNCTION GUARD_LEVEL]
@@ -2101,6 +2185,138 @@ timerf 3,GUARD_AI
 [DIALOG d_town]
 100,75
 page 0
+
+//Decoração
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+gumppic 0 0 10400
+gumppic 0 160 10401
+gumppic 0 356 10402
+gumppic 518 -2 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+
+//Parte 1
+gumppic 225 45 2501
+dtext 275 45 26 <region.name>
+resizepic 92 87 2620 416 147
+dtext <TOWN_GET_DIALOG_TITLE>
+dtext 104 120 66 Raca:
+dtext 139 120 4 <region.tag.town_race>
+dtext 103 137 66 Responsavel:
+dtext 179 136 4 <uid.<region.tag.town_master>.tag.name>
+button 102 156 30008 30009 1 0 1
+dtext 119 153 66 Conselheiros:
+dtext 202 153 4 <eval <TOWN_COUNSELORS>>
+call TOWN_RESOLV_DEMENCES
+dtext 103 169 66 Capital:
+dtext 150 169 4 <Local.kingdom>
+dtext 328 169 66 Cidades:
+dtext 384 169 4 <QVAL <IsNum <LOCAL.city>>?<dLOCAL.city>:<LOCAL.city>>
+dtext 424 169 66 Vilas:
+dtext 464 169 4 <dLOCAL.village>
+dtext 103 185 66 Tesouro:
+dtext 150 185 4 <TOWN_GET_STRTRESURE>
+dtext 279 185 66 Funcionarios:
+dtext 357 185 4 <eval <TOWN_SERVANTS <region.defname>>>
+dtext 103 201 66 Periodo de pagamento:
+dtext 237 201 4 <f_timestring <DEF.TOWN_TRIG_TIME>>
+dtext 320 201 66 Gasto periodico:
+dtext 414 201 4 <STRTRESURE <region.tag0.town_LASTPAY>>
+
+//Parte 2
+resizepic 92 246 2620 416 89
+button 101 259 30008 30009 1 0 2
+dtext 120 256 66 Racas amigas:
+dtext 256 256 4 (friendraces)
+button 101 275 30008 30009 1 0 3
+dtext 120 272 66 Racas inimigas:
+dtext 256 272 4 (forbraces)
+button 101 291 30008 30009 1 0 4
+dtext 120 288 66 Extrangeiros amigos:
+dtext 256 288 4 (UID_FRIENDS)
+button 101 307 30008 30009 1 0 5
+dtext 120 304 66 Inimigos publicos:
+dtext 256 304 4 (UID_forbbinden)
+
+//Parte 3
+//Um dia quem sabe,neh?
+//resizepic 92 348 2620 416 65
+//button 102 362 30008 30009 1 0 6
+//dtext 120 360 66 Plebicitos:
+//dtext 256 360 4 (Plebicitos)
+//button 102 378 30008 30009 1 0 7
+//dtext 120 376 66 Peticoes:
+//dtext 256 376 4 (Peticoes)
+
+[DIALOG d_town text]
+<region.name>
+(tipo de town)
+Raca:
+(raca)
+Responsavel:
+<uid.<region.tag.town_master>.tag.name>
+Conselheiros:
+(cons)
+Reino:
+(reino)
+Cidades:
+(cidades)
+Vilas:
+(vilas)
+Tesouro:
+(tesouro)
+Funcionarios:
+(funcionarios)
+Periodo de pagamento:
+(payperiod)
+Gasto periodico:
+(lastpay)
+Racas amigas:
+(friendraces)
+Racas inimigas:
+(forbraces)
+Extrangeiros amigos:
+(UID_FRIENDS)
+Inimigos publicos:
+(UID_forbbinden)
+Plebicitos:
+(Plebicitos)
+Peticoes:
+(Peticoes)
+
+[DIALOG d_town button]
+ON=0
+return 1
+
+ON=1
+// Conselheiros
+COUNSELORS_LIST
+
+ON=2
+// Raças amigas
+DIALOG d_town_admin 3
+
+ON=3
+// Raças inimigas
+DIALOG d_town_admin 3
+
+ON=4
+// UID Friends
+
+ON=5
+// UID Forbidden
+
+ON=6
+// Plebicitos
+
+ON=7
+// Petições
+
+
+[DIALOG d_town_admin]
+100,75
+page 0
 resizepic 50 31 2620 500 400
 checkertrans 55 38 490 385
 gumppic 0 0 10400
@@ -2110,37 +2326,258 @@ gumppic 518 -2 10410
 gumppic 518 160 10411
 gumppic 518 356 10412
 gumppic 225 45 2501
-dtext 276 45 26 <region.name>
-resizepic 92 88 2620 416 70
-dtext 108 96 66 Responsavel:
-dtext 192 96 4 <uid.<region.tag.town_master>.tag.name>
-dtext 108 112 66 Tesouro:
-dtext 168 112 4 <TOWN_GET_STRTRESURE>
-dtext 328 112 66 Funcionarios:
-dtext 416 112 4 <eval <TOWN_SERVANTS <region.defname>>>
-call TOWN_RESOLV_DEMENCES
-dtext 108 128 66 Reino:
-dtext 152 128 4 <LOCAL.KINGDOM>
-dtext 224 128 66 Cidades:
-dtext 280 128 4 <QVAL <IsNum <LOCAL.CITY>>?<dLOCAL.CITY>:<LOCAL.CITY>>
-dtext 376 128 66 Vilas:
-dtext 416 128 4 <QVAL <LOCAL.VILLAGE>?<dLOCAL.CITY>:Nenhuma>
+dtext 275 45 26 <region.name>
+resizepic 92 87 2620 416 288
+dtext 120 96 48 <GET_TOWN_LIST_NAME>
 
+page 1
+call TOWN_POP_LIST
+IF (<LOCAL.prev>)
+ button 94 381 5603 5607 1 0 1
+ENDIF
+IF (<LOCAL.next>)
+ button 489 381 5601 5605 1 0 2
+ENDIF
+IF (<TOWN_CHECK_PRIVS> > 2) && (<ctag.town_list>==TOWN_LIST_COUNSELORS)
+ button 277 380 2443 2444 1 0 3
+ dtext 295 382 32 ADD
+ENDIF
 
-[DIALOG d_town text]
+page 2
+dhtmlgump 108 120 390 181 1 1 <GET_TOWN_PROFILE <ctag.char>>
+IF ( ( (<TOWN_CHECK_PRIVS> > 2) || (<UID>==<ctag.char>) ) && (<ctag.town_list>==TOWN_LIST_COUNSELORS) )
+ button 109 309 30008 30009 1 0 21
+ dtext 128 307 47 Remover da lista de <GET_TOWN_LIST_NAME>
+ENDIF
+IF (<TOWN_CHECK_PRIVS> > 2)
+ button 109 339 30008 30009 1 0 22
+ dtext 128 337 47 Passar a coroa de <region.name> para <rec_fGetName <ctag.char>>
+ENDIF
+button 94 381 5603 5607 1 0 20
+
+page 3
+resizepic 110 128 9200 178 224
+resizepic 304 128 9200 178 224
+dtext 156 136 62 Racas amigas
+dtext 348 136 32 Racas inimigas
+dtext 152 168 92 Anoes
+dtext 344 168 92 Anoes
+dtext 152 200 92 Elfos
+dtext 344 200 92 Elfos
+dtext 152 232 92 Drows
+dtext 344 232 92 Drows
+dtext 152 264 92 Humanos
+dtext 344 264 92 Humanos
+dtext 152 296 92 Orcs
+dtext 344 296 92 Orcs
+
+//Anões
+Group 1
+radio 128 168 208 209 1 0
+radio 320 168 208 209 0 1
+
+//Elfos
+Group 2
+radio 128 200 208 209 1 0
+radio 320 200 208 209 0 1
+
+//Drows
+Group 3
+radio 128 232 208 209 1 0
+radio 320 232 208 209 0 1
+
+//Humanos
+Group 4
+radio 128 264 208 209 1 0
+radio 320 264 208 209 0 1
+
+//Orcs
+Group 5
+radio 128 296 208 209 1 0
+radio 320 296 208 209 0 1
+
+button 96 384 247 248 1 0 41
+button 440 384 241 242 1 0 42
+
+[DIALOG d_town_admin text]
 <region.name>
-Responsavel:
-<uid.<region.tag.town_master>.tag.name>
-Tesouro:
-(tesouro)
-Funcionarios:
-(funcionarios)
-Reino:
-(reino)
-Cidades:
-(cidades)
-Vilas:
-(vilas)
+(tipo de lista)
+(nome do cabra)
+ADD
+HtmlGump id.4
+Remover da lista de 
+Passar a coroa de() para ()
+Racas amigas
+Racas inimigas
+Anoes
+Anoes
+Elfos
+Elfos
+Drows
+Drows
+Humanos
+Humanos
+Orcs
+Orcs
 
-[DIALOG d_town button]
-on=0
+[DIALOG d_town_admin button]
+ON=1
+// Page -1
+ctag0.page -= 1
+DIALOG d_town_admin 1
+
+ON=2
+// Page +1
+ctag0.page += 1
+DIALOG d_town_admin 1
+
+ON=3
+// Adicionar a lista
+IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
+ TOWN_ADD_COUNSELOR
+ENDIF
+
+
+ON=20
+// Previous
+IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
+ DIALOG d_town_admin 1
+ENDIF
+
+ON=21
+// Remover da lista
+IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
+ TOWN_REM_COUNSELOR <ctag.char>
+ENDIF
+
+ON=22
+// Passar coroa
+
+
+ON=41
+// Muda raças
+say Botao <eval <argn>>
+
+ON=42
+// Raças cancel
+TOWN
+
+on=43
+say Botao <eval <argn>>
+
+ON=100 200
+// Abrir profile
+LOCAL.idx=<eval <argn>-100>
+IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
+ ctag.char=<TOWN_COUNSELORS <LOCAL.idx>>
+ENDIF
+DIALOG d_town_admin 2
+
+//#######################################################################################
+//
+//					FUNCTIONS do DIALOG
+//
+//#######################################################################################
+[FUNCTION TOWN_GET_DIALOG_TITLE]
+if (<REGION.tag.TOWN_TYPE>==TOWN_TYPE_CAPITAL)
+ return 234 96 48 A capital de <region.tag.town_kingdom>
+elif (<REGION.tag.TOWN_TYPE>==TOWN_TYPE_CITY)
+ return 224 96 48 Uma cidade de <region.tag.town_kingdom>
+elif (<REGION.tag.TOWN_TYPE>==TOWN_TYPE_VILLAGE)
+ return 150 96 48 Uma vila da cidade de <serv.resources.<region.tag.town_capital>.name>, do reino de <region.tag.town_kingdom>
+endif
+
+
+
+//ttttttttttttttttttttttttttttttttttttttttttttttttt
+//		     conselheiros
+//ttttttttttttttttttttttttttttttttttttttttttttttttt
+[FUNCTION TOWN_ADD_COUNSELOR]
+//Adiciona um conselheiro na town
+//Se <argv[0]> não é uma region, a region de quem chama é usada.
+IF (!<serv.resources.<argv[0]>.tag.TOWN_TYPE>)
+ IF (<region.tag.town_type>)
+  LOCAL.town=<region.defname>
+ else
+  sysmessagered <region.name> nao eh town.
+  return 1
+ endif
+else
+ LOCAL.town=<argv[0]>
+endif
+sysmessagegreen Que conselheiro voce gostaria de adicionar ao conselho de <serv.resources.<LOCAL.town>.name>?
+targetf _TOWN_ADD_COUNSELOR <LOCAL.town>
+
+[FUNCTION _TOWN_ADD_COUNSELOR]
+LOCAL.town=<argv[0]>
+if (!<argo.ischar>)
+ sysmessagered Sim... E que tal uma pedra ou uma espada?
+ return 1
+//elif (!<argo.isplayer>)
+// sysmessagered Sim... E que tal um sapo ou um paroxysmus?
+// return 1
+elif (<serv.resources.<LOCAL.town>.tag.TOWN_MASTER>==<argo.uid>)
+ sysmessageyellow <rec_fGetName <argo.uid>> eh o responsavel por <serv.resources.<LOCAL.town>.name>.
+ return 1
+elif (STRMATCH(*<argo.uid>*,<serv.resources.<LOCAL.town>.tag.TOWN_COUNSELORS>))
+ sysmessageyellow <rec_fGetName <argo.uid>> ja faz parte do conselho de <serv.resources.<LOCAL.town>.name>.
+ return 1
+elif (STRMATCH(*<argo.tag.raca>*,<serv.resources.<LOCAL.town>.TAG.TOWN_RACE_FORBIDDEN>))
+ sysmessageyellow <rec_fGetName <argo.uid>> pertence a uma raca proibida em <serv.resources.<LOCAL.town>.name>.
+ return 1
+elif (STRMATCH(*<argo.uid>*,<serv.resources.<LOCAL.town>.TAG.TOWN_UID_FORBIDDEN>))
+ sysmessageyellow <rec_fGetName <argo.uid>> eh um inimigo publico de <serv.resources.<LOCAL.town>.name>.
+ return 1
+endif
+if (<IsEmpty <serv.resources.<LOCAL.town>.TAG.TOWN_COUNSELORS>>)
+ serv.resources.<LOCAL.town>.TAG.TOWN_COUNSELORS=<argo.uid>
+else
+ serv.resources.<LOCAL.town>.TAG.TOWN_COUNSELORS .= ;<argo.uid>
+endif
+sysmessageorange <rec_fGetName <argo.uid>> foi adicionado ao conselho de <serv.resources.<LOCAL.town>.name>.
+COUNSELORS_LIST
+
+[FUNCTION TOWN_REM_COUNSELOR]
+region.tag.TOWN_COUNSELORS=<f_removeList <argn>,<region.tag.TOWN_COUNSELORS>>
+sysmessageorange <rec_fGetName <argn>> foi removido do conselho de <region.name>!!!
+DIALOG d_town_admin 1
+
+[FUNCTION COUNSELORS_LIST]
+ctag.town_list=TOWN_LIST_COUNSELORS
+ctag.page=0
+DIALOG d_town_admin 1
+
+[FUNCTION TOWN_POP_LIST]
+IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
+ call TOWN_POP_COUNSELORS_LIST
+ENDIF
+
+[FUNCTION TOWN_POP_COUNSELORS_LIST]
+DORIGIN 117 98
+FOR i 1 8
+ LOCAL.j=<eval (<ctag0.page>*8)+<LOCAL.i>>
+ LOCAL.uid=<TOWN_COUNSELORS <dLOCAL.j>>
+ IF (<LOCAL.uid>)
+  button - *30 30008 30009 1 0 <eval 100+<LOCAL.j>>
+  dtext +20 -2 1 <rec_fGetName <local.uid>>
+ ENDIF
+ENDFOR
+//sysmessagered <dLOCAL.i>/<eval (<ctag0.page>*-8)> - <TOWN_COUNSELORS <LOCAL.j>>
+IF (<TOWN_COUNSELORS <eval 1+<LOCAL.j>>>)
+ LOCAL.next=1
+ENDIF
+IF (<ctag0.page>)
+ LOCAL.prev=1
+ENDIF
+
+[FUNCTION GET_TOWN_LIST_NAME]
+IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
+ return conselheiros de <region.name>
+ENDIF
+
+[FUNCTION GET_TOWN_PROFILE]
+obj=<argn>
+LOCAL.p=<DEF.center>Perfil de <rec_fGetName <argn>><DEF.centere><DEF.br>
+LOCAL.p .= <obj.profile>
+RETURN <LOCAL.p>
+[EOF]
