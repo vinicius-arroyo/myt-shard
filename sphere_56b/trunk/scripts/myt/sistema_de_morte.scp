@@ -61,10 +61,9 @@ max_desmaios=5
 [EVENTS e_sistema_de_morte]
 ON=@DEATH
 
-//Testa e retira polymorph
-if (<flags>&0400)
- findid.i_spl_polymorph.trigger=@destroy
- findid.i_spl_polymorph.remove
+//ja deveria estar morto....
+if (<flags>&statf_dead)
+    return 1
 endif
 
 //marca assassino
@@ -240,8 +239,18 @@ if (<tag0.corpse>)
     return 1 //ja esta em faint
 endif
 
+//Testa e retira polymorph
+if (<flags>&statf_polymorph)
+    findid.i_spl_polymorph.trigger=@destroy
+    findid.i_spl_polymorph.remove
+endif
+
+if (<flags>&statf_poisoned)
+    spelleffect s_cure,1000
+endif
+
 flags=<flags>|(statf_dead|statf_invisible|statf_invul|statf_insubstantial)
-flags=<flags>&~statf_war
+flags=<flags>&~(statf_war|statf_poisoned)
 
 if (<tag0.comcapuz>)
     capuz
@@ -291,6 +300,7 @@ ref1=<tag.corpse>
 if (!<ref1>)
     serv.log [MORTE] ATENCAO: BUG DA MORTE
     serv.log UID: <uid> (<name>) CORPSE: <tag.corpse>
+    tag.corpse=
     return 1
 endif
 forcont <ref1> 0
@@ -304,10 +314,11 @@ flags=<flags>&~(statf_dead|statf_invisible|statf_invul|statf_insubstantial)
 
 if (<hits> <= 0)
     hits=1
-
-    serv.newitem i_mry_invul
-    new.cont=<uid>
-    new.dclick
+    if !(<findid.i_mry_invul>)
+        serv.newitem i_mry_invul
+        new.cont=<uid>
+        new.dclick
+    endif
 endif
 
 f_correctLight
@@ -460,14 +471,14 @@ ON=@CREATE
  attr=attr_decay
 
 ON=@TIMER
- 
 //recobra consciencia se more1 != 1
  if (<more1>!=1)
     cont.f_returnToLife
  else
-  uid.<cont.tag.corpse>.emotered morreu
+    uid.<cont.tag.corpse>.emotered morreu
     cont.f_morre
  endif
+ remove
  return 1
 
 //*****************************************************************************
@@ -480,7 +491,7 @@ ON=@TIMER
  layer=layer_special
 
 ON=@CREATE
- attr=attr_decay
+ attr=attr_decay|attr_can_decay
 
 ON=@DCLICK
  cont.flags |= statf_invul
