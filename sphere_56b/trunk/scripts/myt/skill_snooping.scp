@@ -1,0 +1,102 @@
+[SKILL 28]
+DEFNAME=Skill_Snooping
+KEY=Snooping
+TITLE=Pickpocket
+PROMPT_MSG=
+DELAY=1.0
+STAT_STR=30
+STAT_INT=50
+STAT_DEX=60
+BONUS_STR=0
+BONUS_DEX=100
+BONUS_INT=0
+BONUS_STATS=25
+//ADV_RATE=2.5,50.0,200.0
+
+on=@Start
+actdiff=<SNOOP_CALC_DIF>
+
+on=@Success
+src.sysmessagegreen Voce abriu a bolsa com sucesso!
+
+ON=@Fail
+SRC.SYSMESSAGERED Voce falhou ao tentar abrir a bolsa.
+SNOOP_WARN
+return 2
+
+ON=@Abort
+SRC.SYSMESSAGEYELLOW Voce desistiu de tentar abrir a bolsa.
+
+[FUNCTION SNOOP_CALC_DIF]
+//Dificuldade pela luz: 30%
+IF (<REGION.FLAGS>&region_flag_underground)
+ LOCAL.diff=0
+ELSE
+ LOCAL.diff=<eval 30-<DEF.luz_<dvar.thour>>>
+ENDIF
+
+//Dificuldade pela DEX do alvo 50%
+LOCAL.diff += <BETWEEN 0,50,<act.topobj.dex>,100>
+
+//Dificuldade pelo Snooping do alvo 20%
+LOCAL.diff += <BETWEEN 0,20,<act.topobj.snooping>,1000>
+
+//Modificaor para NPCs: +10%
+IF (<act.topobj.NPC>)
+ LOCAL.diff += 10
+ENDIF
+
+//Modificaor para NPCs guardas: +40%
+IF (<act.topobj.IsTEvent.e_guard_town>)
+ LOCAL.diff += 40
+ENDIF
+
+//Modificaor para stealth/idding: -30%
+IF (<flags>&0800000)
+ LOCAL.diff -= 20
+ENDIF
+
+//Correção de valor negativo
+if (<local.diff> < 0)
+ local.diff=0
+else
+ LOCAL.diff = <eval <LOCAL.diff>*10>
+endif
+
+RETURN <dLOCAL.diff>
+
+
+[FUNCTION SNOOP_WARN]
+obj=<act.topobj>
+IF (<obj.IsTEvent.e_guard_town>)
+ obj.emotered cotovelada
+ damage <R10,30> DAM_PHYSICAL <obj.UID>
+ obj.timerf 1,say,Aha! Acha que eh <sex esperto/esperta>, <tag.name>?
+ obj.timerf 3,say,Voce esta <sex banido/banida> de <serv.resources.<get_town>.name>. Ouviu? <sex Banido/Banida>!
+ TOWN_BAN_PLAYER <UID>
+ faint
+ timerf 8,f_wakeup
+ return 1000
+ELIF (<region.tag0.town_type>)
+ IF (<tag0.comcapuz>)
+  //Consegue tirar o capuz?
+  IF (<R0,<str>> > <obj.str>)
+   obj.emoteyellow aranca o capuz
+   obj.timerf 1,say,<tag.name>! Eu sabia! Guardas!
+   capuz
+   TOWN_BAN_PLAYER <UID>
+  ENDIF
+ ELSE
+  TOWN_BAN_PLAYER <UID>
+ ENDIF
+ obj=<uid>
+ FORCHARS 8
+  if (<IsTEvent.e_guard_town>) && (<obj.CanSeeLOS>)
+   timerf 1,say Ladrao!
+   act=<obj.uid>
+   GUARD_ATTACK <uid>
+   return 1000
+  endif
+ ENDFOR
+ENDIF
+[EOF]

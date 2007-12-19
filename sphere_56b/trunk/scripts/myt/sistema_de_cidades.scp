@@ -299,7 +299,7 @@ endif
 //*****************************************************************************
 [FUNCTION TOWN_COUNSELORS]
 //*****************************************************************************
-//Retorna quantos counselors tem a town
+//Retorna quantos counselors tem a town. Se <argn>, retorna um dos membros
 LOCAL.town=<GET_TOWN>
 IF (!<serv.resources.<LOCAL.town>>)
  return 0
@@ -319,6 +319,31 @@ LOCAL.ret=<eval <argv>-1>
 
 [FUNCTION _TOWN_COUNSELORS_]
 LOCAL.ret=<argv[<LOCAL.i>]>
+
+//*****************************************************************************
+[FUNCTION TOWN_FORBIDDEN_UIDs]
+//*****************************************************************************
+//Retorna quantos UIDs banidos tem a town. Se <argn>, retorna um dos UIDs
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_UID_FORBIDDEN>>)
+ return 0
+ENDIF
+IF (!<argn>)
+ call _TOWN_FORBIDDEN_UIDs <explode ;,<serv.resources.<LOCAL.town>.tag.town_UID_FORBIDDEN>>
+ELSE
+ LOCAL.i=<argn>
+ call _TOWN_FORBIDDEN_UIDs_ <explode ;,<serv.resources.<LOCAL.town>.tag.town_UID_FORBIDDEN>>
+ENDIF
+return <LOCAL.ret>
+
+[FUNCTION _TOWN_FORBIDDEN_UIDs]
+LOCAL.ret=<eval <argv>-1>
+
+[FUNCTION _TOWN_FORBIDDEN_UIDs_]
+LOCAL.ret=<argv[<LOCAL.i>]>
+
 
 //*****************************************************************************
 [FUNCTION GET_TOWN_MASTER]
@@ -1737,7 +1762,7 @@ argn2=1000
 ON=@NPCLookAtChar
 //Medida drástica para evitar lag:
 //say vendo <src.name>
-if (<R0,<sector.complexity>>) || (<tag0.task>==GUARD_TASK_ATTACK) || (<tag0.task>==GUARD_TASK_WARN) || (<tag0.task>==GUARD_TASK_REMOVE) || (<region.defname> != <tag0.town>)
+if (<R<sector.complexity>> > 4) || (<tag0.task>==GUARD_TASK_ATTACK) || (<tag0.task>==GUARD_TASK_WARN) || (<tag0.task>==GUARD_TASK_REMOVE) || (<region.defname> != <tag0.town>)
  return 0
 endif
 LOCAL.Warn=<src.GuardMustWarn <UID>>
@@ -1747,7 +1772,7 @@ ENDIF
 
 on=@NPCLOSTTELEPORT
 serv.log <name> tentou teleportar por estar perdido. Dist: <argn1> - Try: <eval <actarg1>>
-IF (<actarg1> > 149)
+IF (<actarg1> > 24)
  actarg1=
  return 0
 endif
@@ -1889,7 +1914,6 @@ IF (<distance <home>> < 2)
   tag.waypoint=0
   home=<tag.wp_00>
  ENDIF
- sb [GUARDS]: <name> (<region.name>) muda para waypoint <dTAG.waypoint>
  action=06D
 ENDIF
 
@@ -2237,7 +2261,7 @@ dtext 120 288 66 Extrangeiros amigos:
 dtext 256 288 4 (UID_FRIENDS)
 button 101 307 30008 30009 1 0 5
 dtext 120 304 66 Inimigos publicos:
-dtext 256 304 4 (UID_forbbinden)
+dtext 256 304 4 <eval <TOWN_FORBIDDEN_UIDs>>
 
 //Parte 3
 //Um dia quem sabe,neh?
@@ -2306,6 +2330,7 @@ ON=4
 
 ON=5
 // UID Forbidden
+FORBIDDEN_UID_LIST
 
 ON=6
 // Plebicitos
@@ -2338,18 +2363,18 @@ ENDIF
 IF (<LOCAL.next>)
  button 489 381 5601 5605 1 0 2
 ENDIF
-IF (<TOWN_CHECK_PRIVS> > 2) && (<ctag.town_list>==TOWN_LIST_COUNSELORS)
+IF ( (<TOWN_CHECK_PRIVS> > 2) && (<ctag0.town_list>==TOWN_LIST_COUNSELORS) ) || ( (<TOWN_CHECK_PRIVS> > 1) && (<ctag0.town_list>==TOWN_LIST_FORBIDDEN) )
  button 277 380 2443 2444 1 0 3
  dtext 295 382 32 ADD
 ENDIF
 
 page 2
 dhtmlgump 108 120 390 181 1 1 <GET_TOWN_PROFILE <ctag.char>>
-IF ( ( (<TOWN_CHECK_PRIVS> > 2) || (<UID>==<ctag.char>) ) && (<ctag.town_list>==TOWN_LIST_COUNSELORS) )
+IF ( ( (<TOWN_CHECK_PRIVS> > 2) || (<UID>==<ctag0.char>) ) && (<ctag0.town_list>==TOWN_LIST_COUNSELORS) ) || ( (<TOWN_CHECK_PRIVS> > 1) && (<ctag0.town_list>==TOWN_LIST_FORBIDDEN) )
  button 109 309 30008 30009 1 0 21
  dtext 128 307 47 Remover da lista de <GET_TOWN_LIST_NAME>
 ENDIF
-IF (<TOWN_CHECK_PRIVS> > 2)
+IF (<TOWN_CHECK_PRIVS> > 2) && (<ctag0.town_list>==TOWN_LIST_COUNSELORS)
  button 109 339 30008 30009 1 0 22
  dtext 128 337 47 Passar a coroa de <region.name> para <rec_fGetName <ctag.char>>
 ENDIF
@@ -2435,19 +2460,22 @@ ON=3
 // Adicionar a lista
 IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
  TOWN_ADD_COUNSELOR
+ELIF (<ctag.town_list>==TOWN_LIST_FORBIDDEN)
+ TOWN_ADD_FORBIDDEN
 ENDIF
-
 
 ON=20
 // Previous
-IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
+//IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
  DIALOG d_town_admin 1
-ENDIF
+//ENDIF
 
 ON=21
 // Remover da lista
 IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
  TOWN_REM_COUNSELOR <ctag.char>
+ELIF (<ctag.town_list>==TOWN_LIST_FORBIDDEN)
+ TOWN_REM_FORBIDDEN <ctag.char>
 ENDIF
 
 ON=22
@@ -2470,6 +2498,8 @@ ON=100 200
 LOCAL.idx=<eval <argn>-100>
 IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
  ctag.char=<TOWN_COUNSELORS <LOCAL.idx>>
+ELIF (<ctag.town_list>==TOWN_LIST_FORBIDDEN)
+ ctag.char=<TOWN_FORBIDDEN_UIDs <LOCAL.idx>>
 ENDIF
 DIALOG d_town_admin 2
 
@@ -2513,9 +2543,9 @@ LOCAL.town=<argv[0]>
 if (!<argo.ischar>)
  sysmessagered Sim... E que tal uma pedra ou uma espada?
  return 1
-//elif (!<argo.isplayer>)
-// sysmessagered Sim... E que tal um sapo ou um paroxysmus?
-// return 1
+elif (!<argo.isplayer>)
+ sysmessagered Sim... E que tal um sapo ou um paroxysmus?
+ return 1
 elif (<serv.resources.<LOCAL.town>.tag.TOWN_MASTER>==<argo.uid>)
  sysmessageyellow <rec_fGetName <argo.uid>> eh o responsavel por <serv.resources.<LOCAL.town>.name>.
  return 1
@@ -2542,14 +2572,83 @@ region.tag.TOWN_COUNSELORS=<f_removeList <argn>,<region.tag.TOWN_COUNSELORS>>
 sysmessageorange <rec_fGetName <argn>> foi removido do conselho de <region.name>!!!
 DIALOG d_town_admin 1
 
+
 [FUNCTION COUNSELORS_LIST]
 ctag.town_list=TOWN_LIST_COUNSELORS
 ctag.page=0
 DIALOG d_town_admin 1
 
+[FUNCTION TOWN_ADD_FORBIDDEN]
+//Adiciona um player na lista de inimigos públicos
+//Se <argv[0]> não é uma region, a region de quem chama é usada.
+IF (!<serv.resources.<argv[0]>.tag.TOWN_TYPE>)
+ IF (<region.tag.town_type>)
+  LOCAL.town=<region.defname>
+ else
+  sysmessagered <region.name> nao eh town.
+  return 1
+ endif
+else
+ LOCAL.town=<argv[0]>
+endif
+sysmessagegreen Quem eh o novo inimigo publico de <serv.resources.<LOCAL.town>.name>?
+targetf _TOWN_ADD_FORBIDDEN <LOCAL.town>
+
+[FUNCTION _TOWN_ADD_FORBIDDEN]
+LOCAL.town=<argv[0]>
+if (!<argo.ischar>)
+ sysmessagered Sim... E que tal uma pedra ou uma espada?
+ return 1
+elif (!<argo.isplayer>)
+ sysmessagered Sim... E que tal um sapo ou um paroxysmus?
+ return 1
+elif (<serv.resources.<LOCAL.town>.tag.TOWN_MASTER>==<argo.uid>)
+ sysmessageyellow <rec_fGetName <argo.uid>> eh o responsavel por <serv.resources.<LOCAL.town>.name>.
+ return 1
+elif (STRMATCH(*<argo.uid>*,<serv.resources.<LOCAL.town>.tag.TOWN_COUNSELORS>))
+ sysmessageyellow <rec_fGetName <argo.uid>> faz parte do conselho de <serv.resources.<LOCAL.town>.name>.
+ return 1
+elif (STRMATCH(*<argo.uid>*,<serv.resources.<LOCAL.town>.TAG.TOWN_UID_FORBIDDEN>))
+ sysmessageyellow <rec_fGetName <argo.uid>> ja eh inimigo publico de <serv.resources.<LOCAL.town>.name>.
+ return 1
+endif
+if (<IsEmpty <serv.resources.<LOCAL.town>.TAG.TOWN_UID_FORBIDDEN>>)
+ serv.resources.<LOCAL.town>.TAG.TOWN_UID_FORBIDDEN=<argo.uid>
+else
+ serv.resources.<LOCAL.town>.TAG.TOWN_UID_FORBIDDEN .= ;<argo.uid>
+endif
+argo.sysmessageorange Voce foi banido de <serv.resources.<LOCAL.town>.name>!!!
+sysmessageorange <rec_fGetName <argo.uid>> eh agora inimigo publico de <serv.resources.<LOCAL.town>.name>.
+FORBIDDEN_UID_LIST
+
+[FUNCTION TOWN_BAN_PLAYER]
+LOCAL.town=<GET_TOWN>
+if (STRMATCH(*<argn>*,<serv.resources.<LOCAL.town>.TAG.TOWN_UID_FORBIDDEN>))
+ return 0
+endif
+if (<IsEmpty <serv.resources.<LOCAL.town>.TAG.TOWN_UID_FORBIDDEN>>)
+ serv.resources.<LOCAL.town>.TAG.TOWN_UID_FORBIDDEN=<argn>
+else
+ serv.resources.<LOCAL.town>.TAG.TOWN_UID_FORBIDDEN .= ;<argn>
+endif
+serv.log [TOWNS] <uid.<argn>.tag.name> [<uid.<argn>.account.name>] foi banido de <serv.resources.<LOCAL.town>.name>
+uid.<argn>.sysmessageorange Voce foi banido de <serv.resources.<LOCAL.town>.name>!!!
+
+[FUNCTION FORBIDDEN_UID_LIST]
+ctag.town_list=TOWN_LIST_FORBIDDEN
+ctag.page=0
+DIALOG d_town_admin 1
+
+[FUNCTION TOWN_REM_FORBIDDEN]
+region.tag.TOWN_UID_FORBIDDEN=<f_removeList <argn>,<region.TAG.TOWN_UID_FORBIDDEN>>
+sysmessageorange <rec_fGetName <argn>> nao eh mais inimigo publico de <region.name>.
+DIALOG d_town_admin 1
+
 [FUNCTION TOWN_POP_LIST]
-IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
+IF (<ctag0.town_list>==TOWN_LIST_COUNSELORS)
  call TOWN_POP_COUNSELORS_LIST
+ELIF (<ctag0.town_list>==TOWN_LIST_FORBIDDEN)
+ call TOWN_POP_FORBIDDEN_LIST
 ENDIF
 
 [FUNCTION TOWN_POP_COUNSELORS_LIST]
@@ -2562,7 +2661,7 @@ FOR i 1 8
   dtext +20 -2 1 <rec_fGetName <local.uid>>
  ENDIF
 ENDFOR
-//sysmessagered <dLOCAL.i>/<eval (<ctag0.page>*-8)> - <TOWN_COUNSELORS <LOCAL.j>>
+//sysmessagered <dLOCAL.i>/<eval (<ctag0.page>*8)> - <TOWN_COUNSELORS <LOCAL.j>>
 IF (<TOWN_COUNSELORS <eval 1+<LOCAL.j>>>)
  LOCAL.next=1
 ENDIF
@@ -2570,9 +2669,29 @@ IF (<ctag0.page>)
  LOCAL.prev=1
 ENDIF
 
+[FUNCTION TOWN_POP_FORBIDDEN_LIST]
+DORIGIN 117 98
+FOR i 1 8
+ LOCAL.j=<eval (<ctag0.page>*8)+<LOCAL.i>>
+ LOCAL.uid=<TOWN_FORBIDDEN_UIDs <dLOCAL.j>>
+ IF (<LOCAL.uid>)
+  button - *30 30008 30009 1 0 <eval 100+<LOCAL.j>>
+  dtext +20 -2 1 <rec_fGetName <local.uid>>
+ ENDIF
+ENDFOR
+//sysmessagered <dLOCAL.i>/<eval (<ctag0.page>*8)> - <TOWN_FORBIDDEN_UIDs <LOCAL.j>>
+IF (<TOWN_FORBIDDEN_UIDs <eval 1+<LOCAL.j>>>)
+ LOCAL.next=1
+ENDIF
+IF (<ctag0.page>)
+ LOCAL.prev=1
+ENDIF
+
 [FUNCTION GET_TOWN_LIST_NAME]
-IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
+IF (<ctag0.town_list>==TOWN_LIST_COUNSELORS)
  return conselheiros de <region.name>
+ELIF (<ctag0.town_list>==TOWN_LIST_FORBIDDEN)
+ return Inimigos publicos de <region.name>
 ENDIF
 
 [FUNCTION GET_TOWN_PROFILE]
