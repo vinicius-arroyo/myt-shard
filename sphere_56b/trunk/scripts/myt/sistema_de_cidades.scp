@@ -351,6 +351,31 @@ LOCAL.ret=<argv[<LOCAL.i>]>
 
 
 //*****************************************************************************
+[FUNCTION TOWN_FRIEND_UIDs]
+//*****************************************************************************
+//Retorna quantos UIDs friend tem a town. Se <argn>, retorna um dos UIDs
+LOCAL.town=<GET_TOWN>
+IF (!<serv.resources.<LOCAL.town>>)
+ return 0
+ELIF (<IsEmpty <serv.resources.<LOCAL.town>.tag.town_UID_FRIEND>>)
+ return 0
+ENDIF
+IF (!<argn>)
+ call _TOWN_FRIEND_UIDs <explode ;,<serv.resources.<LOCAL.town>.tag.town_UID_FRIEND>>
+ELSE
+ LOCAL.i=<argn>
+ call _TOWN_FRIEND_UIDs_ <explode ;,<serv.resources.<LOCAL.town>.tag.town_UID_FRIEND>>
+ENDIF
+return <LOCAL.ret>
+
+[FUNCTION _TOWN_FRIEND_UIDs]
+LOCAL.ret=<eval <argv>-1>
+
+[FUNCTION _TOWN_FRIEND_UIDs_]
+LOCAL.ret=<argv[<LOCAL.i>]>
+
+
+//*****************************************************************************
 [FUNCTION GET_TOWN_MASTER]
 //*****************************************************************************
 //Retorna a UID do MASTER da town do NPC
@@ -2275,7 +2300,7 @@ dtext 120 272 66 Racas inimigas:
 dtext 256 272 4 <STRSUB 0 30 <explode ;,<REGION.TAG.TOWN_RACE_FORBIDDEN>>>
 button 101 291 30008 30009 1 0 4
 dtext 120 288 66 Extrangeiros amigos:
-dtext 256 288 4 (UID_FRIENDS)
+dtext 256 288 4 <eval <TOWN_FRIEND_UIDs>>
 button 101 307 30008 30009 1 0 5
 dtext 120 304 66 Inimigos publicos:
 dtext 256 304 4 <eval <TOWN_FORBIDDEN_UIDs>>
@@ -2344,6 +2369,7 @@ DIALOG d_town_admin 3
 
 ON=4
 // UID Friends
+FRIEND_UID_LIST
 
 ON=5
 // UID Forbidden
@@ -2380,14 +2406,14 @@ ENDIF
 IF (<LOCAL.next>)
  button 489 381 5601 5605 1 0 2
 ENDIF
-IF ( (<TOWN_CHECK_PRIVS> > 2) && (<ctag0.town_list>==TOWN_LIST_COUNSELORS) ) || ( (<TOWN_CHECK_PRIVS> > 1) && (<ctag0.town_list>==TOWN_LIST_FORBIDDEN) )
+IF ( (<TOWN_CHECK_PRIVS> > 2) && (<ctag0.town_list>==TOWN_LIST_COUNSELORS) ) || ( (<TOWN_CHECK_PRIVS> > 1) && (<ctag0.town_list>==TOWN_LIST_FORBIDDEN) ) || ( (<TOWN_CHECK_PRIVS> > 1) && (<ctag0.town_list>==TOWN_LIST_FRIENDS) )
  button 277 380 2443 2444 1 0 3
  dtext 295 382 32 ADD
 ENDIF
 
 page 2
 dhtmlgump 108 120 390 181 1 1 <GET_TOWN_PROFILE <ctag.char>>
-IF ( ( (<TOWN_CHECK_PRIVS> > 2) || (<UID>==<ctag0.char>) ) && (<ctag0.town_list>==TOWN_LIST_COUNSELORS) ) || ( (<TOWN_CHECK_PRIVS> > 1) && (<ctag0.town_list>==TOWN_LIST_FORBIDDEN) )
+IF ( ( (<TOWN_CHECK_PRIVS> > 2) || (<UID>==<ctag0.char>) ) && (<ctag0.town_list>==TOWN_LIST_COUNSELORS) ) || ( (<TOWN_CHECK_PRIVS> > 1) && (<ctag0.town_list>==TOWN_LIST_FORBIDDEN) )  || ( (<TOWN_CHECK_PRIVS> > 1) && (<ctag0.town_list>==TOWN_LIST_FRIENDS) )
  button 109 309 30008 30009 1 0 21
  dtext 128 307 47 Remover da lista de <GET_TOWN_LIST_NAME>
 ENDIF
@@ -2503,6 +2529,9 @@ Orcs
 Orcs
 
 [DIALOG d_town_admin button]
+ON=0
+DIALOG d_town
+
 ON=1
 // Page -1
 ctag0.page -= 1
@@ -2515,10 +2544,12 @@ DIALOG d_town_admin 1
 
 ON=3
 // Adicionar a lista
-IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
+IF (<ctag0.town_list>==TOWN_LIST_COUNSELORS)
  TOWN_ADD_COUNSELOR
-ELIF (<ctag.town_list>==TOWN_LIST_FORBIDDEN)
+ELIF (<ctag0.town_list>==TOWN_LIST_FORBIDDEN)
  TOWN_ADD_FORBIDDEN
+ELIF (<ctag0.town_list>==TOWN_LIST_FRIENDS)
+ TOWN_ADD_FRIEND
 ENDIF
 
 ON=20
@@ -2533,6 +2564,8 @@ IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
  TOWN_REM_COUNSELOR <ctag.char>
 ELIF (<ctag.town_list>==TOWN_LIST_FORBIDDEN)
  TOWN_REM_FORBIDDEN <ctag.char>
+ELIF (<ctag.town_list>==TOWN_LIST_FRIENDS)
+ TOWN_REM_FRIEND <ctag.char>
 ENDIF
 
 ON=22
@@ -2599,6 +2632,8 @@ IF (<ctag.town_list>==TOWN_LIST_COUNSELORS)
  ctag.char=<TOWN_COUNSELORS <LOCAL.idx>>
 ELIF (<ctag.town_list>==TOWN_LIST_FORBIDDEN)
  ctag.char=<TOWN_FORBIDDEN_UIDs <LOCAL.idx>>
+ELIF (<ctag.town_list>==TOWN_LIST_FRIENDS)
+ ctag.char=<TOWN_FRIEND_UIDs <LOCAL.idx>>
 ENDIF
 DIALOG d_town_admin 2
 
@@ -2698,9 +2733,9 @@ LOCAL.town=<argv[0]>
 if (!<argo.ischar>)
  sysmessagered Sim... E que tal uma pedra ou uma espada?
  return 1
-elif (!<argo.isplayer>)
- sysmessagered Sim... E que tal um sapo ou um paroxysmus?
- return 1
+//elif (!<argo.isplayer>)
+// sysmessagered Sim... E que tal um sapo ou um paroxysmus?
+// return 1
 elif (<serv.resources.<LOCAL.town>.tag.TOWN_MASTER>==<argo.uid>)
  sysmessageyellow <rec_fGetName <argo.uid>> eh o responsavel por <serv.resources.<LOCAL.town>.name>.
  return 1
@@ -2743,11 +2778,63 @@ region.tag.TOWN_UID_FORBIDDEN=<f_removeList <argn>,<region.TAG.TOWN_UID_FORBIDDE
 sysmessageorange <rec_fGetName <argn>> nao eh mais inimigo publico de <region.name>.
 DIALOG d_town_admin 1
 
+[FUNCTION TOWN_ADD_FRIEND]
+//Adiciona um player na lista de extrangeiros amigos
+//Se <argv[0]> não é uma region, a region de quem chama é usada.
+IF (!<serv.resources.<argv[0]>.tag.TOWN_TYPE>)
+ IF (<region.tag.town_type>)
+  LOCAL.town=<region.defname>
+ else
+  sysmessagered <region.name> nao eh town.
+  return 1
+ endif
+else
+ LOCAL.town=<argv[0]>
+endif
+sysmessagegreen Quem eh o novo extrangeiro bem vindo em <serv.resources.<LOCAL.town>.name>?
+targetf _TOWN_ADD_FRIEND <LOCAL.town>
+
+[FUNCTION _TOWN_ADD_FRIEND]
+LOCAL.town=<argv[0]>
+if (!<argo.ischar>)
+ sysmessagered Sim... E que tal uma pedra ou uma espada?
+ return 1
+elif (!<argo.isplayer>)
+ sysmessagered Sim... E que tal um sapo ou um paroxysmus?
+ return 1
+//elif (<serv.resources.<LOCAL.town>.tag.TOWN_MASTER>==<argo.uid>)
+// sysmessageyellow <rec_fGetName <argo.uid>> eh o responsavel por <serv.resources.<LOCAL.town>.name>.
+// return 1
+elif (STRMATCH(*<argo.uid>*,<serv.resources.<LOCAL.town>.TAG.TOWN_UID_FORBIDDEN>))
+ sysmessageyellow <rec_fGetName <argo.uid>> eh inimigo publico de <serv.resources.<LOCAL.town>.name>.
+ return 1
+endif
+if (<IsEmpty <serv.resources.<LOCAL.town>.TAG.TOWN_UID_FRIEND>>)
+ serv.resources.<LOCAL.town>.TAG.TOWN_UID_FRIEND=<argo.uid>
+else
+ serv.resources.<LOCAL.town>.TAG.TOWN_UID_FRIEND .= ;<argo.uid>
+endif
+argo.sysmessageorange Voce eh agora um extrangeiro bem vindo em <serv.resources.<LOCAL.town>.name>!!!
+sysmessageorange <rec_fGetName <argo.uid>> eh bem vindo em <serv.resources.<LOCAL.town>.name>.
+FRIEND_UID_LIST
+
+[FUNCTION FRIEND_UID_LIST]
+ctag.town_list=TOWN_LIST_FRIENDS
+ctag.page=0
+DIALOG d_town_admin 1
+
+[FUNCTION TOWN_REM_FRIEND]
+region.tag.TOWN_UID_FRIEND=<f_removeList <argn>,<region.TAG.TOWN_UID_FRIEND>>
+sysmessageorange <rec_fGetName <argn>> nao eh mais bem vindo em <region.name>.
+DIALOG d_town_admin 1
+
 [FUNCTION TOWN_POP_LIST]
 IF (<ctag0.town_list>==TOWN_LIST_COUNSELORS)
  call TOWN_POP_COUNSELORS_LIST
 ELIF (<ctag0.town_list>==TOWN_LIST_FORBIDDEN)
  call TOWN_POP_FORBIDDEN_LIST
+ELIF (<ctag0.town_list>==TOWN_LIST_FRIENDS)
+ call TOWN_POP_FRIEND_LIST
 ENDIF
 
 [FUNCTION TOWN_POP_COUNSELORS_LIST]
@@ -2760,7 +2847,6 @@ FOR i 1 8
   dtext +20 -2 1 <rec_fGetName <local.uid>>
  ENDIF
 ENDFOR
-//sysmessagered <dLOCAL.i>/<eval (<ctag0.page>*8)> - <TOWN_COUNSELORS <LOCAL.j>>
 IF (<TOWN_COUNSELORS <eval 1+<LOCAL.j>>>)
  LOCAL.next=1
 ENDIF
@@ -2778,8 +2864,24 @@ FOR i 1 8
   dtext +20 -2 1 <rec_fGetName <local.uid>>
  ENDIF
 ENDFOR
-//sysmessagered <dLOCAL.i>/<eval (<ctag0.page>*8)> - <TOWN_FORBIDDEN_UIDs <LOCAL.j>>
 IF (<TOWN_FORBIDDEN_UIDs <eval 1+<LOCAL.j>>>)
+ LOCAL.next=1
+ENDIF
+IF (<ctag0.page>)
+ LOCAL.prev=1
+ENDIF
+
+[FUNCTION TOWN_POP_FRIEND_LIST]
+DORIGIN 117 98
+FOR i 1 8
+ LOCAL.j=<eval (<ctag0.page>*8)+<LOCAL.i>>
+ LOCAL.uid=<TOWN_FRIEND_UIDs <dLOCAL.j>>
+ IF (<LOCAL.uid>)
+  button - *30 30008 30009 1 0 <eval 100+<LOCAL.j>>
+  dtext +20 -2 1 <rec_fGetName <local.uid>>
+ ENDIF
+ENDFOR
+IF (<TOWN_FRIEND_UIDs <eval 1+<LOCAL.j>>>)
  LOCAL.next=1
 ENDIF
 IF (<ctag0.page>)
@@ -2790,7 +2892,9 @@ ENDIF
 IF (<ctag0.town_list>==TOWN_LIST_COUNSELORS)
  return conselheiros de <region.name>
 ELIF (<ctag0.town_list>==TOWN_LIST_FORBIDDEN)
- return Inimigos publicos de <region.name>
+ return animigos publicos de <region.name>
+ELIF (<ctag0.town_list>==TOWN_LIST_FRIENDS)
+ return extrangeiros amigos de <region.name>
 ENDIF
 
 [FUNCTION GET_TOWN_PROFILE]
