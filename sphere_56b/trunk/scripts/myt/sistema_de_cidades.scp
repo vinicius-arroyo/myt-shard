@@ -1736,7 +1736,7 @@ on=@Kill
 FAME += <eval <argo.fame>/20>
 IF (<argo.karma> > 0)
  KARMA += <eval <argo.KARMA>/20>
-ELIF (<argo.karm> < -2000)
+ELIF (<argo.karma> < -2000)
  KARMA -= <eval <argo.KARMA>/20>
 endif
 return 0
@@ -1787,19 +1787,20 @@ endif
 actarg1 += 1
 return 1
 
-on=@SPELLEFFECT
-serv.log <name> castando <argn1>???
-
 on=@Destroy
 TOWN_UNREG_SERVANT
-serv.log Hey! Hey! Hey! Guarda <name> (<uid>) foi destruido!!!
 
 on=@GetHit
+if (<argn1> >= <hits>)
+ TOWN_BAN_PLAYER <src.uid>
+ f_sendMessage <GET_TOWN_MASTER>, Guarda <name> foi morto por <uid.<GET_TOWN_MASTER>.rec_fGetName <src.uid>> as <serv.rtime>.,026
+endif
 if (<src.ischar>)
- if (<src.isgm>) || (<src.flags>&01f) || (<memoryfindtype.memory_wartarg>)
-  return 1
+ if (<src.isgm>) || (<src.flags>&01f) || (<memoryfindtype.memory_war_targ>)
+  return 0
  endif
- GUARD_ATTACK <src.uid> 
+ act=<src.uid>
+ GUARD_ATTACK <uid> 
 endif
 
 
@@ -2172,6 +2173,7 @@ IF (<IsGM>) || (<IsEvent.e_guard_town>) || ( (<NPC>) && (<karma> > -2000) ) || (
 ELIF (<flags>&statf_war)
  return GUARD_WARN_WARMODE
 ELIF (<restest 1 i_mry_lockpick_fechadura>)
+ TOWN_BAN_PLAYER <UID>
  return GUARD_WARN_LOCKPICK
 ELIF (<npc>==BRAIN_MONSTER)
  return GUARD_ATTACK_MONSTER
@@ -2208,8 +2210,11 @@ ELIF (<tag0.task>==GUARD_TASK_GO)
  IF (<distance <actp>> < 2)
   HOME=<actp>
   TAG.home=<actp>
+  ACTION=06D
   TAG.TASK=GUARD_TASK_WANDER
  ENDIF
+ELIF (<tag0.task>==GUARD_TASK_WANDER) || (<tag0.task>==GUARD_TASK_POST)
+ ACTION=06D
 ENDIF
 timerf 3,GUARD_AI
 
@@ -2234,7 +2239,7 @@ dtext 275 45 26 <region.name>
 resizepic 92 87 2620 416 147
 dtext <TOWN_GET_DIALOG_TITLE>
 dtext 104 120 66 Raca:
-dtext 139 120 4 <region.tag.town_race>
+dtext 139 120 4 <explode ;,<region.tag.town_race>>
 dtext 103 137 66 Responsavel:
 dtext 179 136 4 <uid.<region.tag.town_master>.tag.name>
 button 102 156 30008 30009 1 0 1
