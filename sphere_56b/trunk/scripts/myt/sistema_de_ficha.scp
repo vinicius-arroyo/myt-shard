@@ -407,14 +407,15 @@ on=4
 src.newitem i_mry_gm_jail
 src.act.cont=<src.targ.uid>
 src.act.morep=<src.targ.p>
-src.act.timer=<src.targ.tag0.arp_jail_time>
+src.act.more1=<src.targ.tag0.arp_jail_time>
+src.act.timer=1
 dorand (4)
  src.targ.go=5280,1185
  src.targ.go=5301,1183
  src.targ.go=5305,1173
  src.targ.go=5305,1163
 enddo
-src.targ.say Preso por <eval 0<src.act.timer>/60> minutos.
+src.targ.say Preso por <eval 0<src.act.more1>/60> minutos.
 return 1
 
 on=5
@@ -499,15 +500,19 @@ on=@create
 attr=0c010
 
 on=@timer
- cont.forgive
- cont.go=<morep>
- cont.tag.arp_jail_time=5
- cont.update
- cont.sysmessagegreen Certo, voce cumpriu sua pena. Cuidado com a sua RePresentacao.
- cont.consume 30 i_mry_GM_jail
- remove
- return 1
+timer=1
+if (<cont.isonline>)
+    more1 -= 1
+    if (<more1> <= 0)
+        cont.forgive
+        cont.go=<morep>
+        cont.tag.arp_jail_time=5
+        cont.update
+        cont.sysmessagegreen Certo, voce cumpriu sua pena. Cuidado com a sua RePresentacao.
+        remove
+    endif 
 endif
+return 1
 
 [DIALOG d_ficha_msg]
 0, 0
@@ -721,7 +726,7 @@ return 1
 [FUNCTION detem]
 if (<restest 1 i_mry_GM_jail>)
     sysmessagered Infracao detectada. Prisao aumentada em 10 minutos.
-    findid.i_mry_gm_jail.timer=<findid.i_mry_gm_jail.timer>+600
+    findid.i_mry_gm_jail.more1=<findid.i_mry_gm_jail.more1>+600
     return 1
 endif
 LOCAL.t=<eval (<tag0.prisao_total>/2)+<argv[0]>>
@@ -731,7 +736,8 @@ sysmessagered Motivo: <argv[1]>
 serv.newitem i_mry_gm_jail
 new.cont=<uid>
 new.morep=<p>
-new.timer=<argv[0]>
+new.more1=<LOCAL.t>
+new.timer=1
 tag.prisao_total=<eval <tag0.prisao_total>+<argv[0]>>
 dorand (4)
  go=5280,1185
@@ -781,7 +787,7 @@ return 1
 
 on=@targon_char
 if (<src.targ.restest 1 i_mry_GM_jail>) && (0<tag.tempo>!=0)
- src.targ.findid.i_mry_gm_jail.timer <eval <tag.tempo>>
+ src.targ.findid.i_mry_gm_jail.more1 <eval <tag.tempo>>
  src.targ.say *mensagem*
  src.targ.sysmessageorange Sua pena foi ajustada para <eval <tag.tempo>/60> minutos.
  src.sysmessageorange A pena foi ajustada para <eval <tag.tempo>/60> minutos.
@@ -789,7 +795,7 @@ if (<src.targ.restest 1 i_mry_GM_jail>) && (0<tag.tempo>!=0)
  return 1
 endif
 if (<src.targ.restest 1 i_mry_GM_jail> && (STRMATCH(<tag.motivo>,soltar))
- src.targ.findid.i_mry_gm_jail.timerd 1
+ src.targ.findid.i_mry_gm_jail.more1 1
  src.targ.sysmessageorange Um GM achou que voce deveria ser solto.
  remove
  return 1
