@@ -1780,12 +1780,17 @@ ENDDO
 MAXHITS += <R1,5>
 
 on=@Hunger
-if (<food> < 50)
+tag.lastfood=<serv.time>
+if (<food> < 25)
  if (!<GUARD_FOOD>)
+  if (!<food>) && (<tag0.nopay> > 2)
+   say Chega disto! Estou me demitindo!
+   timerf 15,remove
+   return 1
+  endif
   GUARD_BUY
- elif (!<food>)
-  say Chega disto! Estou me demitindo!
-  timerf 15,remove
+ else
+  return 1
  endif
 endif
 
@@ -2058,7 +2063,7 @@ ELIF (<tag.subject>==GUARD_WARN_WEAPON)
    say <uid.<GET_TOWN_MASTER>.tag.name> nao quer pessoas andando armadas pela cidade!
    say Pessoas andando armadas por <region.name> nao sao bem vistas.
    say Por que anda armado por <region.name>?
-  ENNDO
+  ENDDO
  ELSE
   act=04fffffff
   GUARD_RETRIEVE_TASK 
@@ -2139,7 +2144,7 @@ if (<LOCAL.food>)
  anim 022
  SFX 03b
  emotegreen comendo <UID.<LOCAL.FOOD>.name>
- food += <R20,50>
+ food += <R50,75>
  uid.<local.food>.decrement
  return 1
 endif
@@ -2149,12 +2154,12 @@ return 0
 [FUNCTION GUARD_BUY]
 //*****************************************************************************
 //Faz o guarda comprar provisões.
-if (<restest 5 i_coin_copper>) && (<food> < 50)
+if (<restest 2 i_coin_copper>) && (<food> < 50)
  LOCAL.item={ i_ribs_cooked 1 i_chicken_leg 1 i_lamb_leg 1 i_fish_cut_cooked 1 }
- consume 5 i_coin_copper
+ consume 2 i_coin_copper
  serv.newitem <LOCAL.item>
  new.more1=<R2,4>
- new.amount=<R5,10>
+ new.amount=<R12,20>
  new.cont=<uid>
 endif
 if (!<restest <tag0.level> i_bottle_yellow>) && (<restest 15 i_coin_copper>)
@@ -2195,19 +2200,19 @@ endif
 obj=<argv[0]>
 IF (<IsGM>) || (<IsEvent.e_guard_town>) || ( (<NPC>) && (<karma> > -2000) ) || (!<ischar>)
  return 0
-ELIF (<flags>&statf_war)
- return GUARD_WARN_WARMODE
+ELIF (STRMATCH(*<UID>*,<obj.TOWN_GET_FORB_UID>)) && (<region.defname>==<obj.GET_TOWN>)
+ return GUARD_WARN_FORBIDDEN
 ELIF (<restest 1 i_mry_lockpick_fechadura>)
  TOWN_BAN_PLAYER <UID>
  return GUARD_WARN_LOCKPICK
 ELIF (<npc>==BRAIN_MONSTER)
  return GUARD_ATTACK_MONSTER
+ELIF (<flags>&statf_war)
+ return GUARD_WARN_WARMODE
 ELIF (<weapon>)
  return GUARD_WARN_WEAPON
 ELIF (STRMATCH(*<UID>*,<obj.TOWN_GET_FRIEND_UID>))
  return 0
-ELIF (STRMATCH(*<UID>*,<obj.TOWN_GET_FORB_UID>)) && (<region.defname>==<obj.GET_TOWN>)
- return GUARD_WARN_FORBIDDEN
 ELIF (STRMATCH(*<tag.raca>*,<obj.TOWN_GET_FORB_RACE>)) && (<region.defname>==<obj.GET_TOWN>)
  return GUARD_WARN_FORBIDDEN
 ENDIF
@@ -2238,8 +2243,10 @@ ELIF (<tag0.task>==GUARD_TASK_GO)
   ACTION=06D
   TAG.TASK=GUARD_TASK_WANDER
  ENDIF
-ELIF (<tag0.task>==GUARD_TASK_WANDER) || (<tag0.task>==GUARD_TASK_POST)
+ELIF (<tag0.task>==GUARD_TASK_WANDER)
+ GUARD_CORRECT_HOME
  ACTION=06D
+ tag0.task=GUARD_TASK_POST
 ENDIF
 timerf 3,GUARD_AI
 
