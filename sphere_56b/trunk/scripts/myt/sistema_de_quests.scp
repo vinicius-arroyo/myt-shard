@@ -23,6 +23,7 @@
 //* text         * timeout (s)              * NPC uid / N/A=NPC QUEST         *
 //* talk to      * item defname (1)         * NPC uid / N/A=NPC QUEST         *
 //* reward       * item defname             * NPC uid / N/A=NPC QUEST         *
+//* custom       * quest controller defname * NPC uid / N/A=NPC QUEST         *
 //*****************************************************************************
 //(1) player must have this item so this step can be completed
 
@@ -45,27 +46,28 @@
 
 //TABELAS:
 
-//CREATE TABLE `mytserver`.`quests` (
-//  `idQuest` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
-//  `idNpc` INTEGER UNSIGNED NOT NULL,
-//  `name` VARCHAR(45) NOT NULL,
-//  `description` VARCHAR(255) NOT NULL,
-//  PRIMARY KEY(`idQuest`),
-//  INDEX `Index_2`(`idNpc`)
+//CREATE TABLE  `mytserver`.`quests` (
+//  `idQuest` int(10) unsigned NOT NULL auto_increment,
+//  `idNpc` int(10) unsigned NOT NULL,
+//  `name` varchar(45) NOT NULL,
+//  `description` varchar(255) NOT NULL,
+//  `mayRepeat` tinyint(1) NOT NULL,
+//  PRIMARY KEY  (`idQuest`),
+//  KEY `Index_2` (`idNpc`)
 //)
-//ENGINE = MyISAM;
+//ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
-//CREATE TABLE `mytserver`.`questSteps` (
-//  `idQuest` INTEGER UNSIGNED NOT NULL,
-//  `idStep` TINYINT UNSIGNED NOT NULL,
-//  `description` VARCHAR(255) NOT NULL,
-//  `type` ENUM('Kill Mob','Get Mob Item','Get Item','Craft Item','Find Item','Escord','Delivery','Text','Talk To','Reward') NOT NULL,
-//  `quantity` SMALLINT UNSIGNED NOT NULL,
-//  `param1` VARCHAR(45) NOT NULL,
-//  `param2` VARCHAR(45) NOT NULL,
-//  PRIMARY KEY(`idQuest`, `idStep`)
+//CREATE TABLE  `mytserver`.`questSteps` (
+//  `idQuest` int(10) unsigned NOT NULL,
+//  `idStep` tinyint(3) unsigned NOT NULL,
+//  `description` varchar(255) NOT NULL,
+//  `type` enum('Kill Mob','Get Mob Item','Get Item','Craft Item','Find Item','Escord','Delivery','Text','Talk To','Reward','Custom') NOT NULL,
+//  `quantity` smallint(5) unsigned NOT NULL,
+//  `param1` varchar(45) NOT NULL,
+//  `param2` varchar(45) NOT NULL,
+//  PRIMARY KEY  (`idQuest`,`idStep`)
 //)
-//ENGINE = MyISAM;
+//ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 //CREATE TABLE `mytserver`.`questState` (
 //  `idPlayer` INTEGER UNSIGNED NOT NULL,
@@ -97,13 +99,13 @@ quest_type_delivery=7       //NAO SERA USADO POIS TEM A MESMA FUNCIONALIDADE DO 
 quest_type_text=8
 quest_type_talkto=9
 quest_type_reward=10
+quest_type_custom=11
 
 //*****************************************************************************
 //*****************************************************************************
 // EVENTs
 //*****************************************************************************
 //*****************************************************************************
-
 [EVENTS e_quest]
 
 //ON=@itemDclick
@@ -235,8 +237,7 @@ return 1
 [FUNCTION quest_updateTalktoQuest]
 
 OBJ=<argv[0]>
-
-if ( <OBJ.amount> > 0 )
+if ( <OBJ.amount> > 0 ) && (<eval <OBJ.tag.param1>>)
     if ( <OBJ.cont.restest <OBJ.amount> <OBJ.tag.param1>>)
         OBJ.cont.consume <OBJ.amount> <OBJ.tag.param1>
         OBJ.cont.sysmessageyellow Voce finalizou um objetivo da quest.    
@@ -345,6 +346,10 @@ SRC.CTAG.quest_numQuests=0
 
 //varre o banco
 if ( <DB.connected> )
+
+    //limpa quests que podem repetir
+    DB.QUERY "DELETE FROM questState WHERE dateCompleted != '0000-00-00 00:00:00' AND dateCompleted < NOW() - INTERVAL 24 HOUR AND idPlayer=<eval <SRC>> AND idQuest IN (SELECT idQuest FROM quests WHERE idNpc=<eval <SRC.CTAG.quest_selectedNpc>> AND mayRepeat=1)"
+    
     //gm must see all quests
     if (<src.isgm>)
         DB.QUERY "SELECT idQuest, name FROM quests WHERE idNpc=<eval <SRC.CTAG.quest_selectedNpc>> ORDER BY name"
@@ -470,6 +475,7 @@ if ( <DB.ROW.quantity> > 0 )
 else
     OBJ.amount = 1
 endif
+
 OBJ.tag.param1 = <DB.ROW.param1>
 OBJ.tag.param2 = <DB.ROW.param2>
 OBJ.morex = <DB.ROW.type>
@@ -523,6 +529,18 @@ elif ( <DB.ROW.type> == quest_type_kill_mob )
     else
         OBJ.cont.sysmessageyellow Mate <OBJ.amount> <serv.chardef.<OBJ.tag.param1>.name> e traga <serv.itemdef.<OBJ.tag.param2>.name>
     endif
+elif ( <DB.ROW.type> == quest_type_custom )
+    SERV.NEWITEM <OBJ.tag.param1>
+    NEW.link=<OBJ>
+    NEW.cont=<OBJ.cont>
+    NEW.amount=<OBJ.amount>
+    NEW.trigger @QuestInit
+
+    if ( <OBJ.tag.param2> )
+        TRYSRV uid.<OBJ.tag.param2>.message <DB.ROW.description>
+    else
+        OBJ.link.message <DB.ROW.description>
+    endif    
 endif   
 
 DB.EXECUTE "UPDATE questState SET idStep=<eval <OBJ.morez>> WHERE idQuest=<eval <OBJ.morey>> AND idPlayer=<eval <OBJ.cont>>"
@@ -577,7 +595,8 @@ return 1
 //*****************************************************************************
 //esta funcao eh chamada qndo o player aperta o botao "quest" do paperdoll
 [FUNCTION quest_userQuests]
-menu m_quest_button
+//menu m_quest_button
+src.sysmessageyellow Desabilitado temporariamente
 return 1
 
 //*****************************************************************************
@@ -699,7 +718,7 @@ elif (<LOCAL.t>==3) //npc uid
     if (0<argo> > 0) && (0<argo> < 040000000)
         LOCAL.p=<argo>
     endif
-elif (<LOCAL.t>==4) || (<LOCAL.t>==5) || (<LOCAL.t>==7) || (<LOCAL.t>==9) || (<LOCAL.t>==10) //itemdef
+elif (<LOCAL.t>==4) || (<LOCAL.t>==5) || (<LOCAL.t>==7) || (<LOCAL.t>==9) || (<LOCAL.t>==10) || (<LOCAL.t>==11) //itemdef
     if (0<argo> >= 040000000)
         LOCAL.p=<argo.baseid>
     endif
@@ -718,7 +737,7 @@ src.dialog d_quest_step_editor
 [FUNCTION quest_stepParam2]
 LOCAL.t=<argv2>
 LOCAL.p=0
-if (<LOCAL.t>==7) || (<LOCAL.t>==9) || (<LOCAL.t>==10) //npc uid
+if (<LOCAL.t>==7) || (<LOCAL.t>==9) || (<LOCAL.t>==10) || (<LOCAL.t>==11)//npc uid
     if (0<argo> > 0) && (0<argo> < 040000000)
         LOCAL.p=<argo>
     endif
@@ -835,6 +854,10 @@ on=0 Falar com NPC
 
 on=0 Dar item
     src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_reward>
+    src.dialog d_quest_step_editor
+
+on=0 Custom step
+    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_custom>
     src.dialog d_quest_step_editor
 
 //*****************************************************************************
@@ -1059,6 +1082,7 @@ doswitch <LOCAL.type>
     LOCAL.help=Fala do NPC<def.br>Param1: tempo de duracao da fala<def.br>Param2:NPC UID ou 0 para mesmo NPC que ira falar<def.br>Descricao: Fala que o NPC ira usar
     LOCAL.help=Falar com NPC<def.br>Param1: ITEM defname para entregar ao NPC (opcional)<def.br>Param2: NPC UID ou 0 para mesmo NPC<def.br>Quantidade: numero de ITEMs para entregar (param1)
     LOCAL.help=Dar item<def.br>Param1: ITEM defname<def.br>Param2: NPC UID ou 0 para mesmo NPC que entrega o item<def.br>Quantidade: numero de ITEMSs para recompensar
+    LOCAL.help=Custom<def.br>Param1: HANDLER defname<def.br>Param2: NPC UID ou 0 para mesmo NPC que entrega inicia o step<def.br>Quantidade: parametro numerico do handler
 enddo
 
 resizepic 0 0 83 320 399
@@ -1104,6 +1128,7 @@ doswitch <SRC.CTAG0.quest_selectedStepType>
     LOCAL.help=0 //talk
     LOCAL.help=Selecione o ITEM (itemdef) que sera tomado pelo NPC
     LOCAL.help=Selecione o ITEM (itemdef) que sera dado de recompensa ao player
+    LOCAL.help=Selecione o HANDLER (itemdef) que sera equipado no player
 enddo
 
 if (strlen(<LOCAL.help>) > 3)
@@ -1129,6 +1154,7 @@ doswitch <SRC.CTAG0.quest_selectedStepType>
     LOCAL.help=Selecione o NPC (uid) que deve falar
     LOCAL.help=Selecione o NPC (uid) que o player deve conversar
     LOCAL.help=Selecione o NPC (uid) que ira entregar a recompensa.
+    LOCAL.help=Selecione o NPC (uid) que ira entregar o HANDLER.
 enddo
 
 if (strlen(<LOCAL.help>) > 3)
