@@ -69,15 +69,16 @@
 //)
 //ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
-//CREATE TABLE `mytserver`.`questState` (
-//  `idPlayer` INTEGER UNSIGNED NOT NULL,
-//  `idQuest` INTEGER UNSIGNED NOT NULL,
-//  `idStep` TINYINT UNSIGNED NOT NULL,
-//  `dateStarted` DATETIME NOT NULL,
-//  `dateCompleted` DATETIME NOT NULL,
-//  PRIMARY KEY(`idPlayer`, `idQuest`)
+//CREATE TABLE  `mytserver`.`questState` (
+//  `idPlayer` int(10) unsigned NOT NULL,
+//  `idQuest` int(10) unsigned NOT NULL,
+//  `idStep` tinyint(3) unsigned NOT NULL,
+//  `dateStarted` datetime NOT NULL,
+//  `dateCompleted` datetime NOT NULL,
+//  `repetitions` int(10) unsigned NOT NULL,
+//  PRIMARY KEY  (`idPlayer`,`idQuest`)
 //)
-//ENGINE = MyISAM;
+//ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 //*****************************************************************************
 //*****************************************************************************
@@ -347,14 +348,11 @@ SRC.CTAG.quest_numQuests=0
 //varre o banco
 if ( <DB.connected> )
 
-    //limpa quests que podem repetir
-    DB.QUERY "DELETE FROM questState WHERE dateCompleted != '0000-00-00 00:00:00' AND dateCompleted < NOW() - INTERVAL 24 HOUR AND idPlayer=<eval <SRC>> AND idQuest IN (SELECT idQuest FROM quests WHERE idNpc=<eval <SRC.CTAG.quest_selectedNpc>> AND mayRepeat=1)"
-    
     //gm must see all quests
     if (<src.isgm>)
         DB.QUERY "SELECT idQuest, name FROM quests WHERE idNpc=<eval <SRC.CTAG.quest_selectedNpc>> ORDER BY name"
     else
-        DB.QUERY "SELECT idQuest, name FROM quests WHERE idNpc=<eval <SRC.CTAG.quest_selectedNpc>> AND idQuest NOT IN (SELECT idQuest FROM questState WHERE idPlayer=<eval <SRC>>) ORDER BY name"
+        DB.QUERY "SELECT idQuest, name FROM quests WHERE idNpc=<eval <SRC.CTAG.quest_selectedNpc>> AND idQuest NOT IN (SELECT idQuest FROM questState LEFT JOIN quests USING (idQuest) WHERE idPlayer=<eval <SRC>> AND (mayRepeat=0 OR dateCompleted=0 OR dateCompleted > NOW() - INTERVAL 24 HOUR ) ) ORDER BY name    
     endif
     if (<DB.ROW.NUMROWS> > 0)
         for R 0 <eval <DB.ROW.NUMROWS>-1>
@@ -433,7 +431,7 @@ if ( <TAG0.quest_npcInQuest> )
 endif
 
 if ( <DB.connected> )
-    DB.EXECUTE "INSERT INTO questState SET idQuest=<eval <SRC.CTAG.quest_selectedQuest>>, idPlayer=<eval <SRC>>, dateStarted=NOW(), idStep=0"
+    DB.EXECUTE "INSERT INTO questState SET idQuest=<eval <SRC.CTAG.quest_selectedQuest>>, idPlayer=<eval <SRC>>, dateStarted=NOW(), idStep=0, repetitions=0 ON DUPLICATE KEY UPDATE idStep=0, dateStarted=NOW(),dateCompleted=0"
 
     SERV.NEWITEM i_quest_system
     NEW.cont = <SRC> //player
@@ -464,7 +462,7 @@ LOCAL.nextStep=<OBJ.morez>+1
 
 DB.QUERY "SELECT idQuest, idStep, type+0 AS type, quantity, param1, param2, description FROM questSteps WHERE idQuest=<eval <OBJ.morey>> AND idStep=<eval <LOCAL.nextStep>> LIMIT  1"
 if ( <DB.ROW.NUMROWS> <= 0 )
-    DB.EXECUTE "UPDATE questState SET dateCompleted=NOW() WHERE idQuest=<eval <OBJ.morey>> AND idPlayer=<eval <OBJ.cont>>"
+    DB.EXECUTE "UPDATE questState SET dateCompleted=NOW(), repetitions=repetitions+1 WHERE idQuest=<eval <OBJ.morey>> AND idPlayer=<eval <OBJ.cont>>"
     OBJ.cont.sysmessageyellow Missao Cumprida.
     OBJ.remove
     return 1
