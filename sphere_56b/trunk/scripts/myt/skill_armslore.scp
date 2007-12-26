@@ -432,6 +432,56 @@ ON=@CLIENTTOOLTIP
 f_weaponTooltip
 return 1
 
+//use it for custom sand mining
+ON=@TARGON_GROUND
+
+// check for distance to mining point
+if <src.distance <src.targp>> > 3 
+    src.sysmessageyellow Muito longe!!
+    return 1
+// if not sand, use HC mining    
+elif <src.targp.type>!=t_sand
+    return 0
+endif
+
+//use gold trick to check nearby itens
+serv.newitem i_gold
+new.attr=090
+new.p=<src.targp>
+ref1=<new>
+
+//create sand worldgem if necessary
+if (!<ref1.fHasSandWG>)
+    // no worldgem bits were found, so make one
+    serv.newitem i_worldgem_bit
+    new.attr=092
+    new.color=02
+    new.p=<src.targp>
+    new.timer=<r35000,45000>
+    new.morex=<r100>
+    
+    //if faile, mine 0 rock
+    new.type=t_rock
+    new.more1=mr_nothing
+    new.amount=0
+    
+    // skilltest for mining
+    if <new.morex> < <src.mining> 
+        new.more1=mr_sand
+        new.amount=<r1,3>
+    endif
+endif
+
+ref1.remove
+return 0
+
+[FUNCTION fHasSandWG]
+foritems 0
+    if (<baseid>==i_worldgem_bit) && (<type>==t_rock)
+        return 1
+    endif
+endfor
+return 0
 
 //*****************************************************************************
 // t_weapon_axe
