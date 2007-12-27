@@ -61,21 +61,14 @@ max_desmaios=5
 [EVENTS e_sistema_de_morte]
 ON=@DEATH
 
-//ja deveria estar morto....
-if (<flags>&statf_dead)
-    return 1
-endif
-
-//marca assassino
-if ( <act> ) && ( <act.isplayer> ) && ( <act>!=<UID> )
-    tag.lastkillname=<act.tag.name>
-    tag.lastkillUID=<act.uid>
-    act.tag.fpk=<eval (<act.tag0.fpk>+1)>
-endif
+serv.log [MORTE] <account> (<uid>) morreu: <flags>
 
 //marca a hora/local
 tag.morte_horario=<time>/(10)
 tag.morte_local=<p>
+
+hits=1
+flags=<flags>|(statf_dead)
 
 //aos fade to black
 sendpacket 02C 0
@@ -99,7 +92,7 @@ if (<tag0.morte_desmaios> < <DEF.max_desmaios>)
 
     timerf 3,DIALOG,d_desmaio
 
-    sysmessageyellow Voce perdeu a consciencia !!!
+    sysmessageyellow Voce perdeu a consciencia (<tag0.morte_desmaios> min)!!!
 else
     f_morre
 endif
@@ -129,6 +122,7 @@ ON=@DCLICK
     src.sysmessageyellow Sua interpretacao esta otima.
   else
     src.sysmessageyellow Sua interpretacao esta excelente. Continue assim.
+  endif
  endif
  return 1
 
@@ -178,22 +172,17 @@ ON=@TIMER
 //faz com que o espirito dos desmaiados estejam perto do corpo
 if (<link>==04fffffff)
     return 0
-elif (<link.flags>&statf_dead))
+else
+    timer=5
     //se desmaiado
     if (<link.findid.i_mry_desmaio>)
-        timer=5
         if (<link.distance <uid>> > 5)
             link.movenear <uid> 3
             link.sysmessageyellow Voce deve permanecer proximo de seu corpo.
         endif
-        return 1
-    //se morto
-    else
-        timer=3600 //1h decay time
-        return 1
     endif
 endif
-return 0
+return 1
 
 //*****************************************************************************
 //*****************************************************************************
@@ -272,7 +261,8 @@ for layer 1 24
         obj.layer=<local.layer>
     endif
 endfor
-new.timer=10
+//timer para manter espirito proximo
+new.timer=5
 new.update
 tag.corpse=<new>
 
@@ -312,16 +302,18 @@ tag.corpse=
 
 flags=<flags>&~(statf_dead|statf_invisible|statf_invul|statf_insubstantial)
 
-if (<hits> <= 0)
+if (<hits> <= 1)
     hits=1
-    if !(<findid.i_mry_invul>)
-        serv.newitem i_mry_invul
-        new.cont=<uid>
-        new.dclick
-    endif
+    findid.i_mry_invul.remove
+
+    serv.log [MORTE] INVUL CRIADO <uid>
+    serv.newitem i_mry_invul
+    new.cont=<uid>
+    flags |= statf_invul
 endif
 
 f_correctLight
+findid.i_mry_desmaio.remove
 update
 
 //*****************************************************************************
@@ -330,15 +322,12 @@ update
 //chama f_wakeup e mostra mensagens, assim podemos ter f_wakeup para outros
 //usos alem do sistema de morte.
 [FUNCTION f_returnToLife]
-//nao deixa o body dar decay tao rapido
-if (<tag.corpse>)
-    uid.<tag.corpse>.timer=3600 //1h de decay
+//somente retorna a vida se tiver corpse
+if (<tag0.corpse>)
+    f_wakeup
+    sysmessagegreen Voce recobrou a consciencia.
+    emotegreen hug!
 endif
-
-f_wakeup
-findid.i_mry_desmaio.remove
-sysmessagegreen Voce recobrou a consciencia.
-emotegreen hug!
 
 //atalho
 [FUNCTION ress]
@@ -350,15 +339,16 @@ f_returnToLife
 //faz com que o char fique morto
 //default: morto
 [FUNCTION f_morre]
-//nao deixa o body dar decay tao rapido
-if (<tag.corpse>)
-    uid.<tag.corpse>.timer=3600 //1h minutos de decay
-endif
+//somente morre se tiver corpse
+if (<tag0.corpse>)
+    tag.morte_desmaios=0
+    morte_decrementaPontos 1
 
-morte_decrementaPontos 1
-tag.morte_desmaios=0
-findid.i_mry_desmaio.remove
-sysmessageyellow Voce perdeu a ligacao com seu corpo.
+    sysmessageyellow Voce perdeu a ligacao com seu corpo.
+    uid.<tag.corpse>.emotered morreu
+
+    findid.i_mry_desmaio.remove
+endif
 
 //*****************************************************************************
 // morte_incrementaPontos
@@ -475,7 +465,6 @@ ON=@TIMER
  if (<more1>!=1)
     cont.f_returnToLife
  else
-    uid.<cont.tag.corpse>.emotered morreu
     cont.f_morre
  endif
  remove
@@ -486,15 +475,12 @@ ON=@TIMER
 //*****************************************************************************
 [ITEMDEF i_mry_invul]
  id=i_deed
- name=invul
+ name=Mem. Invul
  type=t_eq_script
  layer=layer_special
 
 ON=@CREATE
  attr=attr_decay|attr_can_decay
-
-ON=@DCLICK
- cont.flags |= statf_invul
  timer = 10
  
 ON=@TIMER
