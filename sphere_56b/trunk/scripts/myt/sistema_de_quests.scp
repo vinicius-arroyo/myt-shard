@@ -593,8 +593,7 @@ return 1
 //*****************************************************************************
 //esta funcao eh chamada qndo o player aperta o botao "quest" do paperdoll
 [FUNCTION quest_userQuests]
-//menu m_quest_button
-src.sysmessageyellow Desabilitado temporariamente
+menu m_quest_button
 return 1
 
 //*****************************************************************************
@@ -702,25 +701,31 @@ return <LOCAL.idstep>
 DB.EXECUTE "DELETE FROM questSteps WHERE idQuest=<eval <argv0>> AND idStep=<eval <argv1>> "
 
 //*****************************************************************************
-// quest_updateQuest() //usado no dialog d_quest_info
+// quest_updateQuest(name,desc) //usado no dialog d_quest_info
 //*****************************************************************************
 [FUNCTION quest_updateQuest]
+LOCAL.a1=<DB.ESCAPEDATA <src.ctag0.argtxt1>>
+LOCAL.a2=<DB.ESCAPEDATA <src.ctag0.argtxt2>>
 if (<SRC.CTAG0.quest_selectedQuest> > 0) //edit quest
-    DB.EXECUTE "UPDATE quests SET name='<argtxt[1]>', description='<argtxt[2]>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>>"
-    serv.log [QUEST] (<src.account>) Modificado para: <argtxt[1]>: <argtxt[2]>
+    DB.EXECUTE "UPDATE quests SET name='<LOCAL.a1>', description='<LOCAL.a2>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>>"
+    serv.log [QUEST] (<src.account>) Modificado para: <LOCAL.a1>: <LOCAL.a2>
     src.sysmessageyellow Quest modificada.
 else //new quest
-    DB.EXECUTE "INSERT INTO quests SET idNpc=<eval <SRC.CTAG.quest_selectedNpc>>, name='<argtxt[1]>', description='<argtxt[2]>'"
-    serv.log [QUEST] (<src.account>) Criada: <argtxt[1]>: <argtxt[2]>
+    DB.EXECUTE "INSERT INTO quests SET idNpc=<eval <SRC.CTAG.quest_selectedNpc>>, name='<LOCAL.a1>', description='<LOCAL.a2>'"
+    serv.log [QUEST] (<src.account>) Criada: <LOCAL.a1>: <LOCAL.a2>
     src.sysmessageyellow Quest criada.
 endif
 
 //*****************************************************************************
-// quest_updateQuestStep() //usado no dialog d_quest_step_editor
+// quest_updateQuestStep(desc,qnty,p1,p2) //usado no dialog d_quest_step_editor
 //*****************************************************************************
 [FUNCTION quest_updateQuestStep]
-DB.EXECUTE "UPDATE questSteps SET description='<argtxt[1]>', quantity='<eval <argtxt[2]>>', param1='<argtxt[3]>', param2='<argtxt[4]>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idStep=<eval <SRC.CTAG0.quest_selectedStep>>"
-serv.log [QUEST] (<src.account>) Q:<SRC.CTAG0.quest_selectedQuest> S:<SRC.CTAG0.quest_selectedStep> Modificado para: <argtxt[1]> (<argtxt[2]>) [<argtxt[3]>,<argtxt[4]>]
+LOCAL.a1=<DB.ESCAPEDATA <src.ctag0.argtxt1>>
+LOCAL.a2=<DB.ESCAPEDATA <src.ctag0.argtxt2>>
+LOCAL.a3=<DB.ESCAPEDATA <src.ctag0.argtxt3>>
+LOCAL.a4=<DB.ESCAPEDATA <src.ctag0.argtxt4>>
+DB.EXECUTE "UPDATE questSteps SET description='<LOCAL.a1>', quantity='<eval <LOCAL.a2>>', param1='<LOCAL.a3>', param2='<LOCAL.a4>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idStep=<eval <SRC.CTAG0.quest_selectedStep>>"
+serv.log [QUEST] (<src.account>) Q:<SRC.CTAG0.quest_selectedQuest> S:<SRC.CTAG0.quest_selectedStep> Modificado para: <LOCAL.a1> (<LOCAL.a2>) [<LOCAL.a3>,<LOCAL.a4>]
 src.sysmessageyellow Step modificado.
 
 
@@ -999,7 +1004,7 @@ else
     dtext 190 60 1152 <DB.ROW.name>
     dhtmlgump *0 +20 340 100 0 1 <DB.ROW.description>
     
-    DB.QUERY "SELECT description, type+0 FROM questSteps AS steps LEFT JOIN questState AS state USING (idQuest) WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idPlayer=<eval <SRC>> AND steps.idStep <= state.idStep AND type+0 IN (1,2,3,4,5,6,7,9) ORDER BY steps.idStep"
+    DB.QUERY "SELECT description, type+0 FROM questSteps AS steps LEFT JOIN questState AS state USING (idQuest) WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idPlayer=<eval <SRC>> AND steps.idStep <= state.idStep AND type+0 IN (1,2,3,4,5,6,7,9,11) ORDER BY steps.idStep"
 endif
 
 
@@ -1015,12 +1020,12 @@ if ( <DB.ROW.NUMROWS> > 0 )
         dtext +25 -3 1152 <DB.ROW.<eval <LOCAL.x>>.description>
     endfor
     button 192 435 12015 12016 1 0 1    // Previous button
-    if (<src.isgm>)
-        button 282 435 12000 12001 1 0 2    //Accept button
-    endif
 else
-    button 282 435 12000 12001 1 0 2    //Accept button
     button 192 435 12018 12019 1 0 3    //Refuse button
+endif
+
+if (<src.isgm>)
+    button 282 435 12000 12001 1 0 2    //Accept button
 endif
 
 [DIALOG d_quest_info BUTTON]
@@ -1033,6 +1038,8 @@ return 1
 
 on=2 // Accept button
 if (<src.isgm>) //update quest if GM
+    src.ctag.argtxt1=<argtxt[1]>
+    src.ctag.argtxt2=<argtxt[2]>
     quest_updateQuest
     quest_closeDialogs
     quest_createNpcQuestList
@@ -1049,6 +1056,8 @@ return 1
 on=4 // New step button
 if (<src.isgm>)
     //save modifications
+    src.ctag.argtxt1=<argtxt[1]>
+    src.ctag.argtxt2=<argtxt[2]>    
     quest_updateQuest
     
     src.menu quest_addstep
@@ -1058,6 +1067,8 @@ return 1
 on=1000,1999 //edit step buttons
 if (<src.isgm>)
     //save modifications
+    src.ctag.argtxt1=<argtxt[1]>
+    src.ctag.argtxt2=<argtxt[2]>
     quest_updateQuest
     
     SRC.CTAG0.quest_selectedStep=<eval <argn>-1000>
@@ -1068,6 +1079,8 @@ return 1
 on=2000,2999 //remove step buttons
 if (<src.isgm>)
     //save modifications
+    src.ctag.argtxt1=<argtxt[1]>
+    src.ctag.argtxt2=<argtxt[2]>
     quest_updateQuest
     
     SRC.CTAG0.quest_selectedStep=<eval <argn>-2000>
@@ -1130,12 +1143,20 @@ src.dialog d_quest_info
 return 1
 
 ON=2 // btAccept
+src.ctag.argtxt1=<argtxt[1]>
+src.ctag.argtxt2=<argtxt[2]>
+src.ctag.argtxt3=<argtxt[3]>
+src.ctag.argtxt4=<argtxt[4]>
 quest_updateQuestStep
 src.dialog d_quest_info
 return 1
 
 ON=3 // btParam1
 //save modifications
+src.ctag.argtxt1=<argtxt[1]>
+src.ctag.argtxt2=<argtxt[2]>
+src.ctag.argtxt3=<argtxt[3]>
+src.ctag.argtxt4=<argtxt[4]>
 quest_updateQuestStep
 
 doswitch <SRC.CTAG0.quest_selectedStepType>
@@ -1164,6 +1185,10 @@ return 1
 
 ON=4 // btParam2
 //save modifications
+src.ctag.argtxt1=<argtxt[1]>
+src.ctag.argtxt2=<argtxt[2]>
+src.ctag.argtxt3=<argtxt[3]>
+src.ctag.argtxt4=<argtxt[4]>
 quest_updateQuestStep
 
 LOCAL.help=1
