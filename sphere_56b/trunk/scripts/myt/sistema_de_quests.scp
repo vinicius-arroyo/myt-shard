@@ -702,6 +702,29 @@ return <LOCAL.idstep>
 DB.EXECUTE "DELETE FROM questSteps WHERE idQuest=<eval <argv0>> AND idStep=<eval <argv1>> "
 
 //*****************************************************************************
+// quest_updateQuest() //usado no dialog d_quest_info
+//*****************************************************************************
+[FUNCTION quest_updateQuest]
+if (<SRC.CTAG0.quest_selectedQuest> > 0) //edit quest
+    DB.EXECUTE "UPDATE quests SET name='<argtxt[1]>', description='<argtxt[2]>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>>"
+    serv.log [QUEST] (<src.account>) Modificado para: <argtxt[1]>: <argtxt[2]>
+    src.sysmessageyellow Quest modificada.
+else //new quest
+    DB.EXECUTE "INSERT INTO quests SET idNpc=<eval <SRC.CTAG.quest_selectedNpc>>, name='<argtxt[1]>', description='<argtxt[2]>'"
+    serv.log [QUEST] (<src.account>) Criada: <argtxt[1]>: <argtxt[2]>
+    src.sysmessageyellow Quest criada.
+endif
+
+//*****************************************************************************
+// quest_updateQuestStep() //usado no dialog d_quest_step_editor
+//*****************************************************************************
+[FUNCTION quest_updateQuestStep]
+DB.EXECUTE "UPDATE questSteps SET description='<argtxt[1]>', quantity='<eval <argtxt[2]>>', param1='<argtxt[3]>', param2='<argtxt[4]>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idStep=<eval <SRC.CTAG0.quest_selectedStep>>"
+serv.log [QUEST] (<src.account>) Q:<SRC.CTAG0.quest_selectedQuest> S:<SRC.CTAG0.quest_selectedStep> Modificado para: <argtxt[1]> (<argtxt[2]>) [<argtxt[3]>,<argtxt[4]>]
+src.sysmessageyellow Step modificado.
+
+
+//*****************************************************************************
 // quest_stepParam1( idQuest, idStep, stepType )
 //*****************************************************************************
 [FUNCTION quest_stepParam1]
@@ -1010,15 +1033,7 @@ return 1
 
 on=2 // Accept button
 if (<src.isgm>) //update quest if GM
-    if (<SRC.CTAG0.quest_selectedQuest> > 0) //edit quest
-        DB.EXECUTE "UPDATE quests SET name='<argtxt[1]>', description='<argtxt[2]>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>>"
-        serv.log [QUEST] (<src.account>) Modificado para: <argtxt[1]>: <argtxt[2]>
-        src.sysmessageyellow Quest modificada.
-    else //new quest
-        DB.EXECUTE "INSERT INTO quests SET idNpc=<eval <SRC.CTAG.quest_selectedNpc>>, name='<argtxt[1]>', description='<argtxt[2]>'"
-        serv.log [QUEST] (<src.account>) Criada: <argtxt[1]>: <argtxt[2]>
-        src.sysmessageyellow Quest criada.
-    endif
+    quest_updateQuest
     quest_closeDialogs
     quest_createNpcQuestList
     dialog d_quest_list    
@@ -1033,12 +1048,18 @@ return 1
 
 on=4 // New step button
 if (<src.isgm>)
+    //save modifications
+    quest_updateQuest
+    
     src.menu quest_addstep
 endif
 return 1
 
 on=1000,1999 //edit step buttons
 if (<src.isgm>)
+    //save modifications
+    quest_updateQuest
+    
     SRC.CTAG0.quest_selectedStep=<eval <argn>-1000>
     src.dialog d_quest_step_editor
 endif
@@ -1046,6 +1067,9 @@ return 1
 
 on=2000,2999 //remove step buttons
 if (<src.isgm>)
+    //save modifications
+    quest_updateQuest
+    
     SRC.CTAG0.quest_selectedStep=<eval <argn>-2000>
     quest_removeStep <SRC.CTAG0.quest_selectedQuest>,<SRC.CTAG0.quest_selectedStep>
     src.dialog d_quest_info
@@ -1106,13 +1130,13 @@ src.dialog d_quest_info
 return 1
 
 ON=2 // btAccept
-DB.EXECUTE "UPDATE questSteps SET description='<argtxt[1]>', quantity='<eval <argtxt[2]>>', param1='<argtxt[3]>', param2='<argtxt[4]>' WHERE idQuest=<eval <SRC.CTAG0.quest_selectedQuest>> AND idStep=<eval <SRC.CTAG0.quest_selectedStep>>"
-serv.log [QUEST] (<src.account>) Q:<SRC.CTAG0.quest_selectedQuest> S:<SRC.CTAG0.quest_selectedStep> Modificado para: <argtxt[1]> (<argtxt[2]>) [<argtxt[3]>,<argtxt[4]>]
-src.sysmessageyellow Step modificado.
+quest_updateQuestStep
 src.dialog d_quest_info
 return 1
 
 ON=3 // btParam1
+//save modifications
+quest_updateQuestStep
 
 doswitch <SRC.CTAG0.quest_selectedStepType>
     LOCAL.help=0 //invalid
@@ -1139,6 +1163,9 @@ endif
 return 1
 
 ON=4 // btParam2
+//save modifications
+quest_updateQuestStep
+
 LOCAL.help=1
 doswitch <SRC.CTAG0.quest_selectedStepType>
     LOCAL.help=1 //invalid
