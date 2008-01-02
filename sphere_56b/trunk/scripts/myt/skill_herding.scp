@@ -94,52 +94,74 @@ return 1
 
 
 //*****************************************************************************
-// anim_tool_target (uid) //or argo
+// anim_tool_target (uid,[step]) //or argo
 //*****************************************************************************
 [FUNCTION anim_tool_target]
 
 if (0<argv0>)
-    obj=<argv0>
+    ref2=<argv0>
 else
-    obj=<argo>
+    ref2=<argo>
 endif
-    
+    serv.log <ref2.name>/<ref2>
 //É NPC?
-if (0<obj>==0) || (<obj>>=040000000) || ( (0<obj.npc>!=brain_animal) && !(<obj.flags>&statf_conjured) )
+if (0<ref2>==0) || (<ref2>>=040000000) || ( (0<ref2.npc>!=brain_animal) && !(<ref2.flags>&statf_conjured) )
  src.sysmessageyellow Animal invalido.
  return 1
 endif
 
 //so aceita se for o dono/amigo do animal/npc
-if (<obj.ismypet>) || (<obj.memoryfindtype.memory_friend.link>==<src.uid>)
-    obj.tag.stop=
+if (<ref2.ismypet>) || (<ref2.memoryfindtype.memory_friend.link>==<src.uid>)
+    ref2.tag.stop=
     
-    sfx <serv.chardef.<obj.id>.sound>
+    sfx <serv.chardef.<ref2.id>.sound>
 
-    if (<src.ctag.anim_action>==1)
-        anim_reprod <obj>
-    elif (<src.ctag.anim_action>==2)
-        src.sysmessageyellow Para onde quer que ele(a) va?
-        targetfg anim_move <obj>
-    elif (<src.ctag.anim_action>==3)
-        src.sysmessageyellow Atacar quem?
-        targetf anim_attack <obj>
-    elif (<src.ctag.anim_action>==4)
-        src.sysmessageyellow Defender quem?
-        targetf anim_guard <obj>        
-    elif (<src.ctag.anim_action>==5)
-        src.sysmessageyellow Transferir para quem?
-        targetf anim_transfer <obj>        
-    elif (<src.ctag.anim_action>==6)
-        src.sysmessageyellow Fazer amizade com quem?
-        targetf anim_friend <obj>
-    elif (<src.ctag.anim_action>==7)
-        src.sysmessageyellow Seguir quem?
-        targetf anim_follow <obj>
-    elif (<src.ctag.anim_action>==8)
-        anim_stop <obj>           
-    elif (<src.ctag.anim_action>==9)
-        anim_wander <obj>
+    if (!0<argv1>)
+        if (<src.ctag.anim_action>==1)
+            ref2.anim_reprod
+        elif (<src.ctag.anim_action>==2)
+            src.sysmessageyellow Para onde quer que ele(a) va?
+            targetfg anim_tool_target <ref2>,1
+        elif (<src.ctag.anim_action>==3)
+            src.sysmessageyellow Atacar quem?
+            targetf anim_tool_target <ref2>,1
+        elif (<src.ctag.anim_action>==4)
+            src.sysmessageyellow Defender quem?
+            targetf anim_tool_target <ref2>,1
+        elif (<src.ctag.anim_action>==5)
+            src.sysmessageyellow Transferir para quem?
+            targetf anim_tool_target <ref2>,1
+        elif (<src.ctag.anim_action>==6)
+            src.sysmessageyellow Fazer amizade com quem?
+            targetf anim_tool_target <ref2>,1
+        elif (<src.ctag.anim_action>==7)
+            src.sysmessageyellow Seguir quem?
+            targetf anim_tool_target <ref2>,1
+        elif (<src.ctag.anim_action>==8)
+            ref2.anim_stop
+        elif (<src.ctag.anim_action>==9)
+            ref2.anim_wander
+        endif
+    else
+        if (<src.ctag.anim_action>==2)
+            ref2.anim_move <targp>
+            src.sysmessageyellow Mover novamente? Para onde?
+            targetfg anim_tool_target <ref2>,1
+        elif (<src.ctag.anim_action>==3)
+            ref2.anim_attack <argo>
+            src.sysmessageyellow Selecione outro alvo se desejar:
+            targetfg anim_tool_target <ref2>,1
+        elif (<src.ctag.anim_action>==4)
+            ref2.anim_guard <argo>        
+            src.sysmessageyellow Selecione outro alvo se desejar:
+            targetfg anim_tool_target <ref2>,1
+        elif (<src.ctag.anim_action>==5)
+            ref2.anim_transfer <argo>
+        elif (<src.ctag.anim_action>==6)
+            ref2.anim_friend <argo>
+        elif (<src.ctag.anim_action>==7)
+            ref2.anim_follow <argo>
+        endif
     endif
 else
     src.sysmessageyellow Esse animal nao lhe pertence.
@@ -147,21 +169,82 @@ endif
 return 1
 
 //*****************************************************************************
+// anim_tool_area ([step])
+//*****************************************************************************
+//usado para comandar multiplos animais
+[FUNCTION anim_tool_area]
+
+if (!0<argv0>)
+    if (<src.ctag.anim_action>==2)
+        src.sysmessageyellow Para onde quer que eles vao?
+        targetfg anim_tool_area 1
+    elif (<src.ctag.anim_action>==3)
+        src.sysmessageyellow Atacar quem?
+        targetf anim_tool_area 1
+    elif (<src.ctag.anim_action>==4)
+        src.sysmessageyellow Defender quem?
+        targetf anim_tool_area 1
+    elif (<src.ctag.anim_action>==7)
+        src.sysmessageyellow Seguir quem?
+        targetf anim_tool_area 1
+    else
+        forchars 10
+            if (<ismypet>) && (<npc> == brain_animal)
+                if (<src.ctag.anim_action>==8)
+                    anim_stop
+                elif (<src.ctag.anim_action>==9)
+                    anim_wander
+                endif
+            endif
+        endfor
+    endif    
+else
+    forchars 10
+        if (<ismypet>) && (<npc> == brain_animal)
+            if (<src.ctag.anim_action>==2)
+                anim_move <src.targp>
+            elif (<src.ctag.anim_action>==3)
+                anim_attack <argo>
+            elif (<src.ctag.anim_action>==4)
+                anim_guard <argo>        
+            elif (<src.ctag.anim_action>==7)
+                anim_follow <argo>
+            endif        
+        endif
+    endfor
+
+    if (<src.ctag.anim_action>==2)
+        src.sysmessageyellow Para onde quer que eles vao?
+        targetfg anim_tool_area 1
+    elif (<src.ctag.anim_action>==3)
+        src.sysmessageyellow Atacar quem?
+        targetf anim_tool_area 1
+    elif (<src.ctag.anim_action>==4)
+        src.sysmessageyellow Defender quem?
+        targetf anim_tool_area 1
+    elif (<src.ctag.anim_action>==7)
+        src.sysmessageyellow Seguir quem?
+        targetf anim_tool_area 1
+    endif
+
+endif
+
+//*****************************************************************************
 // anim_reprod
 //*****************************************************************************
 [FUNCTION anim_reprod]
 if (<src.animallore> <= 450) 
     src.sysmessageyellow Voce nao possui conhecimento suficiente.
-elif (0<argo.tag.sexo>==1)
+elif (0<tag.sexo>==1)
     src.sysmessageyellow Voce deve selecionar uma femea...
-elif (<eval <serv.time>-<argo.tag.born>> <= minReprodAge ) 
+elif (<eval <serv.time>-<tag.born>> <= minReprodAge ) 
     src.sysmessageyellow Muito jovem para reproduzir.
-elif ( <serv.time> < 0<argo.tag.prenha> )
+elif ( <serv.time> < 0<tag.prenha> )
     src.sysmessageyellow Deve esperar antes de reproduzir novamente.
 //so inicia acasalamento se for femea, com idade, nao prenha e com animallore suficiente
 else
     serv.newitem i_criador
-    new.link=<argv0>
+    new.link=<uid>
     new.cont=<src>  
     new.dclick
     return 1
@@ -172,14 +255,11 @@ src.sysmessageyellow O animal volta a sua rotina.
 // anim_move
 //*****************************************************************************
 [FUNCTION anim_move]
-REF1=<argv0>
-if (<src.anim_skillcheck <REF1>>)
-    REF1.emotegreen aceita o comando
-    REF1.npc_move <targp>
-    src.sysmessageyellow Mover novamente? Para onde?
-    targetfg anim_move <argv0>
+if (<src.anim_skillcheck <uid>>)
+    emotegreen aceita o comando
+    npc_move <args>
 else
-    REF1.emotered ignora o comando
+    emotered ignora o comando
 endif
 
 //*****************************************************************************
@@ -187,19 +267,17 @@ endif
 //*****************************************************************************
 [FUNCTION anim_attack]
 
-if !(0<argo>) || (<argo>>=040000000)
+REF1=<argv0>
+if !(0<REF1>) || (<REF1>>=040000000)
     src.sysmessageyellow Selecione um ser vivo.
     return 1
 endif
 
-REF1=<argv0>
-if (<src.anim_skillcheck <REF1>>)
-    REF1.emotered atacando
-    REF1.attack <argo>
-    src.sysmessageyellow Selecione outro alvo se desejar:
-    targetf anim_attack <REF1>
+if (<src.anim_skillcheck <uid>>)
+    emotered atacando
+    attack <ref1>
 else
-    REF1.emotered ignora o comando
+    emotered ignora o comando
 endif
 
 //*****************************************************************************
@@ -207,22 +285,20 @@ endif
 //*****************************************************************************
 [FUNCTION anim_guard]
 
-if !(0<argo>) || (<argo>>=040000000)
+REF1=<argv0>
+if !(0<REF1>) || (<REF1>>=040000000)
     src.sysmessageyellow Selecione um ser vivo.
     return 1
-elif (0<argo>==<src>)    
+elif (0<REF1>==<src>)    
     src.sysmessageyellow Selecione outra pessoa. Seu bixano ja lhe protege.
     return 1
 endif
 
-REF1=<argv0>
-if (<src.anim_skillcheck <REF1>>)
-    REF1.emotegreen defendendo
-    REF1.guard <argo>
-    src.sysmessageyellow Selecione outro alvo se desejar:
-    targetf anim_guard <REF1>
+if (<src.anim_skillcheck <uid>>)
+    emotegreen defendendo
+    guard <REF1>
 else
-    REF1.emotered ignora o comando
+    emotered ignora o comando
 endif
 
 //*****************************************************************************
@@ -231,21 +307,21 @@ endif
 [FUNCTION anim_transfer]
 REF1=<argv0>
 
-if !(0<argo>) || (<argo>>=040000000) || (0<argo.npc>)
+if !(0<REF1>) || (<REF1>>=040000000) || (0<REF1.npc>)
     src.sysmessageyellow Selecione um personagem jogador.
     return 1
-elif (<argo.curfollower> >= <eval (<argo.taming>/10)+1>)
+elif (<REF1.curfollower> >= <eval (<REF1.taming>/10)+1>)
     src.sysmessageyellow O personagem so pode ter ate <eval (<src.taming>/10)+1> animais...
     return 1
 else
 
-if (<src.anim_skillcheck <REF1>>)
-    REF1.emotegreen aceita o novo dono
-    REF1.transfer <argo>
+if (<src.anim_skillcheck <uid>>)
+    emotegreen aceita o novo dono
+    transfer <REF1>
 else
-    REF1.emotered rejeita o novo dono
+    emotered rejeita o novo dono
     if !(<R2>)
-        REF1.attack <argo>
+        attack <REF1>
     endif
 endif
 
@@ -253,20 +329,20 @@ endif
 // anim_friend
 //*****************************************************************************
 [FUNCTION anim_friend]
+REF1=<argv0>
 
-if !(0<argo>) || (<argo>>=040000000)
+if !(0<REF1>) || (<REF1>>=040000000)
     src.sysmessageyellow Selecione um ser vivo.
     return 1
 endif
 
-REF1=<argv0>
-if (<src.anim_skillcheck <REF1>>)
-    REF1.emotegreen aceita o amigo
-    REF1.friend <argo>
+if (<src.anim_skillcheck <uid>>)
+    emotegreen aceita o amigo
+    friend <REF1>
 else
-    REF1.emotered rejeita o amigo
+    emotered rejeita o amigo
     if !(<R2>)
-        REF1.attack <argo>
+        attack <REF1>
     endif
 endif
 
@@ -275,34 +351,33 @@ endif
 //*****************************************************************************
 [FUNCTION anim_follow]
 
-if !(0<argo>) || (<argo>>=040000000)
+REF1=<argv0>
+
+if !(0<REF1>) || (<REF1>>=040000000)
     src.sysmessageyellow Selecione um ser vivo.
     return 1
 endif
 
-REF1=<argv0>
-if (<src.anim_skillcheck <REF1>>)
-    REF1.emotegreen segue
-    REF1.npc_follow <argo>
+if (<src.anim_skillcheck <uid>>)
+    emotegreen segue
+    npc_follow <REF1>
 else
-    REF1.emotered rejeita o comando
+    emotered rejeita o comando
 endif
 
 //*****************************************************************************
 // anim_stop
 //*****************************************************************************
 [FUNCTION anim_stop]
-REF1=<argv0>
-REF1.emotegreen para
-REF1.npc_stop
+emotegreen para
+npc_stop
 
 //*****************************************************************************
 // anim_wander
 //*****************************************************************************
 [FUNCTION anim_wander]
-REF1=<argv0>
-REF1.emotegreen fica a vontade
-REF1.npc_wander
+emotegreen fica a vontade
+npc_wander
 
 //*****************************************************************************
 // anim_skillcheck( checkAgainsUid )
