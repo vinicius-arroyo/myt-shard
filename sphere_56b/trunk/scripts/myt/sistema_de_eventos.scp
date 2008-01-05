@@ -29,7 +29,7 @@
 //*****************************************************************************
 //log de um evento generico realizado pelo SRC
 [FUNCTION event_log]
-DB.QUERY "INSERT INTO eventsLog SET timestamp=NOW(), eventType='<argv0>',charUid=<eval <src>>,charAcct=<eval <src.tag.idAcct>>,x=<eval <src.p.x>>,y=<eval <src.p.y>>,z=<eval <src.p.z>>"
+DB.QUERY "INSERT INTO eventsLog SET timestamp=NOW(), eventType='<argv0>',charUid=<eval <src>>,charAcct=<eval <src.tag0.idAcct>>,x=<eval <src.p.x>>,y=<eval <src.p.y>>,z=<eval <src.p.z>>"
 
 //*****************************************************************************
 // event_login()
@@ -56,3 +56,47 @@ endif
 if <DB.CONNECTED>
     event_log Logout  
 endif
+
+//*****************************************************************************
+// event_kill()
+//*****************************************************************************
+//loga um evento de kill
+[FUNCTION event_kill]
+if <DB.CONNECTED>
+    
+    //se quem matou eh player
+    if <src.isplayer>
+        //se quem morreu eh player
+        if <src.act.isplayer>
+            LOCAL.e=Kill PC
+            LOCAL.ku=<src>
+            LOCAL.ka=<src.tag0.idAcct>
+            LOCAL.du=<src.act>
+            LOCAL.da=<src.act.tag0.idAcct>
+        else
+            LOCAL.e=Kill NPC
+            LOCAL.ku=<src>
+            LOCAL.ka=<src.tag0.idAcct>
+            LOCAL.du=0
+            LOCAL.da=0
+            LOCAL.m=<src.act.id>
+        endif
+    //se quem matou eh npc
+    else        
+        //se quem morreu eh player
+        if <src.act.isplayer>
+            LOCAL.e=Kill PC
+            LOCAL.ku=0
+            LOCAL.ka=0
+            LOCAL.du=<src.act>
+            LOCAL.da=<src.act.tag0.idAcct>
+            LOCAL.m=<src.id>
+        else
+            //npc kill npc nao interessa
+            return
+        endif
+    endif
+    
+    DB.QUERY "INSERT INTO eventsLog SET timestamp=NOW(), eventType='<LOCAL.e>',charUid=<eval <LOCAL.ku>>,charAcct=<eval <LOCAL.ka>>,x=<eval <src.p.x>>,y=<eval <src.p.y>>,z=<eval <src.p.z>>,char2Uid=<eval <LOCAL.du>>,char2Acct=<eval <LOCAL.da>>,message='<LOCAL.m>'"
+endif
+
