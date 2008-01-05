@@ -1,0 +1,58 @@
+//CREATE TABLE  `mytserver`.`accounts` (
+//  `idAcct` int(10) unsigned NOT NULL auto_increment,
+//  `username` varchar(45) NOT NULL,
+//  PRIMARY KEY  (`idAcct`),
+//  UNIQUE KEY `byUsername` (`username`)
+//) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+//CREATE TABLE `mytserver`.`eventsLog` (
+//  `idEvent` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+//  `timestamp` TIMESTAMP NOT NULL,
+//  `charUid` INTEGER UNSIGNED NOT NULL,
+//  `charAcct` INTEGER UNSIGNED NOT NULL,
+//  `eventType` ENUM('Kill PC','Kill NPC','Killed by PC','Killed by NPC','Login','Logout','GM Note','Jail') NOT NULL,
+//  `char2Uid` INTEGER UNSIGNED NOT NULL,
+//  `char2Acct` INTEGER UNSIGNED NOT NULL,
+//  `x` SMALLINT UNSIGNED NOT NULL,
+//  `y` SMALLINT UNSIGNED NOT NULL,
+//  `z` TINYINT NOT NULL,
+//  `message` VARCHAR(255) NOT NULL,
+//  PRIMARY KEY (`idEvent`),
+//  INDEX `byTs`(`timestamp`),
+//  INDEX `byUid`(`charUid`),
+//  INDEX `byAcct`(`charAcct`)
+//)
+//ENGINE = MyISAM;
+
+//*****************************************************************************
+// event_log( type )
+//*****************************************************************************
+//log de um evento generico realizado pelo SRC
+[FUNCTION event_log]
+DB.QUERY "INSERT INTO eventsLog SET timestamp=NOW(), eventType='<argv0>',charUid=<eval <src>>,charAcct=<eval <src.tag.idAcct>>,x=<eval <src.p.x>>,y=<eval <src.p.y>>,z=<eval <src.p.z>>"
+
+//*****************************************************************************
+// event_login()
+//*****************************************************************************
+//cria conta na db se nao existe e loga um evento de login
+[FUNCTION event_login]
+if <DB.CONNECTED>
+    DB.QUERY "INSERT IGNORE INTO accounts SET username='<src.account>'"
+    DB.QUERY "SELECT idAcct FROM accounts WHERE username='<src.account>'"
+    if (<DB.ROW.NUMROWS> > 0)
+        SRC.TAG.idAcct=<DB.ROW.0.idAcct>
+        serv.log [EVENT]Login: <src.account> (<SRC.TAG.idAcct>)
+        event_log Login
+    else
+        serv.log [EVENT]Login: id not found (<src.account>)
+    endif
+endif
+
+//*****************************************************************************
+// event_logout()
+//*****************************************************************************
+//loga um evento de logout
+[FUNCTION event_logout]
+if <DB.CONNECTED>
+    event_log Logout  
+endif

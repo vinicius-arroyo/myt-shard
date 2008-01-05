@@ -103,7 +103,7 @@ if (0<argv0>)
 else
     ref2=<argo>
 endif
-    serv.log <ref2.name>/<ref2>
+
 //É NPC?
 if (0<ref2>==0) || (<ref2>>=040000000) || ( (0<ref2.npc>!=brain_animal) && !(<ref2.flags>&statf_conjured) )
  src.sysmessageyellow Animal invalido.
@@ -189,7 +189,7 @@ if (!0<argv0>)
         targetf anim_tool_area 1
     else
         forchars 10
-            if (<ismypet>) && (<npc> == brain_animal)
+            if (<ismypet>) && (<npc> != brain_none) 
                 if (<src.ctag.anim_action>==8)
                     anim_stop
                 elif (<src.ctag.anim_action>==9)
@@ -200,7 +200,7 @@ if (!0<argv0>)
     endif    
 else
     forchars 10
-        if (<ismypet>) && (<npc> == brain_animal)
+        if (<ismypet>) && (<npc> != brain_none) 
             if (<src.ctag.anim_action>==2)
                 anim_move <src.targp>
             elif (<src.ctag.anim_action>==3)
@@ -384,10 +384,10 @@ npc_wander
 //*****************************************************************************
 [FUNCTION anim_skillcheck]
 
-OBJ=<argv0>
+REF2=<argv0>
 
 //npcs sumonados aceitam qualquer comando e nao ganha skill
-if (<obj.flags>&statf_conjured)
+if (<REF2.flags>&statf_conjured)
     return 1
 endif
 
@@ -400,19 +400,27 @@ if (<serv.time> > <src.ctag0.an_ts>)
     src.ctag0.an_ts=<eval <serv.time>+30>
 endif
 
-//faz uma ponderacao entre herding e animallore
-LOCAL.sk=<eval (<src.herding>*7)+(<src.animallore>*3)>
+//faz uma ponderacao entre herding e animallore para valor maximo
+LOCAL.sk=<eval (<src.herding>*8)+(<src.animallore>*4)>
 //da bonus se tiver com o cajado
 if (<src.findlayer.layer_hand2.baseid>==i_cajado_pastor)
-    LOCAL.sk=<eval <LOCAL.sk>/5>
+    LOCAL.sk=<eval <LOCAL.sk>/6>
 else
-    LOCAL.sk=<eval <LOCAL.sk>/8>
+    LOCAL.sk=<eval <LOCAL.sk>/9>
 endif
 
+//define valor minimo para teste de skill
+LOCAL.si=<eval <LOCAL.sk>-300>
+if (<LOCAL.si> < 0)
+    LOCAL.si=0
+endif
+
+serv.log <dLOCAL.si>/<dLOCAL.sk> contra <REF2.taming> do <REF2.name>
+
 //testa comparando com taming do alvo
-if (<R<LOCAL.sk>> > <R<obj.taming>>)
+if (<R<LOCAL.si>,<LOCAL.sk>> > <REF2.taming>)
     //tem que passar em um teste de fome tambem
-    if (<R<obj.maxfood>> <= <obj.food>)
+    if (<R<REF2.maxfood>> <= <REF2.food>)
         return 1
     endif
 endif
