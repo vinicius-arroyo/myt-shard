@@ -1,47 +1,193 @@
-//########################################################
-//          SISTEMA DE FICHAS               ##
-//             BY Galthar               ##
-//          UPDATE BY POMP V1.1 [MYSTICAL TALES]    ## 
-//         UPDATE BY Galthar V2.3 [MYSTICAL TALES]  ## 
-//           www.myt.com.br             ##  
-//########################################################
+//*****************************************************************************
+//*****************************************************************************
 //
+// SISTEMA DE FICHA por 
+//      Galthar 
+//      Pomp
+//      UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
+
+[PLEVEL 2]
+ficha
+prender
+mensagem
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// ficha
+//*****************************************************************************
 [FUNCTION ficha]
-serv.newitem=i_fichaperson
-new.equip
-new.timer 30
+src.sysmessageyellow Selecione o Jogador:
+src.targetf ficha_
+
+[FUNCTION ficha_]
+if (<src.targ.isplayer>)
+    dialog d_ficha_1
+else
+    src.sysmessage nao e um jogador valido.
+endif
 return 1
 
-[ITEMDEF i_fichaperson]
-ID=I_MEMORY
-LAYER=30
-TYPE=T_EQ_SCRIPT
-NAME=ficha de personagem
 
 
-ON=@equip
-ATTR=00002
-TIMER=240
-TARGET Selecione o Jogador:
+[FUNCTION prender]
+src.newitem i_mry_prendendo
+if (0<argn>!=0)
+ src.act.tag.tempo=<eval <argn>*60>
+endif
+if !(STRMATCH(<args>, ))
+ src.act.tag.motivo <args>
+endif
+src.act.equip
+src.act.timer=30
+src.act.use
+return 1
 
+//(tempo,motivo,jailer)
+[FUNCTION detem]
+if (<restest 1 i_mry_GM_jail>)
+    sysmessagered Infracao detectada. Prisao aumentada em 10 minutos.
+    findid.i_mry_gm_jail.more1=<findid.i_mry_gm_jail.more1>+600
+    return 1
+endif
+LOCAL.t=<eval (<tag0.prisao_total>/2)+<argv[0]>>
+sysmessagered Preso por <eval <LOCAL.t>/60> minutos.
+sysmessagered Motivo: <argv[1]>
 
-ON=@TARGON_ITEM
-SRC.SYSMESSAGE Nao e um jogador valido.
-RETURN 1
-TARGET Selecione um Jogador valido:
+serv.newitem i_mry_gm_jail
+new.cont=<uid>
+new.morep=<p>
+new.more1=<LOCAL.t>
+new.timer=1
+tag.prisao_total=<eval <tag0.prisao_total>+<argv[0]>>
+dorand (4)
+ go=5280,1185
+ go=5301,1183
+ go=5305,1173
+ go=5305,1163
+enddo
 
-ON=@TARGON_CHAR
-IF (<SRC.TARG.IsPLayer>)
-    DIALOG D_FICHA_1
-ELSE
-    SRC.SYSMESSAGE Nao e um jogador valido.
-ENDIF
+if (<DB.connected>)
+    REF1=<argv[2]>
+    if (<REF1>)
+        LOCAL.u=<REF1>
+        LOCAL.n=<REF1.account>
+    else
+        LOCAL.u=0
+        LOCAL.n=Servidor
+    endif
+    DB.EXECUTE "INSERT INTO jail SET timestamp=NOW(),uidJailed=<eval <uid>>,jailed='<account>',duration=<eval <argv[0]>>,reason='<argv[1]>',uidJailer=<eval <LOCAL.u>>,jailer='<LOCAL.n>'"
+endif
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_mry_GM_jail
+//*****************************************************************************
+[ITEMDEF i_mry_GM_jail]
+id=i_memory
+name=Preso por GM
+type=t_eq_script
+layer=30
+
+on=@create
+attr=0c010
+
+on=@timer
+timer=1
+if (<cont.isonline>)
+    more1 -= 1
+    if (<more1> <= 0)
+        cont.forgive
+        cont.go=<morep>
+        cont.tag.arp_jail_time=5
+        cont.update
+        cont.sysmessagegreen Certo, voce cumpriu sua pena. Cuidado com a sua RePresentacao.
+        remove
+    endif 
+endif
+return 1
+
+//*****************************************************************************
+// i_mry_prendendo
+//*****************************************************************************
+[ITEMDEF i_mry_prendendo]
+id=013b9
+type=t_eq_script
+name=prendendo
+layer=30
+
+on=@create
+attr=02
+
+on=@dclick
+target Prender quem?
+return 1
+
+on=@targon_ground
+src.sysmessage Alvo invalido
+target Prender quem?
+return 1
+
+on=@targon_item
+src.sysmessage Alvo invalido
+target Prender quem?
+return 1
+
+on=@targon_char
+if (<src.targ.restest 1 i_mry_GM_jail>) && (0<tag.tempo>!=0)
+ src.targ.findid.i_mry_gm_jail.more1 <eval <tag.tempo>>
+ src.targ.say *mensagem*
+ src.targ.sysmessageorange Sua pena foi ajustada para <eval <tag.tempo>/60> minutos.
+ src.sysmessageorange A pena foi ajustada para <eval <tag.tempo>/60> minutos.
+ remove
+ return 1
+endif
+if (<src.targ.restest 1 i_mry_GM_jail> && (STRMATCH(<tag.motivo>,soltar))
+ src.targ.findid.i_mry_gm_jail.more1 1
+ src.targ.sysmessageorange Um GM achou que voce deveria ser solto.
+ remove
+ return 1
+endif
+if !(STRMATCH(<tag.motivo>, ))
+ src.targ.tag.jail_motivo <tag.motivo>
+endif
+if (0<tag.tempo>!=0)
+ src.targ.tag.arp_jail_time=<tag.tempo>
+ src.targ.tag.jail_motivo
+endif
+remove
+src.dialog d_prender
 return 1
 
 on=@timer
 remove
 return 1
 
+
+//*****************************************************************************
+//*****************************************************************************
+// DIALOGs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// d_ficha_1
+//*****************************************************************************
 [DIALOG d_ficha_1]
 0, 0
 PAGE 0
@@ -162,7 +308,9 @@ return 1
 
 
 
-
+//*****************************************************************************
+// d_ficha_2
+//*****************************************************************************
 [DIALOG d_ficha_2]
 0, 0
 PAGE 0
@@ -326,6 +474,9 @@ on=13
 src.dialog d_ficha_3
 return 1
 
+//*****************************************************************************
+// d_ficha_3
+//*****************************************************************************
 [DIALOG d_ficha_3]
 0, 0
 PAGE 0
@@ -474,97 +625,9 @@ on=14
 src.dialog d_ficha_5
 return 1
 
-
-[menu m_banir]
-ATENCAO! Banir permanentemente <var.AccBan>?
-on=0 NAO
-src.dialog d_ficha_3
-return 1
-
-on=0 SIM
-tryp 0 SERV.ACCOUNT <var.AccBan> BLOCK 1 
-src.sysmessage Conta <var.AccBan> banida. Contacte o Administrador.
-return 1
-
-on=0 NAO
-src.dialog d_ficha_3
-return 1
-
-[ITEMDEF i_mry_GM_jail]
-id=i_memory
-name=Preso por GM
-type=t_eq_script
-layer=30
-
-on=@create
-attr=0c010
-
-on=@timer
-timer=1
-if (<cont.isonline>)
-    more1 -= 1
-    if (<more1> <= 0)
-        cont.forgive
-        cont.go=<morep>
-        cont.tag.arp_jail_time=5
-        cont.update
-        cont.sysmessagegreen Certo, voce cumpriu sua pena. Cuidado com a sua RePresentacao.
-        remove
-    endif 
-endif
-return 1
-
-[DIALOG d_ficha_msg]
-0, 0
-PAGE 0
-gumppic 0 0 1140
-gumppic 62 70 1143
-gumppic 62 95 1143
-gumppic 63 120 1143
-gumppic 62 145 1143
-button 52 205 4014 4015 1 0 1
-button 311 206 4005 4006 1 0 2
-textentry 74 71 250 250 0 0
-textentry 74 96 250 250 0 1
-textentry 74 121 250 250 0 2
-textentry 74 146 250 250 0 3
-text 75 45 1153 4
-
-[DIALOG d_ficha_msg TEXT]
-¦
-¦
-¦
-¦
-mensagem para <src.targ.tag.name>.
-
-
-[DIALOG d_ficha_msg BUTTON]
-on=1
-//voltar
-src.dialog d_ficha_3
-return 1
-
-on=2
-//enviar
-src.targ.sysmessageyellow *mensagem*
-src.targ.sysmessageorange <argtxt[0]>
-src.targ.sysmessageorange <argtxt[1]>
-src.targ.sysmessageorange <argtxt[2]>
-src.targ.sysmessageorange <argtxt[3]>
-src.targ.sysmessageorange Por: GM <src.tag.name>
-return 1
-
-
-[COMMENT onGetHit]
-on=@gethit
-if (0<src.tag.lastagr1.uid> != 0<src.act.uid>)
- src.tag.lastagr1.name=<src.act.tag.name>
- src.tag.lastagr1.uid=<src.act.tag.uid>
-else
- src.tag.lastagr2.name=<src.act.tag.name>
- src.tag.lastagr2.uid=<src.act.tag.uid>
-endif
-
+//*****************************************************************************
+// d_ficha_5
+//*****************************************************************************
 [DIALOG d_ficha_5]
 0, 0
 PAGE 0
@@ -708,113 +771,52 @@ src.targ.tag.comment8data=<argtxt[25]>
 src.targ.tag.comment9data=<argtxt[26]>
 return 1
 
+//*****************************************************************************
+// d_ficha_msg
+//*****************************************************************************
+[DIALOG d_ficha_msg]
+0, 0
+PAGE 0
+gumppic 0 0 1140
+gumppic 62 70 1143
+gumppic 62 95 1143
+gumppic 63 120 1143
+gumppic 62 145 1143
+button 52 205 4014 4015 1 0 1
+button 311 206 4005 4006 1 0 2
+textentry 74 71 250 250 0 0
+textentry 74 96 250 250 0 1
+textentry 74 121 250 250 0 2
+textentry 74 146 250 250 0 3
+text 75 45 1153 4
 
-[FUNCTION prender]
-src.newitem i_mry_prendendo
-if (0<argn>!=0)
- src.act.tag.tempo=<eval <argn>*60>
-endif
-if !(STRMATCH(<args>, ))
- src.act.tag.motivo <args>
-endif
-src.act.equip
-src.act.timer=30
-src.act.use
+[DIALOG d_ficha_msg TEXT]
+¦
+¦
+¦
+¦
+mensagem para <src.targ.tag.name>.
+
+
+[DIALOG d_ficha_msg BUTTON]
+on=1
+//voltar
+src.dialog d_ficha_3
 return 1
 
-//(tempo,motivo,jailer)
-[FUNCTION detem]
-if (<restest 1 i_mry_GM_jail>)
-    sysmessagered Infracao detectada. Prisao aumentada em 10 minutos.
-    findid.i_mry_gm_jail.more1=<findid.i_mry_gm_jail.more1>+600
-    return 1
-endif
-LOCAL.t=<eval (<tag0.prisao_total>/2)+<argv[0]>>
-sysmessagered Preso por <eval <LOCAL.t>/60> minutos.
-sysmessagered Motivo: <argv[1]>
-
-serv.newitem i_mry_gm_jail
-new.cont=<uid>
-new.morep=<p>
-new.more1=<LOCAL.t>
-new.timer=1
-tag.prisao_total=<eval <tag0.prisao_total>+<argv[0]>>
-dorand (4)
- go=5280,1185
- go=5301,1183
- go=5305,1173
- go=5305,1163
-enddo
-
-if (<DB.connected>)
-    REF1=<argv[2]>
-    if (<REF1>)
-        LOCAL.u=<REF1>
-        LOCAL.n=<REF1.account>
-    else
-        LOCAL.u=0
-        LOCAL.n=Servidor
-    endif
-    DB.EXECUTE "INSERT INTO jail SET timestamp=NOW(),uidJailed=<eval <uid>>,jailed='<account>',duration=<eval <argv[0]>>,reason='<argv[1]>',uidJailer=<eval <LOCAL.u>>,jailer='<LOCAL.n>'"
-endif
-
-[PLEVEL 2]
-prender
-mensagem
-
-[ITEMDEF i_mry_prendendo]
-id=013b9
-type=t_eq_script
-name=prendendo
-layer=30
-
-on=@create
-attr=02
-
-on=@dclick
-target Prender quem?
+on=2
+//enviar
+src.targ.sysmessageyellow *mensagem*
+src.targ.sysmessageorange <argtxt[0]>
+src.targ.sysmessageorange <argtxt[1]>
+src.targ.sysmessageorange <argtxt[2]>
+src.targ.sysmessageorange <argtxt[3]>
+src.targ.sysmessageorange Por: GM <src.tag.name>
 return 1
 
-on=@targon_ground
-src.sysmessage Alvo invalido
-target Prender quem?
-return 1
-
-on=@targon_item
-src.sysmessage Alvo invalido
-target Prender quem?
-return 1
-
-on=@targon_char
-if (<src.targ.restest 1 i_mry_GM_jail>) && (0<tag.tempo>!=0)
- src.targ.findid.i_mry_gm_jail.more1 <eval <tag.tempo>>
- src.targ.say *mensagem*
- src.targ.sysmessageorange Sua pena foi ajustada para <eval <tag.tempo>/60> minutos.
- src.sysmessageorange A pena foi ajustada para <eval <tag.tempo>/60> minutos.
- remove
- return 1
-endif
-if (<src.targ.restest 1 i_mry_GM_jail> && (STRMATCH(<tag.motivo>,soltar))
- src.targ.findid.i_mry_gm_jail.more1 1
- src.targ.sysmessageorange Um GM achou que voce deveria ser solto.
- remove
- return 1
-endif
-if !(STRMATCH(<tag.motivo>, ))
- src.targ.tag.jail_motivo <tag.motivo>
-endif
-if (0<tag.tempo>!=0)
- src.targ.tag.arp_jail_time=<tag.tempo>
- src.targ.tag.jail_motivo
-endif
-remove
-src.dialog d_prender
-return 1
-
-on=@timer
-remove
-return 1
-
+//*****************************************************************************
+// d_prender
+//*****************************************************************************
 [DIALOG d_prender]
 100, 200
 PAGE 0
@@ -897,59 +899,29 @@ on=6
 src.targ.detem <src.targ.tag.arp_jail_time>,<argtxt[1]>,<src>
 return 1
 
-[FUNCTION mensagem]
-if (STRMATCH(<args>, ))
- sysmessage Erro de sintaxe. Use:
- sysmessage .mensagem [mensagem aqui] (sem os [])
- return 1
-endif
-src.newitem i_mry_mensagem
-src.act.tag.mens=<args>
-src.act.equip
-src.act.timer=30
-src.act.use
+//*****************************************************************************
+//*****************************************************************************
+// MENUs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// m_banir
+//*****************************************************************************
+[menu m_banir]
+ATENCAO! Banir permanentemente <var.AccBan>?
+on=0 NAO
+src.dialog d_ficha_3
 return 1
 
-[PLEVEL 2]
-mensagem
-
-[ITEMDEF i_mry_mensagem]
-id=013b9
-type=t_eq_script
-name=mandano mensagem
-layer=30
-
-on=@create
-//attr=02
-
-on=@dclick
-cont.say DCLIC!!!
-target Eviar para quem?
+on=0 SIM
+tryp 0 SERV.ACCOUNT <var.AccBan> BLOCK 1 
+src.sysmessage Conta <var.AccBan> banida. Contacte o Administrador.
 return 1
 
-on=@targon_ground
-src.sysmessage Alvo invalido
-target Eviar para quem?
+on=0 NAO
+src.dialog d_ficha_3
 return 1
 
-on=@targon_item
-src.sysmessage Alvo invalido
-target Eviar para quem?
-return 1
 
-on=@targon_char
-src.targ.sysmessageyellow *mensagem*
-src.targ.sysmessageorange GM <cont.tag.name>: <tag.mens>
-return 1
-
-on=@timer
-remove
-return 1
-
-[FUNCTION f_correctrp]
-FORPLAYERS 6500
- tag.luck=<LUCK>
- LOCAL.i=0<LOCAL.i>+1
- luck=0
-ENDFOR
-sysmessageorange Alterados <eval <LOCAL.i>> jogadores.
+[EOF]
