@@ -15,7 +15,6 @@
 [PLEVEL 2]
 ficha
 prender
-mensagem
 
 //*****************************************************************************
 //*****************************************************************************
@@ -26,50 +25,82 @@ mensagem
 //*****************************************************************************
 // ficha
 //*****************************************************************************
+//usado pelos GMs
 [FUNCTION ficha]
-src.sysmessageyellow Selecione o Jogador:
-src.targetf ficha_
+sysmessageyellow Selecione o Jogador:
+targetfg ficha_
 
 [FUNCTION ficha_]
-if (<src.targ.isplayer>)
+if (<argo.isplayer>)
+    src.targ=<argo>
+    
+    DB.QUERY "SELECT char2Uid FROM eventsLog WHERE eventType='Kill PC' AND charUid=<eval <argo>> ORDER BY timestamp DESC LIMIT 1"
+    if (<DB.ROW.NUMROWS> > 0)
+        obj=<DB.ROW.0.char2Uid>
+        src.ctag.ficha_lastkillname=<obj.name>
+        src.ctag.ficha_lastkilluid=<obj>
+    else
+        src.ctag.ficha_lastkillname=N/A
+        src.ctag.ficha_lastkilluid=0
+    endif
+    
+    src.ctag.ficha_lastagr1name=N/A
+    src.ctag.ficha_lastagr2name=N/A
+    src.ctag.ficha_lastagr1uid=0
+    src.ctag.ficha_lastagr2uid=0
+    DB.QUERY "SELECT charUid FROM eventsLog WHERE eventType='Kill PC' AND charAcct != 0 AND char2Uid=<eval <argo>> ORDER BY timestamp DESC LIMIT 2"
+    if (<DB.ROW.NUMROWS> > 0)
+        for R 0 <eval <DB.ROW.NUMROWS>-1>
+            obj=<DB.ROW.<eval <LOCAL.R>>.charUid>
+            TRY src.ctag.ficha_lastagr<eval <LOCAL.R>+1>name=<obj.name>
+            TRY src.ctag.ficha_lastagr<eval <LOCAL.R>+1>uid=<obj>
+        end
+    endif
+    
+    DB.QUERY "SELECT count(char2Uid) AS cnt FROM eventsLog WHERE eventType='Kill PC' AND charUid=<eval <argo>>"
+    src.ctag.ficha_pkCount=<DB.ROW.0.cnt>
+    
     dialog d_ficha_1
 else
-    src.sysmessage nao e um jogador valido.
+    sysmessageyellow Nao eh um jogador valido.
 endif
-return 1
 
-
-
+//*****************************************************************************
+// prender ([motivo])
+//*****************************************************************************
+//usado pelos GMs
 [FUNCTION prender]
-src.newitem i_mry_prendendo
-if (0<argn>!=0)
- src.act.tag.tempo=<eval <argn>*60>
-endif
-if !(STRMATCH(<args>, ))
- src.act.tag.motivo <args>
-endif
-src.act.equip
-src.act.timer=30
-src.act.use
-return 1
+sysmessageyellow Selecione o Jogador:
+targetfg prender_
 
-//(tempo,motivo,jailer)
+[FUNCTION prender_]
+if (<argo.isplayer>)
+    ctag.prender_uid=<argo>
+    dialog d_prender
+else
+    sysmessageyellow Nao eh um jogador valido.
+endif
+
+//*****************************************************************************
+// detem(tempo,jailer,motivo)
+//*****************************************************************************
+//usado pelos sistemas
 [FUNCTION detem]
 if (<restest 1 i_mry_GM_jail>)
     sysmessagered Infracao detectada. Prisao aumentada em 10 minutos.
     findid.i_mry_gm_jail.more1=<findid.i_mry_gm_jail.more1>+600
     return 1
 endif
-LOCAL.t=<eval (<tag0.prisao_total>/2)+<argv[0]>>
+LOCAL.t=<eval (<tag0.prisao_total>/2)+<argv0>>
 sysmessagered Preso por <eval <LOCAL.t>/60> minutos.
-sysmessagered Motivo: <argv[1]>
+sysmessagered Motivo: <argv2>
 
 serv.newitem i_mry_gm_jail
 new.cont=<uid>
 new.morep=<p>
 new.more1=<LOCAL.t>
 new.timer=1
-tag.prisao_total=<eval <tag0.prisao_total>+<argv[0]>>
+tag.prisao_total=<eval <tag0.prisao_total>+<argv0>>
 dorand (4)
  go=5280,1185
  go=5301,1183
@@ -78,7 +109,7 @@ dorand (4)
 enddo
 
 if (<DB.connected>)
-    REF1=<argv[2]>
+    REF1=<argv1>
     if (<REF1>)
         LOCAL.u=<REF1>
         LOCAL.n=<REF1.account>
@@ -86,7 +117,8 @@ if (<DB.connected>)
         LOCAL.u=0
         LOCAL.n=Servidor
     endif
-    DB.EXECUTE "INSERT INTO jail SET timestamp=NOW(),uidJailed=<eval <uid>>,jailed='<account>',duration=<eval <argv[0]>>,reason='<argv[1]>',uidJailer=<eval <LOCAL.u>>,jailer='<LOCAL.n>'"
+    DB.EXECUTE "INSERT INTO jail SET timestamp=NOW(),uidJailed=<eval <uid>>,jailed='<account>',duration=<eval <argv0>>,reason='<argv2>',uidJailer=<eval <LOCAL.u>>,jailer='<LOCAL.n>'"
+    DB.EXECUTE "INSERT INTO eventsLog SET timestamp=NOW(), eventType='Jail',charUid=<eval <REF1>>,charAcct=<eval <REF1.tag0.idAcct>>,x=<eval <p.x>>,y=<eval <p.y>>,z=<eval <p.z>>,char2Uid=<eval <uid>>,char2Acct=<eval <tag0.idAcct>>,message='<DB.ESCAPEDATA <eval <argv0>/60> minutos: <argv2>>'"
 endif
 
 //*****************************************************************************
@@ -114,70 +146,13 @@ if (<cont.isonline>)
     if (<more1> <= 0)
         cont.forgive
         cont.go=<morep>
-        cont.tag.arp_jail_time=5
+        cont.tag.ficha_jail_time=5
         cont.update
         cont.sysmessagegreen Certo, voce cumpriu sua pena. Cuidado com a sua RePresentacao.
         remove
     endif 
 endif
 return 1
-
-//*****************************************************************************
-// i_mry_prendendo
-//*****************************************************************************
-[ITEMDEF i_mry_prendendo]
-id=013b9
-type=t_eq_script
-name=prendendo
-layer=30
-
-on=@create
-attr=02
-
-on=@dclick
-target Prender quem?
-return 1
-
-on=@targon_ground
-src.sysmessage Alvo invalido
-target Prender quem?
-return 1
-
-on=@targon_item
-src.sysmessage Alvo invalido
-target Prender quem?
-return 1
-
-on=@targon_char
-if (<src.targ.restest 1 i_mry_GM_jail>) && (0<tag.tempo>!=0)
- src.targ.findid.i_mry_gm_jail.more1 <eval <tag.tempo>>
- src.targ.say *mensagem*
- src.targ.sysmessageorange Sua pena foi ajustada para <eval <tag.tempo>/60> minutos.
- src.sysmessageorange A pena foi ajustada para <eval <tag.tempo>/60> minutos.
- remove
- return 1
-endif
-if (<src.targ.restest 1 i_mry_GM_jail> && (STRMATCH(<tag.motivo>,soltar))
- src.targ.findid.i_mry_gm_jail.more1 1
- src.targ.sysmessageorange Um GM achou que voce deveria ser solto.
- remove
- return 1
-endif
-if !(STRMATCH(<tag.motivo>, ))
- src.targ.tag.jail_motivo <tag.motivo>
-endif
-if (0<tag.tempo>!=0)
- src.targ.tag.arp_jail_time=<tag.tempo>
- src.targ.tag.jail_motivo
-endif
-remove
-src.dialog d_prender
-return 1
-
-on=@timer
-remove
-return 1
-
 
 //*****************************************************************************
 //*****************************************************************************
@@ -280,25 +255,25 @@ Estatisticas
 [DIALOG d_ficha_1 BUTTON]
 on=1
 //RP+
-src.targ.tag.luck=<src.targ.tag.luck>+1
+src.targ.tag.luck=<eval <src.targ.tag.luck>+1>
 src.dialog d_ficha_1
 return 1
 
 on=2
 //RP-
-src.targ.tag.luck=<src.targ.tag.luck>+(-1)
+src.targ.tag.luck=<eval <src.targ.tag.luck>-1>
 src.dialog d_ficha_1
 return 1
 
 on=3
 //alma-
-src.targ.tag.pontosdealma=<src.targ.tag.pontosdealma>+(-1)
+src.targ.tag.pontosdealma=<eval <src.targ.tag.pontosdealma>-1>
 src.dialog d_ficha_1
 return 1
 
 on=4
 //alma+
-src.targ.tag.pontosdealma=<src.targ.tag.pontosdealma>+1
+src.targ.tag.pontosdealma=<eval <src.targ.tag.pontosdealma>+1>
 src.dialog d_ficha_1
 return 1
 
@@ -366,16 +341,16 @@ Mystical Tales Shard
 Ficha de personagem
 Morto pela ultima vez por
 Agredido pelas ultimas vezes por
-<src.targ.tag.lastkillname>
-<src.targ.tag.lastagr1name>
-<src.targ.tag.lastagr2name>
-<src.targ.tag.lastkilluid>
-<src.targ.tag.lastagr1uid>
-<src.targ.tag.lastagr2uid>
-<eval 0<src.targ.tag.fpk>>
+<src.ctag.ficha_lastkillname>
+<src.ctag.ficha_lastagr1name>
+<src.ctag.ficha_lastagr2name>
+<src.ctag.ficha_lastkilluid>
+<src.ctag.ficha_lastagr1uid>
+<src.ctag.ficha_lastagr2uid>
+<eval 0<src.ctag.ficha_pkCount>>
 <eval 0<src.targ.tag.fconf>>
 <eval 0<src.targ.tag.warn>>
-<eval 0<src.targ.tag.arp_jail_time>>
+<eval 0<src.targ.tag.ficha_jail_time>>
 Player killing
 Meuteu-se em confusoes
 Minutos na ultima prisao
@@ -385,18 +360,6 @@ Verbos
 
 
 [DIALOG d_ficha_2 BUTTON]
-on=1
-//PK+
-src.targ.tag.fpk=<src.targ.tag0.fpk>+1
-src.dialog d_ficha_2
-return 1
-
-on=2
-//PK-
-src.targ.tag.fpk=<src.targ.tag0.fpk>+(-1)
-src.dialog d_ficha_2
-return 1
-
 on=3
 //Confusao+
 src.targ.tag.fconf=<src.targ.tag0.fconf>+1
@@ -423,46 +386,27 @@ return 1
 
 on=7
 //preso +
-src.targ.tag.arp_jail_time=<src.targ.tag0.arp_jail_time>+1
+src.targ.tag.ficha_jail_time=<src.targ.tag0.ficha_jail_time>+1
 src.dialog d_ficha_2
 return 1
 
 on=8
 //preso -
-src.targ.tag.arp_jail_time=<src.targ.tag0.arp_jail_time>+(-1)
+src.targ.tag.ficha_jail_time=<src.targ.tag0.ficha_jail_time>+(-1)
 src.dialog d_ficha_2
 return 1
 
 on=9
 //GoLastPK
-IF !(0<uid.0<src.targ.tag.lastpkuid>.IsOnline>)
- src.sysmessageorange O modo ALLSHOW foi automaticamente setado para facilitar a identificacao de um possivel jogador que nao estah online no momento.
- src.allshow=1
-endif
-var.lastpkP=<uid.0<src.targ.tag.lastkilluid>.p>
-src.go <var.lastpkP>
-return 1
-
+gouid <src.ctag.ficha_lastkilluid>
 
 on=10
 //GoLastAgr1
-IF !(0<uid.0<src.targ.tag.lastagr1uid>.IsOnline>)
- src.sysmessageorange O modo ALLSHOW foi automaticamente setado para facilitar a identificação de um possível jogador que nao estah online no momento.
- src.allshow=1
-endif
-var.lastagr1P=<uid.0<src.targ.tag.lastagr1uid>.p>
-src.go <var.lastagr1P>
-return 1
+gouid <src.ctag.ficha_lastagr1uid>
 
 on=11
 //GoLastAgr2
-IF !(0<uid.0<src.targ.tag.lastagr2uid>.IsOnline>)
- src.sysmessageorange O modo ALLSHOW foi automaticamente setado para facilitar a identificacao de um possivel jogador que nao estah online no momento.
- src.allshow=1
-endif
-var.lastagr2P=<uid.0<src.targ.tag.lastagr2uid>.p>
-src.go <var.lastagr2P>
-return 1
+gouid <src.ctag.ficha_lastagr2uid>
 
 on=12
 //dados
@@ -521,7 +465,7 @@ PAGE 1
 Mystical Tales Shard
 Ficha de personagem
 Estatisticas
-<eval 0<src.targ.tag.arp_jail_time>/60>
+<eval 0<src.targ.tag.ficha_jail_time>/60>
 Prender
 Banir
 Matar
@@ -538,13 +482,13 @@ Comentarios
 [DIALOG d_ficha_3 BUTTON]
 on=1
 //prender +
-src.targ.tag.arp_jail_time=<src.targ.tag0.arp_jail_time>+60
+src.targ.tag.ficha_jail_time=<src.targ.tag0.ficha_jail_time>+60
 src.dialog d_ficha_3
 return 1
 
 on=2
 //prender -
-src.targ.tag.arp_jail_time=<src.targ.tag0.arp_jail_time>+(-60)
+src.targ.tag.ficha_jail_time=<src.targ.tag0.ficha_jail_time>+(-60)
 src.dialog d_ficha_3
 return 1
 
@@ -555,18 +499,7 @@ return 1
 
 on=4
 //prender
-src.newitem i_mry_gm_jail
-src.act.cont=<src.targ.uid>
-src.act.morep=<src.targ.p>
-src.act.more1=<src.targ.tag0.arp_jail_time>
-src.act.timer=1
-dorand (4)
- src.targ.go=5280,1185
- src.targ.go=5301,1183
- src.targ.go=5305,1173
- src.targ.go=5305,1163
-enddo
-src.targ.say Preso por <eval 0<src.act.more1>/60> minutos.
+src.targ.detem <src.targ.tag0.ficha_jail_time>,<src>,"Preso por GM"
 return 1
 
 on=5
@@ -820,13 +753,14 @@ return 1
 [DIALOG d_prender]
 100, 200
 PAGE 0
+OBJ=<ctag0.prender_uid>
 gumppic 0 0 1140
-text 115 38 152 0
+dtext 115 38 152 Prender <obj.tag.name> (<obj.account>)
 gumppic 64 146 1143
-text 72 126 162 1
-textentry 74 147 250 250 455 1 2 <src.targ.tag.jail_motivo>
-text 267 94 32 3 
-text 252 73 1345 4
+dtext 72 126 162 Motivo
+dtextentry 74 147 250 250 455 1 <obj.tag0.jail_motivo>
+dtext 267 94 32 <eval <obj.tag0.ficha_jail_time>/60>
+dtext 252 73 1345 Minutos
 button 223 84 250 251 1 0 1
 button 223 64 250 251 1 0 2
 button 223 103 252 253 1 0 3
@@ -837,66 +771,64 @@ tilepic 96 76 7029
 tilepic 86 84 5049
 
 [DIALOG d_prender TEXT]
-Prender <src.targ.tag.name>
-Motivo
-<src.targ.tag.jail_motivo>
-<eval 0<src.targ.tag.arp_jail_time>/60>
-Minutos
-
 
 [DIALOG d_prender BUTTON]
-on=1
 //+1
-src.targ.tag.arp_jail_time=0<src.targ.tag.arp_jail_time>+60
-if (0<src.targ.tag.arp_jail_time> <= 0)
- src.sysmessage Muito pouco tempo.
- src.targ.tag.arp_jail_time=0
+on=1
+OBJ=<ctag0.prender_uid>
+obj.tag.ficha_jail_time=<eval <obj.tag0.ficha_jail_time>+60>
+if (<obj.tag0.ficha_jail_time> <= 0)
+    src.sysmessageyellow Muito pouco tempo.
+    obj.tag.ficha_jail_time=0
 endif
-src.targ.tag.jail_motivo=<argtxt[1]>
+obj.tag.jail_motivo=<argtxt[1]>
 src.dialog d_prender
 return 1
 
-on=2
 //+10
-src.targ.tag.arp_jail_time=0<src.targ.tag.arp_jail_time>+600
-if (0<src.targ.tag.arp_jail_time> <= 0)
- src.sysmessage Muito pouco tempo.
- src.targ.tag.arp_jail_time=0
+on=2
+OBJ=<ctag0.prender_uid>
+obj.tag.ficha_jail_time=<eval <obj.tag0.ficha_jail_time>+600>
+if (<obj.tag0.ficha_jail_time> <= 0)
+    src.sysmessageyellow Muito pouco tempo.
+    obj.tag.ficha_jail_time=0
 endif
-src.targ.tag.jail_motivo=<argtxt[1]>
+obj.tag.jail_motivo=<argtxt[1]>
 src.dialog d_prender
 return 1
 
-on=3
 //-1
-src.targ.tag.arp_jail_time=0<src.targ.tag.arp_jail_time>-60
-if (0<src.targ.tag.arp_jail_time> <= 0)
- src.sysmessage Muito pouco tempo.
- src.targ.tag.arp_jail_time=0
+on=3
+OBJ=<ctag0.prender_uid>
+obj.tag.ficha_jail_time=<eval <obj.tag0.ficha_jail_time>-60>
+if (<obj.tag0.ficha_jail_time> <= 0)
+ src.sysmessageyellow Muito pouco tempo.
+ obj.tag.ficha_jail_time=0
 endif
-src.targ.tag.jail_motivo=<argtxt[1]>
+obj.tag.jail_motivo=<argtxt[1]>
 src.dialog d_prender
 return 1
 
-on=4
 //-10
-src.targ.tag.arp_jail_time=0<src.targ.tag.arp_jail_time>-600
-if (0<src.targ.tag.arp_jail_time> <= 0)
- src.sysmessage Muito pouco tempo.
- src.targ.tag.arp_jail_time=0
+on=4
+OBJ=<ctag0.prender_uid>
+obj.tag.ficha_jail_time=<eval <obj.tag0.ficha_jail_time>-600>
+if (<obj.tag0.ficha_jail_time> <= 0)
+ src.sysmessageyellow Muito pouco tempo.
+ obj.tag.ficha_jail_time=0
 endif
-src.targ.tag.jail_motivo=<argtxt[1]>
+obj.tag.jail_motivo=<argtxt[1]>
 src.dialog d_prender
 return 1
 
-on=5
 //close
-
+on=5
 return 1
 
-on=6
 //prende
-src.targ.detem <src.targ.tag.arp_jail_time>,<argtxt[1]>,<src>
+on=6
+OBJ=<ctag0.prender_uid>
+obj.detem <obj.tag.ficha_jail_time>,<src>,"<argtxt[1]>"
 return 1
 
 //*****************************************************************************
