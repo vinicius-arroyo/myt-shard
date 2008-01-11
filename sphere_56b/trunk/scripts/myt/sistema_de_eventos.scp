@@ -1,3 +1,21 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE EVENTOS por UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+
+//VARS usadas:
+//var.ev_max_on_players
+
+//*****************************************************************************
+//*****************************************************************************
+// SQL TABLES
+//*****************************************************************************
+//*****************************************************************************
+
 //CREATE TABLE  `mytserver`.`accounts` (
 //  `idAcct` int(10) unsigned NOT NULL auto_increment,
 //  `username` varchar(45) NOT NULL,
@@ -24,6 +42,13 @@
 //)
 //ENGINE = MyISAM;
 
+//CREATE TABLE `mytserver`.`stat_onlineUsers` (
+//  `timestamp` TIMESTAMP NOT NULL,
+//  `count` SMALLINT UNSIGNED NOT NULL,
+//  PRIMARY KEY (`timestamp`)
+//)
+//ENGINE = MyISAM;
+
 //*****************************************************************************
 // event_log( type )
 //*****************************************************************************
@@ -35,6 +60,7 @@ DB.QUERY "INSERT INTO eventsLog SET timestamp=NOW(), eventType='<argv0>',charUid
 // event_login()
 //*****************************************************************************
 //cria conta na db se nao existe e loga um evento de login
+//salva contador de maior numero de players on
 [FUNCTION event_login]
 if <DB.CONNECTED>
     DB.QUERY "INSERT IGNORE INTO accounts SET username='<src.account>'"
@@ -45,6 +71,10 @@ if <DB.CONNECTED>
         event_log Login
     else
         serv.log [EVENT]Login: id not found (<src.account>)
+    endif
+    
+    if (<serv.clients> > 0<var.ev_max_on_players>)
+        var.ev_max_on_players = <serv.clients>
     endif
 endif
 
@@ -109,3 +139,14 @@ OBJ=<argv0>
 if <DB.CONNECTED>
     DB.QUERY "INSERT INTO eventsLog SET timestamp=NOW(), eventType='GM Note',charUid=<eval <src>>,charAcct=<eval <src.tag0.idAcct>>,x=<eval <obj.p.x>>,y=<eval <obj.p.y>>,z=<eval <obj.p.z>>,char2Uid=<eval <obj>>,char2Acct=<obj.tag0.idAcct>,message='<DB.ESCAPEDATA <argv1>>'"
 endif
+
+//*****************************************************************************
+// event_serverTick()
+//*****************************************************************************
+//chamado a cada tick do 'onserver_timer' para funcoes periodicas
+[FUNCTION event_serverTick]
+
+//loga a quantidade maxima de players no ultimo periodo
+DB.EXECUTE "INSERT INTO stat_onlineUsers SET timestamp=NOW(), count=<eval <var.ev_max_on_players>>"
+var.ev_max_on_players = <serv.clients>
+

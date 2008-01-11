@@ -41,10 +41,10 @@ dias_por_mes=30
 meses_por_ano=12
 
 //Constantes de efeito de estações nos sectores.
-SEASON_primavera	0
-SEASON_inverno		3
-SEASON_verao		1
-SEASON_outono		2
+SEASON_primavera    0
+SEASON_inverno      3
+SEASON_verao        1
+SEASON_outono       2
 
 //Constantes de clima
 weather_dry=1
@@ -148,14 +148,15 @@ src.f_correctLight <flags>
 
 on=@cliperiodic
 //Bloqueia casos que não há clima
+//statf_dead|statf_invisible|statf_insubstantial|statf_stone|statf_hallucinating|statf_hidden|statf_indoors|statf_ridden
 IF (<src.IsGM>) || (<src.flags>&041c4200a) || (<src.tag0.no_clima>)
  //serv.log [clima] Sem efeito de clima para client <src.account.name>
  return 0
 endif
 LOCAL.t1=<R2>
-LOCAL.t2=<eval {5 7}>
-LOCAL.t3=<eval {15 17}>
-LOCAL.t4=<eval {25 27}>
+LOCAL.t2=<R5,7>
+LOCAL.t3=<R15,17>
+LOCAL.t4=<R25,27>
 src.timerf <LOCAL.t1>,temp_check
 src.timerf <LOCAL.t2>,temp_check
 src.timerf <LOCAL.t3>,temp_check
@@ -253,7 +254,7 @@ if (!<argn1>)   //Só quando pisa a 1ª vez
  else
   src.tag.PersonalLight=
  endif
- src.f_correctLight
+ src.f_correctLight <src.region.flags>
 endif
 
 ON=@DCLICK
@@ -350,7 +351,8 @@ if (<VAR.tMin> >= minutos_por_hora) //minuto
  VAR.tMin=0
  VAR.tHour=<VAR.tHour>+1
 
-f_connectDB
+ f_connectDB
+ event_serverTick
 // serv.log [TEMPO] - <eval <var.tHour>>:<eval <var.tMin>> -- <eval <var.tDay>>/<eval <var.tMonth>>/<eval <var.tYear>>
 
  // serv.allclients findid.i_mry_clima.timer=8
@@ -537,13 +539,12 @@ serv.newitem i_pool_chuva
 new.movenear <uid> 6
 
 //*****************************************************************************
-// f_correctLight
+// f_correctLight( <flags> )
 //*****************************************************************************
 //Corrige a luz do client de acordo com o ambeinte
 [FUNCTION f_correctLight]
 
-//NIGHTSIGHT ligado
-if (<flags>&0100)
+if (<flags>&statf_nightsight)
  f_personalLight 30
  //sysmessageyellow [LUZ] 30 (Nightsight)
  return 1
@@ -557,11 +558,12 @@ elif (<ARGN>&region_flag_underground) || (<REGION.FLAGS>&region_flag_underground
  f_personalLight <eval 30-<DEF.dungeon_light>>
  //sysmessageyellow [LUZ] <eval 30-<DEF.dungeon_light>> (Dungeon)
  return 1
+else
+ LOCAL.luz=<DEF.luz_<eval <var.tHour>>>
+ //sysmessageyellow [LUZ]  <eval 30-<LOCAL.luz>> (ambiente)
+ f_personalLight <eval 30-<LOCAL.luz>>
+ return 1
 endif
-
-LOCAL.luz=<DEF.luz_<eval <var.tHour>>>
-//sysmessageyellow [LUZ]  <eval 30-<LOCAL.luz>> (ambiente)
-f_personalLight <eval 30-<LOCAL.luz>>
 
 //*****************************************************************************
 //*****************************************************************************
