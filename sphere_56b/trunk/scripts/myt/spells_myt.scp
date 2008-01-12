@@ -182,41 +182,42 @@ obj.effect 3 i_fx_sparkle 0 16 0 022
 sfx 0217
 return <obj.uid>
 
-
-[FUNCTION f_polymorph]
+//*****************************************************************************
+// f_polymorph ([body=c_zombie],[tempo=30],[modstr=0],[moddex=0],[modint=0])
+//*****************************************************************************
 //Polymorph genérico
-//f_polymorph <body> <tempo> <modstr> <moddex> <modint>
-if (0<argv1>==0)
- local.timer 30
-else
- local.timer <argv1>
+[FUNCTION f_polymorph]
+
+//carrega tempo padrao se nao for fornecido
+local.timer=0<argv1>
+if (!<local.timer>)
+    local.timer=30
 endif
+
+//carrega body padrao se nao for fornecido
 local.body=<argv0>
 if (!<serv.resources.<local.body>>)
- local.body=c_zombie
-else
- local.body=<argv0>
+    local.body=c_zombie
 endif
+
 // Já estou polymorphado? Se sim, aumente o tempo apenas.
 if (<restest 1 i_spl_polymorph>)
- findid.i_spl_polymorph.timer=<findid.i_spl_polymorph.timer>+<local.timer>
- effect 3 i_fx_curse 0 16 0 017d
- sfx 01fa
- return 1
+    findid.i_spl_polymorph.more2 += <local.timer>
+else
+    //cria e aplica polymorph
+    serv.newitem i_spl_polymorph
+    new.morex=<argv2>
+    new.morey=<argv3>
+    new.morez=<argv4>
+    new.more1=<local.body>
+    new.more2=<local.timer>
+    equip <new>
+    new.timer=1
 endif
-local.modstr=<argv2>
-local.moddex=<argv3>
-local.modint=<argv4>
-serv.newitem i_spl_polymorph
-new.morex=<local.modstr>
-new.morey=<local.moddex>
-new.morez=<local.modint>
-new.more1=<local.body>
-equip <new.UID>
-new.timer=1
-new.more2=<local.timer>
+
 effect 3 i_fx_curse 0 16 0 017d
 sfx 01fa
+
 
 [ITEMDEF i_spl_polymorph]
 ID=i_rune_polymorph
@@ -225,42 +226,56 @@ type=t_eq_script
 layer=layer_special
 
 on=@create
-attr=022
+attr=attr_magic|attr_decay
 
 on=@equip
+//remove capuz
 if (<cont.tag0.comcapuz>)
- cont.capuz
+    cont.capuz
 endif
+
+//salva parametros do player
+tag.player=<cont>
+tag.color=<cont.color>
+tag.body=<cont.body>
+
+//set buff and body
 cont.modstr=<cont.modstr>+<morex>
 cont.moddex=<cont.moddex>+<morey>
 cont.modint=<cont.modint>+<morez>
-color=<cont.color>
-local.body <cont.body>
 cont.body <more1>
-more1=<local.body>
-cont.flags |= 0400
+cont.flags |= statf_polymorph
 cont.update
 
 on=@timer
-if (!<more2>) || !(<cont.flags>&0400) || (<cont.flags>&012) //Dead ou sleep
- TRIGGER=@destroy
- remove
+//se fim do polymorph, ou removido por outros meios, ou morto, ou em sleep
+if (!<more2>) || !(<cont.flags>&statf_polymorph) || (<cont.flags>&012) //Dead ou sleep
+    remove
 else
- timer = 1
- more2 -= 1
+    timer = 1
+    more2 -= 1
 endif
 return 1
 
 on=@destroy
-cont.modstr=<eval <cont.modstr>-<morex>>
-cont.moddex=<eval <cont.moddex>-<morey>>
-cont.modint=<eval <cont.modint>-<morez>>
-cont.color=<color>
-cont.body=<more1>
-cont.flags ^= 0400
-cont.update
-cont.effect 3 i_fx_curse 0 16 0 017d
-cont.sfx 01fa
+//verifica se @destroy nao foi chamado antes manualmente (sistema de morte)
+obj=<tag.player>
+if (!<obj>)
+    return 0
+endif
+
+//remove buffs e restaura body/cor
+obj.modstr=<eval <obj.modstr>-<morex>>
+obj.moddex=<eval <obj.moddex>-<morey>>
+obj.modint=<eval <obj.modint>-<morez>>
+obj.color=<tag.color>
+obj.body=<tag.body>
+obj.flags &= ~statf_polymorph
+obj.update
+obj.effect 3 i_fx_curse 0 16 0 017d
+obj.sfx 01fa
+tag.player=0
+
 
 
 [FUNCTION f_field_sparce]
