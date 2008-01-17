@@ -108,12 +108,21 @@ SENDPACKET 02e D040000001 W<serv.itemdef.i_light_source.id> B0 B<def.layer_light
 //no claro.
 [EVENTS e_drow]
 
-on=@login
-src.nightsight 1
+ON=@LOGIN
+src.nightsight 0
+f_elfSight
 src.findid.i_drow_check.remove
-src.newitem=i_drow_check
-src.act.link <src.uid>
-src.act.cont <src.uid>
+serv.newitem=i_drow_check
+new.link <src>
+new.cont <src>
+
+//mantem o layer light livre para visao noturna
+ON=@ITEMUNEQUIP
+if ( <act.layer> != layer_light )&& ( <act.layer> != layer_hand2 )
+    return 0
+endif
+f_elfSight
+return 1
 
 [ITEMDEF i_drow_check]
 id=i_deed
@@ -127,29 +136,29 @@ timer=ev_drow_check_timer
 
 on=@timer
 
-if ( <var.tHour> >= 19 ) || ( <var.tHour> <= 5 ) || (<region.flags>&0800)
+if ( <var.tHour> >= 19 ) || ( <var.tHour> <= 5 ) || (<region.flags>&region_flag_underground)
   if (<link.tag.drowLowLightBonus> != 1)
     link.tag.drowLowLightBonus=1
-    link.nightsight 1
+//    link.nightsight 1
     link.hiding=<link.hiding>+10.0
     link.stealth=<link.stealth>+5.0
     link.magicresistance=<link.magicresistance>+5.0
     link.dex=<link.dex>+20
-    link.sysmessage Voce se sente mais forte no escuro...
+    link.sysmessageyellow Voce se sente mais forte no escuro...
   endif
 else
   if (<link.tag.drowLowLightBonus> != 0)
     link.tag.drowLowLightBonus=0
-    link.nightsight 0
+//    link.nightsight 0
     link.hiding=<link.hiding>-10.0
     link.stealth=<link.stealth>-5.0
     link.magicresistance=<link.magicresistance>-5.0
     link.dex=<link.dex>-20
-    link.sysmessage A luz esta debilitando seu corpo...
+    link.sysmessageyellow A luz esta debilitando seu corpo...
   endif
  
-  if (<link.hits> > 0)
-    link.damage {5 10}
+  if (<link.hits> > 5)
+    link.damage <R10> dam_poison
   endif
 endif
 
@@ -476,7 +485,7 @@ return 0                    // SKILL_HEALING
 return 0                    // SKILL_FISHING
 return 0                    // SKILL_FORENSICS
 return 0                    // SKILL_HERDING
-return 0                    // SKILL_HIDING 
+return <sk_hiding>          // SKILL_HIDING 
 return 0                    // SKILL_PROVOCATION
 return 0                    // SKILL_INSCRIPTION
 return 0                    // SKILL_LOCKPICKING
@@ -502,7 +511,7 @@ return 0                    // SKILL_WRESTLING
 return 0                    // SKILL_LUMBERJACK
 return 0                    // SKILL_MINING
 return 0                    // SKILL_MEDITATION
-return 0                    // SKILL_STEALTH
+return <sk_hiding>          // SKILL_STEALTH
 return 0                    // SKILL_REMOVETRAP
 return 1                    // SKILL_NECROMANCY
 return 1                    // SKILL_FOCUS
@@ -540,7 +549,7 @@ return 0                    // SKILL_HEALING
 return 0                    // SKILL_FISHING
 skill_gain <src.action>     // SKILL_FORENSICS
 return 0                    // SKILL_HERDING
-skill_gain <src.action>     // SKILL_HIDING 
+return 0                    // SKILL_HIDING 
 return 0                    // SKILL_PROVOCATION
 skill_gain <src.action>     // SKILL_INSCRIPTION
 return 0                    // SKILL_LOCKPICKING
@@ -566,7 +575,7 @@ skill_gain <src.action>     // SKILL_WRESTLING
 skill_gain <src.action>     // SKILL_LUMBERJACK
 skill_gain <src.action>     // SKILL_MINING
 skill_gain <src.action>     // SKILL_MEDITATION
-skill_gain SKILL_HIDING     // SKILL_STEALTH
+return 0                    // SKILL_STEALTH
 skill_gain <src.action>     // SKILL_REMOVETRAP
 return 0                    // SKILL_NECROMANCY
 return 0                    // SKILL_FOCUS
@@ -583,13 +592,9 @@ return 0
 //serv.log [SKILLFAIL] <src.account>/<src.action>
 
 //*************************************
-ON=@SKILLUSEQUICK
+//ON=@SKILLUSEQUICK
 //*************************************
 //serv.log [SKILLUSEQUICK] <src.account>/<argn1>
-
-if (<argn1>==SKILL_STEALTH)
-    skill_gain SKILL_STEALTH
-endif
 
 //*************************************
 ON=@USERVIRTUE

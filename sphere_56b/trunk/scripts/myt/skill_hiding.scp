@@ -1,106 +1,133 @@
-[events e_hiding_new]
-on=@skillstart
-if ( (<Src.action>|0d2000000) == Skill_hiding )
- src.action=
-  if (<src.findlayer(layer_hand1).type> == t_light_lit) || (<src.findlayer(layer_hand2).type> == t_light_lit)
-   src.sysmessageyellow Apague tochas e lampioes...
-   src.findid.i_hiding.remove
-   src.invis 0
-   return 1
-  endif
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL HIDING e STEALTH por
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//TODO:
 
-  if (<src.flags>&statf_onhorse)
-   src.sysmessageyellow Voce nao pode se esconder com um cavalo...
-   src.findid.i_hiding.remove
-   src.invis 0
-   return 1
-  endif
+//TAGS usadas:
+//tag.light_lvl     //0=escuro, 30=claro
 
-  if (<src.hiding> < 90.0) && (((<var.tHour> < 5) || (<var.tHour> > 20)) || (<src.region.flags>&region_flag_underground))
-   src.sysmessageyellow Voce nao possui habilidade para se esconder com esta luminosidade...
-   src.findid.i_hiding.remove
-   src.invis 0
-   return 1
-  endif
-  if (<src.hiding> < 80.0) && ((<var.tHour> < 4) || (<var.tHour> > 22))
-   src.sysmessageyellow Voce nao possui habilidade para se esconder com esta luminosidade...
-   src.findid.i_hiding.remove
-   src.invis 0
-   return 1
-  endif
-  if (<src.hiding> < 70.0) && ((<var.tHour> < 4) || (<var.tHour> > 23))
-   src.sysmessageyellow Voce nao possui habilidade para se esconder com esta luminosidade...
-   src.findid.i_hiding.remove
-   src.invis 0
-   return 1
-  endif
-  
-  if (<src.findid.i_hiding> == 1)
-   return 1
-  endif
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
 
-if ({1 <eval (<src.hiding>)/(100)>} == 1)
- src.sysmessagered Voce nao conseguiu se esconder
- return 1
+//*****************************************************************************
+// sk_hiding
+//*****************************************************************************
+[FUNCTION sk_hiding]
+
+if (<src.findid.i_hiding>)
+    src.sysmessageyellow Nao pode se esconder ainda.
+    return 1
+elif (<src.flags>&statf_onhorse)
+    src.sysmessageyellow Voce nao pode se esconder com um cavalo...
+    return 1
+elif (<src.region.flags>&region_flag_underground)
+    //nop
+elif (<src.hiding> < 500) && (<var.tHour> > 4) && (<var.tHour> < 20)
+    src.sysmessageyellow Voce nao possui habilidade para se esconder com esta luminosidade...
+    return 1
+elif (<src.hiding> < 750) && (<var.tHour> > 5) && (<var.tHour> < 19)
+    src.sysmessageyellow Voce nao possui habilidade para se esconder com esta luminosidade...
+    return 1
+elif (<src.hiding> < 900) && (<var.tHour> > 6) && (<var.tHour> < 18)
+    src.sysmessageyellow Voce nao possui habilidade para se esconder com esta luminosidade...
+    return 1
+else
+    src.act=0
+    src.ctag.disturb=0
+    serv.newitem i_hiding
+    new.cont=<src.uid>
+    new.timer 1
 endif
- 
- src.message *consegiu se esconder*
- src.invis 1
- src.findid.i_hiding.remove
- src.newitem i_hiding
- src.act.link <src.uid>
- src.act.cont <src.uid>
- src.act.timer 1
- f_hiding_tentarsubir
 
 return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_hiding
+//*****************************************************************************
+[ITEMDEF i_hiding]
+ID=i_deed
+NAME=Hiding
+TYPE=t_eq_script
+LAYER=layer_special
+
+ON=@create
+//not hidden
+more1=0
+
+ON=@timer
+timer=1
+
+if (<cont.findlayer.layer_hand1.type> == t_light_lit) || (<cont.findlayer.layer_hand2.type> == t_light_lit)
+    cont.sysmessageyellow Apague tochas e lampioes...
+    cont.hiding_leave
+    remove
+    return 1
+//statf_dead|statf_freeze|statf_sleeping|statf_war|statf_poisoned|statf_polymorph|statf_stone|statf_hallucinating|statf_onhorse
+elif (<cont.flags>&0804404b6) || (<cont.ctag0.disturb>)
+    cont.sysmessageyellow Voce esta visivel// 2! <hval <cont.flags>&0804404b6>
+    cont.hiding_leave
+    remove
+    return 1
 endif
 
-if ( (<Src.action>|0d2000000) == Skill_stealth )
- src.action=
+if !(<more1>)
+    cont.skill_gain SKILL_HIDING
+//    serv.log [hiding] testando <eval <cont.hiding>> contra <eval <cont.tag0.light_lvl>*30>
+    if (<R<cont.hiding>> < <eval <cont.tag0.light_lvl>*30>)
+        cont.sysmessagered Voce nao conseguiu se esconder
+        cont.hiding_leave
+        remove
+        return 1
+    else
+        cont.sysmessagegreen Conseguiu se esconder
+        cont.hiding_enter
+        more1=1
+    endif
+else
+    
+    LOCAL.d=<cont.distance <tag0.p>>
+    if (<LOCAL.d> > 0)
+        cont.skill_gain SKILL_STEALTH
+    
+        if !(<cont.region.flags>&region_flag_underground)
+            LOCAL.d=<eval (<cont.tag0.light_lvl>+1)*<LOCAL.d>>
+        endif
+//        serv.log [stealth] testando <eval <cont.stealth>> contra < <eval 20*<local.d>>
+        if (<R<cont.stealth>> < <eval 20*<local.d>>)
+            cont.sysmessageyellow Voce esta visivel!
+            cont.hiding_leave
+            remove
+        endif    
+    endif
+endif
+
+tag.p=<cont.p>
 return 1
-endif
 
-[itemdef i_hiding]
-id=i_deed
-name=Hiding Skill
-type=t_eq_Script
-layer=30
+[FUNCTION hiding_enter]
+invis 1
+flags |= statf_hidden
+events +e_no_attack
+events +e_no_dclick
+update
 
-on=@create
-attr=attr_decay
-
-on=@timer
- if (0<link.tag.hiding_lastpx> != <link.p.x>) || (0<link.tag.hiding_lastpx> != <link.p.x>)
-  if ({1 <eval (<link.stealth>)/(100)>} == 1)
-   link.message Voce esta visivel
-   link.invis 0
-   remove
-   return 1
-  endif
-  f_stealth_tentarsubir
- endif
-link.tag.hiding_lastpx=<link.p.x>
-link.tag.hiding_lastpy=<link.p.x>
- if ({1 <eval (<link.hiding>)/(10)>} == 1)
-  link.message Voce nao conseguiu permanecer escondido
-  link.invis 0
-  remove
-  return 1
- endif
-timer=1 
-return 1
-
-[function f_stealth_tentarsubir]
-if (<link.stealth> < 100.0)
- if ({1 <eval (<link.stealth>)/ (10)>} == 1)
-  link.stealth=<link.stealth>+(0.1)
- endif
-endif
-
-[function f_hiding_tentarsubir]
-if (<src.hiding> < 100.0)
- if ({1 <eval (<src.hiding>)/ (10)>} == 1)
-  src.hiding=<src.hiding>+(0.1)
- endif
-endif
+[FUNCTION hiding_leave]
+invis 0
+flags &= ~statf_hidden
+events -e_no_attack
+events -e_no_dclick
+update
