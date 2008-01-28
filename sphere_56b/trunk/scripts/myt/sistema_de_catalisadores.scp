@@ -149,18 +149,72 @@ SUBSECTION=Recipiente
 DESCRIPTION=frasco de oleo
 
 on=@dclick
-if (<src.targ.distance> > 1) && (<topobj.uid> != <src.uid>)
-src.sysmessage Chegue mais perto.
-else
-src.targ.bounce
-target Selecione o item para colocar o oleo :
+bounce
+src.sysmessageyellow Selecione o item para colocar o oleo:
+target
 return 1
-endif
-return 1
-
 
 on=@targon_item
-src.i_usando_frasco_oleo
+if (<src.targ.distance> > 1)
+    src.sysmessagered Muito longe...
+    return 1
+elif (<src.targ.baseid> == i_flecha_fogo_apagada)
+    src.sysmessageyellow Ja esta banhado com oleo.
+    return 1
+elif (<src.targ.baseid> == i_arrow)
+    src.emoteyellow aplicando oleo
+    sfx 0242
+    serv.newitem=i_frasco_oleo_vazio
+    new.bounce
+    remove
+
+    if (<src.targ.amount> >= 10 )
+        LOCAL.a=10
+    else
+        LOCAL.a=<src.targ.amount>
+    endif
+    
+    serv.newitem=i_flecha_fogo_apagada
+    new.amount=<LOCAL.a>
+    new.bounce
+    src.consume <LOCAL.a> i_arrow
+    return 1
+elif (<src.targ.baseid> == i_lantern_lit) || (<src.targ.baseid>==i_lamppost2_lit)  || (<src.targ.baseid>==i_lamppost3_lit)  || (<src.targ.baseid>==i_lamppost1_lit)
+    src.sysmessageyellow Voce deve apagar primeiro.
+    return 1
+elif (<src.targ.baseid> == i_lantern)  || (<src.targ.baseid>==i_lamppost2)  || (<src.targ.baseid>==i_lamppost3)  || (<src.targ.baseid>==i_lamppost1)
+    if (<src.targ.more1> > 5000) 
+        src.sysmessageyellow Ainda tem bastante oleo
+        return 1
+    else
+        src.emoteyellow aplicando oleo
+        sfx 0242
+        src.targ.more1=<src.targ.more1>+6000 // aprox.100 min ininterruptos ou 10h ingame
+        serv.newitem=i_frasco_oleo_vazio
+        new.bounce
+        remove
+        return 1
+    endif       
+    return 1
+elif (<src.targ.baseid> == i_moldura_couro)
+    src.emoteyellow tratando o couro
+    src.targ.more1=1
+    src.targ.update
+    serv.newitem=i_frasco_oleo_vazio
+    new.bounce
+    remove
+    return 1
+elif (<src.targ.baseid> == i_moldura_pelo)
+    src.emoteyellow *tratando o pelo*
+    src.targ.more1=1
+    src.targ.update
+    serv.newitem=i_frasco_oleo_vazio
+    new.bounce
+    remove
+    return 1
+else
+    src.sysmessageyellow Voce nao pode fazer nada colocando oleo nisso.
+endif
 return 1
 
 
@@ -833,89 +887,6 @@ else
   src.sysmessage alvo invalido
 return 1
 endif
-
-
-
-
-[function i_usando_frasco_oleo]
-if (<src.targ.distance> > 1) && (<src.targ.topobj.uid> != <src.uid>)
-src.sysmessagered Muito longe...
-return 1
-
-elif (<src.targ.baseid> == i_flecha_fogo_apagada)
-src.sysmessageyellow Isso ja esta banhado.
-return 1
-
-elif (<src.targ.baseid> == i_arrow)
-if (<src.targ.amount> > 10 )
-  src.emoteyellow aplicando oleo
-  sfx 0242
-  src.newitem=i_frasco_oleo_vazio
-  src.act.bounce
-  src.newitem=i_flecha_fogo_apagada
-  src.act.amount=10
-  src.act.bounce
-  src.consume 1 i_frasco_oleo
-  src.consume 10 i_arrow
-return 1
-else (<src.targ.amount> <= 10 )
-  src.emoteyellow aplicando oleo
-  sfx 0242
-  src.newitem=i_frasco_oleo_vazio
-  src.act.bounce
-  src.newitem=i_flecha_fogo_apagada
-  src.act.amount=<src.targ.amount>
-  src.act.bounce
-  src.consume 1 i_frasco_oleo
-  src.consume <src.targ.amount> i_arrow
-  return 1
-endif
-return 1
-
-elif (<src.targ.baseid> == i_lantern_lit) || (<src.targ.baseid>==i_lamppost2_lit)  || (<src.targ.baseid>==i_lamppost3_lit)  || (<src.targ.baseid>==i_lamppost1_lit)
-src.sysmessageyellow Voce deve apagar primeiro.
-return 1
-
-elif (<src.targ.baseid> == i_lantern)  || (<src.targ.baseid>==i_lamppost2)  || (<src.targ.baseid>==i_lamppost3)  || (<src.targ.baseid>==i_lamppost1)
-    if (<src.targ.more1> > 5000) 
-        src.sysmessageyellow Ainda tem bastante oleo
-        return 1
-    else
-        src.emoteyellow aplicando oleo
-        sfx 0242
-        src.targ.more1=<src.targ.more1>+6000 // aprox.100 min ininterruptos ou 10h ingame
-        src.newitem=i_frasco_oleo_vazio
-        src.act.bounce
-        src.consume 1 i_frasco_oleo
-    return 1
-    endif       
- return 1
-return 1
-elif (<src.targ.baseid> == i_moldura_couro)
-  src.emoteyellow tratando o couro
-  src.targ.more1=1
-  src.targ.update
-  src.newitem=i_frasco_oleo_vazio
-  src.act.bounce
-  src.consume 1 i_frasco_oleo
-return 1
-
-elif (<src.targ.baseid> == i_moldura_pelo)
-  src.message *tratando o pelo*
-  src.targ.more1=1
-  src.targ.update
-  src.newitem=i_frasco_oleo_vazio
-  src.act.bounce
-  src.consume 1 i_frasco_oleo
-return 1
-
-else
-src.sysmessage Voce nao pode fazer nada colocando oleo nisso.
-return 1
-endif
-return 1
-
-
 
 
 [function i_colocando_lanterna]
