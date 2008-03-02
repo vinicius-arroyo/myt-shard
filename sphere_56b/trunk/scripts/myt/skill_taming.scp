@@ -38,10 +38,12 @@ sysmessagered Voce se desconcentrou.
 //src   master
 //default npc
 ON=@PETDESERT
-src.curfollower=<src.curfollower>-1
+tam_undoPet
 
-ON=@DEATH
-memoryfindtype.memory_ipet.link.curfollower -= 1
+//chamado no .remove ou .kill
+//nesse caso nao tem memory de pet mais, entao o uso do tag eh obrigatorio
+ON=@DESTROY
+tam_undoPet
 
 ON=@CONTEXTMENUSELECT
 
@@ -79,10 +81,30 @@ anim_tool_target <uid>
 return 1
 
 ON=@HUNGER
+//nao deixa passar fome se dono offline
 if <memoryfindtype.memory_ipet.link.isonline>
     return 0
 endif
 return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_figurine
+//*****************************************************************************
+[TYPEDEF t_figurine]
+ON=@DCLICK
+//so permite sair do shrink se for pet
+if (<uid.<more2>.memoryfindtype.memory_ipet.link> == <src>) || <src.isgm>
+    return 0
+else
+    src.sysmessageyellow Esse animal nao lhe pertence.
+    return 1
+endif
 
 //*****************************************************************************
 //*****************************************************************************
@@ -100,6 +122,7 @@ if (<src.targ.distance>>8)
     return 1
 endif
 
+serv.log [TAMING] animal ocupa <src.targ.tam_animalSlots> slots e <src.tam_playerFreeSlots> disponiveis
 // Checar se ja foi tamed
 if (<src.targ.memoryfindtype.memory_ipet>)
     src.sysmessageyellow Este animal ja possui dono...
@@ -107,8 +130,8 @@ elif (<src.findid.i_taming>)
     src.sysmessageyellow Voce so pode domar um animal por vez...
 elif (<src.targ.npc>!=brain_animal)
     src.sysmessageyellow Voce so pode domar animais...
-elif (<src.curfollower> >= <eval (<src.taming>/10)+1>)
-    src.sysmessageyellow Voce so pode domar até <eval (<src.taming>/10)+1> animais...
+elif (<src.tam_playerFreeSlots> < <src.targ.tam_animalSlots>)
+    src.sysmessageyellow Voce nao pode domar esse animal...
 elif (<src.flags>&statf_onhorse)
     src.sysmessageyellow Nao pode domar em cima de outro animal...
 else
@@ -118,6 +141,55 @@ else
     src.events=+e_tamingcheck
 endif
 return 1
+
+//*****************************************************************************
+// tam_animalSlots
+//*****************************************************************************
+//retorna o numero de slots que um NPC ocupa
+//deve ser usado da seguinte forma: npc.tam_animalSlots
+[FUNCTION tam_animalSlots]
+return <eval (<taming>/120)+1>
+
+//*****************************************************************************
+// tam_playerSlots
+//*****************************************************************************
+//retorna o numero de slots que um PLAYER suporta (total) e atualiza o MAXFOLLOER
+//deve ser usado da seguinte forma: player.tam_animalSlots
+[FUNCTION tam_playerSlots]
+maxfollower=<eval (<taming>/100)+1>
+return <maxfollower>
+
+//*****************************************************************************
+// tam_playerFreeSlots
+//*****************************************************************************
+//retorna o numero de slots que um PLAYER tem disponivel
+//deve ser usado da seguinte forma: player.tam_playerFreeSlots
+[FUNCTION tam_playerFreeSlots]
+return <eval <tam_playerSlots>-<curfollower>>
+
+//*****************************************************************************
+// tam_undoPet
+//*****************************************************************************
+//retira os slots utilizados por um pet
+//deve ser usado da seguinte forma: npc.tam_undoPet
+[FUNCTION tam_undoPet]
+//compatibilidade com sistema antigo
+if !<tag0.owner>
+    uid.<tag.owner>.curfollower -= 1
+else
+    uid.<tag.owner>.curfollower -= <tam_animalSlots>
+    tag.owner=
+endif
+
+//*****************************************************************************
+// tam_setPet (setToWhom)
+//*****************************************************************************
+//coloca os slots utilizados pelo pet e salva memory
+//deve ser usado da seguinte forma: npc.tam_setPet <uid>
+[FUNCTION tam_setPet]
+transfer <argv0>
+tag.owner=<argv0>
+uid.<argv0>.curfollower += <tam_animalSlots>
 
 //*****************************************************************************
 //*****************************************************************************
@@ -227,13 +299,14 @@ elif (<cont.flags>&statf_War)
     remove
     return 1
 
-//se subir no cavalo
-elif (<cont.flags>&statf_onhorse)
-    cont.sysmessageyellow Nao pode domar em cima de outro animal...
+//qualquer outro flag q atrapalhe
+//statf_freeze|statf_invisible|statf_sleeping|statf_war|statf_polymorph|statf_stone|statf_hallucinating|statf_hidden|statf_onhorse|statf_insubstantial
+elif (<cont.flags>&080c4243c)
+    cont.sysmessageyellow Nao pode domar assim...
     cont.events=-e_tamingcheck
     remove
     return 1
-endif
+endif    
 
 //loop de animacao
 if (<more>)
@@ -248,44 +321,46 @@ if (<more>)
     return 1 
 endif
     
-//faz uma ponderacao entre herding e animallore para valor maximo
-LOCAL.sk=<eval (<cont.herding>*4)+(<cont.animallore>*4)>
-LOCAL.sk=<eval <LOCAL.sk>+(<cont.taming>*8)>
-//da bonus se tiver com o cajado
-if (<cont.findlayer.layer_hand2.baseid>==i_cajado_pastor)
-    LOCAL.sk=<eval <LOCAL.sk>/6>
+//escolhe entre taming e herding , o q for maior
+if <cont.herding> > <cont.taming>
+    LOCAL.s=<cont.herding>
 else
+    LOCAL.s=<cont.taming>
+endif    
+
+//faz uma ponderacao entre herding/taming e animallore para valor maximo
+LOCAL.sk=<eval (<LOCAL.s>*7)+(<cont.animallore>*3)>
+
+//da bonus se tiver com o cajado (~10%)
+if (<cont.findlayer.layer_hand2.baseid>==i_cajado_pastor)
     LOCAL.sk=<eval <LOCAL.sk>/9>
+else
+    LOCAL.sk=<eval <LOCAL.sk>/10>
 endif
 
-LOCAL.t1=<R0,<LOCAL.sk>>
+
+LOCAL.chance=<skillchance <link.taming>,<LOCAL.sk>,200>
+LOCAL.t1=<R1000>
 LOCAL.f=<R<link.maxfood>>
 
-serv.log [TAMING] <cont.account> 0 a <dLOCAL.sk> (<dLOCAL.t1>) contra <link.taming> e food <dLOCAL.f>
-//faz teste de skill taming e de fome do animal
-if (<LOCAL.t1> > <link.taming>) && (<LOCAL.f> > <link.food>)
+serv.log [TAMING] <cont.account> chance:<dLOCAL.chance> (<dLOCAL.t1>) contra TM <link.taming>
+//faz teste de skill taming
+if (<LOCAL.t1> < <LOCAL.chance>)
     cont.sysmessage Parece que ele aceitou voce como novo dono.
 //    if (<link.memoryfindtype.memory_ispawned>)
     link.memoryfindtype.memory_ispawned.remove
-    serv.newitem=i_memory
-    new.color=memory_ipet
-    new.more1=04
-    new.more2=<serv.time>
-    new.morep=<link.p>
-    new.name=MyPet
-    new.link=<cont>
-    new.cont=<link>
-    link.flags=<link.flags>|statf_pet
     link.events +e_pet
     serv.newitem=i_tamed
     new.cont=<link>
     link.update
-    cont.curfollower=<cont.curfollower>+1
+
+    link.tam_setPet <cont>
+    
 //faz outro teste de fome para ver se somente falha ou se ataca o domador
 elif (<LOCAL.f> > <link.food>)
     cont.sysmessageyellow O animal esta enfurecido.
     link.flags=<link.flags>|statf_war
-    dorand 3
+    dorand 2
         link.attack <cont>
     enddo
 else
