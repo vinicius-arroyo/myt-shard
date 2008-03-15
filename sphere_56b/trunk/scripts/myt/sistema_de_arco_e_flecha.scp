@@ -21,12 +21,13 @@ besta_heavy    2
 
 [Defname arcos]
 arco_simples        01
-arco_longo      02
+arco_longo          02
 arco_composto       04
-arco_elfico     08
+arco_elfico         08
+besta_simples       010
+besta_pesada        020
 
-
-speed_bow       28
+speed_bow           28
 speed_bow_long      30
 speed_bow_composite 32
 speed_bow_elven     34
@@ -199,8 +200,14 @@ TDATA4=i_xbolt_x
 
 ON=@Create
 HITPOINTS={700 800}
-//MOREY={700 800}
-MOREZ=besta_simples
+tag.name=<name>
+
+on=@equip
+if (<morey> == 00)
+ src.message Besta sem engrenagem
+ unequip
+ return 1
+endif
 
 [ITEMDEF 013fc]
 DEFNAME=i_crossbow_heavy
@@ -226,8 +233,14 @@ TDATA4=i_xbolt_x
 
 ON=@Create
 HITPOINTS={800 1000}
-//MOREY={800 1000}
-MOREZ=besta_heavy
+tag.name=<name>
+
+on=@equip
+if (<morey> == 00)
+ src.message Besta sem engrenagem
+ unequip
+ return 1
+endif
 
 
 //###################
@@ -251,14 +264,8 @@ DESCRIPTION=dardo simples
 DUPELIST=01bfc,01bfd,01bfe
 
 on=@dclick
-if (<src.findlayer.2.dispid>==0f50) || (<src.findlayer.2.dispid>==i_crossbow_heavy) || (<src.findlayer.2.dispid>==013fd) || (<src.findlayer.2.dispid>==i_crossbow)
-if (<topobj.uid>==<src.uid> )
-p=<src.p>
-cont=<src.findlayer.21.uid>
-src.correctammo_cros
-endif
-endif
-
+correctammo
+return 1 
 
 
 [ITEMDEF i_xbolt_iron]
@@ -280,13 +287,8 @@ DESCRIPTION=dardo de ferro
 DUPELIST=01bfc,01bfd,01bfe
 
 on=@dclick
-if (<src.findlayer.2.dispid>==0f50) || (<src.findlayer.2.dispid>==i_crossbow_heavy) || (<src.findlayer.2.dispid>==013fd) || (<src.findlayer.2.dispid>==i_crossbow)
-if (<topobj.uid>==<src.uid> )
-p=<src.p>
-cont=<src.findlayer.21.uid>
-src.correctammo_cros
-endif
-endif
+correctammo
+return 1 
 
 on=@create
 color=0482
@@ -311,14 +313,8 @@ DESCRIPTION=dardo de prata
 DUPELIST=01bfc,01bfd,01bfe
 
 on=@dclick
-if (<src.findlayer.2.dispid>==0f50) || (<src.findlayer.2.dispid>==i_crossbow_heavy) || (<src.findlayer.2.dispid>==013fd) || (<src.findlayer.2.dispid>==i_crossbow)
-if (<topobj.uid>==<src.uid> )
-p=<src.p>
-cont=<src.findlayer.21.uid>
-src.correctammo_cros
-endif
-endif
-
+correctammo
+return 1 
 
 on=@create
 color=color_o_silver
@@ -607,7 +603,11 @@ return 1
 //more2             Magia/efeito
 //morex             Cargas de magia/efeito (não pode diminuir)
 //morez             1 se coletável (do corpo). 0 se a flecha some pra sempre quando atirada.
-if (<topobj>!=<src.uid>) || (<src.weapon.type>!=t_weapon_bow)
+if (<topobj>!=<src.uid>) || ( (<src.weapon.type>!=t_weapon_bow) && (<src.weapon.type>!=t_weapon_xbow) )
+ return 1
+elif  (<src.weapon.type>==t_weapon_bow) && (<type>!=T_WEAPON_ARROW)
+ return 1
+elif  (<src.weapon.type>==t_weapon_xbow) && (<type>!=T_WEAPON_BOLT)
  return 1
 endif
 src.weapon.TAG.OVERRIDE.AMMOTYPE=<baseid>
@@ -641,19 +641,30 @@ src.sysmessageblue Agora usando <name>!
 //more2=bitmask
 
 on=@dclick
-src.sysmessage Selecione o arco para reparar...
+src.sysmessageyellow Selecione o arco para reparar...
 targetf f_use_string <UID>
 return 1
 
 [function f_use_string]
 OBJ=<argv0>
-IF (<argo.type>!=t_weapon_bow)
- src.sysmessageyellow Isso nao eh um arco.
+IF (<argo.type>!=t_weapon_bow) && (<argo.type>!=t_weapon_xbow)
+ src.sysmessageyellow Isso nao e um arco.
+ return 1
+ELIF (<argo.type>==t_weapon_bow) && (<obj.type>!=t_string)
+ src.sysmessageyellow Nao pode fazer isso.
+ return 1
+ELIF (<argo.type>==t_weapon_xbow) && (<obj.baseid>!=i_gears)
+ src.sysmessageyellow Nao pode fazer isso.
  return 1
 ELIF (<argo.morey>)
- src.sysmessagered Voce removeu o barbante antigo.
+ IF (<argo.type>==t_weapon_bow)
+    src.sysmessagered Voce removeu o barbante antigo.
+ ELSE
+    src.sysmessagered Voce removeu a engrenagem antiga.
+ ENDIF
  argo.name=<argo.tag.name>
 ENDIF
+
 //determinar tipo de arco
 if (<argo.baseid>==i_bow)
  LOCAL.arco=<DEF.arco_simples>
@@ -663,11 +674,14 @@ ELIF (<argo.baseid>==i_bow_composite)
  LOCAL.arco=<DEF.arco_composto>
 ELIF (<argo.baseid>==i_bow_elven)
  LOCAL.arco=<DEF.arco_elfico>
+ELIF (<argo.baseid>==i_crossbow)
+ LOCAL.arco=<DEF.besta_simples>
 ELSE
- LOCAL.arco=<DEF.arco_composto>
+ LOCAL.arco=<DEF.besta_pesada>
 ENDIF
-IF !(<obj.more2>&<LOCAL.arco>)
- sysmessageyellow Voce nao pode por um <obj.name> em um <argo.name>
+
+IF !(<obj.more2>&<LOCAL.arco>) && (<obj.type>==t_weapon_bow)
+ sysmessageyellow Voce nao pode por <obj.name> no <argo.name>
  return 1
 endif
 IF (<archery> > <bowcraft>)
@@ -687,8 +701,8 @@ IF (<obj.attr>&0401)
 ELSE
  sfx 04f
 ENDIF
-emoteorange reparando arco
-sysmessageblue Seu <argo.tag.name> foi reparado com sucesso!
+emoteorange reparando <argo.tag.name>
+sysmessageblue <argo.tag.name> reparado com sucesso!
 argo.name=<argo.tag.name> (<obj.name>)
 obj.decrement
 argo.update
