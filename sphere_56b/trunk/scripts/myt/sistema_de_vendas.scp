@@ -20,10 +20,8 @@
 //*****************************************************************************
 //*****************************************************************************
 //TODO:
-//-Fazer escape de strings corretamente nas queries
 //-Limitar as strings que vao nos dialogs (clip)
 //-Definir 'qualidade' para todos os tipos de items
-//-Fazer teste de limite de itens q o vendor aceita no seu banco.
 //-Migrar tipos de items para o banco
 
 //TAGS usadas:
@@ -49,6 +47,8 @@
 [DEFNAME vendor_constants]
 vendor_fee=5                //% de taxa do total que sera retirado pelo NPC na compra.
 vendor_minFeePrice=5        //valor minimo da compra que faz com que o NPC cobre taxa
+vendor_itemsPerPlayer=50    //total de items que um player pode vender
+vendor_itemsPerId=5         //quantos items de mesmo id(tipo) pode ter repetido no vendor
 
 vendor_itemsPerPage=15      //items mostrados na tela do vendedor por pag.
 
@@ -107,6 +107,15 @@ return 1
 SRC.CTAG.vendor_page=1
 SRC.CTAG.vendor_numItems=0
 SRC.CTAG.vendor_op=1    //NPC pega para vender ('compra')
+
+if ( <DB.connected> )
+    DB.QUERY "SELECT COUNT(id) AS CNT FROM vendorItems WHERE idPlayer=<eval <SRC>>"
+    if <DB.ROW.0.CNT> >= <DEF.vendor_itemsPerPlayer>
+        src.sysmessageyellow Voce nao pode colocar mais items a venda. 
+        src.sysmessageyellow O limite e de <eval <DEF.vendor_itemsPerPlayer>> items por jogador.
+        return 0
+    endif
+endif
 
 //varre a bag
 LOCAL.type=<TAG.vendor_type>
@@ -243,6 +252,7 @@ return 1
 //*****************************************************************************
 // vendor_sellItem( item, preco TOTAL, quantidade )
 //*****************************************************************************
+//coloca um item a venda no vendedor
 //preco deve ser na menor moeda de menor valor, neste caso o cobre.
 //
 //SRC deve ser o player vendedor
@@ -254,6 +264,14 @@ OBJ=<argv[0]>
 if !(<DB.connected>)
     src.sysmessage Erro. O item nao foi colocado a venda.
     return 1
+endif
+
+DB.QUERY "SELECT COUNT(id) AS CNT FROM vendorItems WHERE idPlayer=<eval <SRC>> AND defName='<OBJ.baseid>'"
+serv.log achou <eval <DB.ROW.0.CNT>> items do mesmo tipo <OBJ.baseid>
+if <DB.ROW.0.CNT> >= <DEF.vendor_itemsPerId>
+    src.sysmessageyellow Voce nao pode colocar o item a venda. 
+    src.sysmessageyellow O limite e de <eval <DEF.vendor_itemsPerId>> items do mesmo tipo.
+    return 0
 endif
 
 //acerta quantidade desejada
@@ -1046,6 +1064,7 @@ SRC.CTAG.vendor_selectedOwner=<SRC.CTAG0.vendor_owners<eval <argn> - 1000>>
 if (<SRC.CTAG0.vendor_op>==3)
     vendor_takebackItem <SRC.CTAG.vendor_selectedItem>,<src>
     SAY Aqui esta, volte sempre.
+    vendor_buySellTrigger
 else
     dialog d_vendor_item_detail
 endif
