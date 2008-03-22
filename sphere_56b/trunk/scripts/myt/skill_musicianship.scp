@@ -125,7 +125,7 @@ return 1
 // PROVOCATION
 //***********************************************************************
 [SKILL 22]
-DEFNAME=SKILL_PROVOCATION
+//DEFNAME=SKILL_PROVOCATION
 KEY=Provocation
 TITLE=Bard
 PROMPT_MSG=@036 Quem voce gostaria de incitar?
@@ -161,7 +161,7 @@ ON=@Abort
 // ENTICEMENT
 //***********************************************************************
 [SKILL 15]
-DEFNAME=Skill_Enticement
+//DEFNAME=Skill_Enticement
 KEY=Enticement
 TITLE=Bard
 PROMPT_MSG=Quem voce gostaria de incitar?
@@ -185,7 +185,7 @@ ON=@Abort
 // PEACEMAKING
 //***********************************************************************
 [SKILL 9]
-DEFNAME=SKILL_PEACEMAKING
+//DEFNAME=SKILL_PEACEMAKING
 KEY=Peacemaking
 TITLE=Bard
 PROMPT_MSG=
@@ -209,7 +209,7 @@ ON=@Abort
 // MUSICIANSHIP
 //***********************************************************************
 [SKILL 29]
-DEFNAME=Skill_Musicianship
+//DEFNAME=Skill_Musicianship
 KEY=Musicianship
 TITLE=Bard
 PROMPT_MSG=
@@ -237,7 +237,7 @@ IF (<tag0.bard.action>==BARD_ACTION_PLAY)
         sysmessageyellow Voce tocou muito mal.
     ENDIF
 ELIF (<tag0.bard.action>==BARD_ACTION_SONG)
-    TRY <DEF.BARD_P<tag0.bard.item>_FUNC>
+    TRY <DEF.BARD_P<hval <tag0.bard.item>>_FUNC>
 ELSE
     INSTRUMENT
     emoteyellow tocando <act.name>
@@ -317,7 +317,7 @@ IF (<IsGM>)
 ENDIF
 
 //Testa se tem mana
-LOCAL.mana=<DEF.BARD_P<tag0.bard.item>_MANA>
+LOCAL.mana=<DEF.BARD_P<hval <tag0.bard.item>>_MANA>
 IF <MANA> < <LOCAL.mana>
     sysmessagered Voce nao tem mana o suficiente.
     return 0
@@ -326,9 +326,9 @@ MANA -= <LOCAL.mana>
 
 //Testa a skill
 SKILL_GAIN Skill_Musicianship
-IF (!<BELLTEST <MUSICIANSHIP>,<DEF.BARD_P<tag0.bard.item>_DIF>>)
-    IF (!<IsEmpty <DEF.BARD_P<tag0.bard.item>_FAIL>>)
-        sysmessagered <DEF.BARD_P<tag0.bard.item>_FAIL>
+IF (!<BELLTEST <MUSICIANSHIP>,<DEF.BARD_P<hval <tag0.bard.item>>_DIF>>)
+    IF (!<IsEmpty <DEF.BARD_P<hval <tag0.bard.item>>_FAIL>>)
+        sysmessagered <DEF.BARD_P<hval <tag0.bard.item>>_FAIL>
     ELSE
         sysmessagered Voce falhou.
     ENDIF
@@ -341,9 +341,6 @@ return 1
 //                 FUNÇÕES DE PODER
 //***********************************************************************
 //***********************************************************************
-
-[FUNCTION BARDSONG_PLAY]
-RETURN 0
 
 //***********************************************************************
 //                 Encorajar
@@ -369,7 +366,7 @@ LOCAL.timer=<f_rangeValue 0,35,<musicianship>>
 //sysmessageyellow r:<dLOCAL.r> moddam:<dLOCAL.moddam> modar:<dLOCAL.modar>
 OBJ=<UID>
 FORCHARS <LOCAL.r>
- IF (!<IsMyEnemy <OBJ.UID>>) && ((<IsMyMaster <OBJ.UID>>) || (<IsPlayer>)) && (!<RESTEST 4 i_mry_COMBAT_MODS>)
+ IF (!<IsMyEnemy <OBJ>>) && ((<IsMyMaster <OBJ>>) || (<IsPlayer>)) && (!<RESTEST 4 i_mry_COMBAT_MODS>)
   EFFETCT_BARDSONG_VALOR <LOCAL.timer>,<LOCAL.modar>,<LOCAL.moddam>
  ENDIF
 ENDFOR
@@ -377,10 +374,10 @@ ENDFOR
 [FUNCTION EFFETCT_BARDSONG_VALOR]
 //EFFECT_BARDSON_VALOR <time>,<MODAR>,<MODDAM>
 serv.newitem i_mry_COMBAT_MODS
-new.more1=<argv[1]>
-new.more2=<argv[2]>
-equip <new.UID>
-new.timer=<argv[0]>
+new.more1=<argv1>
+new.more2=<argv2>
+equip <new>
+new.timer=<argv0>
 message=@02, *encorajad<sex o/a>* 
 sysmessagegreen Voce se sente mais corajos<sex o/a>!
 
@@ -406,10 +403,14 @@ return 1
 //***********************************************************************
 
 [FUNCTION BARDSONG_LULABY]
+IF !(<INSTRUMENT PEACE>)
+ sysmessagered Voce nao tem um instrumento
+ return 1
+endif
 emoteyellow entoa uma cancao de ninar
 events +e_no_attack
 events +e_no_dclick
-INSTRUMENT
+cTAG.DISTURB
 TIMERF 3,_BARDSONG_LULABY
 
 [FUNCTION _BARDSONG_LULABY]
@@ -417,15 +418,14 @@ IF !(<INSTRUMENT PEACE>)
  sysmessagered Voce nao tem um instrumento
  return 1
 endif
-IF (<FLAGS>&statf_war|statf_dead|statf_freeze|statf_stone) || (<cTAG0.DISTURB>) || (!<IsOnline>) || (!<BARDSONG_TEST>) || (!<R12>)
+IF (<f_isDisturbed>) || (<cTAG0.DISTURB>) || (!<IsOnline>) || (!<BARDSONG_TEST>)
  sysmessagered Voce foi perturbado
  emotered para de cantar
  events -e_no_attack
  events -e_no_dclick
- cTAG.DISTURB
  return 1
 ENDIF
-DOSWITCH <EVAL <cTAG.ESTROFE>>
+DOSWITCH <EVAL <cTAG0.ESTROFE>>
  say=@06 E nessa cancao
  say=@06 cancao de ninar
  say=@06 Pode dormir
@@ -441,8 +441,8 @@ IF (<cTAG0.ESTROFE>=8)
 ENDIF
 OBJ=<UID>
 FORCHARS 6
- IF ((<IsMyEnemy <OBJ.UID>>) || (!<IsPlayer>)) && (!<IsMyMaster <OBJ.UID>>) && (<obj.CanSeeLos <UID>>) && (<UID> != <obj.uid>)
-  EFFETCT_BARDSONG_LULABY <OBJ.UID>
+ IF ((<IsMyEnemy <OBJ>>) || (!<IsPlayer>)) && (!<IsMyMaster <OBJ>>) && (<obj.CanSeeLos <UID>>) && (<UID> != <obj>)
+  EFFETCT_BARDSONG_LULABY <OBJ>
  ENDIF
 ENDFOR
 TIMERF 3,_BARDSONG_LULABY
@@ -463,7 +463,7 @@ IF (!<RESTEST 4 i_mry_COMBAT_MODS>)
  serv.newitem i_mry_COMBAT_MODS
  new.more1=-<BETWEEN 0,25,<obj.Musicianship>,2000>
  new.more2=-<BETWEEN 0,4,<obj.Musicianship>,2000>
- equip <new.UID>
+ equip <new>
  new.timer=<BETWEEN 0,120,<obj.Musicianship>,2000>
  sysmessageorange Voce se sente sonolent<sex o/a>...
 ENDIF
@@ -487,8 +487,8 @@ IF (!<BARDSONG_TEST>)
 ENDIF
 OBJ=<UID>
 FORCHARS 12
- IF ((<IsMyEnemy <OBJ.UID>>) || (!<IsPlayer>)) && (!<IsMyMaster <OBJ.UID>>) && (<CanSeeLos <OBJ.UID>>) && (<UID> != <obj.uid>)
-  EFFETCT_BARDSONG_CHARM <OBJ.UID>
+ IF ((<IsMyEnemy <OBJ>>) || (!<IsPlayer>)) && (!<IsMyMaster <OBJ>>) && (<CanSeeLos <OBJ>>) && (<UID> != <obj>)
+  EFFETCT_BARDSONG_CHARM <OBJ>
  ENDIF
 ENDFOR
 
@@ -513,7 +513,7 @@ if (!<argo>)
 ELIF (!<ARGO.ISCHAR>)
  sysmessagered Seu alvo deve ser uma criatura.
  RETURN 0
-ELIF (<ARGO.UID>==<UID>)
+ELIF (<ARGO>==<UID>)
  emoteyellow toca notas terriveis
  INSTRUMENT BAD
  sysmessagered Nao funciona apontar o som para voce <SEX mesmo/mesma>.
@@ -543,37 +543,20 @@ TIMERF <BETWEEN2 2,6,<musicianship>,200.0>,_BARDSONG_SCARE
 [FUNCTION _BARDSONG_SCARE]
 OBJ=<UID>
 FORCHARS 8
- IF ((<IsMyEnemy <OBJ.UID>>) || (!<IsPlayer>)) && (!<IsMyMaster <OBJ.UID>>) && (<CanSeeLos <OBJ.UID>>) && (<UID> != <obj.uid>)
-  EFFETCT_BARDSONG_SCARE <OBJ.UID>
+ IF ((<IsMyEnemy <OBJ>>) || (!<IsPlayer>)) && (!<IsMyMaster <OBJ>>) && (<CanSeeLos <OBJ>>) && (<UID> != <obj>)
+  EFFETCT_BARDSONG_SCARE <OBJ>
  ENDIF
 ENDFOR
 
 [FUNCTION EFFETCT_BARDSONG_SCARE]
 if (<OBJ.BARDSONG_TEST>) && (<R<INT>> <= <obj.int>)
  emotered apavorado
- flags ^= statf_war
+ flags &= ~statf_war
  events +e_scared
  timerf <BETWEEN 10,40,<obj.musicianship>,200.0>,events,-e_scared
 else
  message=@036, *nem liga*
 endif
-
-[EVENTS e_scared]
-on=@NPCActFight
-argn2=-20
-
-on=@USERWARMODE
-sysmessagered Voce esta muito assustado para lutar.
-flags ^= statf_war
-return 1
-
-on=@SpellSelect
-sysmessagered Voce esta muito assustado para se concentrar.
-return 1
-
-ON=@SKILLSTART
-sysmessagered Voce esta muito assustado para se concentrar.
-return 1
 
 //***********************************************************************
 //***********************************************************************
@@ -720,12 +703,12 @@ dtext 256 171 2100 Alegre
 dtext 248 40 4 Slecione a melodia
 page 3
 dtext 57 38 4 Cancao bardica
-dtext 39 58 2100 <DEF.BARD_P<tag0.bard.page>_NAME>
+dtext 39 58 2100 <DEF.BARD_P<hval <tag0.bard.page>>_NAME>
 dtext 39 91 4 Mana:
-dtext 80 91 2100 <EVAL <DEF.BARD_P<tag0.bard.page>_MANA>>
+dtext 80 91 2100 <EVAL <DEF.BARD_P<hval <tag0.bard.page>>_MANA>>
 dtext 39 111 4 Dificuldade:
-dtext 117 111 2100 <DEF.BARD_P<tag0.bard.page>_DIF>
-dhtmlgump 226 69 161 136 0 1 <DEF.BFONT_DGRAY><DEF.BARD_P<tag0.bard.page>_DESC>
+dtext 117 111 2100 <DEF.BARD_P<hval <tag0.bard.page>>_DIF>
+dhtmlgump 226 69 161 136 0 1 <DEF.BFONT_DGRAY><DEF.BARD_P<hval <tag0.bard.page>>_DESC>
 dtext 266 43 67 Descricao
 button 67 169 2472 2473 1 0 33
 dtext 96 173 2100 Selecionar
@@ -843,7 +826,7 @@ ON=33
 // Select song
 tag.bard.action=BARD_ACTION_SONG
 tag.bard.item=<tag0.bard.page>
-sysmessagegreen Cancao bardica: <DEF.BARD_P<tag.bard.item>_NAME>
+sysmessagegreen Cancao bardica: <DEF.BARD_P<hval <tag0.bard.page>>_NAME>
 DIALOG d_book_bard 1
 
 ON=31
@@ -868,11 +851,11 @@ ON=51
 IF (<tag0.bard.action>==BARD_ACTION_PLAY)
  RETURN <DEF.BARD_PLAY_<tag.bard.item>>
 ELIF (<tag0.bard.action>==BARD_ACTION_SONG)
- RETURN <DEF.BARD_P<tag0.bard.item>_NAME>
+ RETURN <DEF.BARD_P<hval <tag0.bard.item>>_NAME>
 ENDIF
 
 [FUNCTION f_book_bard_page_next]
-LOCAL.page=<tag0.bard.page>
+LOCAL.page=<hval <tag0.bard.page>>
 WHILE (!<IsEmpty <DEF.BARD_P<hval <LOCAL.page>+1>_NAME>>)
  LOCAL.page += 1
  IF (!<IsEmpty <DEF.BARD_P<LOCAL.page>_NAME>>)
@@ -887,7 +870,7 @@ tag.bard.page=<LOCAL.page>
 DIALOG d_book_bard 3
 
 [FUNCTION f_book_bard_page_previous]
-LOCAL.page=<tag0.bard.page>
+LOCAL.page=<hval <tag0.bard.page>>
 WHILE (<LOCAL.page>)
  LOCAL.page -= 1
  IF (<LOCAL.page>)
