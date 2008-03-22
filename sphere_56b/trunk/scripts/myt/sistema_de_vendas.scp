@@ -51,6 +51,7 @@ vendor_itemsPerPlayer=50    //total de items que um player pode vender
 vendor_itemsPerId=5         //quantos items de mesmo id(tipo) pode ter repetido no vendor
 
 vendor_itemsPerPage=15      //items mostrados na tela do vendedor por pag.
+vendor_weeksToExpire=4      //quantas semanas leva pra o item ser devolvido se nao for vendido
 
 vendor_type_weapons=1       //lista dos tipos de vendedores
 vendor_type_armor=2
@@ -442,7 +443,7 @@ endif
 return 1
 
 //*****************************************************************************
-// vendor_takebackItem( item, destination )
+// vendor_takebackItem( item, destination,[idInDb] )
 //*****************************************************************************
 //SRC deve ser o player comprador
 //DEFAULT deve ser o NPC vendor
@@ -455,14 +456,13 @@ if !(<DB.connected>)
     return 1
 endif
 
-//pega detalhes do item
-DB.QUERY "SELECT id, timestamp, idVendor, idPlayer, playerName, itemType FROM vendorItems WHERE idItem=<eval <OBJ>>"
-LOCAL.id    = <DB.ROW.id>
-LOCAL.timestamp = <DB.ROW.timestamp>
-LOCAL.idVendor  = <DB.ROW.idVendor>
-LOCAL.idPlayer  = <DB.ROW.idPlayer>
-LOCAL.itemType  = <DB.ROW.itemType>
-LOCAL.playerName = <DB.ROW.playerName>
+if !<argv2>
+    //pega detalhes do item
+    DB.QUERY "SELECT id, timestamp, idVendor, idPlayer, playerName, itemType FROM vendorItems WHERE idItem=<eval <OBJ>>"
+    LOCAL.id    = <DB.ROW.id>
+else
+    LOCAL.id    = <argv2>
+endif
 
 //remove item da lista de vendas (e duplicatas caso haja... nunca se sabe)
 DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>>"
@@ -737,7 +737,7 @@ if ( <DB.connected> )
                 if (!<LOCAL.p>)
                     LOCAL.rp=<dLOCAL.r>
                 else
-                    LOCAL.rp=<LOCAL.rp>,<dLOCAL.r>
+                    LOCAL.rp=<dLOCAL.rp>,<dLOCAL.r>
                 endif
                 LOCAL.p += 1
                 serv.log [VENDOR] INVALID PLAYER: <LOCAL.r>
@@ -746,7 +746,7 @@ if ( <DB.connected> )
                 if (!<LOCAL.i>)
                     LOCAL.ri=<dLOCAL.r>
                 else
-                    LOCAL.ri=<LOCAL.ri>,<dLOCAL.r>
+                    LOCAL.ri=<dLOCAL.ri>,<dLOCAL.r>
                 endif
                 LOCAL.i += 1
                 serv.log [VENDOR] INVALID ITEM: <LOCAL.r>
@@ -757,15 +757,70 @@ endif
 serv.log [VENDOR] - <eval <DB.ROW.NUMROWS>> itens scanned
 
 if (<LOCAL.p>)
-    DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer IN (<LOCAL.rp>)>"
+    DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer IN (<LOCAL.rp>)"
 endif
 
 if (<LOCAL.i>)
-    DB.EXECUTE "DELETE FROM vendorItems WHERE idItem IN (<LOCAL.ri>)>"
+    DB.EXECUTE "DELETE FROM vendorItems WHERE idItem IN (<LOCAL.ri>)"
 endif
 
 serv.log [VENDOR] - <LOCAL.p> players removed, <LOCAL.i> itens removed.
 
+//*****************************************************************************
+// vendor_cleanup
+//*****************************************************************************
+//remove expired itens
+[FUNCTION vendor_cleanup]
+
+LOCAL.i=0
+LOCAL.p=0
+LOCAL.b=0
+
+//varre o banco
+if ( <DB.connected> )
+    DB.QUERY "SELECT id, timestamp, idItem, idPlayer FROM vendorItems WHERE timestamp < NOW() - INTERVAL <DEF.vendor_weeksToExpire> WEEK order by timestamp"
+    if (<DB.ROW.NUMROWS> > 0)
+        for R 0 <eval <DB.ROW.NUMROWS>-1>
+            REF3=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+            REF2=<DB.ROW.<eval <LOCAL.R>>.idItem>
+            if (!<REF3>)
+                LOCAL.r=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+                if (!<LOCAL.p>)
+                    LOCAL.rp=<dLOCAL.r>
+                else
+                    LOCAL.rp=<dLOCAL.rp>,<dLOCAL.r>
+                endif
+                LOCAL.p += 1
+                serv.log [VENDOR] INVALID PLAYER: <LOCAL.r>
+            elif (!<REF2>)
+                LOCAL.r=<DB.ROW.<eval <LOCAL.R>>.idItem>
+                if (!<LOCAL.i>)
+                    LOCAL.ri=<dLOCAL.r>
+                else
+                    LOCAL.ri=<dLOCAL.ri>,<dLOCAL.r>
+                endif
+                LOCAL.i += 1
+                serv.log [VENDOR] INVALID ITEM: <LOCAL.r>
+            else
+                LOCAL.b += 1
+                vendor_takebackItem <REF2>,<REF3>,<DB.ROW.<eval <LOCAL.R>>.id>
+                f_sendMessage <REF3>,A venda do seguinte item expirou: <REF2.name>,SM_YELLOW
+                serv.log [VENDOR] EXPIRED ITEM: <REF2> do <REF3> com data <DB.ROW.<eval <LOCAL.R>>.timestamp>
+            endif
+        end
+    endif
+endif
+serv.log [VENDOR] - <eval <DB.ROW.NUMROWS>> itens scanned
+
+if (<LOCAL.p>)
+    DB.EXECUTE "DELETE FROM vendorItems WHERE idPlayer IN (<LOCAL.rp>)"
+endif
+
+if (<LOCAL.i>)
+    DB.EXECUTE "DELETE FROM vendorItems WHERE idItem IN (<LOCAL.ri>)"
+endif
+
+serv.log [VENDOR] - <dLOCAL.p> players removed, <dLOCAL.i> itens removed, <dLOCAL.b> returned.
 
 //*****************************************************************************
 // f_onchar_delete
