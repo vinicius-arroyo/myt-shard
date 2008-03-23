@@ -70,34 +70,39 @@ ON=@create
 more1=0
 
 ON=@timer
-timer=1
+timer=-1
 
 if (!<cont.isonline>)
     cont.hiding_leave
-    remove
+    timerf 5,remove
     return 1
 elif (<cont.npc>)
     //
 elif (<cont.findlayer.layer_hand1.type> == t_light_lit) || (<cont.findlayer.layer_hand2.type> == t_light_lit)
     cont.sysmessageyellow Apague tochas e lampioes...
     cont.hiding_leave
-    remove
+    timerf 5,remove
     return 1
 //statf_dead|statf_freeze|statf_sleeping|statf_war|statf_poisoned|statf_polymorph|statf_stone|statf_hallucinating|statf_onhorse|statf_spiritspeak
 elif (<cont.flags>&0804414b6) || (<cont.ctag0.disturb>)
     cont.sysmessageyellow Voce esta visivel// 2! <hval <cont.flags>&0804404b6>
     cont.hiding_leave
-    remove
+    timerf 5,remove
     return 1
 endif
 
 if !(<more1>)
     cont.skill_gain SKILL_HIDING
-//    serv.log [hiding] testando <eval <cont.hiding>> contra <eval <cont.tag0.light_lvl>*30>
-    if (<R<cont.hiding>> < <eval <cont.tag0.light_lvl>*30>)
+    
+    //dif base entre 10% e 90% de acordo com luz
+    LOCAL.dif=<between 100,900,<cont.tag0.light_lvl>,30>
+    LOCAL.dif=<eval 1000-<LOCAL.dif>>
+    
+    serv.log [hiding] testando <eval <cont.hiding>> contra dif <dLOCAL.dif> e light <eval <cont.tag0.light_lvl>>
+    if ( !<belltest <cont.hiding>,<LOCAL.dif>,200> )
         cont.sysmessagered Voce nao conseguiu se esconder
         cont.hiding_leave
-        remove
+        timerf 5,remove
         return 1
     else
         cont.sysmessagegreen Conseguiu se esconder
@@ -109,20 +114,26 @@ else
     LOCAL.d=<cont.distance <tag0.p>>
     if (<LOCAL.d> > 0)
         cont.skill_gain SKILL_STEALTH
+
+        //dif base entre 10% e 90% de acordo com luz
+        LOCAL.dif=<between 100,900,<cont.tag0.light_lvl>,30>
+        LOCAL.dif=<eval 1000-<LOCAL.dif>>
     
-        if !(<cont.region.flags>&region_flag_underground)
-            LOCAL.d=<eval (<cont.tag0.light_lvl>+1)*<LOCAL.d>>
-        endif
-//        serv.log [stealth] testando <eval <cont.stealth>> contra < <eval 20*<local.d>>
-        if (<R<cont.stealth>> < <eval 20*<local.d>>)
+        //soma com 15% por passo dado em 1 segundo
+        LOCAL.dif=<eval <LOCAL.dif>+(<LOCAL.d>*150)>
+        
+        serv.log [stealth] testando <eval <cont.stealth>> contra dif <dLOCAL.dif> e light <eval <cont.tag0.light_lvl>>
+        if ( !<belltest <cont.stealth>,<LOCAL.dif>,200> )
             cont.sysmessageyellow Voce esta visivel!
             cont.hiding_leave
-            remove
+            timerf 5,remove
+            return 1
         endif    
     endif
 endif
 
 tag.p=<cont.p>
+timer=1
 return 1
 
 //*****************************************************************************
