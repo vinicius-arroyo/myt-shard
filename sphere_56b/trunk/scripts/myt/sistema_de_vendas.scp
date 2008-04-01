@@ -38,6 +38,41 @@
 //src.ctag.vendor_newNpcType    //tipo do npc sendo criado
 //npc.tag.vendor_type       //tipo do npc
 
+//CREATE TABLE  `mytserver`.`vendorItems` (
+//  `id` int(10) unsigned NOT NULL auto_increment,
+//  `timestamp` datetime NOT NULL,
+//  `idVendor` int(10) unsigned NOT NULL,
+//  `idPlayer` int(10) unsigned NOT NULL,
+//  `idItem` int(10) unsigned NOT NULL,
+//  `quantity` int(10) unsigned NOT NULL,
+//  `price` float NOT NULL,
+//  `playerName` varchar(45) NOT NULL,
+//  `itemType` enum('Weapon','Armor','Magic','Food','Misc','Clothes','Raw') NOT NULL,
+//  `defName` varchar(30) NOT NULL,
+//  `itemName` varchar(45) NOT NULL
+//  PRIMARY KEY  (`id`),
+//  KEY `byItemId` (`idItem`),
+//  KEY `byType` (`itemType`)
+//) ENGINE=MyISAM AUTO_INCREMENT=14115 DEFAULT CHARSET=latin1;
+
+//CREATE TABLE  `mytserver`.`tradeItems` (
+//  `id` int(10) unsigned NOT NULL auto_increment,
+//  `postDate` datetime NOT NULL,
+//  `sellDate` datetime NOT NULL,
+//  `idVendor` int(10) unsigned NOT NULL,
+//  `idPlayerVendor` int(10) unsigned NOT NULL,
+//  `idPlayerBuyer` int(10) unsigned NOT NULL,
+//  `playerVendorName` varchar(45) NOT NULL,
+//  `playerBuyerName` varchar(45) NOT NULL,
+//  `idItem` int(10) unsigned NOT NULL,
+//  `quantity` int(10) unsigned NOT NULL,
+//  `price` float NOT NULL,
+//  `itemType` enum('Weapon','Armor','Magic','Food','Misc','Clothes','Raw') NOT NULL,
+//  `itemName` varchar(45) NOT NULL,
+//  `defName` varchar(30) NOT NULL,
+//  PRIMARY KEY  (`id`)
+//) ENGINE=MyISAM AUTO_INCREMENT=8155 DEFAULT CHARSET=latin1;
+
 //*****************************************************************************
 //*****************************************************************************
 // DEFNAMEs
@@ -107,7 +142,7 @@ return 1
 [FUNCTION vendor_createPlayerList]
 SRC.CTAG.vendor_page=1
 SRC.CTAG.vendor_numItems=0
-SRC.CTAG.vendor_op=1    //NPC pega para vender ('compra')
+//SRC.CTAG.vendor_op=1    //NPC pega para vender ('compra')
 
 if ( <DB.connected> )
     DB.QUERY "SELECT COUNT(id) AS CNT FROM vendorItems WHERE idPlayer=<eval <SRC>>"
@@ -264,15 +299,20 @@ OBJ=<argv[0]>
 
 if !(<DB.connected>)
     src.sysmessage Erro. O item nao foi colocado a venda.
-    return 1
+    return 0
 endif
 
-DB.QUERY "SELECT COUNT(id) AS CNT FROM vendorItems WHERE idPlayer=<eval <SRC>> AND defName='<OBJ.baseid>'"
-serv.log achou <eval <DB.ROW.0.CNT>> items do mesmo tipo <OBJ.baseid>
-if <DB.ROW.0.CNT> >= <DEF.vendor_itemsPerId>
-    src.sysmessageyellow Voce nao pode colocar o item a venda. 
-    src.sysmessageyellow O limite e de <eval <DEF.vendor_itemsPerId>> items do mesmo tipo.
-    return 0
+//nao verifica limites se for venda do reino
+if ( <SRC.CTAG0.vendor_op>==1 )
+    DB.QUERY "SELECT COUNT(id) AS CNT FROM vendorItems WHERE idPlayer=<eval <SRC>> AND defName='<OBJ.baseid>'"
+    if <DB.ROW.0.CNT> >= <DEF.vendor_itemsPerId>
+        src.sysmessageyellow Voce nao pode colocar o item a venda. 
+        src.sysmessageyellow O limite e de <eval <DEF.vendor_itemsPerId>> items do mesmo tipo.
+        return 0
+    endif
+    OBJ.tag.guildItem=
+else
+    OBJ.tag.guildItem=1
 endif
 
 //acerta quantidade desejada
@@ -422,14 +462,21 @@ if (<region.tag0.town_type>)
     region.tag0.town_tresure += <LOCAL.fee>
 endif
 
-//transfere o dinheiro para o banco do player vendedor
-SERV.newitem i_coin_copper
-NEW.amount=<LOCAL.paycheck>
-NEW.cont=<uid.<LOCAL.idPlayer>.findlayer.layer_bankbox.uid>
-
 SAY Obrigado pela compra e volte sempre!
 
-f_sendMessage <LOCAL.idPlayer>,Voce vendeu <eval <LOCAL.amount>> <OBJ.name> por <eval <LOCAL.totalPrice>>. <eval <LOCAL.paycheck>> esta no banco.,SM_GREEN
+//se for item da guilda mercante e NPC em uma town
+if (<OBJ.tag0.guildItem>) && (<region.tag0.town_type>)
+    f_sendMessage <LOCAL.idPlayer>,Voce vendeu <eval <LOCAL.amount>> <OBJ.name> por <eval <LOCAL.totalPrice>>.O reino agradece.,SM_GREEN
+    region.tag0.town_tresure += <LOCAL.paycheck>
+    OBJ.tag0.guildItem=
+else
+    //transfere o dinheiro para o banco do player vendedor
+    SERV.newitem i_coin_copper
+    NEW.amount=<LOCAL.paycheck>
+    NEW.cont=<uid.<LOCAL.idPlayer>.findlayer.layer_bankbox.uid>
+
+    f_sendMessage <LOCAL.idPlayer>,Voce vendeu <eval <LOCAL.amount>> <OBJ.name> por <eval <LOCAL.totalPrice>>. <eval <LOCAL.paycheck>> esta no banco.,SM_GREEN
+endif
 
 //insere na lista de trocas
 if (<strpos 0 . <argv[1]>> > 0)
@@ -437,7 +484,6 @@ if (<strpos 0 . <argv[1]>> > 0)
 else
     DB.EXECUTE "INSERT INTO tradeItems SET postDate='<LOCAL.timestamp>',sellDate=NOW(),idVendor=<eval <LOCAL.idVendor>>,idPlayerVendor=<eval <LOCAL.idPlayer>>,idPlayerBuyer=<eval <SRC.uid>>,playerVendorName='<DB.ESCAPEDATA <LOCAL.playerName>>',playerBuyerName='<DB.ESCAPEDATA <SRC.TAG.name>>',idItem=<eval <OBJ>>,quantity=<eval <LOCAL.amount>>,price=<eval <argv[1]>>,itemType='<LOCAL.itemType>', itemName='<DB.ESCAPEDATA <OBJ.name>>',defName='<OBJ.baseid>'"
 endif
-
 
 
 return 1
@@ -473,6 +519,7 @@ REF1=<OBJ.cont>
 //entrega item ao player 
 OBJ.cont=<uid.<argv1>.findlayer.layer_pack>
 OBJ.sfx 87
+OBJ.tag.guildItem=
 
 //remove bag de 'protecao'
 REF1.remove
@@ -689,7 +736,7 @@ dialogclose d_vendor_categories
 dialogclose d_vendor_list
 dialogclose d_vendor_item_detail
 
-if ( <SRC.CTAG0.vendor_op>==1 )
+if ( <SRC.CTAG0.vendor_op>==1 ) || ( <SRC.CTAG0.vendor_op>==4 )
     vendor_createPlayerList
     if ( <SRC.CTAG0.vendor_numItems> < 1 )
         message Voce nao tem nada que eu possa vender.
@@ -1028,13 +1075,14 @@ doswitch <SRC.CTAG0.vendor_op>
     dtext 12 9 37 Selecione o que deseja vender:
     dtext 12 9 37 Selecione para ver mais detalhes:
     dtext 12 9 37 Selecione o que quer retirar:
+    dtext 12 9 37 Selecione o que deseja vender pelo reino:
 enddo
 
 dorigin 14 29
 dtext *0 *0 0  
 dtext +25 - 2100 Quant.
 dtext +70 - 2100 Nome.
-if ( <SRC.CTAG0.vendor_op>!=1 )
+if ( <SRC.CTAG0.vendor_op>!=1 ) && ( <SRC.CTAG0.vendor_op>!=4 )
     dtext +440 - 2100 Preco Un.
     dtext +510 - 2100 Vendedor
 endif
@@ -1060,11 +1108,13 @@ for x  <LOCAL.startItem> <LOCAL.endItem>
             LOCAL.name=[i] <LOCAL.name>
         endif
     endif
-
+    if (<OBJ.tag0.guildItem>)
+        LOCAL.name=[r] <LOCAL.name>
+    endif
     //cria entrada no dialog
     button - *20 2117 2118 1 0 <eval (1000 + <LOCAL.x>)>
     dtext +25 -3 2100 <OBJ.amount>
-    if ( <SRC.CTAG0.vendor_op>==1 )
+    if ( <SRC.CTAG0.vendor_op>==1 ) ||  ( <SRC.CTAG0.vendor_op>==4 )
         dtext +70 -3 2100 <LOCAL.name>
     else
         dtext +70 -3 2100 <strsub 0 50 <LOCAL.name>>
@@ -1163,7 +1213,7 @@ button 16 225 12015 12017 1 0 1
 button 229 225 12000 12002 1 0 2
 dhtmlgump 14 36 225 100 1 1 <LOCAL.desc>
 
-if ( <SRC.CTAG0.vendor_op>==1 )
+if ( <SRC.CTAG0.vendor_op>==1 ) || ( <SRC.CTAG0.vendor_op>==4 )
     dtext 14 140 2100 Vendedor: <SRC.TAG.name>
     dtext 14 160 2100 Preco Total:
     gumppic 90 158 2443
@@ -1200,7 +1250,7 @@ dialog d_vendor_list
 ON=2
 // btAccept
 OBJ=<SRC.CTAG.vendor_selectedItem>
-if (<SRC.CTAG0.vendor_op>==1)
+if (<SRC.CTAG0.vendor_op>==1) || (<SRC.CTAG0.vendor_op>==4)
     //campos devem ser numericos, preco deve ser maior igual a 1 e a quantidade deve estar correta
     if !(<isnum <argtxt[1]>>) || !(<isnum <argtxt[2]>>) || (<argtxt[1]> < 1) || (!<argtxt[2]>) || (<argtxt[2]> > <OBJ.amount>)
         src.sysmessage Campos invalidos. Entre com os dados novamente.
@@ -1476,6 +1526,12 @@ DESCRIPTION=Vendedor (Anao)
 // jobVENDOR
 //*****************************************************************************
 [SPEECH jobVENDOR]
+ON=*quero*vender*pelo*reino
+
+    SRC.CTAG.vendor_op=4
+    vendor_buySellTrigger
+    return 1
+
 ON=*gostaria*vender*
 ON=*quero*vender*
 
@@ -1499,7 +1555,7 @@ ON=*retirar*
     SRC.CTAG.vendor_op=3
     vendor_buySellTrigger
     return 1
-
+   
 ON=limpeza
     if ( <SRC.isGM> )
 
