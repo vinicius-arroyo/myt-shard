@@ -159,16 +159,19 @@ return 1
 
 ON=@DCLICK
 if (<src.distance <P>> > 1)
- SRC.SYSMESSAGEYELLOW Voce esta muito lonje.
- return 1
-endif
-if (<morex>)
+    src.sysmessageyellow Voce esta muito longe.
+    return 1
+elif (<src.ctag0.busy> > <serv.time>)
+    src.sysmessageyellow Deve esperar antes de tentar novamente.
+    return 1
+elif (<morex>)
+    src.ctag.busy=<eval <serv.time>+20>
     src.f_colhe <tag.fruto>
     if (<morex>==1)
-        timer=tempo_de_decay_planta
+        timer=<def.tempo_de_decay_planta>
     endif
     morex -= 1
-elif (!<morex>) && (!<isEmpty <tag.semente>>)
+elif (!<isEmpty <tag.semente>>)
     src.f_sementes <tag.semente>
     timer=1
     tag.semente=
@@ -192,6 +195,41 @@ elif (!<morex>)
  remove
 endif
 return 1
+
+[TYPEDEF t_arvore]
+
+ON=@CREATE
+attr=010
+timer=<def.tempo_de_plantacao>
+more1=0
+more2=0
+
+ON=@TIMER
+more1=1
+more2=<R3,7>
+return 1
+
+ON=@DCLICK
+if ( <src.targ.distance> > 1)
+    src.sysmessageyellow Voce esta muito longe.
+    return 1
+elif (<src.ctag0.busy> > <serv.time>)
+    src.sysmessageyellow Deve esperar antes de tentar novamente.
+    return 1
+elif (<more2>)
+    src.ctag.busy=<eval <serv.time>+10>
+    src.f_colhe <tdata1>
+    more2 -= 1
+    update
+else
+    src.sysmessageyellow Nao ha frutos nessa arvore.
+    if (<more1>==1)
+        timer=<def.tempo_de_plantacao>
+        more1=0
+    endif
+endif
+return 1
+
 
 
 //*****************************************************************************
@@ -233,26 +271,6 @@ else
     return 1
 endif
 
-[ITEMDEF i_mry_colhendo]
-ID=0cb0
-TYPE=T_EQ_SCRIPT
-NAME=Colhendo Planta
-
-ON=@CREATE
-src.act.equip
-TIMER=1
-
-ON=@EQUIP
-if (!<cont.isgm>)
-    cont.flags |= 000000004
-endif
-return 1
-
-ON=@TIMER
-cont.flags ^= 000000004
-remove
-return 1
-
 [FUNCTION F_PLANTA]
 src.newitem=i_mry_planta
 src.act.equip
@@ -260,8 +278,6 @@ RETURN 1
 
 [FUNCTION f_colhe]
 if (<eval <src.findlayer.layer_hand1.id>> == <DEF.ferramenta_para_colher> ) || (<DEF.ferramenta_para_colher>==0)
-    src.newitem=i_mry_colhendo
-    src.act.equip
     src.newitem=<args>
     src.anim 12
     src.act.bounce
@@ -1030,36 +1046,8 @@ return 1
 [ITEMDEF i_arvore_macieira2]
 NAME=macieira
 ID=0cd4
-TYPE=t_script
-
-on=@create
-attr=010
-timer=(tempo_de_plantacao)
-more1=0
-more2=0
-
-on=@timer
-more1=1
-more2=<R3,7>
-return 1
-
-on=@dclick
-if ( <src.targ.distance>>1)
-    SRC.SYSMESSAGE Voce esta muito lonje.
-    return 1
-endif
-if (<more2>>0)
-    src.f_colhe=i_fruit_apple
-    more2 -= 1
-    update
-else
-    src.sysmessage Nao ha frutos nessa arvore.
-    if (<more1>==1)
-        timer=(tempo_de_plantacao)
-        more1=0
-    endif
-endif
-return 1
+TYPE=t_arvore
+TDATA1=i_fruit_apple
 
 // **** parreira ****
 
@@ -1090,39 +1078,8 @@ return 1
 [ITEMDEF i_plan_uva3]
 NAME=parreira
 ID=0ced
-type=t_script
-
-on=@create
-attr=010
-timer=(tempo_de_plantacao)
-more1=0
-more2=0
-
-on=@timer
-more1=1
-more2=<R3,7>
-return 1
-
-on=@dclick
-if ( <src.targ.distance>>1)
-    SRC.SYSMESSAGE Voce esta muito lonje.
-    return 1
-endif
-if (<more2>>0)
-    src.f_colhe=i_fruit_grapes
-    more2=(<more2>-1)
-    update
-else
-    src.sysmessage Nao ha frutos nessa arvore.
-    if (<more1>==1)
-        timer=(tempo_de_plantacao)
-        more1=0
-    endif
-endif
-return 1
-
-
-
+type=t_arvore
+TDATA1=i_fruit_grapes
 
 [ITEMDEF i_plan_banana1]
 ID=0CAB
@@ -1151,41 +1108,13 @@ return 1
 [ITEMDEF i_plan_banana3]
 NAME=bananeira
 ID=0CAA
-type=t_script
-
-on=@create
-attr=010
-timer=(tempo_de_plantacao)
-more1=0
-more2=0
-
-on=@timer
-more1=1
-more2=<R3,7>
-return 1
-
-on=@dclick
-if ( <src.targ.distance>>1)
-    SRC.SYSMESSAGE Voce esta muito lonje.
-    return 1
-endif
-if (<more2>>0)
-    src.f_colhe=i_fruit_banana
-    more2=(<more2>-1)
-    update
-else
-    src.sysmessage Nao ha frutos nessa arvore.
-    if (<more1>==1
-        timer=(tempo_de_plantacao)
-        more1=0
-    endif
-endif
-return 1
+type=t_arvore
+TDATA1=i_fruit_banana
 
 //################################### Outros #############################
 
 
-*** algodao ***
+//*** algodao ***
 
 [ITEMDEF i_plan_algodao1]
 ID=0cb5
