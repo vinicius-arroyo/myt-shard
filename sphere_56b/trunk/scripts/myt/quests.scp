@@ -2075,8 +2075,8 @@ DESCRIPTION=Chao que vira buraco
 
 on=@dclick
 IF (<more1>)
-	src.sysmessagered Voce ja esta escavando...
-	return 1
+    src.sysmessagered Voce ja esta escavando...
+    return 1
 endif
 IF (<dispid> != 011C5)
  //escavar
@@ -2095,7 +2095,7 @@ else
  endif
  //descer
  if (<src.restest 1 i_corda>)
-  src.f_hole_down <uid>,<link>
+  src.f_climb <uid>,<link>,1
  else
   src.sysmessagered Voce precisa de uma corda para descer
  endif  
@@ -2122,40 +2122,6 @@ else
 endif
 return 1
 
-[FUNCTION f_hole_down]
-//Desce do buraco <argv0> para a corda <argv1>
-cTAG.buraco.de=<argv0>
-cTAG.buraco.para=<argv1>
-cTAG.timer=10
-cTAG.anim = 0
-flags |= 08
-update
-nomove 10
-_f_hole_down
-
-[FUNCTION _f_hole_down]
-if (<cTAG.timer>)
- cTAG.timer -= 1
- doswitch <ctag0.anim>
-  UID.<ctag0.buraco.de>.emotered descendo
-  UID.<ctag0.buraco.para>.emotered descendo
-  UID.<ctag0.buraco.de>.sfx 048
-  sysmessageyellow Voce desce pelo buraco
-  UID.<ctag0.buraco.para>.sfx 03e3
- enddo
- if (<cTAG0.anim> == 5)
-  cTAG.anim = 0
- else
-  cTAG0.anim += 1
- endif
- timerf 1,_f_hole_down
-else
- p=<UID.<cTAG0.buraco.para>.p>
- flags ^= 08
- update
- emotered desceu
-endif
-
 [ITEMDEF i_corda_subir]
 //Corda para subir ate <link>
 ID=i_rope_bundle
@@ -2165,43 +2131,65 @@ CATEGORY=MyT - Quest Items
 SUBSECTION=Teleporters
 DESCRIPTION=Corda para subir ao buraco
 
+on=@create
+more1=0 //0=up 1=down
+
 on=@dclick
-src.f_hope_climb <uid>,<link>
+src.f_climb <uid>,<link>,<more1>
 return 1
 
-[FUNCTION f_hope_climb]
-//Sobe da corda <argv0> para o buraco <argv1>
-cTAG.buraco.de=<argv0>
-cTAG.buraco.para=<argv1>
-cTAG.timer=10
-cTAG.anim=0
-flags |= 08
+[FUNCTION f_climb]
+//vai de <argv0> para <argv1> (<argv2> indica se sobe ou desce)
+//argv2: 0=sobe 1=desce
+cTAG.climb.from=<argv0>
+cTAG.climb.to=<argv1>
+cTAG.climb.timer=10
+cTAG.climb.anim=0
+cTAG.climb.type=<argv2>
+flags |= statf_invisible
 update
 nomove 10
-_f_hope_climb
+_f_climb
 
-[FUNCTION _f_hope_climb]
-if (<cTAG.timer>)
- cTAG.timer -= 1
- doswitch <ctag0.anim>
-  UID.<ctag0.buraco.de>.emotered subindo
-  UID.<ctag0.buraco.para>.emotered subindo
-  UID.<ctag0.buraco.de>.sfx 048
-  sysmessageyellow Voce sobe pelo buraco
-  UID.<ctag0.buraco.para>.sfx 03e3
- enddo
- if (<cTAG0.anim> == 5)
-  cTAG.anim = 0
- else
-  cTAG0.anim += 1
- endif
- timerf 1,_f_hope_climb
+
+[FUNCTION _f_climb]
+if (<cTAG.climb.timer>)
+    cTAG.climb.timer -= 1
+    if <cTAG.climb.type>
+        doswitch <ctag0.climb.anim> 
+            UID.<ctag0.climb.from>.emotered descendo
+            UID.<ctag0.climb.to>.emotered descendo
+            UID.<ctag0.climb.from>.sfx 048
+            sysmessageyellow Voce desce!
+            UID.<ctag0.climb.to>.sfx 03e3
+        enddo            
+    else
+        doswitch <ctag0.climb.anim>
+            UID.<ctag0.climb.from>.emotered subindo
+            UID.<ctag0.climb.to>.emotered subindo
+            UID.<ctag0.climb.from>.sfx 048
+            sysmessageyellow Voce sobe!
+            UID.<ctag0.climb.to>.sfx 03e3
+        enddo
+    endif
+    
+    if (<cTAG0.climb.anim> == 5)
+        cTAG.climb.anim = 0
+    else
+        cTAG0.climb.anim += 1
+    endif
+    timerf 1,_f_climb
 else
- p=<UID.<cTAG0.buraco.para>.p>
- flags ^= 08
- update
- emotered subiu
+    p=<UID.<cTAG0.climb.to>.p>
+    flags &= ~statf_invisible
+    update
+    if <cTAG.climb.type>
+        emotered desceu 
+    else
+        emotered subiu
+    endif 
 endif
+
 
 [TYPEDEF e_just_once]
 on=@dclick
