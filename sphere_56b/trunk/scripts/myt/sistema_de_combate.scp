@@ -16,7 +16,7 @@
 //Verifica Parrying - (50%*skill)[%]*(1-agressividade_defensor)[%]
 //  Danifica Escudo
 //  Fim
-//Tenta esquivar - ( 130% tactics + 200% dex + (-250 a 500)[agressividade] )*35%
+//Tenta esquivar - ( 50% tactics + 6 * ( dex_vitima - dex_atacante ) ) * (10 - agressividade) / 10
 //  Esquiva
 //  Fim
 //Tenta envenenar - (atacante é animal venenoso && poisoning > 30% && nao envenenado)
@@ -45,12 +45,12 @@
 //    >= 1000 -2
 //    >= 750  -1
 //  AGRESSIVIDADE
-//    9,10  +2
+//    9,10  +3
 //    7,8   +1
 //    4,5,6  0
 //    2,3   -1
-//    1     -5
-//    0    -10
+//    1     -3
+//    0     -5
 //  ARMADURA ALVO
 //    - { AR/6 AR/3 }
 //  QUALIDADE DA ARMA DE ATAQUE
@@ -259,46 +259,26 @@ endif
 ///////////////////////////////////////////////
 ////////////Tentar esquivar o golpe////////////
 ///////////////////////////////////////////////
-LOCAL.esquiva=<eval (((<src.tactics>/15)*2)+(<src.dex>*2))>
+//compoe um valor de 0 a 1000, sendo que 1000 eh a maior chance de esquiva
+//50% tactics, 50% delta dex 
+LOCAL.esquiva=<eval <src.tactics>/2>
+LOCAL.esquiva += <eval (<src.dex>-<dex>)*6>
+LOCAL.esquiva_step = <eval <LOCAL.esquiva>/10>
 
-//&& (<src.npc>==0)
-if (<src.tag0.agr>==0) 
- LOCAL.esquiva=<eval <LOCAL.esquiva>+500>
-elif (<src.tag0.agr>==1)
- LOCAL.esquiva=<eval <LOCAL.esquiva>+400>
-elif (<src.tag0.agr>==2)
- LOCAL.esquiva=<eval <LOCAL.esquiva>+300>
-elif (<src.tag0.agr>==3)
- LOCAL.esquiva=<eval <LOCAL.esquiva>+200>
-elif (<src.tag0.agr>==4)
- LOCAL.esquiva=<eval <LOCAL.esquiva>+100>
-elif (<src.tag0.agr>==5)
-// LOCAL.esquiva=<eval <LOCAL.esquiva>+000>
-elif (<src.tag0.agr>==6)
- LOCAL.esquiva=<eval <LOCAL.esquiva>-50>
-elif (<src.tag0.agr>==7)
- LOCAL.esquiva=<eval <LOCAL.esquiva>-100>
-elif (<src.tag0.agr>==8)
- LOCAL.esquiva=<eval <LOCAL.esquiva>-150>
-elif (<src.tag0.agr>==9)
- LOCAL.esquiva=<eval <LOCAL.esquiva>-200>
-elif (<src.tag0.agr>==10)
- LOCAL.esquiva=<eval <LOCAL.esquiva>-250>
+//aplica penalidade de acordo com agressividade
+if <src.tag0.agr> != 0
+    for R 1 <src.tag0.agr>
+        LOCAL.esquiva -= <LOCAL.esquiva_step>
+    endfor
 endif
 
-//Dificulta esquivar de flechas.
-IF (<action> == Skill_Archery)
- LOCAL.esquiva=<eval <LOCAL.esquiva>/3>
-ENDIF
-
-//quando o atacado for um player ou npc e não estiver usando Special Move
-if (({1 2400} <= <eval <LOCAL.esquiva>>) && (!<LOCAL.specialmove>)
- if (<NPC>==0) && (<action> != Skill_Archery) // se não for NPC e nem desvia-se de flechas como o Neo...
+//quando o atacado for um player ou npc e não estiver usando Special Move nem arquery
+if (<R1100> <= <eval <LOCAL.esquiva>>) && (!<LOCAL.specialmove>) && (<action> != Skill_Archery) 
+ if (<NPC>==0) // se não for NPC e nem desvia-se de flechas como o Neo...
   sysmessageyellow <src.name> esquiva-se de seu golpe!
  endif
- if (<src.NPC>==0) && (<action> != Skill_Archery) // Se o defensor não for NPC e nem desvia-se de flechas como o Neo......
+ if (<src.NPC>==0)// Se o defensor não for NPC e nem desvia-se de flechas como o Neo......
   src.sysmessageyellow Voce consegue se esquivar do golpe!
-  src.skill_gain skill_tactics
  endif
  //som e animação
  dorand 5
@@ -450,7 +430,7 @@ endif
 //Aplicando correção de dano .COMBATE//////////
 ///////////////////////////////////////////////
 if (<eval <tag0.agr>> >= 9)
- LOCAL.dano=<LOCAL.dano>+2
+ LOCAL.dano=<LOCAL.dano>+3
 elif (<eval <tag0.agr>> >= 7)
  LOCAL.dano=<LOCAL.dano>+1
 elif (<eval <tag0.agr>> >= 4)
@@ -458,9 +438,9 @@ elif (<eval <tag0.agr>> >= 4)
 elif (<eval <tag0.agr>> >= 2)
  LOCAL.dano=<LOCAL.dano>-1
 elif (<eval <tag0.agr>> >= 1) 
- LOCAL.dano=<LOCAL.dano>-5
+ LOCAL.dano=<LOCAL.dano>-3
 else 
- LOCAL.dano=<LOCAL.dano>-10
+ LOCAL.dano=<LOCAL.dano>-5
 endif
 
 ///////////////////////////////////////////////
@@ -502,21 +482,26 @@ endif
 //Aplicando correção de dano pela skill de luta //////////////
 //////////////////////////////////////////////////////////////
 
+//toda acao que gera tentativa de esquiva ganha tatics
 
-if (<action> == Skill_Wrestling)
+if (<action> == SKILL_WRESTLING)
     LOCAL.sg=<wrestling>
-elif (<action> == Skill_fencing)
+    src.skill_gain SKILL_TACTICS
+elif (<action> == SKILL_FENCING)
     LOCAL.sg=<fencing>
-elif (<action> == Skill_Swordsmanship)
+    src.skill_gain SKILL_TACTICS
+elif (<action> == SKILL_SWORDSMANSHIP)
     LOCAL.sg=<swordsmanship>
-elif (<action> == Skill_Macefighting)
+    src.skill_gain SKILL_TACTICS
+elif (<action> == SKILL_MACEFIGHTING)
     LOCAL.sg=<macefighting>
-elif (<action> == Skill_archery)
+    src.skill_gain SKILL_TACTICS
+elif (<action> == SKILL_ARCHERY)
     LOCAL.sg=<archery>
 
     //archer precisa ganhar tactics aqui pq nao toma melee pra desviar
-    skill_gain SKILL_TACTICS
     skill_gain SKILL_ARCHERY
+    skill_gain SKILL_TACTICS
 else
     LOCAL.sg=500
 endif
@@ -687,80 +672,19 @@ dorand (<eval (<tactics>)/100>)
  LOCAL.loc=6    //cabeca
 enddo
 
-if (<NPC>==0)
- if ( <LOCAL.loc>==1 )
-  src.findlayer.layer_chest.more1l=<src.findlayer.layer_chest.more1l>-{1 4}     //torax
-  if (0<src.findlayer.layer_chest.more1l> > 08000)
-   if (<NPC>==0) // se não for NPC...
-    sysmessageorange A protecao do peito <src.name> foi totalmente arruinada!
-   endif
-   if (<src.NPC>==0) // Se o defensor não for NPC...
-    src.sysmessageorange Sua protecao do peito foi totalmente arruinada!
-   endif
-   src.findlayer.layer_chest.remove
-  endif 
-
- elif ( <LOCAL.loc>==2 )
-  src.findlayer.layer_gloves.more1l=<src.findlayer.layer_gloves.more1l>-{1 4}   //mao
-  if (0<src.findlayer.layer_gloves.more1l> > 08000)
-   if (<NPC>==0) // se não for NPC...
-    sysmessageorange A protecao das maos <src.name> foi totalmente arruinada!
-   endif
-   if (<src.NPC>==0) // Se o defensor não for NPC...
-    src.sysmessageorange Sua protecao das maos foi totalmente arruinada!
-   endif
-   src.findlayer.layer_pants.remove
-  endif
- 
- elif ( <LOCAL.loc>==3 ) 
-  src.findlayer.layer_arms.more1l=<src.findlayer.layer_arms.more1l>-{1 4}   //braços
-  if (0<src.findlayer.layer_arms.more1l> > 08000)
-   if (<NPC>==0) // se não for NPC...
-    sysmessageorange A armadura dos bracos de <src.name> foi totalmente arruinada!
-   endif
-   if (<src.NPC>==0) // Se o defensor não for NPC...
-    src.sysmessageorange Sua armadura dos bracos foi totalmente arruinada!
-   endif
-   src.findlayer.layer_arms.remove
-  endif
-
- elif ( <LOCAL.loc>==4 )
-  src.findlayer.layer_pants.more1l=<src.findlayer.layer_pants.more1l>-{1 4} //perna
-  if (0<src.findlayer.layer_pants.more1l> > 08000)
-   if (<NPC>==0) // se não for NPC...
-    sysmessageorange A protecao das pernas <src.name> foi totalmente arruinada!
-   endif
-   if (<src.NPC>==0) // Se o defensor não for NPC...
-    src.sysmessageorange Sua protecao das pernas foi totalmente arruinada!
-   endif
-   src.findlayer.layer_pants.remove
-  endif
- 
- elif ( <LOCAL.loc>==5 )
-  src.findlayer.layer_collar.more1l=<src.findlayer.layer_collar.more1l>-{1 4}   //percoço
-  if (0<src.findlayer.layer_collar.more1l> > 08000)
-   if (<NPC>==0) // se não for NPC...
-    sysmessageorange A protecao do pescoco <src.name> foi totalmente arruinada!
-   endif
-   if (<src.NPC>==0) // Se o defensor não for NPC...
-    src.sysmessageorange Sua protecao do pescoco foi totalmente arruinada!
-   endif
-   src.findlayer.layer_collar.remove
-  endif
-
- elif ( <LOCAL.loc>==6 )
-  src.findlayer.layer_helm.more1l=<src.findlayer.layer_helm.more1l>-{1 4}   //cabeça
-  if (0<src.findlayer.layer_helm.more1l> > 08000)
-   if (<NPC>==0) // se não for NPC...
-    sysmessageorange O elmo de <src.name> foi totalmente arruinado!
-   endif
-   if (<src.NPC>==0) // Se o defensor não for NPC...
-    src.sysmessageorange Seu elmo foi totalmente arruinado!
-   endif
-   src.findlayer.layer_helm.remove
-  endif
- endif
+//se defensor for player
+if !<SRC.NPC>
+    doswitch <LOCAL.loc>
+        src.emotered 1<LOCAL.loc>
+        cmb_damageSrcArmor layer_chest
+        cmb_damageSrcArmor layer_gloves
+        cmb_damageSrcArmor layer_pants
+        cmb_damageSrcArmor layer_arms
+        cmb_damageSrcArmor layer_collar
+        cmb_damageSrcArmor layer_helm
+    enddo        
 endif 
+
 ///////////////////////////////////////////////
 //Danificar armas /////////////////////////////
 ///////////////////////////////////////////////
@@ -1089,11 +1013,32 @@ endif
 //*****************************************************************************
 //*****************************************************************************
 
+//*****************************************************************************
+// combate
+//*****************************************************************************
 [FUNCTION combate]
 ctag.roll=<eval (<tag0.agr>*24)+70>
 src.dialog d_estrategia
 return 1
 
+//*****************************************************************************
+// cmb_damageSrcArmor
+//*****************************************************************************
+[FUNCTION cmb_damageSrcArmor]
+REF1=<src.findlayer.<args>>
+if !<REF1>
+    return 1
+endif
+REF1.more1l -= <R1,4>
+if <REF1.more1l> > 08000
+    if !<npc> // se não for NPC...
+        sysmessageorange A protecao de <src.name> [<REF1.name>] foi totalmente arruinada!
+    endif
+    if !<src.npc> // Se o defensor não for NPC...
+        src.sysmessageorange Sua protecao [<REF1.name>] foi totalmente arruinada!
+    endif
+    REF1.remove
+endif 
 
 //*****************************************************************************
 //*****************************************************************************
