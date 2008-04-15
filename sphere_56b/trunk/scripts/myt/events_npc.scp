@@ -20,6 +20,46 @@ SANCTUARY_UNDEAD        01
 SANCTUARY_DEAMON        02
 SANCTUARY_EXTRAPLANAR       04
 
+//*****************************************************************************
+// t_spawn_char
+//*****************************************************************************
+//sobrescreve comportamento hardcoded do sphere para spawns
+//verifica tags de configuracao especificos do spawn antes de habilitar
+//a criacao do char
+[TYPEDEF t_spawn_char]
+ON=@TIMER
+//se for adicionar o NPC
+if <more2> < <amount>
+    //se tiver tag de NPC NOTURNO e estiver de dia, nao cria
+    if <tag0.spawn_night> && (<var.tHour> > 5) && (<var.tHour> < 20)
+        //tenta novamente depois
+        timer=600
+        return 1
+    endif
+endif
+
+//*****************************************************************************
+// f_npc_spawn
+//*****************************************************************************
+[FUNCTION f_npc_spawn]
+//-esta funcao é a unica chamada na inicializacao de todos os NPCs
+//-aplique regras genericas aqui, como configuracao de spawn por tag
+//-o memory de spawn nao esta disponivel ainda nesse momento
+//-o char nao pode ser removido nesse momento
+timerf 1 f_npc_spawn_
+
+[FUNCTION f_npc_spawn_]
+//carrega spawn
+OBJ=<MEMORYFINDTYPE.memory_ispawned.link>
+
+//se for spawn noturno
+if <OBJ.tag0.spawn_night> 
+    events +e_haunt
+endif
+
+//*****************************************************************************
+// f_npc_spawn
+//*****************************************************************************
 [EVENTS e_PvM]
 //CAHRGE - NPCs que podem correr, correm contra o player.
 on=@NPCActFight
@@ -585,7 +625,6 @@ src.bounce <new.uid>
 /////////////////////////////////////////////////////////
 [EVENTS e_haunt]
 on=@environchange
-serv.log e_haunt <name>
 if (<var.thour> > 5) && (<var.thour> < 20)
  f_haut_vanish
 endif
