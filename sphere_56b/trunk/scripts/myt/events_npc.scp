@@ -632,11 +632,13 @@ return 1
 
 [FUNCTION f_haut_vanish]
 events -e_haunt
-serv.newitem i_fx_sparkle_2
-new.p=<p>
-new.attr=02
-new.timerd 13
-new.sfx 05C7
+if <sector.clients> > 0
+    serv.newitem i_fx_sparkle_2
+    new.p=<p>
+    new.attr=02
+    new.timerd 13
+    new.sfx 05C7
+endif    
 remove
 
 /////////////////////////////////////////////////////////
@@ -777,15 +779,65 @@ endif
 
 On=@death
  
-if (<TAG.TRASEIRA> == 1) && (<TAG.FRONTAL> == 1)
-  newitem=i_armadura_traseira
-  act.bounce
-  newitem=i_armadura_frontal
-  act.bounce
-elif (<TAG.TRASEIRA> == 1) && (<TAG.FRONTAL> == 0)
-  newitem=i_armadura_traseira
-  act.bounce
-elif (<TAG.FRONTAL> == 1) && (<TAG.TRASEIRA> == 0)
-  newitem=i_armadura_frontal
-  act.bounce
+if (<TAG.TRASEIRA> == 1)
+    serv.newitem=i_armadura_traseira
+    new.bounce
+endif
+
+if (<TAG.FRONTAL> == 1)
+    serv.newitem=i_armadura_frontal
+    new.bounce
 endif 
+
+[TYPEDEF t_horse_armor]
+
+ON=@DCLICK
+if (<distance> > 2)
+    src.sysmessageyellow Muito longe
+else
+    src.sysmessageyellow Selecione o cavalo:
+    target
+endif    
+return 1
+
+ON=@TARGON_ITEM
+src.sysmessageyellow Usado apenas em cavalos
+return 1
+
+ON=@TARGON_CHAR
+if (<src.targ.distance> > 2 )
+    src.sysmessagered Voce nao alcanca o animal
+    return 1
+elif (<baseid>==i_armadura_traseira) && (<src.targ.tag0.traseira>)
+    src.sysmessageyellow O cavalo ja esta com a parte traseira da armadura equipada.
+    return 1
+elif (<baseid>==i_armadura_frontal) && (<src.targ.tag0.frontal>)
+    src.sysmessageyellow O cavalo ja esta com a parte frontal da armadura equipada.
+    return 1
+elif (<src.targ.body> == c_horse_gray) || (<src.targ.body> == c_horse_white) || (<src.targ.body> == c_horse_brown_dk) || (<src.targ.body> == c_horse_brown_lt) || (<src.targ.body> == c_horse_tan) || (<src.targ.body> == c_horse_black)
+    src.targ.tag.corpo <src.targ.body>
+elif (<src.targ.body> == c_cavalo_armadura)
+    //nop
+else
+    src.sysmessagered Isto nao e um cavalo.
+    return 1
+endif
+
+src.emotegreen Equipando armadura no cavalo
+sfx 89
+
+if <baseid>==i_armadura_traseira
+    src.targ.tag.traseira = 1
+else
+    src.targ.tag.frontal = 1
+endif
+
+if <src.targ.tag.traseira> && <src.targ.tag.frontal>
+    src.targ.body=c_cavalo_armadura
+endif
+
+serv.newitem i_suporte_cavalo
+new.movenear <src.targ> 1
+remove
+src.targ.update
+return 1
