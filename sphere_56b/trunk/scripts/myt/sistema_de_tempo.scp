@@ -134,56 +134,66 @@ ON=@ENVIRONCHANGE
 src.f_correctLight <src.region.flags>
 
 [REGIONTYPE r_clima]
-on=@enter
-//Season
-IF (!<IsEmpty <tag.season>>)
- season=<tag.season>
-ELSE
- season=<DEF.SEASON_<var.tSeason>>
-ENDIF
 
-light 30
-//src.sysmessageyellow [r_clima] Entrando em <name> (<flags>)
-src.f_correctLight <flags>
-
-on=@cliperiodic
-//Bloqueia casos que não há clima
-//statf_dead|statf_invisible|statf_insubstantial|statf_stone|statf_hallucinating|statf_hidden|statf_indoors|statf_ridden
-IF (<src.IsGM>) || (<src.flags>&041c4200a) || (<src.tag0.no_clima>)
- //serv.log [clima] Sem efeito de clima para client <src.account.name>
- return 0
+ON=@ENTER
+//corrige luz ao entrar em cada regiao
+if !<src.npc>
+    src.f_correctLight <flags>
 endif
-LOCAL.t1=<R5,10>
-LOCAL.t2=<R10,15>
-LOCAL.t3=<R15,20>
-LOCAL.t4=<R20,25>
-src.temp_check
-src.timerf <LOCAL.t1>,temp_check
-src.timerf <LOCAL.t2>,temp_check
-src.timerf <LOCAL.t3>,temp_check
-src.timerf <LOCAL.t4>,temp_check
 
-on=@regperiodic
-//Bloqueia casos que não há clima
-IF (<flags>&region_flag_underground)
- //serv.log [clima] Sem clima para <src.tag.name> em <name>
- return 0
+ON=@CLIPERIODIC
+
+//se afetar, cria memory de controle dos efeitos
+if !<src.npc> && !<src.findid.i_mry_clima>
+    serv.newitem i_mry_clima
+    new.cont=<src>
 endif
+
+
+ON=@REGPERIODIC
+
+//NPCs nao disparam esse evento, mas por garantia.....
+if <src.npc>
+    return 1
+endif
+
+//escuro para todos
+//light 30
+
+//Bloqueia casos que não há clima
+if (<flags>&region_flag_underground)
+    return 0
+endif
+
+
+//acerta o clima
 LOCAL.temp=<eval <var.temperature>+<tag0.modtemp>>
-IF (<LOCAL.temp> >= rain_temp_down) && (<LOCAL.temp> <= rain_temp_up)
- RAINCHANCE=064
- rain
- //serv.log [CLIMA] chove
-ELIF (<LOCAL.temp> <= snow_temp_up)
- COLDCHANCE=064
- snow
- //serv.log [CLIMA] neva
-ELSE
- COLDCHANCE=0
- RAINCHANCE=0
- dry
- //serv.log [CLIMA] seco
-ENDIF
+//serv.log [CLIMA] <name> - <dLOCAL.temp>/<var.temperature>
+if (<LOCAL.temp> >= rain_temp_down) && (<LOCAL.temp> <= rain_temp_up)
+    if (<tag0.weather>!=1)
+        tag.weather=1
+        rainchance=064
+        coldchance=0
+        rain
+//        serv.log [CLIMA] <name> - CHUVA
+    endif
+elif (<LOCAL.temp> <= snow_temp_up)
+    if (<tag0.weather>!=2)
+        tag.weather=2
+        rainchance=0
+        coldchance=064
+        snow
+//        serv.log [CLIMA] <name> - NEVE
+    endif        
+else
+    if (<tag0.weather>!=3)
+        tag.weather=3
+        rainchance=010
+        coldchance=0
+        dry
+//        serv.log [CLIMA] <name> - SECO
+    endif        
+endif
 
 //*****************************************************************************
 //*****************************************************************************
@@ -340,6 +350,35 @@ remove
 return 1
 
 //*****************************************************************************
+// i_mry_clima
+//*****************************************************************************
+[ITEMDEF i_mry_clima]
+ID=020E8
+NAME=clima
+TYPE=t_eq_script
+CATEGORY=MyT - Provisions - GM Items
+SUBSECTION=Tempo
+DESCRIPTION=Clima
+LAYER=layer_special
+
+ON=@CREATE
+timer=1
+
+ON=@TIMER
+timer=<R5,15>
+
+//Bloqueia casos que não há clima
+//statf_dead|statf_invisible|statf_insubstantial|statf_stone|statf_hallucinating|statf_hidden|statf_indoors|statf_ridden
+if (<cont.isgm>) || (<cont.flags>&041c4200a) || (<cont.tag0.no_clima>) || (<cont.npc>)
+    return 1
+endif
+
+LOCAL.f=<cont.temp_check>
+cont.temp_effect <LOCAL.f>
+
+return 1
+
+//*****************************************************************************
 //*****************************************************************************
 // FUNCTIONs
 //*****************************************************************************
@@ -381,7 +420,9 @@ if (<VAR.tMin> >= minutos_por_hora) //minuto
    var.tSeason=outono
    var.tSeason=inverno
   enddo
- 
+
+  season=<DEF.SEASON_<var.tSeason>>
+
   if (<VAR.tDay> > dias_por_mes)   //dia
    VAR.tDay=1
    VAR.tMonth=<VAR.tMonth>+1
@@ -420,10 +461,14 @@ return <eval <VAR.temperature>+<region.tag0.modtemp>>
 //'calcula' quantidade de roupa e temperatura de onde UID está.
 //compara com valores pre-estabelecidos para saber se UID está com muito frio,
 //frio, normal ou calor
+//retorna:  0 sem penalidades
+//          1 calor
+//          2 frio
+//          3 muito frio
 [FUNCTION temp_check]
 
-if (<tag0.no_clima>==1) || (<flags>&statf_indoors)
- return 1
+if (<tag0.no_clima>) || (<flags>&statf_indoors)
+    return 0
 endif
 
 LOCAL.temp=<eval <temp_get>>
@@ -447,34 +492,25 @@ LOCAL.cloth=<eval <LOCAL.cloth>/15>
 
 //adiciona protecao devido a calor proximo
 if (<isneartype t_fire 1>) || (<isneartype t_forge 1>)
- LOCAL.cloth=<LOCAL.cloth>+3
+    LOCAL.cloth=<LOCAL.cloth>+3
 endif
 
 //decide efeito
 if ( <LOCAL.temp> < <eval <DEF.tBodyMin2>-<LOCAL.cloth>> )
- LOCAL.f=3
+    LOCAL.f=3
 elif ( <LOCAL.temp> < <eval <DEF.tBodyMin1>-<LOCAL.cloth>> )
- LOCAL.f=2
+    LOCAL.f=2
 elif ( <LOCAL.temp> > <eval <DEF.tBodyMax1>-<LOCAL.cloth>> )
- LOCAL.f=1
+    LOCAL.f=1
 else 
- LOCAL.f=0
-endif
-
-temp_effect <LOCAL.f>
-
-//adiciona neve ou poça
-IF !(<region.flags>&region_flag_underground)
- IF (<LOCAL.temp> >= rain_temp_down) && (<LOCAL.temp> <= rain_temp_up)
-  timerf <R5>,temp_addSplash
- ELIF (<LOCAL.temp> <= snow_temp_up)
-  timerf <R5>,temp_addSnow
- ENDIF
+    LOCAL.f=0
 endif
 
 if (0<argn1> > 0 )
- say temp: <eval <LOCAL.temp>> cloth: <eval <LOCAL.cloth>> e:<LOCAL.f>
+    say temp: <eval <LOCAL.temp>> cloth: <eval <LOCAL.cloth>> e:<LOCAL.f>
 endif
+
+return <LOCAL.f>
 
 //sysmessage [CLIMA] T:<eval <LOCAL.temp>> R:<eval <LOCAL.cloth>> <eval <DEF.tBodyMin2>-<LOCAL.cloth>> <eval <DEF.tBodyMin1>-<LOCAL.cloth>> <eval <DEF.tBodyMax1>-<LOCAL.cloth>>
 
@@ -486,11 +522,24 @@ endif
 //2 = frio
 //3 = muito frio
 [FUNCTION temp_effect] 
+
 if (<isgm>) || (<flags>&statf_noweather) || (<tag0.no_clima>)
  //sysmessage [clima] sem clima
  return
 endif
-if (0<argn>==1)
+
+//adiciona neve ou poça
+IF !(<region.flags>&region_flag_underground)
+    LOCAL.temp=<eval <temp_get>>
+    IF (<LOCAL.temp> >= rain_temp_down) && (<LOCAL.temp> <= rain_temp_up)
+        temp_addSplash
+    ELIF (<LOCAL.temp> <= snow_temp_up)
+        temp_addSnow
+    ENDIF
+endif
+
+//nao da calor se chovendo
+if (0<argn>==1) && (<region.tag0.weather>!=1)
  if (<stam> >= 5)
   stam=<stam>-{0 2}
  endif
@@ -499,8 +548,8 @@ if (0<argn>==1)
   emotered sua
  ENDDO
 elif (0<argn>==2)
- if <stam> > 10
-  stam -= <R10>
+ if <stam> > 15
+  stam -= <R15>
  elif <hits> > 15
   DAMAGE <R1> dam_cold <UID>
  endif
@@ -509,8 +558,8 @@ elif (0<argn>==2)
   emotered treme
  ENDDO
 elif (0<argn>==3)
- if (<stam> > 10)
-  stam -= <R10>
+ if (<stam> > 15)
+  stam -= <R8,15>
  endif
  if <hits> > 4
   DAMAGE <R1,4> dam_cold <UID>
