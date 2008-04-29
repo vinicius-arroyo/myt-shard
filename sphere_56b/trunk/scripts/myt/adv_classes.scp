@@ -72,7 +72,7 @@ return 1
 pala_cure_time		30*60*10
 pala_str_time		10*60*10
 pala_reactive_timer	60*60*10
-pala_bless_wpn		30*60*10
+pala_bless_wpn		60*60*10
 pala_cure_mana		20
 pala_str_mana		20
 pala_reactive_mana	30
@@ -87,17 +87,62 @@ return 1
 
 [skillmenu sm_adv_paladin]
 Selecione um poder
-on=i_rune_cure
-TESTIF (<src.findid.i_anel_paladino.tag0.curet> < <serv.time>)
-src.f_adv_pala_cure
+on=i_rune_cure Curar enfermidade
+IF (<src.findid.i_anel_paladino.tag0.curet> < <serv.time>)
+  src.f_adv_pala_cure
+ELSE
+  LOCAL.tempo = <eval <eval <src.findid.i_anel_paladino.tag0.curet>-<serv.time>>/600)>
+  src.sysmessageyellow Podera usar este poder novamente em <dLOCAL.tempo> minutos.
+ENDIF 
 
-on=i_rune_strength
-TESTIF (<src.findid.i_anel_paladino.tag0.strenghtt> < <serv.time>)
-src.f_adv_pala_strength
+on=i_rune_heal Curar ferimentos de batalha
+IF (<src.findid.i_anel_paladino.tag0.heall> < <serv.time>)
+  src.f_adv_pala_heal
+ELSE
+  LOCAL.tempo = <eval <eval <src.findid.i_anel_paladino.tag0.curet>-<serv.time>>/600)>
+  src.sysmessageyellow Podera usar este poder novamente em <dLOCAL.tempo> minutos.
+ENDIF 
 
-on=i_rune_reactive_armor
-TESTIF (<src.findid.i_anel_paladino.tag0.reactiveart> < <serv.time>)
+on=i_rune_strength Fortalecer musculos
+IF (<src.findid.i_anel_paladino.tag0.strenghtt> < <serv.time>)
+  src.f_adv_pala_strength
+ELSE
+  LOCAl.tempo = <eval <eval <src.findid.i_anel_paladino.tag0.strenghtt>-<serv.time>>/600)>
+  src.sysmessageyellow Podera usar este poder novamente em <dLOCAL.tempo> minutos.
+ENDIF 
+
+on=i_rune_reactive_armor Armadura magica
+IF (<src.findid.i_anel_paladino.tag0.reactiveart> < <serv.time>)
 f_adv_pala_reactiveAR
+ELSE
+  LOCAL.tempo = <eval <eval <src.findid.i_anel_paladino.tag0.reactiveart>-<serv.time>>/600)>
+  src.sysmessageyellow Podera usar este poder novamente em <dLOCAL.tempo> minutos.
+ENDIF 
+
+on=i_rune_bless Encantar Arma (bencao divina)
+IF (<src.findid.i_anel_paladino.tag0.bless.wpn> < <serv.time>)
+f_adv_pala_bless_wpn
+ELSE
+  LOCAL.tempo = <eval <eval <src.findid.i_anel_paladino.tag0.bless.wpn>-<serv.time>>/600)>
+  src.sysmessageyellow Podera usar este poder novamente em <dLOCAL.tempo> minutos.
+ENDIF 
+
+on=i_rune_summon_elem_fire Encantar Arma (fogo)
+IF (<src.findid.i_anel_paladino.tag0.fire.wpn> < <serv.time>)
+f_adv_pala_fire_wpn
+ELSE
+  LOCAL.tempo = <eval <eval <src.findid.i_anel_paladino.tag0.fire.wpn>-<serv.time>>/600)>
+  src.sysmessageyellow Podera usar este poder novamente em <dLOCAL.tempo> minutos.
+ENDIF 
+
+on=i_rune_summon_elem_water Encantar Arma (gelo)
+IF (<src.findid.i_anel_paladino.tag0.cold.wpn> < <serv.time>)
+f_adv_pala_cold_wpn
+ELSE
+  LOCAL.tempo = <eval <eval <src.findid.i_anel_paladino.tag0.cold.wpn>-<serv.time>>/600)>
+  src.sysmessageyellow Podera usar este poder novamente em <dLOCAL.tempo> minutos.
+ENDIF 
+
 
 [FUNCTION f_adv_pala_cure]
 sysmessageyellow Quem voce deseja purificar o corpo?
@@ -109,8 +154,25 @@ if (!<argo.ischar>) || (<argo.uid> == <uid>)
 elif (!<f_consumeMana <DEF.pala_cure_mana>>)
  sysmessageyellow Voce nao tem energia magica o suficiente.
 else
- findid.i_anel_paladino.tag.curet=<eval <serv.time>+<def.pala_cure_time>
+ findid.i_anel_paladino.tag.curet=<eval <serv.time>+<def.pala_cure_time>>
  argo.spelleffect s_cure,<tactics>,<uid>
+ sfx snd_spell_cure
+ sysmessageyellow Podera usar este poder novamente em <f_timestring <eval <def.pala_cure_time>/10>>.
+endif
+return 1
+
+[FUNCTION f_adv_pala_heal]
+sysmessageyellow Quem voce deseja curar?
+src.targetf _f_adv_pala_heal
+
+[FUNCTION _f_adv_pala_heal]
+if (!<argo.ischar>) || (<argo.uid> == <uid>)
+ sysmessageyellow Esse poder so pode ser usado em outros seres vivos a nao ser voce.
+elif (!<f_consumeMana <DEF.pala_cure_mana>>)
+ sysmessageyellow Voce nao tem energia magica o suficiente.
+else
+ findid.i_anel_paladino.tag.heall=<eval <serv.time>+<def.pala_cure_time>>
+ argo.spelleffect s_greater_heal 1500
  sfx snd_spell_cure
  sysmessageyellow Podera usar este poder novamente em <f_timestring <eval <def.pala_cure_time>/10>>.
 endif
@@ -119,9 +181,9 @@ return 1
 [FUNCTION f_adv_pala_strength]
 if (!<f_consumeMana <DEF.pala_str_mana>>)
  sysmessageyellow Voce nao tem energia magica o suficiente.
- retunr 1
+ return 1
 endif
-findid.i_anel_paladino.tag.strenghtt=<eval <serv.time>+<def.pala_str_time>
+findid.i_anel_paladino.tag.strenghtt=<eval <serv.time>+<def.pala_str_time>>
 spelleffect s_strength,<tactics>,<uid>
 sfx snd_spell_strength
 sysmessageyellow Podera usar este poder novamente em <f_timestring <eval <def.pala_str_time>/10>>.
@@ -129,9 +191,9 @@ sysmessageyellow Podera usar este poder novamente em <f_timestring <eval <def.pa
 [FUNCTION f_adv_pala_reactiveAR]
 if (!<f_consumeMana <DEF.pala_reactive_mana>>)
  sysmessageyellow Voce nao tem energia magica o suficiente.
- retunr 0
+ return 1
 endif
-findid.i_anel_paladino.tag.reactiveart=<eval <serv.time>+<def.pala_reactive_timer>
+findid.i_anel_paladino.tag.reactiveart=<eval <serv.time>+<def.pala_reactive_timer>>
 serv.newitem i_spl_changeAR
 new.more2=12
 new.more1=7
@@ -147,71 +209,74 @@ sysmessageyellow Podera usar este poder novamente em <f_timestring <eval <def.pa
 
 [FUNCTION f_adv_pala_bless_wpn]
 if (!<NPC_CanCast>)
- sysmessagered Voce ainda nao pode usar outro poder.
+ sysmessagered So pode usar um encantamento quando teminar o efeito do atual.
  return 0
 endif
 if (!<f_consumeMana <DEF.pala_bless_wpn_mana>>)
  sysmessageyellow Voce nao tem energia magica o suficiente.
- retunr 0
+ return 0
 endif
 if (!<weapon>)
  sysmessagered Voce nao tem arma para abencoar.
  return 0
 endif
+findid.i_anel_paladino.tag.bless.wpn=<eval <serv.time>+<def.pala_bless_wpn>>
 weapon.more2=17
 weapon.morex=7
 sfx 01f7
 effect 2 i_fx_sparkle 0 16 0
-spell_delay <DEF.pala_bless_wpn>
+spell_delay <eval <DEF.pala_bless_wpn>/10> 		// 6 minutos 
 sysmessageyellow Podera usar outro poder novamente em <f_timestring <eval <def.pala_bless_wpn>/10>>.
 
 [FUNCTION f_adv_pala_fire_wpn]
 if (!<NPC_CanCast>)
- sysmessagered Voce ainda nao pode usar outro poder.
+ sysmessagered So pode usar um encantamento quando teminar o efeito do atual.
  return 0
 endif
 if (!<f_consumeMana <DEF.pala_bless_wpn_mana>>)
  sysmessageyellow Voce nao tem energia magica o suficiente.
- retunr 1
+ return 0
 endif
 if (!<weapon>)
  sysmessagered Voce nao tem arma para abencoar.
  return 0
 endif
+findid.i_anel_paladino.tag.fire.wpn=<eval <serv.time>+<def.pala_bless_wpn>>
 weapon.more2=51
 weapon.morex=7
 sfx 01f7
 effect 2 i_fx_sparkle 0 16 0 0 0550
-spell_delay <DEF.pala_bless_wpn>
+spell_delay <eval <DEF.pala_bless_wpn>/10> 		// 6 minutos
 sysmessageyellow Podera usar outro poder novamente em <f_timestring <eval <def.pala_bless_wpn>/10>>.
 
 [FUNCTION f_adv_pala_cold_wpn]
 if (!<NPC_CanCast>)
- sysmessagered Voce ainda nao pode usar outro poder.
+ sysmessagered So pode usar um encantamento quando teminar o efeito do atual.
  return 0
 endif
 if (!<f_consumeMana <DEF.pala_bless_wpn_mana>>)
  sysmessageyellow Voce nao tem energia magica o suficiente.
- retunr 1
+ return 0
 endif
 if (!<weapon>)
  sysmessagered Voce nao tem arma para abencoar.
  return 0
 endif
+findid.i_anel_paladino.tag.cold.wpn=<eval <serv.time>+<def.pala_bless_wpn>>
 weapon.dmgcold += 3
-Local.timer=<eval <def.pala_bless_wpn>/225>
+Local.timer=<eval <def.pala_bless_wpn>/600>  	// 1 minutos pq nao em limite de golpe
 weapon.timerf <LOCAL.timer>,_f_adv_pala_cold_wpn
 weapon.tag.color=<weapon.color>
 weapon.color=04f1
 sfx 01f7
 effect 2 i_fx_sparkle 0 16 0 0 0112
-spell_delay <DEF.pala_bless_wpn>
+spell_delay <eval <DEF.pala_bless_wpn>/10>
 sysmessageyellow Podera usar outro poder novamente em <f_timestring <eval <def.pala_bless_wpn>/10>>.
 
 [FUNCTION _f_adv_pala_cold_wpn]
 color=<tag0.color>
 dmgcold -= 3
-cont.sfx snd_spell_weaken
+sfx snd_spell_weaken
 updatex
 
 [ITEMDEF i_anel_paladino]
