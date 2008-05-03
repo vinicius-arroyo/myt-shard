@@ -62,7 +62,10 @@ endif
 //*****************************************************************************
 [EVENTS e_npc_geral]
 ON=@ENVIRONCHANGE
-f_npc_spawn_
+//random to avoid flood
+if !<R10>
+    f_npc_spawn_
+endif
 
 //*****************************************************************************
 // e_PvM
@@ -140,7 +143,7 @@ ENDIF//////////////FIM PODERES DE MONSTROS
 
 
 
-on=@GetHit
+on=@GetHitCustom
 SETMEMORY <DEF.memory_harmedby>,<SRC.UID>
 IF !(<flags>&020)
  attack <src.uid>
@@ -355,34 +358,13 @@ ELIF (<argn1>==17)  //bless
  ENDIF
 ENDIF
 
-[EVENTS e_NPC_immune]
-on=@GetHit
-//ARGN2 TIPO
-IF (<argn2>&<TAG0.IMMUNE>)
- DORAND 2
-  src.sysmessageorange <name> parece ser imune a este tipo de ataque.
-  emotered ileso
- ENDDO
- return 1
-endif
-
-[EVENTS e_NPC_aggravate]
-on=@GetHit
-//ARGN2 TIPO
-IF (<argn2>&<TAG0.AGGRAVATE>)
- DORAND 2
-  act.sysmessageorange <name> parece muito assustado com este tipo de ataque.
-  emotered dor
- ENDDO
-endif
-
 [EVENTS e_reaper]
-on=@gethit
+on=@GetHitCustom
 IF (<hits> < <eval <str>/4>) && (!<tag0.meta>)
  tag.meta=1
- IF (!<eval {0 3}>)
+ IF (!<R3>)
   serv.newnpc c_reaper_redux
- elif (!<eval {0 2}>)
+ elif (!<R2>)
   serv.newnpc c_treefellow
  else
   return 2
@@ -399,27 +381,14 @@ IF (<hits> < <eval <str>/4>) && (!<tag0.meta>)
  return 1
 ENDIF
 
-[EVENTS e_NPC_regendam]
-on=@GetHit
-//ARGN2 TIPO
-IF (<argn2>&<TAG0.REGENDAM>)
- DORAND 2
-  act.sysmessageorange <name> parece melhor agora do que antes do ataque.
-  emotered aliviado
- ENDDO
-endif
-
 [FUNCTION NPC_IMMUNE]
 tag0.immune <eval <argv0>>
-EVENTS +e_NPC_immune
 
 [FUNCTION NPC_AGGRAVATE]
 tag0.aggravate <eval <argv0>>
-EVENTS +e_NPC_aggravate
 
 [FUNCTION NPC_REGENDAM]
 tag0.regendam <eval <argv0>>
-EVENTS +e_NPC_regendam
 
 [EVENTS e_changeling]
 //NPC que se transforma no player que avistar
@@ -472,18 +441,6 @@ if (<magery> > 500)
  EVENTS +e_mage_phaser
 endif
 attack <src.uid>
-
-
-[EVENTS e_caster_warrior]
-on=@GetHit
-if !(RAND(11))
- if (<magery>==0)
-  magery=<tag0.Omagery>
- else
-  tag.Omagery=<magery>
-  magery=0
- endif
-endif
 
 [EVENTS e_spl_planta_carnivora]
 on=@death

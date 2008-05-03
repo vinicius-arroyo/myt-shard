@@ -13,10 +13,10 @@
 
 //@HIT
 //
-//Verifica Parrying - (50%*skill)[%]*(1-agressividade_defensor)[%]
+//Verifica Parrying - (bell dif 100% e 33%/oitava)
 //  Danifica Escudo
 //  Fim
-//Tenta esquivar - ( 50% tactics + 6 * ( dex_vitima - dex_atacante ) ) * (10 - agressividade) / 10
+//Tenta esquivar - ( 50% tactics + 6 * ( dex_vitima - dex_atacante ) ) * (10 - agressividade) / 12
 //  Esquiva
 //  Fim
 //Tenta envenenar - (atacante é animal venenoso && poisoning > 30% && nao envenenado)
@@ -31,90 +31,21 @@
 //    >= 90% +2
 //    >= 85% +1
 //  ANATOMY
-//    >= 95% +3
-//    >= 75% +2
-//    >= 50% +1
-//  ATACANTE ENVENENADO - 25% chance 
-//    - (more2/15)
-//  STAMINA
-//    MAX   +1
-//    <= 5  -2
-//    <= 15 -1
-//  PESO
-//    >= 1500 -3
-//    >= 1000 -2
-//    >= 750  -1
+//    + ANATOMY / 25 (0 a 4)
 //  AGRESSIVIDADE
-//    9,10  +3
-//    7,8   +1
-//    4,5,6  0
-//    2,3   -1
-//    1     -3
-//    0     -5
-//  ARMADURA ALVO
-//    - { AR/6 AR/3 }
+//    + AGGR / 2
+//  SPECIAL_MOVE
+//    + x
+//  ATACANTE ENVENENADO
+//    - (more2 / 15)
+//  STAMINA
+//    - (STAM / DEX) * 4 (0 a 4)
+//  PESO
+//    - (WEIGHT / MAXWEIGHT) * 4 (0 a 4)
 //  QUALIDADE DA ARMA DE ATAQUE
-//    >= 90%  0
-//    >= 80% -1
-//    >= 60% -2
-//    >= 30% -3
-//    else   -4 
+//    - (3 - (HITS/MAXHITS)*4)
 //  SKILL DE ATAQUE (afeta dano original: argn1)
-//    WRESTLING
-//      < 30%  70% + 1
-//      < 40%  80% + 1
-//      < 50%  90% + 1
-//      < 60% 100% + 1
-//      < 70% 110% + 1
-//      < 80% 120% + 1
-//    FENCING
-//      < 20%   60% + 1
-//      < 30%   65% + 1
-//      < 40%   80% + 1
-//      < 50%   90% + 1
-//      < 60%  100% + 1
-//      < 70%  110% + 1
-//      < 80%  120% + 1
-//      < 90%  135% + 1
-//      < 100% 150% + 1
-//      = 100% 170% + 1
-//    SWORDSMANSHIP
-//      < 10%   30% + 1
-//      < 20%   45% + 1
-//      < 30%   60% + 1
-//      < 40%   75% + 1
-//      < 50%   90% + 1
-//      < 60%  100% + 1
-//      < 70%  110% + 1
-//      < 80%  120% + 1
-//      < 90%  130% + 1
-//      < 100% 140% + 1
-//      = 100% 155% + 1
-//    MACEFIGHTING
-//      < 10%   60% + 1
-//      < 20%   60% + 1
-//      < 30%   70% + 1
-//      < 40%   80% + 1
-//      < 50%   90% + 1
-//      < 60%  100% + 1
-//      < 70%  110% + 1
-//      < 80%  120% + 1
-//      < 90%  120% + 1
-//      < 100% 130% + 1
-//      = 100% 130% + 1
-//    ARCHERY
-//      < 10%   50% + 1
-//      < 20%   70% + 1
-//      < 30%   90% + 1
-//      < 40%  100% + 1
-//      < 50%  100% + 1
-//      < 60%  100% + 1
-//      < 70%  100% + 1
-//      < 80%  110% + 1
-//      < 90%  115% + 1
-//      < 100% 120% + 1
-//      = 100% 125% + 1
-//
+//    + (SKILL+50%)*argn1
 //Define local do ataque ( rand 0 a 10% tactics )
 //  torax
 //  torax
@@ -133,8 +64,11 @@
 //Emite sons
 //Cansa atacante: - 0 a 2 de stamina
 //Desconcentra vitima: - 0 a 2 de mana
-//Aplica dano
 
+//  ARMADURA ALVO
+//    - (dano * AR%)
+
+//Aplica dano
 
 // POISON por magia: i_veneno.MORE2 = 50% magery repeticoes e 7% magery dano
 // HEAL POISON por magia: i_veneno.MORE2 -= 33% magery
@@ -146,7 +80,8 @@
 // POISON NPC: i_veneno.MORE2 = ( 10% poisoning ) repeticoes e 1 a ( 10% poisoning * 14%) 
 
 //TAGS usadas:
-//tag.agr   nível de agressividade do combate (0 a 10)
+//tag.agr       nível de agressividade do combate (0 a 10)
+//tag.moddam    modificado fixo de dano
 
 //tag.fRP   pontos de rp
 //tag.lastkillname nome da ultima vitima fatal
@@ -198,6 +133,9 @@ return 1
 ON=@HIT
 //MORE1H = maxItemHits
 //MORE1L = itemHits
+
+LOCAL.bonus = 0
+LOCAL.penal = 0
 
 ///////////////////////////////////////////////
 ////////////Tentar usar Special Move///////////
@@ -262,7 +200,7 @@ endif
 //50% tactics, 50% delta dex 
 LOCAL.esquiva=<eval <src.tactics>/2>
 LOCAL.esquiva += <eval (<src.dex>-<dex>)*6>
-LOCAL.esquiva_step = <eval <LOCAL.esquiva>/10>
+LOCAL.esquiva_step = <eval <LOCAL.esquiva>/12>
 
 //aplica penalidade de acordo com agressividade
 if <src.tag0.agr> != 0
@@ -331,8 +269,7 @@ if (<argo.more2>==20)
 //Se a arma na HAND1 estiver encantada com Flamestrike
 elif (<argo.more2>==51)
  src.effect 2 i_fire_column 0 32 0
- LOCAL.dam_fire = <eval {5 10}>
- src.damage <LOCAL.dam_fire> dam_fire <uid>
+ src.damage <R5,10> dam_fire <uid>
  argo.morex=<argo.morex>-1
  if (<argo.morex>==0)
   argo.more2=0
@@ -375,107 +312,67 @@ endif
 //Aplicando correção de dano por STR///////////
 ///////////////////////////////////////////////
 if (<str> >= 95)
- LOCAL.dano=3
+ LOCAL.bonus += 3
 elif (<str> >= 90)
- LOCAL.dano=2
+ LOCAL.bonus += 2
 elif (<str> >= 85)
- LOCAL.dano=1
-else
- LOCAL.dano=0
+ LOCAL.bonus += 1
 endif
+//SERV.log [BONUS-STR] <dLOCAL.bonus>
 
 ///////////////////////////////////////////////
 //Aplicando correção de dano por ANATOMY///////
 ///////////////////////////////////////////////
-if (<anatomy> >= 950)
- LOCAL.dano=<LOCAL.dano>+3
-elif (<anatomy> >= 750)
- LOCAL.dano=<LOCAL.dano>+2
-elif (<anatomy> >= 500)
- LOCAL.dano=<LOCAL.dano>+1
-endif
+LOCAL.bonus += <eval <anatomy>/250>
+//SERV.log [BONUS-ANATOMY] <dLOCAL.bonus>
+
+///////////////////////////////////////////////
+//Aplicando correção de dano .COMBATE//////////
+///////////////////////////////////////////////
+LOCAL.bonus += <eval <tag0.agr>/2>
+//SERV.log [BONUS-AGGR] <dLOCAL.bonus>
+
+///////////////////////////////////////////////
+//////////Aplicar special moves////////////////
+///////////////////////////////////////////////
+TRY LOCAL.sm = <<DEF.SMO<dLOCAL.specialmove>_FUNC>>
+LOCAL.bonus += <LOCAL.sm>
+//serv.log [BONUS-SPMOVE]<dLOCAL.sm>
 
 ///////////////////////////////////////////////
 //Aplicando correção de dano por POISON////////
 ///////////////////////////////////////////////
-if (<restest 1 i_veneno>) && (RAND(3)==0)
- LOCAL.dano=<eval <LOCAL.dano>-(<eval <findid.i_veneno.more2>/15>)>
- sysmessagegreen O veneno esta te enfraquecendo. Seus golpes estao fracos!
+if (<restest 1 i_veneno>)
+ LOCAL.penal += <eval <findid.i_veneno.more2>/15>
+ if !<R3>
+    sysmessagegreen O veneno esta te enfraquecendo. Seus golpes estao fracos!
+ endif
+// SERV.log [PENAL-VENENO] <dLOCAL.penal>
 endif
 
 ///////////////////////////////////////////////
 //Aplicando correção de dano por STAM//////////
 ///////////////////////////////////////////////
-if (<stam>==<dex>)
- LOCAL.dano=<LOCAL.dano>+1
-elif (<stam> <= 5)
- LOCAL.dano=<LOCAL.dano>-2
-elif (<stam> <= 15)
- LOCAL.dano=<LOCAL.dano>-1
-endif
+LOCAL.penal += <eval (4*<stam>)/<dex>>
+//SERV.log [PENAL-STAM] <dLOCAL.penal>
 
 ///////////////////////////////////////////////
 //Aplicando correção de dano por PESO//////////
 ///////////////////////////////////////////////
-if (<weight> >= 1500)
- LOCAL.dano=<LOCAL.dano>-3
-elif (<weight> >= 1000)
- LOCAL.dano=<LOCAL.dano>-2
-elif (<weight> >= 750)
- LOCAL.dano=<LOCAL.dano>-1
-endif
+LOCAL.penal += <eval (4*<weight>)/<maxweight>>
+//SERV.log [PENAL-WEIGHT] <dLOCAL.penal>
 
-///////////////////////////////////////////////
-//Aplicando correção de dano .COMBATE//////////
-///////////////////////////////////////////////
-if (<eval <tag0.agr>> >= 9)
- LOCAL.dano=<LOCAL.dano>+3
-elif (<eval <tag0.agr>> >= 7)
- LOCAL.dano=<LOCAL.dano>+1
-elif (<eval <tag0.agr>> >= 4)
- LOCAL.dano=<LOCAL.dano>
-elif (<eval <tag0.agr>> >= 2)
- LOCAL.dano=<LOCAL.dano>-1
-elif (<eval <tag0.agr>> >= 1) 
- LOCAL.dano=<LOCAL.dano>-3
-else 
- LOCAL.dano=<LOCAL.dano>-5
-endif
-
-///////////////////////////////////////////////
-//Aplicando correção de dano por AR////////////
-///////////////////////////////////////////////
-IF (<LOCAL.specialmove>!=1) || (<LOCAL.specialmove>!=23)    //Não permite se usando IgnoreAR ou ARPierce
- //Say D1: <eval <argn1>>
- LOCAL.ar=<R<R0,<src.ar>>,<src.ar>>
- argn1 -= <eval <LOCAL.ar>/10>
- //Say D2: <eval <argn1>>
- argn1=<BETWEEN2 1,<argn1>,<LOCAL.ar>,100> //<LOCAL.dano>-{<eval <LOCAL.AR_LO>> <eval <LOCAL.AR_HI>>}
- //Say D3: <eval <argn1>>
- //SAY AR: <dLOCAL.ar>
-ENDIF
 //////////////////////////////////////////////////////////////
 //Aplicando correção de dano pela qualidade da arma///////////
 //////////////////////////////////////////////////////////////
 //MORE1H=qualidade total
 //MOTE1L=qualidade atual
 
-if (<argo.uid>)
- LOCAL.wpc=<BETWEEN 0,100,<argo.hits>,<argo.maxhits>>
- //say Tenho <eval <LOCAL.wpc>>
+if (<argo>)
+ LOCAL.q = <eval (4*<argo.hits>)/<argo.maxhits>>
+ LOCAL.penal += <eval 3-<LOCAL.q>>
 endif
-
-if (0<LOCAL.wpc> >= 90)
- LOCAL.dano += 1
-elif (0<LOCAL.wpc> >= 55)
- LOCAL.dano -= 1
-elif (0<LOCAL.wpc> >= 40)
- LOCAL.dano -= 2
-elif (0<LOCAL.wpc> >= 30)
- LOCAL.dano -= 3
-else 
- LOCAL.dano -= 4
-endif
+//SERV.log [PENAL-QUALITY] <dLOCAL.penal>
 
 //////////////////////////////////////////////////////////////
 //Aplicando correção de dano pela skill de luta //////////////
@@ -498,26 +395,17 @@ elif (<action> == SKILL_MACEFIGHTING)
 elif (<action> == SKILL_ARCHERY)
     LOCAL.sg=<archery>
 
-    //archer precisa ganhar tactics aqui pq nao toma melee pra desviar
+    //atacante archer precisa ganhar tactics aqui pq nao toma melee pra desviar
     skill_gain SKILL_ARCHERY
     skill_gain SKILL_TACTICS
 else
     LOCAL.sg=500
 endif
 
-doswitch (<eval <LOCAL.sg>/100>)
-    argn1=(<argn1>*30)/100)+1
-    argn1=(<argn1>*45)/100)+1
-    argn1=(<argn1>*60)/100)+1
-    argn1=(<argn1>*75)/100)+1
-    argn1=(<argn1>*90)/100)+1
-    argn1=(<argn1>*100)/100)+1
-    argn1=(<argn1>*110)/100)+1
-    argn1=(<argn1>*120)/100)+1
-    argn1=(<argn1>*130)/100)+1
-    argn1=(<argn1>*140)/100)+1
-    argn1=(<argn1>*155)/100)+1
-enddo
+LOCAL.mod = <eval <LOCAL.sg>/10> //0 a 100
+LOCAL.mod += 50 //50 a 150
+//SERV.log [MOD-SKILL] <eval <argn1>> / <dLOCAL.mod> / <eval (<argn1>*<LOCAL.mod>)/100>
+argn1 = <eval (<argn1>*<LOCAL.mod>)/100>
 
 //////////////////////////////////////////////////////////////
 // Determinando tipo de dano//////////////////////////////////
@@ -637,17 +525,17 @@ endif
 //Determinar força do golpe////////////////////
 ///////////////////////////////////////////////
 
-//if (<eval <argn1>+<LOCAL.dano>> >= 30)
+//if (<eval <argn1>+<LOCAL.bonus>> >= 30)
 // LOCAL.cbt.for=monstruoso
-//elif (<eval <argn1>+<LOCAL.dano>> >= 25)
+//elif (<eval <argn1>+<LOCAL.bonus>> >= 25)
 // LOCAL.cbt.for=destruidor
-//elif (<eval <argn1>+<LOCAL.dano>> >= 20)
+//elif (<eval <argn1>+<LOCAL.bonus>> >= 20)
 // LOCAL.cbt.for=potente
-//elif (<eval <argn1>+<LOCAL.dano>> >= 15)
+//elif (<eval <argn1>+<LOCAL.bonus>> >= 15)
 // LOCAL.cbt.for=muito forte
-//elif (<eval <argn1>+<LOCAL.dano>> >= 10)
+//elif (<eval <argn1>+<LOCAL.bonus>> >= 10)
 // LOCAL.cbt.for=forte
-//elif (<eval <argn1>+<LOCAL.dano>> >= 5)
+//elif (<eval <argn1>+<LOCAL.bonus>> >= 5)
 // LOCAL.cbt.for=fraco
 //else
 // LOCAL.cbt.for=patetico
@@ -688,20 +576,21 @@ endif
 //Danificar armas /////////////////////////////
 ///////////////////////////////////////////////
 
-
-
 if (<NPC>==0) && (<action> != Skill_Wrestling)
- argo.more1l=<argo.more1l>-{0 1}
- if (<argo.more1l> > 08000 ) || (<argo.more1l> < 1 )
+ argo.more1l -= <R1>
+ if (<argo.more1l> > 08000 )
   sysmessageorange Sua arma foi destruida!
   if (<src.NPC>==0) // Se o defensor não for NPC...
    src.sysmessageorange A arma de <src.name> foi destruida!
   endif
   argo.remove
+ else
+  argo.update
  endif
+ 
  if (<action> == Skill_Archery)
-  argo.morey=<argo.morey>-{0 2 1 1}
-  if (<argo.morey>==0)
+  argo.morey -= 1
+  if (!<argo.morey>)
    argo.cont=<findlayer.layer_pack>
    if <argo.type>==t_weapon_bow
        sysmessageorange O barbante do seu arco se partiu!
@@ -712,15 +601,10 @@ if (<NPC>==0) && (<action> != Skill_Wrestling)
        emoteorange engrenagem quebrou
        argo.name=<argo.tag.name> (sem engrenagem)
    endif   
-   argo.update
   endif
+  argo.update
  endif
 endif
-
-///////////////////////////////////////////////
-//////////Aplicar special moves////////////////
-///////////////////////////////////////////////
-try LOCAL.dano=<LOCAL.dano>+<<DEF.SMO<dLOCAL.specialmove>_FUNC>>
 
 ///////////////////////////////////////////////
 /////////////Produtos finais///////////////////
@@ -780,9 +664,31 @@ ELIF (<action> == Skill_Archery)
  ENDIF
 endif
 
-///// Modificadores de dano
-argn1=<eval <argn1>+<LOCAL.dano>>
-argn1=<eval <argn1>+<tag0.moddam>>
+///// APLICA Modificadores de dano
+//serv.log [HIT-<account>]<dLOCAL.bonus> / <dLOCAL.penal> / <eval <argn1>> :: <Action>
+if <dLOCAL.bonus>
+ argn1 += <LOCAL.bonus>
+endif
+if <tag0.moddam>
+ argn1 += <tag0.moddam>
+endif
+if <dLOCAL.penal>
+ argn1 -= <LOCAL.penal>
+endif
+
+///////////////////////////////////////////////////
+//Aplicando correção de dano por AR no que sobrou//
+///////////////////////////////////////////////////
+//DEVERIA estar no @GETHIT, mas a informacao do 
+//special move esta aqui
+if (<argn1> > 0) && (<LOCAL.specialmove>!=1) && (<LOCAL.specialmove>!=23)    //Não permite se usando IgnoreAR ou ARPierce
+ //LOCAL.ar=<R<R0,<src.ar>>,<src.ar>>
+ LOCAL.ar=<R<src.ar>>
+// serv.log [ARMOR] <eval <argn1>> / <dLOCAL.ar> / <eval <BETWEEN2 1,<argn1>,<LOCAL.ar>,100>>
+ argn1=<BETWEEN2 1,<argn1>,<LOCAL.ar>,100>
+endif
+
+//dano minimo é 1
 if (<argn1> <= 0)
  argn1=1
 endif
@@ -797,19 +703,18 @@ ENDIF
 
 /////cansar atacante
 if (<stam> >= 6)
- stam=<stam>-{0 2}
+ stam -= <R2>
 endif
 
 /////desconcentrar vítima
 if (<src.mana> >= 6)
- src.mana=<src.mana>-{0 2}
+ src.mana -= <R2>
 endif
 
 ///// Remove Special Moves
 if (<LOCAL.specialmove>)
  f_clrSpecialMove
 endif
-
 
 ///// Marca assassino (sistema de morte)
 //if (<argn1> >= <src.hits>)
@@ -831,94 +736,98 @@ IF (<src.npc>==0) && (<npc>==0)
 endif
 
 /////Executar script do HIT da arma
-IF (<argo.uid>)     //Evita exeption error com wrestling.
+IF (<argo>)
  argo.trigger=@hit
-endif
-
-///// Perpetuar a agreção
-if !(<src.flags>&statf_war)
- src.flags <src.flags>|statf_war
 endif
 
 return 1
 
 
-
 //*************************************
 ON=@GETHIT
 //*************************************
+//argn1 = damaga
+//argn2 = type
 
 /////Se estiver invulnerável, deixa queto.
 if (<flags>&statf_invul)
  return 1
-endif
-
-///// Manter apênas um tipo de dano empilhado na bitmaks se for de flecha
-if (<argn2>&dam_pierce) && (!<argn>&dam_magic)
- argn2=dam_pierce
-endif
-
 ///// Bloquear dano se imune
-if (<argn2>&<src.tag0.immune>)
+elif (<argn2>&<src.tag0.immune>)
+ DORAND 2
+  src.sysmessageorange <name> parece ser imune a este tipo de ataque.
+  emotered ileso
+ ENDDO
  return 1
 ///// Piorar dano se agravante
 elif (<tag0.aggravate>&<argn2>)
- LOCAL.agg=<eval {150 325}>         //Agrava sempre de 50 a 225% de dano
- argn1=<eval (<argn1>*<LOCAL.agg>)/100>
+ LOCAL.agg=<R150,325>         //Agrava sempre de 50 a 225% de dano
+ argn1 = <eval (<argn1>*<LOCAL.agg>)/100>
+ DORAND 2
+  act.sysmessageorange <name> parece muito assustado com este tipo de ataque.
+  emotered dor
+ ENDDO
 ///// Adicionar HITS se regenera com dano
 elif (<tag0.regendam>&<argn2>)
- hits=<hits>+<argn1>
+ hits += <argn1>
+ DORAND 2
+  act.sysmessageorange <name> parece melhor agora do que antes do ataque.
+  emotered aliviado
+ ENDDO
  return 1
 endif
 
+disturb
+
 ///// Amenizar dano se resistente (compativel com OSI e Sphere original)
+LOCAL.res=0
 if (<argn2>&dam_fire)
- if (<RESFIRE>)
-  LOCAL.res=<eval 100-<RESFIRE>>
-  argn1=<eval (<argn1>*<LOCAL.res>)/100>
- endif
+ LOCAL.res=<RESFIRE>
 elif (<argn2>&dam_cold)
- if (<RESCOLD>)
-  LOCAL.res=<eval 100-<RESCOLD>>
-  argn1=<eval (<argn1>*<LOCAL.res>)/100>
- endif
+ LOCAL.res=<RESCOLD>
 elif (<argn2>&dam_poison)
- if (<RESPOISON>)
-  LOCAL.res=<eval 100-<RESPOISON>>
-  argn1=<eval (<argn1>*<LOCAL.res>)/100>
- endif
+ LOCAL.res=<RESPOISON>
 elif (<argn2>&dam_energy)
- if (<RESENERGY>)
-  LOCAL.res=<eval 100-<RESENERGY>>
-  argn1=<eval (<argn1>*<LOCAL.res>)/100>
- endif
-elif (<TAG0.resistance>&<argn2>)    ///Compatibilidade com resistencia a pierce, physical, magic de NPCs
- LOCAL.res=<eval {40 60}>       ///Resistências especiais de NPCs sempre de 40 a 60%
- argn1=<eval (<argn1>*<LOCAL.res>)/100>
+ LOCAL.res=<RESENERGY>
 endif
+
+LOCAL.res=<eval 100-<LOCAL.res>>
+argn1=<eval (<argn1>*<LOCAL.res>)/100>
 
 /////aos damage (show counter above player head)
-if (0<npc> == 0) && (<hits> > 0)
- SENDPACKET  0bf W11 W022 01 D<UID> B<argn1> 
-endif
-if (<src> > 0 ) && (0<src.npc> == 0) && (<hits> > 0) && (<src.uid> != <uid>)
- SRC.SENDPACKET  0bf W11 W022 01 D<UID> B<argn1> 
-endif
+if <argn1> > 0
+ LOCAL.damaged=<uid>
+ FORPLAYERS 10
+   if <isonline>
+      SENDPACKET  0bf W11 W022 01 D<LOCAL.damaged> B<argn1>
+   endif
+ ENDFOR
 
-//// anima
-cry
+// if (0<npc> == 0) && (<hits> > 0)
+//  SENDPACKET  0bf W11 W022 01 D<UID> B<argn1> 
+// endif
+// if (<src> > 0 ) && (0<src.npc> == 0) && (<hits> > 0) && (<src.uid> != <uid>)
+//  SRC.SENDPACKET  0bf W11 W022 01 D<UID> B<argn1> 
+// endif
 
-////decrementa pontos
-hits=<hits>-<argn1>
+ //// anima
+ cry
+endif
 
 ////perpetuar agreção
-if (<NPC>!=0) && (!<IsMyEnemy <src.uid>>) && (!<src.flags>&statf_invul) && (<SRC.UID> =! <UID>)
- attack <src.UID>
+if <NPC> && (!<IsMyEnemy <src>>) && (!<src.flags>&statf_invul) && (<SRC> != <UID>)
+ attack <src>
 endif
+
+////decrementa pontos
+hits -= <argn1>
 
 if (<hits><=0)
     src.trigger @kill
+else
+    trigger @GetHitCustom,,<argn1>,<argn2>
 endif
+
 return 1
 
 //*************************************
