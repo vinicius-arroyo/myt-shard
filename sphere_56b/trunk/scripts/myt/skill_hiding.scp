@@ -22,14 +22,14 @@
 //*****************************************************************************
 [FUNCTION sk_hiding]
 
-if (<src.findid.i_hiding>)
+if <src.findid.i_hiding> || <src.findid.i_mry_invis>
     src.sysmessageyellow Nao pode se esconder ainda.
     return 1
 elif (<src.flags>&statf_onhorse)
     src.sysmessageyellow Voce nao pode se esconder com um cavalo...
     return 1
 elif (<src.region.flags>&region_flag_underground)
-    local.d=
+
 elif (<src.hiding> < 500) && (<var.tHour> > 4) && (<var.tHour> < 20)
     src.sysmessageyellow Voce nao possui habilidade para se esconder com esta luminosidade...
     return 1
@@ -44,9 +44,7 @@ endif
 src.act=0
 src.ctag.disturb=0
 serv.newitem i_hiding
-new.cont=<src.uid>
-new.timer 1
-
+new.cont=<src>
 
 return 1
 
@@ -68,6 +66,7 @@ LAYER=layer_special
 ON=@create
 //not hidden
 more1=0
+timer=1
 
 ON=@timer
 timer=-1
@@ -98,7 +97,7 @@ if !(<more1>)
     LOCAL.dif=<between 100,900,<cont.tag0.light_lvl>,30>
     LOCAL.dif=<eval 1000-<LOCAL.dif>>
     
-    serv.log [hiding] testando <eval <cont.hiding>> contra dif <dLOCAL.dif> e light <eval <cont.tag0.light_lvl>>
+//    serv.log [hiding] testando <eval <cont.hiding>> contra dif <dLOCAL.dif> e light <eval <cont.tag0.light_lvl>>
     if ( !<belltest <cont.hiding>,<LOCAL.dif>,200> )
         cont.sysmessagered Voce nao conseguiu se esconder
         cont.hiding_leave
@@ -137,7 +136,31 @@ timer=1
 return 1
 
 //*****************************************************************************
-// i_speech_detect
+// i_mry_invis
+//*****************************************************************************
+//more2 = tempo em segundos de invisibilidade
+[ITEMDEF i_mry_invis]
+ID=i_memory
+NAME=pocao da invisibilidade
+TYPE=t_eq_script
+layer=layer_special
+
+ON=@CREATE
+timer=1
+
+ON=@TIMER
+timer = 1
+if <more2>
+    more2 -= 1
+else
+    cont.invis_leave
+    cont.sysmessageyellow O efeito da pocao passou.
+    remove
+endif
+return 1
+
+//*****************************************************************************
+// i_speak_disturb
 //*****************************************************************************
 [ITEMDEF i_speak_disturb]
 ID=i_worldgem_bit
@@ -155,10 +178,16 @@ ON=@Equip
 SRC.FLAGS=<SRC.FLAGS>|statf_commcrystal
 ATTR=<ATTR>|attr_newbie|attr_move_never
 
+//*****************************************************************************
+// spk_disturb
+//*****************************************************************************
 [SPEECH spk_disturb]
 ON=*
 src.ctag.disturb=1
 
+//*****************************************************************************
+// hiding_enter
+//*****************************************************************************
 [FUNCTION hiding_enter]
 invis 1
 flags |= statf_hidden
@@ -168,6 +197,9 @@ serv.newitem i_speak_disturb
 new.cont=<uid>
 update
 
+//*****************************************************************************
+// hiding_leave
+//*****************************************************************************
 [FUNCTION hiding_leave]
 invis 0
 flags &= ~statf_hidden
@@ -175,3 +207,27 @@ events -e_no_attack
 events -e_no_dclick
 consume 1 i_speak_disturb
 update
+
+//*****************************************************************************
+// invis_enter
+//*****************************************************************************
+[FUNCTION invis_enter]
+invis 1
+flags |= statf_hidden
+update
+
+serv.newitem i_mry_invis
+new.cont=<uid>
+new.more2=(<int>/10)
+
+sysmessagegreen Ninguem pode lhe ver.
+
+//*****************************************************************************
+// invis_leave
+//*****************************************************************************
+[FUNCTION invis_leave]
+invis 0
+flags &= ~statf_hidden
+update
+
+[EOF]
