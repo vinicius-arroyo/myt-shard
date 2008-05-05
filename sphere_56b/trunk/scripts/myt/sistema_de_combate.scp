@@ -13,10 +13,10 @@
 
 //@HIT
 //
-//Verifica Parrying - (bell dif 100% e 33%/oitava)
+//Verifica Parrying - ??
 //  Danifica Escudo
 //  Fim
-//Tenta esquivar - ( 50% tactics + 6 * ( dex_vitima - dex_atacante ) ) * (10 - agressividade) / 12
+//Tenta esquivar - ??
 //  Esquiva
 //  Fim
 //Tenta envenenar - (atacante é animal venenoso && poisoning > 30% && nao envenenado)
@@ -32,20 +32,18 @@
 //    >= 85% +1
 //  ANATOMY
 //    + ANATOMY / 25 (0 a 4)
-//  AGRESSIVIDADE
-//    + AGGR / 2
 //  SPECIAL_MOVE
 //    + x
 //  ATACANTE ENVENENADO
 //    - (more2 / 15)
 //  STAMINA
-//    - (STAM / DEX) * 4 (0 a 4)
+//    - (3 - (STAM/DEX)*4)
 //  PESO
 //    - (WEIGHT / MAXWEIGHT) * 4 (0 a 4)
 //  QUALIDADE DA ARMA DE ATAQUE
 //    - (3 - (HITS/MAXHITS)*4)
 //  SKILL DE ATAQUE (afeta dano original: argn1)
-//    + (SKILL+50%)*argn1
+//    + ??
 //Define local do ataque ( rand 0 a 10% tactics )
 //  torax
 //  torax
@@ -138,6 +136,37 @@ ON=@HIT
 
 LOCAL.bonus = 0
 LOCAL.penal = 0
+//fator de agressividade conjunto (ataque e defesa)
+LOCAL.agm=<eval <tag0.agr>+<src.tag0.agr>> //0 a 9 = defensivo, 10 = neutro, 11 a 20, agressivo
+//fator de agressividade de ataque (proporcional ao tag.agr)
+LOCAL.aga=<eval <between 0,100,<LOCAL.agm>,20>+50> //50 a 150
+//fator de agressividade de defesa (inversamente proporcional ao tag.agr)
+LOCAL.agd=<eval <between2 0,100,<LOCAL.agm>,20>+50> //150 a 50
+
+//toda acao que gera tentativa de esquiva ganha tatics
+//salva skill usada em LOCAL.sg
+LOCAL.tact=0
+if (<action> == SKILL_WRESTLING)
+    LOCAL.sg=<wrestling>
+    LOCAL.tact=1
+elif (<action> == SKILL_FENCING)
+    LOCAL.sg=<fencing>
+    LOCAL.tact=1
+elif (<action> == SKILL_SWORDSMANSHIP)
+    LOCAL.sg=<swordsmanship>
+    LOCAL.tact=1
+elif (<action> == SKILL_MACEFIGHTING)
+    LOCAL.sg=<macefighting>
+    LOCAL.tact=1
+elif (<action> == SKILL_ARCHERY)
+    LOCAL.sg=<archery>
+
+    //atacante archer precisa ganhar tactics aqui pq nao toma melee pra desviar
+    skill_gain SKILL_ARCHERY
+    skill_gain SKILL_TACTICS
+else
+    LOCAL.sg=500
+endif
 
 ///////////////////////////////////////////////
 ////////////Tentar usar Special Move///////////
@@ -149,91 +178,93 @@ LOCAL.specialmove=<f_trySpecialMove>
 ////////////Tentar aparar com escudo///////////
 ///////////////////////////////////////////////
 
-//se tiver escudo e o special move nao for IGNORE AR ou ARMOR PIERCE
-if (<src.findlayer.layer_hand2.type>==t_shield) && (<LOCAL.specialmove>!=1) && (<LOCAL.specialmove>!=23)
- //salva escudo para uso mais rapido
- REF1=<src.findlayer.layer_hand2>
- //ganha parrying independente se defende ou nao
- //mas evita macros
- if <argn1> > 5 
-    src.skill_gain skill_parrying 
- endif
- if <belltest <src.parrying>,1000,330> && !<R<src.tag0.agr>>
-  if (<NPC>==0) // se não for NPC...
-   sysmessageyellow <src.name> apara seu golpe com o escudo!
-  endif
-  if (<src.NPC>==0) // Se o defensor não for NPC...
-   src.sysmessageyellow Voce apara o golpe de <name> com o escudo!
-  endif
+//se tiver escudo tenta parrying
+if (<src.findlayer.layer_hand2.type>==t_shield)
 
-  //danifica escudo (mace da maior dano)
-  if (<action> == Skill_Macefighting)
-   REF1.hits -= <eval <argn1>/3>
-  else
-   REF1.hits -= <eval <argn1>/6>
+ //se o special move nao for IGNORE AR ou ARMOR PIERCE
+ if (<LOCAL.specialmove>!=1) && (<LOCAL.specialmove>!=23)
+  //salva escudo para uso mais rapido
+  REF1=<src.findlayer.layer_hand2>
+  //ganha parrying independente se defende ou nao
+  //mas evita macros
+  if <argn1> > 5 
+     src.skill_gain skill_parrying 
   endif
-
-  //caso escudo destruido
-  if (<REF1.hits> > 08000 ) && !(<REF1.attr> & attr_newbie)
-   if (<NPC>==0) // se não for NPC...
-    sysmessageorange O escudo de <src.name> foi totalmente arruinado!
+  LOCAL.p=<eval (<src.parrying>-<LOCAL.sg>)+1000> //0 a 2000
+  LOCAL.s=<eval <LOCAL.p>*<LOCAL.agd>>
+  //serv.log [PARRYING] PAR:<eval <dLOCAL.s>/4000>% / A:<dLOCAL.aga>% / D:<dLOCAL.agd>%
+  if <R400000> <= <LOCAL.s>
+//   if (<NPC>==0) // se não for NPC...
+//    sysmessageyellow <src.name> apara seu golpe!
+//   endif
+//   if (<src.NPC>==0) // Se o defensor não for NPC...
+//    src.sysmessageyellow Voce apara o golpe!
+//   endif
+ 
+   //danifica escudo (mace da maior dano)
+   if (<action> == Skill_Macefighting)
+    REF1.hits -= <eval <argn1>/3>
+   else
+    REF1.hits -= <eval <argn1>/6>
    endif
-   if (<src.NPC>==0) // Se o defensor não for NPC...
-    src.sysmessageorange Seu escudo foi totalmente arruinado!
+ 
+   //caso escudo destruido
+   if (<REF1.hits> > 08000 ) && !(<REF1.attr> & attr_newbie)
+    if (<NPC>==0) // se não for NPC...
+     sysmessageorange O escudo de <src.name> foi totalmente arruinado!
+    endif
+    if (<src.NPC>==0) // Se o defensor não for NPC...
+     src.sysmessageorange Seu escudo foi totalmente arruinado!
+    endif
+    REF1.remove
+   else
+    REF1.update
    endif
-   REF1.remove
-  else
-   REF1.update
+   //som e animacao
+   dorand 4
+    sfx 0237
+    sfx 0236
+    sfx 023c
+    sfx 023b
+   enddo
+   anim 19
+   return 1
   endif
-  //som e animacao
-  dorand 4
-   sfx 0237
-   sfx 0236
-   sfx 023c
-   sfx 023b
-  enddo
-  anim 19
-  return 1
  endif
-endif
 
 
 ///////////////////////////////////////////////
 ////////////Tentar esquivar o golpe////////////
 ///////////////////////////////////////////////
-//compoe um valor de 0 a 1000, sendo que 1000 eh a maior chance de esquiva
-//50% tactics, 50% delta dex 
-LOCAL.esquiva=<eval <src.tactics>/2>
-LOCAL.esquiva += <eval (<src.dex>-<dex>)*6>
-LOCAL.esquiva_step = <eval <LOCAL.esquiva>/12>
+//senao tenta esquiva
+else 
 
-//aplica penalidade de acordo com agressividade
-if <src.tag0.agr> != 0
-    for R 1 <src.tag0.agr>
-        LOCAL.esquiva -= <LOCAL.esquiva_step>
-    endfor
-endif
+ LOCAL.p=<eval (<src.tactics>-<LOCAL.sg>)+1000> //0 a 2000
+ LOCAL.s=<eval <LOCAL.p>*<LOCAL.agd>>
+//serv.log [ESQUIVA] TAC:<eval <dLOCAL.s>/4000>% / A:<dLOCAL.aga>% / D:<dLOCAL.agd>%
 
-//quando o atacado for um player ou npc e não estiver usando Special Move nem arquery
-if (<R1100> <= <eval <LOCAL.esquiva>>) && (!<LOCAL.specialmove>) && (<action> != Skill_Archery) 
- if (<NPC>==0) // se não for NPC e nem desvia-se de flechas como o Neo...
-  sysmessageyellow <src.name> esquiva-se de seu golpe!
+ //quando o atacado for um player ou npc e não estiver usando Special Move nem arquery
+ if (<R400000> <= <LOCAL.s>) && (!<LOCAL.specialmove>) && (<action> != Skill_Archery) 
+//  if (<NPC>==0) // se não for NPC e nem desvia-se de flechas como o Neo...
+//   sysmessageyellow <src.name> esquiva-se de seu golpe!
+//  endif
+//  if (<src.NPC>==0)// Se o defensor não for NPC e nem desvia-se de flechas como o Neo......
+//   src.sysmessageyellow Voce se esquiva do golpe!
+//  endif
+  //som e animação
+  dorand 5
+   sfx 0239
+   sfx 023a
+   sfx 0233
+   sfx 0238
+   sfx 0232
+  enddo 
+  anim 18
+  return 1
  endif
- if (<src.NPC>==0)// Se o defensor não for NPC e nem desvia-se de flechas como o Neo......
-  src.sysmessageyellow Voce consegue se esquivar do golpe!
- endif
- //som e animação
- dorand 5
-  sfx 0239
-  sfx 023a
-  sfx 0233
-  sfx 0238
-  sfx 0232
- enddo 
- anim 18
- return 1
+ 
+ 
 endif
-
 ///////////////////////////////////////////////
 //Tentar usar Poison///////////////////////////
 ///////////////////////////////////////////////
@@ -332,12 +363,6 @@ LOCAL.bonus += <eval <anatomy>/250>
 //SERV.log [BONUS-ANATOMY] <dLOCAL.bonus>
 
 ///////////////////////////////////////////////
-//Aplicando correção de dano .COMBATE//////////
-///////////////////////////////////////////////
-LOCAL.bonus += <eval <tag0.agr>/2>
-//SERV.log [BONUS-AGGR] <dLOCAL.bonus>
-
-///////////////////////////////////////////////
 //////////Aplicar special moves////////////////
 ///////////////////////////////////////////////
 TRY LOCAL.sm = <<DEF.SMO<dLOCAL.specialmove>_FUNC>>
@@ -385,39 +410,14 @@ endif
 //Aplicando correção de dano pela skill de luta //////////////
 //////////////////////////////////////////////////////////////
 
-//toda acao que gera tentativa de esquiva ganha tatics
-
-LOCAL.tact=0
-if (<action> == SKILL_WRESTLING)
-    LOCAL.sg=<wrestling>
-    LOCAL.tact=1
-elif (<action> == SKILL_FENCING)
-    LOCAL.sg=<fencing>
-    LOCAL.tact=1
-elif (<action> == SKILL_SWORDSMANSHIP)
-    LOCAL.sg=<swordsmanship>
-    LOCAL.tact=1
-elif (<action> == SKILL_MACEFIGHTING)
-    LOCAL.sg=<macefighting>
-    LOCAL.tact=1
-elif (<action> == SKILL_ARCHERY)
-    LOCAL.sg=<eval (<archery>*3)/4>
-
-    //atacante archer precisa ganhar tactics aqui pq nao toma melee pra desviar
-    skill_gain SKILL_ARCHERY
-    skill_gain SKILL_TACTICS
-else
-    LOCAL.sg=500
-endif
-
 //evita macros pra ganhar tactics
 if (<argn1> > 5) && <LOCAL.tact>
     src.skill_gain SKILL_TACTICS 
 endif
 
-LOCAL.mod = <eval <LOCAL.sg>/10> //0 a 100
-LOCAL.mod += 50 //50 a 150
-//SERV.log [MOD-SKILL] <eval <argn1>> / <dLOCAL.mod> / <eval (<argn1>*<LOCAL.mod>)/100>
+LOCAL.mod = <eval (<LOCAL.sg>*<LOCAL.aga>)/1000> // 0 a 150
+LOCAL.mod += 50 //50 a 200
+//SERV.log [MOD-SKILL] <dLOCAL.mod>%
 argn1 = <eval (<argn1>*<LOCAL.mod>)/100>
 
 //////////////////////////////////////////////////////////////
