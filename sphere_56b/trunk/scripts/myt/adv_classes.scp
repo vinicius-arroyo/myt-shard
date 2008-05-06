@@ -69,9 +69,9 @@ return 1
 //*************************************************************
 
 [DEFNAME adv_pala_timers]
-pala_cure_time		30*60*10
+pala_cure_time		15*60*10
 pala_str_time		10*60*10
-pala_reactive_timer	60*60*10
+pala_reactive_timer	45*60*10
 pala_bless_wpn		60*60*10
 pala_cure_mana		20
 pala_str_mana		20
@@ -215,6 +215,7 @@ ENDIF
 //	Functions paladino com as MAGIAS e EFEITOS
 //*************************************************************
 
+////////////////////////////////////// MAGIA DE CURE ///////////////////////////////////////////////
 [FUNCTION f_adv_pala_cure]
 sysmessageyellow Quem voce deseja purificar o corpo?
 src.targetf f_adv_pala_cure_
@@ -233,6 +234,7 @@ else
 endif
 return 1
 
+////////////////////////////////////// MAGIA DE HEALING ///////////////////////////////////////////////
 [FUNCTION f_adv_pala_heal]
 sysmessageyellow Quem voce deseja curar?
 src.targetf f_adv_pala_heal_
@@ -258,10 +260,11 @@ if (!<f_consumeMana <DEF.pala_str_mana>>)
  return 1
 endif
 findid.i_anel_paladino.tag.strenghtt=<eval <serv.time>+<def.pala_str_time>>
-spelleffect s_strength,<tactics>,<uid>
+spelleffect s_strength {1500,2000}
 sfx snd_spell_strength
 sysmessageyellow Podera usar este poder novamente em <f_timestring <eval <def.pala_str_time>/10>>.
 
+////////////////////////////////////// MAGIA REACTIVE ARMOR ///////////////////////////////////////////////
 [FUNCTION f_adv_pala_reactiveAR]
 src.CTAG.castando_pala = 0
 if (!<f_consumeMana <DEF.pala_reactive_mana>>)
@@ -272,16 +275,18 @@ findid.i_anel_paladino.tag.reactiveart=<eval <serv.time>+<def.pala_reactive_time
 serv.newitem i_spl_changeAR
 new.more2=12
 new.more1=7
-new.tag.resfire=4
-new.tag.rescold=4
-new.tag.respoison=4
-new.tag.resenergy=4
+new.more2=0
+new.timer=300                 // 5 minutos
+new.tag.resfire=5
+new.tag.rescold=5
+new.tag.respoison=5
+new.tag.resenergy=5
 new.link=<uid>
 equip <new.uid>
-new.timerf 60,more2,0
 sfx snd_spell_strength
 sysmessageyellow Podera usar este poder novamente em <f_timestring <eval <def.pala_reactive_timer>/10>>.
 
+////////////////////////////////////// ENCANTAMENTO DE BLESS ///////////////////////////////////////////////
 [FUNCTION f_adv_pala_bless_wpn]
 src.CTAG.castando_pala = 0
 if (!<NPC_CanCast>)
@@ -299,11 +304,22 @@ endif
 findid.i_anel_paladino.tag.bless.wpn=<eval <serv.time>+<def.pala_bless_wpn>>
 weapon.more2=17
 weapon.morex=7
+weapon.timerf 300,f_adv_pala_bless_wpn_		// 5 minutos 
+weapon.tag.color=<weapon.color>
+weapon.color=007f9
 sfx 01f7
 effect 2 i_fx_sparkle 0 16 0
-spell_delay <eval <DEF.pala_bless_wpn>/10> 		// 6 minutos 
+spell_delay = 3000 					// 5 minutos 
 sysmessageyellow Podera usar outro poder novamente em <f_timestring <eval <def.pala_bless_wpn>/10>>.
 
+[FUNCTION f_adv_pala_bless_wpn_]
+color=<tag0.color>
+more2=0
+morex=0
+sfx snd_spell_weaken
+updatex
+
+////////////////////////////////////// ENCANTAMENTO DE FOGO ///////////////////////////////////////////////
 [FUNCTION f_adv_pala_fire_wpn]
 src.CTAG.castando_pala = 0
 if (!<NPC_CanCast>)
@@ -321,11 +337,22 @@ endif
 findid.i_anel_paladino.tag.fire.wpn=<eval <serv.time>+<def.pala_bless_wpn>>
 weapon.more2=51
 weapon.morex=7
-sfx 01f7
-effect 2 i_fx_sparkle 0 16 0 0 0550
-spell_delay <eval <DEF.pala_bless_wpn>/10> 		// 6 minutos
+weapon.timerf 300,f_adv_pala_fire_wpn_		// 5 minutos 
+weapon.tag.color=<weapon.color>
+weapon.color=0054e
+sfx 1482
+effect 2 i_fx_sparkle 0 16 0 55
+spell_delay = 3000 					// 5 minutos 
 sysmessageyellow Podera usar outro poder novamente em <f_timestring <eval <def.pala_bless_wpn>/10>>.
 
+[FUNCTION f_adv_pala_fire_wpn_]
+color=<tag0.color>
+more2=0
+morex=0
+sfx snd_spell_weaken
+updatex
+
+////////////////////////////////////// ENCANTAMENTO DE GELO ///////////////////////////////////////////////
 [FUNCTION f_adv_pala_cold_wpn]
 src.CTAG.castando_pala = 0
 if (!<NPC_CanCast>)
@@ -342,13 +369,12 @@ if (!<weapon>)
 endif
 findid.i_anel_paladino.tag.cold.wpn=<eval <serv.time>+<def.pala_bless_wpn>>
 weapon.dmgcold += 3
-Local.timer=<eval <def.pala_bless_wpn>/600>  	// 1 minutos pq nao em limite de golpe
-weapon.timerf <LOCAL.timer>,f_adv_pala_cold_wpn_
+weapon.timerf 60,f_adv_pala_cold_wpn_   	      // 1 minuto pq nao tem limite de cargas (morex)
 weapon.tag.color=<weapon.color>
 weapon.color=04f1
-sfx 01f7
+sfx 466
 effect 2 i_fx_sparkle 0 16 0 0 0112
-spell_delay <eval <DEF.pala_bless_wpn>/10>
+spell_delay = 600 					// 1 minuto 
 sysmessageyellow Podera usar outro poder novamente em <f_timestring <eval <def.pala_bless_wpn>/10>>.
 
 [FUNCTION f_adv_pala_cold_wpn_]
@@ -357,6 +383,11 @@ dmgcold -= 3
 sfx snd_spell_weaken
 updatex
 
+//*************************************************************
+//	ITEMS DO PALADINO
+//*************************************************************
+
+////////////////////////////////////// ANEL PALADINO ///////////////////////////////////////////////
 [ITEMDEF i_anel_paladino]
 ID=i_ring_gold
 TYPE t_jewelry
@@ -365,7 +396,7 @@ TEVENTS=e_adv_paladin
 
 CATEGORY=MyT Provisions - Weapons
 SUBSECTION=Adv Class
-DESCRIPTION=Cajado Druida
+DESCRIPTION=Anel Paladino
 
 on=@create
 ATTR=025
@@ -379,5 +410,49 @@ src.dspeech +spk_paladin
 
 on=@unequip
 src.dspeech -spk_paladin
+
+////////////////////////////////////// ESPADA PALADINO ///////////////////////////////////////////////
+[ITEMDEF i_espada_paladino]
+ID=026ce
+NAME=Espada Sagrada
+TYPE=T_WEAPON_SWORD
+FLIP=1
+TWOHANDS=Y
+WEIGHT=10.0
+DAM=25,45
+SKILL=Swordsmanship
+REQSTR=85
+CATEGORY=MyT Provisions - Weapons
+SUBSECTION=Adv Class
+DESCRIPTION=Espada Sagrada (paladino)
+
+dupelist=026cf
+
+ON=@CREATE 
+HITPOINTS={2000 2500}
+
+////////////////////////////////////// ESCUDO PALADINO ///////////////////////////////////////////////
+[ITEMDEF i_escudo_paladino]
+ID=02b01
+name=Escudo Sagrado
+TYPE=t_shield
+FLIP=1
+WEIGHT=20
+ARMOR=20
+REQSTR=85
+CATEGORY=MyT Provisions - Weapons
+SUBSECTION=Adv Class
+DESCRIPTION=Escudo Sagrado (paladino)
+
+ON=@Create
+HITPOINTS={2000 2500}
+MORE1h=<hits>
+
+ON=@equip
+src.dex -= 3
+
+ON=@unequip
+src.dex += 3
+
 
 [EOF]
