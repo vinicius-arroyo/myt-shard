@@ -42,8 +42,8 @@
 //    - (WEIGHT / MAXWEIGHT) * 4 (0 a 4)
 //  QUALIDADE DA ARMA DE ATAQUE
 //    - (3 - (HITS/MAXHITS)*4)
-//  SKILL DE ATAQUE (afeta dano original: argn1)
-//    + ??
+//  SKILL DE ATAQUE (dano original)
+//    dam.lo a [dam.hi]
 //Define local do ataque ( rand 0 a 10% tactics )
 //  torax
 //  torax
@@ -81,21 +81,23 @@
 //tag.agr       nível de agressividade do combate (0 a 10)
 //tag.moddam    modificado fixo de dano
 
-//tag.fRP   pontos de rp
-//tag.lastkillname nome da ultima vitima fatal
-//tag.lastkillUID  uid da ultima vitima fatal
-//tag.fpk   contador de vitimas fatais
-//tag.lastagr2uid  uid do penultimo agressor
-//tag.lastagr2name nome do penultimo agressor
-//tag.lastagr1uid  uid do ultimo agressor
-//tag.lastagr1name nome do ultimo agressor
-
 //item.tag.name nome original do item antes de ser envenenado
 //*****************************************************************************
 
 [PLEVEL 1]
 combate
 
+[DEFNAME combate_cfg]
+WPE_17    1 //bless
+WPE_20    1 //poison
+WPE_30    1 //lightning
+WPE_38    1 //paralyse
+WPE_51    1 //flamestrike
+WPE_350   1 //chill
+
+SPE_11    1 //cure
+SPE_18    1 //fireball
+SPE_20    1 //poison
 //*****************************************************************************
 //*****************************************************************************
 // EVENTs
@@ -132,23 +134,23 @@ return 1
 //*************************************
 // @HIT
 //*************************************
-//SRC esta apanhando
-//DEFAULT esta atacando
+//SRC:      esta apanhando
+//DEFAULT:  esta atacando
+//ARGN1:    dano
 ON=@HIT
-//serv.log [HIT] <src.account> <eval <argn1>>
 
-LOCAL.bonus = 0
-LOCAL.penal = 0
 //fator de agressividade conjunto (ataque e defesa)
-LOCAL.agm=<eval <tag0.agr>+<src.tag0.agr>> //0 a 9 = defensivo, 10 = neutro, 11 a 20, agressivo
+//LOCAL.agm=<eval <tag0.agr>+<src.tag0.agr>> //0 a 9 = defensivo, 10 = neutro, 11 a 20, agressivo
 //fator de agressividade de ataque (proporcional ao tag.agr)
-LOCAL.aga=<eval <between 0,100,<LOCAL.agm>,20>+50> //50 a 150
+LOCAL.aga=<eval <between 0,100,<tag0.agr>,10>+50> //50 a 150
 //fator de agressividade de defesa (inversamente proporcional ao tag.agr)
-LOCAL.agd=<eval <between2 0,100,<LOCAL.agm>,20>+50> //150 a 50
-//salva skill usada no ataque
-//LOCAL.ask=<cmb_getAtkSkill>
+LOCAL.agd=<eval <between2 0,100,<src.tag0.agr>,10>+50> //150 a 50
 //salva special move se for usado
 LOCAL.specialmove=<f_trySpecialMove>
+
+//calcula dano em funcao da skill,arma e agressividade
+//ignora dano calculado pelo sphere
+argn1=<cmb_calcDam <LOCAL.aga>>
 
 //salva escudo (ou arma) em OBJ
 OBJ=<src.findlayer.layer_hand2>
@@ -170,26 +172,18 @@ if <DEF.WPE_<argo.more2>>
     TRY cmb_wpe_<argo.more2>
 endif
 
-
 TRY LOCAL.sm = <<DEF.SMO<dLOCAL.specialmove>_FUNC>>
-LOCAL.bonus += <LOCAL.sm>
-LOCAL.bonus += <cmb_bonusStr>
-LOCAL.bonus += <cmb_bonusAnatomy>
-LOCAL.bonus += <tag0.moddam>
+LOCAL.bonus = 0
+LOCAL.bonus += <LOCAL.sm>           //ate 30
+LOCAL.bonus += <cmb_bonusStr>       //1,2,3 para faixas 85,90,95
+LOCAL.bonus += <cmb_bonusAnatomy>   //0 - 4 (anatomy/250)
+LOCAL.bonus += <tag0.moddam>        //?
 
-LOCAL.penal += <cmb_penalPoison>
-LOCAL.penal += <cmb_penalStam>
-LOCAL.penal += <cmb_penalWeight>
-LOCAL.penal += <cmb_penalWeaponQuality>
-
-//////////////////////////////////////////////////////////////
-//Aplicando correção de dano pela skill de luta //////////////
-//////////////////////////////////////////////////////////////
-
-//LOCAL.mod = <eval (<LOCAL.sg>*<LOCAL.aga>)/1000> // 0 a 150
-//LOCAL.mod += 50 //50 a 200
-//SERV.log [MOD-SKILL] <dLOCAL.mod>%
-//argn1 = <eval (<argn1>*<LOCAL.mod>)/100>
+LOCAL.penal = 0
+LOCAL.penal += <cmb_penalPoison>    //veneno / 15
+LOCAL.penal += <cmb_penalStam>      //-1 a +3
+LOCAL.penal += <cmb_penalWeight>    //0 a 4
+LOCAL.penal += <cmb_penalWeaponQuality> //-1 a +3
 
 cmb_npcUsePoison
 cmb_gainSkill <argn1>
@@ -198,10 +192,10 @@ cmb_damageWeapon
 cmb_doSounds
 
 ///// APLICA Modificadores de dano
-//argn1 += <LOCAL.bonus>
-//argn1 -= <LOCAL.penal>
+argn1 += <LOCAL.bonus>
+argn1 -= <LOCAL.penal>
 
-cmb_doDamage <argn1> <cmb_damType>
+cmb_doDamage <argn1>,<cmb_damType>
 
 /////cansar atacante
 if (<stam> >= 6)
@@ -231,9 +225,11 @@ ON=@GETHIT
 //e_combat deve estar como TEVENT para ser chamado sempre por ultimo
 //nao pode haver GetHit direto nos CHARDEF por que eles nao serao chamados
 //usar como EVENT ou como TEVENT desde que seja antes do e_combat
-//argn1 = damage
-//argn2 = type
-//serv.log [COMBAT] <name>
+//argn1:    damage
+//argn2:    type
+//SRC:      atacante
+//DEFAULT:  vitima
+
 /////Se estiver invulnerável, deixa queto.
 if (<flags>&statf_invul)
     return 1
@@ -267,22 +263,22 @@ disturb
 ///// Amenizar dano se resistente (compativel com OSI e Sphere original)
 LOCAL.res=0
 if (<argn2>&(dam_pierce|dam_slash|dam_physical)
- if (<SRC.TAG0.specialmove_active>!=1) && (<SRC.TAG0.specialmove_active>!=23)    //Não permite se usando IgnoreAR ou ARPierce
-  LOCAL.res=<AR>
- else
-  LOCAL.res=0
- endif
+    if (<SRC.TAG0.specialmove_active>!=1) && (<SRC.TAG0.specialmove_active>!=23)    //Não permite se usando IgnoreAR ou ARPierce
+        LOCAL.res=<AR>
+    else
+        LOCAL.res=0
+    endif
 elif (<argn2>&dam_fire)
- LOCAL.res=<RESFIRE>
+    LOCAL.res=<RESFIRE>
 elif (<argn2>&dam_cold)
- LOCAL.res=<RESCOLD>
+    LOCAL.res=<RESCOLD>
 elif (<argn2>&dam_poison)
- LOCAL.res=<RESPOISON>
+    LOCAL.res=<RESPOISON>
 elif (<argn2>&dam_energy)
- LOCAL.res=<RESENERGY>
+    LOCAL.res=<RESENERGY>
 endif
 
-
+//absorve dano
 argn1=<BETWEEN2 1,<argn1>,<LOCAL.res>,100>
 
 /////aos damage (show counter above player head)
@@ -315,84 +311,40 @@ return 1
 //*************************************
 // @SPELLEFFECT
 //*************************************
-ON=@SPELLEFFECT
 //argn1=spell
 //argn2=magery skill
+//SRC=caster
+//DEFAULT=target
+ON=@SPELLEFFECT
 
 //so permite ganhar skill se a magia for corretamente encantada e nao foi 'self cast'
-//serv.log [SPELLEFFECT] <src.name> -- <name>
 if (<src>!=<uid>)
     src.skill_gain SKILL_MAGERY
 endif
 
-//s_Cure e veneno
-if (<argn1>==11) && (<restest 1 i_veneno>)
- LOCAL.poisoning=<argn2>
- LOCAL.poisoning=<eval <LOCAL.poisoning>/30>
- findid.i_veneno.more2=<eval <findid.i_veneno.more2>-<LOCAL.poisoning>>
- if (<eval <findid.i_veneno.more2>> >= 08000) || (<eval <findid.i_veneno.more2>> <= 0)
-  findid.i_veneno.remove
-  flags=<flags>&~statf_poisoned
-  update
-  sysmessageblue O veneno foi removido do seu corpo!
- endif
- sysmessageblue Voce se sente um tanto melhor. 
- return 1
+//se tiver script custom para a spell
+if <DEF.SPE_<argn1>>
+    serv.log [SPE] <argn1>
+    LOCAL.r=<cmb_spe_<argn1> <argn2>>
+    if <LOCAL.r>
+        return 1
+    endif
 endif
-
-//s_Cure e peste
-if (<argn1>==11) && (<restest 1 i_mry_peste>)
- if (<argn2> < 1001)
-  sysmessagered A cura foi muito fraca para amenizar a peste.
- else
-  src.findid.i_mry_peste.more2=(<src.findid.i_mry_peste.more2>/3)
-  sysmessageblue Voce se sente um pouco melhor.
- endif
- return 1
-endif
-
-//s_Poison
-if (<argn1>==20)
- veneno <argn2>
- effect 2 i_fx_curse 0 30 0
- update
- return 1
-endif
-
-//s_Fireball. Manter dano somente dam_magic|dam_fire, tirando o dam_physical.
-if (<argn1>==18)
- DAMAGESPELL s_Fireball,dam_magic|dam_fire,<src.magery>,<src.uid>
- RETURN 1
-endif
-
-//*************************************
-// @ITEMDCLICK
-//*************************************
-//ON=@ITEMDCLICK
-//if (<act.Baseid>==i_bottle_green) && (<act.more1>==s_poison)
-// LOCAL.actuid=<act.uid>
-// newitem i_mry_usepoison
-// new.link <LOCAL.actuid>
-// new.equip
-// new.use
-// return 1
-//endif
 
 //*************************************
 // @USERSPECIALMOVE
 //*************************************
 ON=@USERSPECIALMOVE
 tag.specialmove=<argn1>
-sysmessagegreen Usando Moviemento Especial: <DEF.SMO<eval <tag0.specialmove>>_NAME>
-f_gmLog [SPECIAL MOVES] <account.name>:<tag.name> seleciona SM <DEF.SMO<eval <tag0.specialmove>>_NAME>
+sysmessagegreen Movimento Especial: <DEF.SMO<eval <tag0.specialmove>>_NAME>
 
 //*************************************
 // @ITEMUNEQUIP
 //*************************************
 ON=@ITEMUNEQUIP
 //Cancela o special move se desequipar a arma
-IF (<f_isWeapon <act>>)
- f_clrSpecialMove
+if (<f_isWeapon <act>>)
+    f_clrSpecialMove
 endif
 
 
@@ -449,6 +401,22 @@ elif (<action> == SKILL_ARCHERY)
 endif
 serv.log [cmb_getAtkSkill] Invalid action: <action>
 return 500
+
+//*****************************************************************************
+// cmb_calcDam 
+//*****************************************************************************
+[FUNCTION cmb_calcDam]
+
+if <weapon>
+    LOCAL.d=<R<weapon.dam.lo>,<between <weapon.dam>,<cmb_getAtkSkill>,1000>>
+else
+    LOCAL.d=<R<dam.lo>,<between <dam>,<wrestling>,1000>>
+endif
+
+if !<LOCAL.d>
+    LOCAL.d=<R1,<between 1,10,<wrestling>,1000>>
+endif    
+return <eval (<LOCAL.d>*<argn1>)/100>
 
 //*****************************************************************************
 // cmb_tryBlockAtk <damage>,<defensive_factor_in_%>
@@ -638,6 +606,49 @@ if !<weapon.morex>
 endif
 
 //*****************************************************************************
+// cmb_spe_11 -- cure <skill_amt>
+//*****************************************************************************
+[FUNCTION cmb_spe_11]
+if <restest 1 i_veneno>
+    findid.i_veneno.more2 -= <eval <argn1>/30>
+    if (<findid.i_veneno.more2> >= 08000) || (<findid.i_veneno.more2> <= 0)
+        findid.i_veneno.remove
+        flags &= ~statf_poisoned
+        update
+        sysmessageblue O veneno foi removido do seu corpo!
+    else        
+        sysmessageblue Voce se sente um tanto melhor. 
+    endif
+    return 1
+elif <restest 1 i_mry_peste>
+    if (<argn1> <= 1000)
+        sysmessagered A cura foi muito fraca para amenizar a peste.
+    else
+        src.findid.i_mry_peste.more2=(<src.findid.i_mry_peste.more2>/3)
+        sysmessageblue Voce se sente um pouco melhor.
+    endif
+    return 1
+endif
+return 0
+
+//*****************************************************************************
+// cmb_spe_18 -- fireball <skill_amt>
+//*****************************************************************************
+//s_Fireball. Manter dano somente dam_magic|dam_fire, tirando o dam_physical.
+[FUNCTION cmb_spe_18]
+damagespell s_Fireball,dam_magic|dam_fire,<src.magery>,<src>
+return 1
+
+//*****************************************************************************
+// cmb_spe_20 -- poison <skill_amt>
+//*****************************************************************************
+[FUNCTION cmb_spe_20]
+veneno <argn1>
+effect 2 i_fx_curse 0 30 0
+update
+return 1
+ 
+//*****************************************************************************
 // cmb_bonusStr
 //*****************************************************************************
 [FUNCTION cmb_bonusStr]
@@ -696,11 +707,11 @@ return 0
 //*****************************************************************************
 [FUNCTION cmb_damType]
 if (<weapon.type>==t_weapon_fence)||(<weapon.type>==t_weapon_bow)||(<weapon.type>==t_weapon_mace_pick)||(<weapon.type>==t_weapon_arrow)||(<weapon.type>==t_weapon_xbow)||(<weapon.type>==t_weapon_bolt)
-    return dam_pierce
+    return <def.dam_pierce>
 elif (<weapon.type>==t_weapon_mace_sharp)||(<weapon.type>==t_weapon_sword)||(<weapon.type>==t_weapon_axe)
-    return dam_slash
+    return <def.dam_slash>
 endif
-return dam_physical
+return <def.dam_physical>
 
 //*****************************************************************************
 // cmb_hitLocation
