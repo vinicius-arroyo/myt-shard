@@ -1,10 +1,13 @@
 [Comment Sobre amadilhas]
 
+- Script by Septimus.
+
 **TAG USADAS
 
 tag.armadilha 		- identifica o tipo de armadilha instalada - (fica no ITEM ALVo)
 tag.quem_armou 		- identifica no quem foi o ultimo que armou um armadilha - (fica no ITEM ALVo)
 tag.intensidade 		- Calculada na MEMORY de instalação de armadilha e define a intensidade da armadilha - (fica no ITEM ALVo)
+tag.dificuldade		- Guarda Skill REMOVETRAP de quem armou pra futuro teste de remocao da armadilha
 tag.trap_escolhida 	- Tipo de armadilha escolhida no menu - (fica no PLAYER)
 tag.type_velho  		- Guarda o TYPE do item antes de instalar a armadilha pra repor depois (fica no NO ITEM)
 tag.XXX no @CREATE da armadilha identificam as CHARGES restantes, ex: ( tag.explosao_bau_porta_amt 3)- tem 3 cargas ainda
@@ -12,23 +15,69 @@ tag.XXX no @CREATE da armadilha identificam as CHARGES restantes, ex: ( tag.expl
 OBS: todas as tag somem apos o processo tanto no item como no player MENOS:
 - tag.quem_armou 
 
-**Armadilhas em container** (more1/tag.armadilha)
-1 - Explosao
-2 - Veneno
-3 - Flecha
+**Armadilhas em baus e portas**
+1 - Explosao 		- Explode ao abrir bau ou tentar instalar algo nele
+2 - Veneno			- Fica envenenado ao abrir bau ou tentar instalar algo nele
+3 - Flecha			- Leva uma flechada ao abrir bau ou tentar instalar algo nele
 
-//////////////////////////////////////////////////////////////////////////////////////////////	
-///////////////////////////  DEFNAME DAS ARMADILHAS     //////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////
+**Armadilhas instaladas no solo**
+1 - Explosao 		- Explode ao pisar na armadilha
+2 - Veneno 			- Fica envenenado ao pisar
+3 - Flecha 			- Leva uma flecha ao pisar
+
+O tempo para instalacao decorre to tempo fixo (MORE2 a alcancar para cada tipo de armadilha) das memory de instacao + Bonus de acordo com a skill REMOVETRAP
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
+////////////////////////////////	 DEFNAME DAS ARMADILHAS     //////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 [DEFNAME armadilhas]
 EXPLOSAO_BAU_PORTA	1
 VENENO_BAU_PORTA		2
 FLECHA_BAU_PORTA		3
 
-//////////////////////////////////////////////////////////////////////////////////////////////	
-///////////////////////////  TYPEDEF P/ PORTAS E BAUS   //////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////
+EXPLOSAO_SOLO		4
+VENENO_SOLO			5
+FLECHA_SOLO			6
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  ITEM - KIT DE ARMADILHAS  ///////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+[ITEMDEF i_kit_armadilha]
+ID=0e80
+NAME=Kit de instalacao de armadilha
+Weight=40
+
+ON=@Create 
+  color=00385
+  type=t_script
+  tag.explosao_bau_porta_amt 3
+  tag.veneno_bau_porta_amt 3
+  tag.flecha_bau_porta_amt 3
+
+  tag.explosao_solo_amt 3
+  tag.veneno_solo_amt 3
+  tag.flecha_solo_amt 3
+
+on=@clienttooltip
+//arrumar aqui pra so apaparecer info se attr_identified
+//if (!<src.IsGM>)
+ //return 0
+//endif
+f_sendTooltip **Armazena material para instacao de armadilhas**,Armadilhas p/ baus e portas restantes:<DEF.BR>Explosao:<tag.explosao_bau_porta_amt>  Veneno:<tag.veneno_bau_porta_amt>  Flecha:<tag.flecha_bau_porta_amt><DEF.BR>Armadilhas p/ instalacao no solo restantes:<DEF.BR>Explosao:<tag.explosao_solo_amt>  Veneno:<tag.veneno_solo_amt>  Flechas:<tag.flecha_solo_amt>
+
+ON=@dclick
+if   (<src.ctag0.usando_kit> == 1)
+  src.sysmessageyellow Voce ja esta usando o kit.......
+else
+  src.ctag.kit=<uid>
+  src.skillmenu sm_armadilhas
+endif
+return 1  
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  TYPEDEF P/ ARMADILHAS EM PORTAS E BAUS   //////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 [TYPEDEF t_chest_door_trapped]
 
 on=@clienttooltip
@@ -38,14 +87,21 @@ else
   f_sendTooltip Voce instalou uma armadilha neste objeto, Lembra-se ???
 endif
 if <src.IsGM>
-  f_sendTooltip Armadilha: <tag.armadilha>, Intensidade: <tag.intensidade>   Armada por: <UID.<tag0.quem_armou>.tag.name> [<UID.<tag0.quem_armou>.account.name>]
+  f_sendTooltip Armadilha: <tag.armadilha>, Intensidade: <tag.intensidade>   Armada por: <UID.<tag0.quem_armou>.tag.name> [<UID.<tag0.quem_armou>.account.name>]  Skill de quem armou: <tag.dificuldade>
 endif
 
 on=@dclick
-	
+
 obj=<topobj>	
-if (<obj.distance> > 1) 									 // && (!<src.IsGM>)
+if (<obj.distance> > 1) && (!<src.IsGM>)
   src.sysmessage Chegue mais perto.
+elif (<src.IsGM> == 1)
+  src.sysmessagegreen ATENCAO : Item com ARMADILHA. Mas so sera ativada SEM GM MODE.
+  type = <tag.type_velho>
+  use
+  type = t_chest_door_trapped
+return 1
+return 0
 elif (<obj.tag.armadilha> == <DEF.EXPLOSAO_BAU_PORTA>)  				 // explosao
   sfx 285
   src.effect 3 i_fx_explode 0 16 0
@@ -59,78 +115,95 @@ elif (<obj.tag.armadilha> == <DEF.VENENO_BAU_PORTA>)  				 // veneno
   src.veneno <obj.tag.intensidade>
 elif (<obj.tag.armadilha> == <DEF.FLECHA_BAU_PORTA>) 					 // Flecha
   sfx 548
-  src.emoteyellow Atingido por uma flecha ao abrir a fechadura
   src.effect 3 i_fx_energy_ray 0 2 0
+  src.emoteyellow Atingido por uma flecha ao abrir a fechadura
   src.damage <obj.tag.intensidade>
 endif
 type = <tag.type_velho>
 tag.type_velho=
 tag.intensidade=
+tag.dificuldade=
 tag.armadilha=
 //tag.quem_armou=		// melhor deixar, assim da de saber o ultimo que armou uma armadiha no item
 src.update
 return 1
 
-//////////////////////////////////////////////////////////////////////////////////////////////	
-///////////////////////////  ITEM - KIT DE ARMADILHAS ////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////
-[ITEMDEF i_kit_armadilha]
-ID=0e80
-NAME=Kit de instalacao de armadilha
-
-ON=@Create 
-  color=00385
-  type=t_script
-  tag.explosao_bau_porta_amt 3
-  tag.veneno_bau_porta_amt 3
-  tag.flecha_bau_porta_amt 3
-
-on=@clienttooltip
-if (!<src.IsGM>)
- return 0
-endif
-f_sendTooltip Numero de Armadilhas restantes:, Explosao:<tag.explosao_bau_porta_amt>  Veneno:<tag.veneno_bau_porta_amt>  Flecha:<tag.flecha_bau_porta_amt>   
-
-ON=@dclick
-  src.ctag.kit=<uid>
-  src.skillmenu sm_armadilhas
-  return 1
-  
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MENU GERAL DE SELECAO DE ARMADILHAS ////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 [skillmenu sm_armadilhas]
-Selecione uma armadilha.
+Selecione a categoria.
 
-on=i_rune_explosion Explosao em fechaduras.
+on=i_chest_metal_brass Dispositivos p/ Bau/Porta.
+  src.skillmenu sm_armadilhas_bau_porta
+
+on=0517 Dispositivos p/ enterrar.
+  src.skillmenu sm_armadilhas_solo
+
+////////////////////////////////////// MENU DAS ARMADILHAS EM BAUS E PORTAS ////////////////////////////////////////////////
+[skillmenu sm_armadilhas_bau_porta]/
+Selecione a armadilha.
+
+on=i_rune_explosion Dispositivo p/ Explosao.
   if (<UID.<ctag.kit>.tag.explosao_bau_porta_amt> <=0)
     sysmessageyellow O KIT esta sem equipamento para instalar esta armadilha.
-  return 1
   else
-    f_instalar_armadilha
     src.tag.trap_escolhida=<DEF.EXPLOSAO_BAU_PORTA>
+    f_instalar_armadilha_bau_porta
   endif
 
 on=i_rune_poison Instalar bolsa de veneno.
   if (<UID.<ctag.kit>.tag.veneno_bau_porta_amt> <=0)
     sysmessageyellow O KIT esta sem equipamento para instalar esta armadilha.
-  return 1
   else
-    f_instalar_armadilha
     src.tag.trap_escolhida=<DEF.VENENO_BAU_PORTA>
+    f_instalar_armadilha_bau_porta
   endif
 
-on=i_rune_magic_arrow Instalar Flecha.
+on=i_rune_magic_arrow Dispositivo para flecha.
   if (<UID.<ctag.kit>.tag.flecha_bau_porta_amt> <=0)
     sysmessageyellow O KIT esta sem equipamento para instalar esta armadilha.
-  return 1
   else
-    f_instalar_armadilha
     src.tag.trap_escolhida=<DEF.FLECHA_BAU_PORTA>
+    f_instalar_armadilha_bau_porta
   endif
 
-[FUNCTION  f_instalar_armadilha]
-  sysmessageyellow Selecione o bau ou porta no qual deseja instalar.
-  src.targetf f_instalar_armadilha_
+//////////////////////////////////////// MENU DAS ARMADILHAS NO SOLO  ////////////////////////////////////////////////////
+[skillmenu sm_armadilhas_solo]
+Selecione a armadilha.
 
-[FUNCTION f_instalar_armadilha_]
+on=i_rune_explosion Explosao terrestre.
+  if (<UID.<ctag.kit>.tag.explosao_solo_amt> <=0)
+    sysmessageyellow O KIT esta sem equipamento para instalar esta armadilha.
+  else
+    src.tag.trap_escolhida=<DEF.EXPLOSAO_SOLO>
+    f_instalar_armadilha_solo
+  endif
+
+on=i_rune_poison Bolsa de Veneno.
+  if (<UID.<ctag.kit>.tag.veneno_solo_amt> <=0)
+    sysmessageyellow O KIT esta sem equipamento para instalar esta armadilha.
+  else
+    src.tag.trap_escolhida=<DEF.VENENO_SOLO>
+    f_instalar_armadilha_solo
+  endif
+
+on=i_rune_magic_arrow Dispositivo para flechas.
+  if (<UID.<ctag.kit>.tag.flecha_solo_amt> <=0)
+    sysmessageyellow O KIT esta sem equipamento para instalar esta armadilha.
+  else
+    src.tag.trap_escolhida=<DEF.FLECHA_SOLO>
+    f_instalar_armadilha_solo
+  endif
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  ARMADILHAS EM BAUS E PORTAS  /////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+[FUNCTION  f_instalar_armadilha_bau_porta]
+  sysmessageyellow Selecione o bau ou porta no qual deseja instalar.
+  src.targetf f_instalar_armadilha_bau_porta_
+
+[FUNCTION f_instalar_armadilha_bau_porta_]
 
 obj=<argo>
 if (<obj.distance> > 1) && (!<src.IsGM>)
@@ -150,27 +223,28 @@ elif (<obj.type> == t_door) || (<obj.type> == t_container)
   src.emoteyellow Comeca a instalar a armadilha
   src.anim 020
   sfx 1449
-  src.newitem=i_mry_instala_armadilha
-  src.act.more1=<src.tag.trap_escolhida>		// tipo de armadilha (1.explosao 2.veneno 3.flecha)
-  src.act.more2=0
-  src.act.morep=<src.p>     				// se o cara se mexer cancela e retorna um novo i_kit_armadilha
-  src.act.link=<obj.uid>     				// linka a memory a porta/bau
+  src.face = <obj.uid>
+  src.ctag.usando_kit = 1
+  src.newitem=i_mry_instala_armadilha_bau_porta
+  src.act.more1=<src.tag.trap_escolhida>			// tipo de armadilha (VER DEFNAMES)
+  src.act.more2=(<src.removetrap>/100)			// BONUS no tempo para instalar q vai de 0 a 10 dependendo da skill REMOVETRAP
+  src.act.morep=<src.p>     					// se o cara se mexer cancela e retorna um novo i_kit_armadilha
+  src.act.link=<obj.uid>     					// linka a memory a porta/bau
   src.act.timer=1
   src.act.equip
   src.update
-//  remove
 else
   src.sysmessagered Nao e possivel instalar uma armadilha neste objeto.
 endif
 return 1
 endif
 
-//////////////////////////////////////////////////////////////////////////////////
-///////////////////////  Memory instalando armadilha  ////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////
-[ITEMDEF i_mry_instala_armadilha]
-id=i_memory
-NAME=Instalando Armadilha
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////  Memory instalando armadilha (PORTAS E BAUS)  ////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+[ITEMDEF i_mry_instala_armadilha_bau_porta]
+id=i_chest_metal_brass
+NAME=Instalando Armadilha em bau ou porta
 TYPE=T_eq_script
 WEIGHT=0
 
@@ -180,23 +254,22 @@ on=@Create
 on=@TIMER
 if !(<cont.p.x> == <morex>) || !(<cont.p.y> == <morey>)
   cont.sysmessagered Voce interrompeu a instalacao.
+  cont.ctag.usando_kit = 
+  cont.tag.trap_escolhida =
   remove
   return 1
-elif (<more2>==1) && (<more1>==<DEF.EXPLOSAO_BAU_PORTA>)  					 			 // explosao
+elif (<more2>==20) && (<more1>==<DEF.EXPLOSAO_BAU_PORTA>)  					 // explosao
   link.tag.armadilha=<DEF.EXPLOSAO_BAU_PORTA>
-  link.tag.intensidade=(<eval <eval <cont.removetrap>/1000> * <R40,55>> + <R10>) 				 //dano baseado na skill + um fixo pequeno pra quem nao tem skill.
-  UID.<cont.ctag.kit>.tag.explosao_bau_porta_amt=(<UID.<cont.ctag.kit>.tag.explosao_bau_porta_amt>-1)  // diminui cargas do kit
-  link.say EXPLODE
-elif (<more2>==1) && (<more1>==<DEF.VENENO_BAU_PORTA>) 								 // veneno
+  link.tag.intensidade=(<eval <eval <cont.removetrap>/100> * <R30,45>/10> + <R10>) 	 //dano baseado na skill + um fixo pequeno pra quem nao tem skill.
+  UID.<cont.ctag.kit>.tag.explosao_bau_porta_amt -= 1  					 // diminui cargas do kit
+elif (<more2>==17) && (<more1>==<DEF.VENENO_BAU_PORTA>) 					 // veneno
   link.tag.armadilha=<DEF.VENENO_BAU_PORTA>
-  link.tag.intensidade=(<eval <eval <cont.removetrap>/1000> * <R750,1500>>) 					 // joga pra VENENO de 75 a 150 % da skill
-  UID.<cont.ctag.kit>.tag.veneno_bau_porta_amt=(<UID.<cont.ctag.kit>.tag.veneno_bau_porta_amt>-1) 	 // diminui cargas do kit
-  link.say VENENO
-elif (<more2>==1) && (<more1>==<DEF.FLECHA_BAU_PORTA>) 								 // flecha
+  link.tag.intensidade=(<eval <eval <cont.removetrap>/100> * <R750,1500>/10>) 	 // joga pra VENENO de 75 a 150 % da skill (efeito de 750 a 1500)
+  UID.<cont.ctag.kit>.tag.veneno_bau_porta_amt -= 1						 // diminui cargas do kit
+elif (<more2>==15) && (<more1>==<DEF.FLECHA_BAU_PORTA>) 					 // flecha
   link.tag.armadilha=<DEF.FLECHA_BAU_PORTA>
-  link.tag.intensidade=(<eval <eval <cont.removetrap>/1000> * <R10,40>> + <R10>) 				 //dano baseado na skill + um fixo pequeno pra quem nao tem skill.
-  UID.<cont.ctag.kit>.tag.flecha_bau_porta_amt=(<UID.<cont.ctag.kit>.tag.flecha_bau_porta_amt>-1) 	 // diminui cargas do kit
-  link.say FLECHA	
+  link.tag.intensidade=(<eval <eval <cont.removetrap>/100> * <R10,40>/10> + <R10>) 	 //dano baseado na skill + um fixo pequeno pra quem nao tem skill.
+  UID.<cont.ctag.kit>.tag.flecha_bau_porta_amt -= 1					 	 // diminui cargas do kit
 else
   dorand 6
     cont.emoteyellow instalando armadilha
@@ -210,13 +283,170 @@ endif
 
 link.tag.type_velho = <link.type>
 link.tag.quem_armou = <cont.uid>
+link.tag.dificuldade= <cont.removetrap>
 link.type t_chest_door_trapped
 cont.emotegreen Terminou de instalar
 cont.Skill_Gain Skill_Removetrap
+cont.ctag.usando_kit = 
+cont.tag.trap_escolhida =
 UID.<cont.ctag.kit>.update
 link.update
 remove
 return 1
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////  ARMADILHAS NO SOLO  ////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+[ITEMDEF i_armadilha_solo]
+ID=0e73
+NAME=Armadilha
+Weight=5
+
+ON=@Create 
+Type=t_script
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  TYPEDEF P/ ARMADILHAS DE SOLO /////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+[TYPEDEF t_solo_trapped]
+
+on=@clienttooltip
+if <src.IsGM>
+  f_sendTooltip Armadilha: <tag.armadilha>, Intensidade: <tag.intensidade>   Armada por: <UID.<tag0.quem_armou>.tag.name> [<UID.<tag0.quem_armou>.account.name>]  Skill de quem armou: <tag.dificuldade>
+endif
+
+on=@dclick
+  src.sysmessageyellow Melhor nao mexer ai de qualquer jeito (Use a skill Removetrap).
+  return 1
+
+on=@step  
+if (!<argn1>)		// evita trigger INFINITO
+  if (<src.IsGM>)
+    src.sysmessagegreen ATENCAO: Ha uma armadilha sob seus pes. Para aciona-la retire o GM MODE.
+    return 0
+  elif <tag.quem_armou> == <src.uid>
+    src.sysmessagegreen Voce passa com cuidado sobre sua armadilha !!!!
+    return 0
+  elif <src.flags> & statf_dead)
+    return 0
+  elif (<tag.armadilha> == <DEF.EXPLOSAO_SOLO>)  					 // explosao
+    sfx 285
+    src.effect 3 i_fx_explode 0 16 0
+    src.emoteyellow Atingido por uma explosao terrestre
+    src.damage <tag.intensidade>,dam_fire
+  elif (<tag.armadilha> == <DEF.VENENO_SOLO>)  					 // veneno
+    sfx 517
+    src.effect 2 i_trap_gas_3 0 100
+    //src.effect 2 i_fx_smoke 0 16 0 65
+    src.emoteyellow Atingido por uma fumaca venenosa vinda do solo
+    src.damage <R3>,dam_poison
+    src.veneno <tag.intensidade>
+  elif (<tag.armadilha> == <DEF.FLECHA_SOLO>) 					 // Flecha
+    sfx 548
+    src.effect 3 i_fx_energy_ray 0 2 20
+    src.emoteyellow Atingido por flecha vinda de mecanismo subterraneo
+    src.damage <tag.intensidade>
+  endif
+  attr &= ~attr_invis
+  color = <tag.color>
+  emotered a armadilha foi ativada
+  type=t_normal
+  update
+  attr=attr_decay
+  timer 3,remove
+endif
+
+[FUNCTION f_instalar_armadilha_solo]
+  src.emoteyellow Comeca a instalar a armadilha
+  src.anim 020
+  sfx 89
+  src.ctag.usando_kit = 1						// anti-exploit
+  src.newitem=i_mry_instala_armadilha_solo
+  src.act.more1=<src.tag.trap_escolhida>				// tipo de armadilha (VER DEFNAMES)
+  src.act.more2=(<src.removetrap>/100)				// BONUS no tempo para instalar q vai de 0 a 10 dependendo da skill REMOVETRAP
+  src.act.morep=<src.p>     						// se o cara se mexer cancela e retorna um novo i_kit_armadilha
+  src.act.timer=1
+  src.act.equip
+  src.update
+  return 1
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////  Memory instalando armadilha (SOLO)  /////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+[ITEMDEF i_mry_instala_armadilha_solo]
+id=01d9d
+NAME=Instalando Armadilha no Solo
+TYPE=T_eq_script
+WEIGHT=0
+
+on=@Create
+    ATTR=attr_newbie
+
+on=@TIMER
+if !(<cont.p.x> == <morex>) || !(<cont.p.y> == <morey>)
+  cont.sysmessagered Voce interrompeu a instalacao.
+  cont.ctag.usando_kit = 							// anti-exploit
+  cont.tag.trap_escolhida =
+  remove
+  return 1
+elif (<more2>==15) && (<more1>==<DEF.EXPLOSAO_SOLO>)  						   // explosao
+  cont.ctag.armadilha=<DEF.EXPLOSAO_SOLO>
+  cont.ctag.intensidade=(<eval <eval <cont.removetrap>/100> * <R25,40>/10> + <R8>)     //dano baseado na skill + um fixo pequeno pra quem nao tem skill.
+  cont.ctag.formato=01c18
+  UID.<cont.ctag.kit>.tag.explosao_solo_amt -= 1  						   // diminui cargas do kit
+elif (<more2>==13) && (<more1>==<DEF.VENENO_SOLO>) 						   // veneno
+  cont.ctag.armadilha=<DEF.VENENO_SOLO>
+  cont.ctag.intensidade=(<eval <eval <cont.removetrap>/100> * <R550,1200>/10>) 	   // joga pra VENENO de 55 a 120 % da skill (efeito de 550 a 1200)
+  cont.ctag.formato=02839
+  UID.<cont.ctag.kit>.tag.veneno_solo_amt -= 1							   // diminui cargas do kit
+elif (<more2>==13) && (<more1>==<DEF.FLECHA_SOLO>) 						   // flecha
+  cont.ctag.armadilha=<DEF.FLECHA_SOLO>
+  cont.ctag.intensidade=(<eval <eval <cont.removetrap>/100> * <R10,35>/10> + <R5>) 	   // dano baseado na skill + um fixo pequeno pra quem nao tem skill.
+  cont.ctag.formato=01943
+  UID.<cont.ctag.kit>.tag.flecha_solo_amt -= 1						 	   // diminui cargas do kit
+else
+  dorand 6
+    cont.emoteyellow instalando armadilha
+    cont.anim 020
+    sfx 89
+  enddo
+  timer=1
+  more2=<more2>+1
+  return 1
+endif
+
+serv.newitem = i_armadilha_solo
+new.tag.armadilha = <cont.ctag0.armadilha>
+new.tag.intensidade = <cont.ctag.intensidade>
+new.tag.quem_armou = <cont.uid>
+new.tag.dificuldade= <cont.removetrap>
+new.tag.detectng_hidden= <eval <cont.removetrap>/2>		// usado na skill detect hidden (chance de detect)
+new.tag.color= 0								// usado na skill detect hidden (color q fica apos o detect)
+new.p = <cont.p>
+new.dispid = <cont.ctag.formato>
+new.color = 0b89
+new.attr = 090								//usado na skill detect hidden (attr apos detect fica 010)
+new.type = t_solo_trapped
+cont.emotegreen = Terminou de instalar
+cont.ctag.armadilha =
+cont.ctag.intensidade =
+cont.ctag.formato =
+cont.ctag.usando_kit = 
+cont.tag.trap_escolhida =
+new.update
+UID.<cont.ctag.kit>.update
+remove
+return 1
+
+
+
+
+
+
+
+
+
+
 
 
 
