@@ -1,14 +1,24 @@
-//////////////////////////////////////////////////////////////////////////////////
-//              Mystical Tales Shard                //
-//      Sistema de movimentos especiais de batalha do UO:AoS+       //
-//               Galthar, o Errante (08/2007)           //
-//////////////////////////////////////////////////////////////////////////////////
-//                                      //
-//              **TAGS utilizadas**             //
-//                                      //
-//  tag0.specialmove    Movimento especial selecionado          //
-//                                      //
-//////////////////////////////////////////////////////////////////////////////////
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE MOVIMENTOS ESPECIAIS por
+//  Galthar
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TAGS usadas:
+
+//tag.specialmove   Movimento especial selecionado
+
+//*****************************************************************************
+
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
 [DEFNAME special_moves]
 SMO1_SKILL      600         //IgnoreAR
 SMO2_SKILL      750         //Bleed attack
@@ -80,14 +90,21 @@ SMO22_FUNC      f_sm_double_shot    //Double Shot
 SMO23_FUNC      f_sm_IgnoreAR       //Armor Pierce
 SMO25_FUNC      f_sm_ForceArrow     //Force Arrow
 
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs - Suporte ao sistema
+//*****************************************************************************
+//*****************************************************************************
 
-
-[FUNCTION f_trySpecialMove]
+//*****************************************************************************
+// f_trySpecialMove
+//*****************************************************************************
 //Determina se usa ou não o movimento especial
 //Consome mana
 //Se não pode usar, retorna 0
 //Se pode usar, retorna o valor do movimento especial.
 //say SMO<eval <tag0.specialmove>>_SKILL
+[FUNCTION f_trySpecialMove]
 IF !<tag0.specialmove> || !<BELLTEST <Tactics>, <DEF.SMO<eval <tag0.specialmove>>_SKILL>>
  return 0
 ELIF (<f_consumeMana <DEF.SMO<eval <tag0.specialmove>>_MANA>>)
@@ -96,7 +113,39 @@ ELIF (<f_consumeMana <DEF.SMO<eval <tag0.specialmove>>_MANA>>)
 ENDIF
 return 0
 
+//*****************************************************************************
+// f_consumeMana
+//*****************************************************************************
+//Tenta consumir <argn> mana. Se tiver o suficiente retorna 1.
+//Se não tiver, não consome e retorna 0.
+[FUNCTION f_consumeMana]
+IF (<IsGM>)
+ return 1
+ELIF (<mana> >= <argn>)
+ mana -= <argn>
+ return 1
+ENDIF
+return 0
 
+//*****************************************************************************
+// f_clrSpecialMove
+//*****************************************************************************
+//Cancela o special move.
+[FUNCTION f_clrSpecialMove]
+IF (<IsPlayer>)
+ SENDPACKET (0bf 00 05 00 021)
+ENDIF
+tag.specialmove=0
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs - Movimentos Especiais
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// f_sm_ignoreAR
+//*****************************************************************************
 //Ignora a armadura do oponente
 [FUNCTION f_sm_ignoreAR]
 emotered inbloqueavel
@@ -104,6 +153,9 @@ sfx 02b2
 return 0
 //O resto é feito no e_combat
 
+//*****************************************************************************
+// f_sm_bleed
+//*****************************************************************************
 //Faz SRC sangrar 6 segndos perdendo primeiro 6 hits, depois 5...
 [FUNCTION f_sm_bleed]
 IF (<src.BLOODCOLOR>==0ffff)
@@ -142,25 +194,33 @@ else
 endif
 return 1
 
+//*****************************************************************************
+// f_sm_concussionBlow
+//*****************************************************************************
 //Aumenta o dano do ataque na diferensa dos hits e mana de SRC (alvo)
 //Nunca maior que 30
 [FUNCTION f_sm_concussionBlow]
-LOCAL.dam=<eval <src.hits>-<src.mana>>
-LOCAL.dam=<QVAL <LOCAL.dam> < 0 ? <eval <LOCAL.dam>*(-1)> : <LOCAL.dam>>
+LOCAL.dam=<QVAL <src.hits> > <src.mana> ? <eval <src.hits>-<src.mana>> : <eval <src.mana>-<src.hits>>>
 //Não sei pq QVAL não funcionou aqui. Nem evalutando.
-IF (<eval <LOCAL.dam>> > 30)
+IF <LOCAL.dam> > 30
  LOCAL.dam=30
 ENDIF
 sfx 04f4
 src.emotered abalado
-return <eval <LOCAL.dam>>
+return <LOCAL.dam>
 
+//*****************************************************************************
+// f_sm_crushingBlow
+//*****************************************************************************
 //Aumenta o dano em até 30 hits dependendo do tactics
 [FUNCTION f_sm_crushingBlow]
 emotered bate forte
 sfx 051C
 return <eval <tactics>/33>
 
+//*****************************************************************************
+// f_sm_disarm
+//*****************************************************************************
 //Desarma SRC e põe a culpa em DEFAULT
 [FUNCTION f_sm_disarm]
 //say <weapon.layer>
@@ -169,27 +229,33 @@ if (!<obj>)
  sysmessageyellow Voce nao pode desarmar seu oponente.
  return 0
 endif
-OBJ.p=<p>
+//OBJ.p=<p>
 OBJ.movenear <UID> 1
-OBJ.timer=600            // evita timer -1 qdo item cai no chao 
-OBJ.attr=attr_decay          // evita timer -1 qdo item cai no chao
+OBJ.timer=600
+OBJ.attr=attr_decay
 sfx 033
 src.emotered desarmado
 return 0
 
+//*****************************************************************************
+// f_sm_dismount
+//*****************************************************************************
 //Desmonta o SRC e põe a culpa em DEFAULT
 [FUNCTION f_sm_dismount]
-if (<src.findlayer(layer_horse)>)
- OBJ=<src.findlayer(layer_horse).more2> //salva o cavalo
+if <src.findlayer.layer_horse>
+ OBJ=<src.findlayer.layer_horse.more2>
  src.emotered cai
  src.dismount
- LOCAL.dam=<eval {5 10}>
+ LOCAL.dam=<R5,10>
  OBJ.DAMAGE <local.dam> dam_god <UID>   //ferir o cavalo
  return <LOCAL.dam> //Aumenta o dano de 5 a 10
 endif
 sysmessageyellow Seu alvo nao esta montado...
 return 0
 
+//*****************************************************************************
+// f_sm_doubleStrike
+//*****************************************************************************
 //Repete o dano depois de 1 segundo
 [FUNCTION f_sm_doubleStrike]
 emotered ataque duplo
@@ -197,9 +263,12 @@ timerf 1,bark,2
 RETURN 0
 //O resto é feito no e_combat
 
+//*****************************************************************************
+// f_sm_infecting
+//*****************************************************************************
 //Caso a arma esteja envenenada, envenena com skill 100.0
 [FUNCTION f_sm_infecting]
-IF (<weapon.more2>!=20)
+IF (<weapon.more2>!=s_poison)
  sysmessageyellow Sua arma nao esta envenenada...
  return 0
 endif
@@ -207,6 +276,9 @@ sfx 0199
 return 0
 //O resto é feito no e_combat
 
+//*****************************************************************************
+// f_sm_mortalStrike
+//*****************************************************************************
 //Previde o alvo de poder ser curado por certo tempo.
 [FUNCTION f_sm_mortalStrike]
 SFX 051C
@@ -237,12 +309,24 @@ cont.sysmessageblue Seu ferimento mortal nao atrapalha mais sua cura.
 remove
 return 1
 
+//Evita poder ser curado por quaisquer meios
+[EVENTS e_mortalStrike]
+ON=@SPELLEFFECT
+if (<argn1>==4) || (<argn1>==11)
+ sysmessagered Voce não pode ser curado! Recebeu um ataque mortal!
+ return 1
+endif
+//Testa no skill_healing se pode ou não ser tratado com bandagens.
+
+//*****************************************************************************
+// f_sm_movingShoot
+//*****************************************************************************
 //Permite andar atirando por 10 a 15 segundos.
 [FUNCTION f_sm_movingShoot]
 sfx 0fA
 serv.newitem i_mry_sm_moving_shoot
 equip <new>
-new.timer <eval {10 15}>
+new.timer <R10,15>
 return 0
 
 [ITEMDEF i_mry_sm_moving_shot]
@@ -255,22 +339,28 @@ on=@equip
 if (<src.restest 2 <baseid>>)
  remove
 endif
-cont.flags=<cont.flags>|020000
+cont.flags |= statf_archercanmove
 return 0
 
 on=@timer
-cont.flags=<cont.flags>&~020000
+cont.flags &= ~statf_archercanmove
 cont.sysmessagered Voce nao pode atirar em movimento.
 remove
 return 1
 
+//*****************************************************************************
+// f_sm_paralyzingBlow
+//*****************************************************************************
 //Paraliza SRC por 3 a 7 segundos e põe a culpa em DEFAULT
 [FUNCTION f_sm_paralyzingBlow]
 sfx 0525
-src.stun <eval {3 7}>
+src.stun <R3,7>
 src.emotered paralizado
 return 0
 
+//*****************************************************************************
+// f_sm_double_shot
+//*****************************************************************************
 //Atira 2 flechas e acerta ambas
 [FUNCTION f_sm_double_shot]
 emotered atira duas vezes
@@ -278,6 +368,9 @@ findid.<weapon.TAG.OVERRIDE.AMMOTYPE>.decrement
 return 0
 //O resto é feito no Combat
 
+//*****************************************************************************
+// f_sm_ForceArrow
+//*****************************************************************************
 //Aumenta o dano de uma flecha em até 30 dependendo do tactics
 [FUNCTION f_sm_ForceArrow]
 emotered atira mais forte
@@ -285,30 +378,5 @@ sfx 02b1
 return <eval <tactics>/33>
 return 0
 
-//Cancela o special move.
-[FUNCTION f_clrSpecialMove]
-IF (<IsPlayer>)
- SENDPACKET (0bf 00 05 00 021)
-ENDIF
-tag.specialmove=0
 
-
-//Tenta consumir <argn> mana. Se tiver o suficiente retorna 1.
-//Se não tiver, não consome e retorna 0.
-[FUNCTION f_consumeMana]
-IF (<IsGM>)
- return 1
-ELIF (<mana> >= <argn>)
- mana -= <argn>
- return 1
-ENDIF
-return 0
-
-//Evita poder ser curado por quaisquer meios
-[EVENTS e_mortalStrike]
-ON=@SPELLEFFECT
-if (<argn1>==4) || (<argn1>==11)
- sysmessagered Voce não pode ser curado! Recebeu um ataque mortal!
- return 1
-endif
-//Testa no skill_healing se pode ou não ser tratado com bandagens.
+[EOF]
