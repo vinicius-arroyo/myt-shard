@@ -1,0 +1,105 @@
+[ITEMDEF i_kit_removetrap]
+ID=01ebb
+NAME=Kit p/ removao de armadilhas
+Weight=5
+
+ON=@Create 
+  type=t_script
+  more1=10
+
+on=@clienttooltip
+
+on=@dclick
+if (<topobj.uid> != <src.uid>)
+  src.sysmessageyellow O kit precisa estar com voce.
+elif   (<src.ctag0.usando_kit> == 1)
+  src.sysmessageyellow Voce ja esta usando o kit.......
+else
+  src.ctag.kit=<uid>
+  src.sysmessageyellow Selecione a armadilha que deseja desarmar:
+  src.targetf f_removendo_trap
+endif
+return 1
+
+[FUNCTION f_removendo_trap]
+
+obj=<argo>
+if (<obj.distance> > 1) && (!<src.IsGm>)
+  src.sysmessageyellow Longe demais...
+elif (<obj.type> != t_chest_door_trapped) && (<obj.type> != t_solo_trapped)
+  src.sysmessagegreen Este objeto aparentemente nao contem nenhuma armadilha.
+else
+  src.emoteyellow Tentando desativar armadilha
+  src.anim 020
+  sfx 86
+  src.face = <obj.uid>
+  src.ctag.usando_kit = 1
+  src.newitem=i_mry_desativando_trap
+  src.act.more2=0			//(<src.removetrap>/1000)			// BONUS no tempo para instalar q vai de x a x dependendo da skill REMOVETRAP
+  src.act.morep=<src.p>     					// se o cara se mexer cancela 
+  src.act.link=<obj.uid>     					// linka a memory a armadilha
+  src.act.timer=1
+  src.act.equip
+  src.update
+endif
+return 1
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////  Memory desativando armadilha ///////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+[ITEMDEF i_mry_desativando_trap]
+id=i_rune_magic_untrap
+NAME=Desativando armadilha
+TYPE=T_eq_script
+WEIGHT=0
+
+on=@Create
+    ATTR=attr_newbie
+
+on=@TIMER
+if !(<cont.p.x> == <morex>) || !(<cont.p.y> == <morey>)
+  cont.sysmessagered Voce interrompeu o processo.
+  cont.ctag.usando_kit = 
+  remove
+  return 1
+elif ((<more2>==2) && (<link.type> == t_chest_door_trapped) && (<eval <cont.removetrap>/11> + <R25>) > (<eval <link.tag.dificuldade>/10>)) || (<link.tag.quem_armou> == <cont.uid>)   // skill + 0-25% de chance
+  sfx 511
+  cont.sysmessagegreen Voce desarmou !!  
+  link.emotegreen a armadilha foi desativada
+  link.type = <link.tag.type_velho>
+  link.tag.type_velho=
+  link.tag.intensidade=
+  link.tag.dificuldade=
+  link.tag.armadilha=
+  link.update
+elif ((<more2>==2) && (<link.type> == t_solo_trapped) && (<eval <cont.removetrap>/11> + <R25>) > (<eval <link.tag.dificuldade>/10>)) || (<link.tag.quem_armou> == <cont.uid>)   // skill + 0-25% de chance
+  sfx 501
+  cont.sysmessagegreen Voce desarmou !!  
+  link.emotegreen a armadilha foi desativada
+  link.type=t_normal
+  link.update
+  link.attr=attr_decay
+  link.remove
+elif (<more2>==2) && (<eval <cont.removetrap> / 50> + <R40>)  >  <R80>		// chance extra de nao ativar a armadilha e poder tentar novamente
+  cont.sysmessagegreen Voce nao conseguiu desativar a armadilha, mas ela nao foi disparada.
+elif (<more2>==2) 
+  cont.sysmessagered Voce falhou ao tentar desativar a armadilha e a acionou !!!
+  //use
+else
+  dorand 6
+    cont.emoteyellow Tentando desativar armadilha
+    cont.anim 020
+    sfx 86
+  enddo
+  timer=1
+  more2=<more2>+1
+  return 1
+endif
+
+cont.ctag.usando_kit = 
+cont.Skill_Gain Skill_Removetrap
+remove
+return 1
+
+
+[EOF]

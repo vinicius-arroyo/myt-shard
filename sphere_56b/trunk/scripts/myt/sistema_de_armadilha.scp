@@ -60,14 +60,12 @@ ON=@Create
   tag.flecha_solo_amt 3
 
 on=@clienttooltip
-//arrumar aqui pra so apaparecer info se attr_identified
-//if (!<src.IsGM>)
- //return 0
-//endif
 f_sendTooltip **Armazena material para instacao de armadilhas**,Armadilhas p/ baus e portas restantes:<DEF.BR>Explosao:<tag.explosao_bau_porta_amt>  Veneno:<tag.veneno_bau_porta_amt>  Flecha:<tag.flecha_bau_porta_amt><DEF.BR>Armadilhas p/ instalacao no solo restantes:<DEF.BR>Explosao:<tag.explosao_solo_amt>  Veneno:<tag.veneno_solo_amt>  Flechas:<tag.flecha_solo_amt>
 
 ON=@dclick
-if   (<src.ctag0.usando_kit> == 1)
+if (<topobj.uid> != <src.uid>)
+  src.sysmessageyellow O kit precisa estar com voce.
+elif   (<src.ctag0.usando_kit> == 1)
   src.sysmessageyellow Voce ja esta usando o kit.......
 else
   src.ctag.kit=<uid>
@@ -87,7 +85,7 @@ else
   f_sendTooltip Voce instalou uma armadilha neste objeto, Lembra-se ???
 endif
 if <src.IsGM>
-  f_sendTooltip Armadilha: <tag.armadilha>, Intensidade: <tag.intensidade>   Armada por: <UID.<tag0.quem_armou>.tag.name> [<UID.<tag0.quem_armou>.account.name>]  Skill de quem armou: <tag.dificuldade>
+  f_sendTooltip Armadilha: <tag.armadilha>, Intensidade: <tag.intensidade><DEF.BR>Armada por: <UID.<tag0.quem_armou>.tag.name> [<UID.<tag0.quem_armou>.account.name>]<DEF.BR>Skill de quem armou: <tag.dificuldade>
 endif
 
 on=@dclick
@@ -312,20 +310,24 @@ Type=t_script
 
 on=@clienttooltip
 if <src.IsGM>
-  f_sendTooltip Armadilha: <tag.armadilha>, Intensidade: <tag.intensidade>   Armada por: <UID.<tag0.quem_armou>.tag.name> [<UID.<tag0.quem_armou>.account.name>]  Skill de quem armou: <tag.dificuldade>
+  f_sendTooltip Armadilha: <tag.armadilha>, Intensidade: <tag.intensidade><DEF.BR>Armada por: <UID.<tag0.quem_armou>.tag.name> [<UID.<tag0.quem_armou>.account.name>]<DEF.BR>Skill de quem armou: <tag.dificuldade>
 endif
 
 on=@dclick
-  src.sysmessageyellow Melhor nao mexer ai de qualquer jeito (Use a skill Removetrap).
-  return 1
+if (<distance> > 1) && (!<src.IsGm>)
+  src.sysmessageyellow Muito longe....
+else
+  trigger @step
+endif
+return 1
 
 on=@step  
 if (!<argn1>)		// evita trigger INFINITO
   if (<src.IsGM>)
-    src.sysmessagegreen ATENCAO: Ha uma armadilha sob seus pes. Para aciona-la retire o GM MODE.
+    src.sysmessagegreen ATENCAO: Ha uma armadilha sob seus pes ou voce esta tentnado ativa-la via DCLICK. Para aciona-la retire o GM MODE.
     return 0
   elif <tag.quem_armou> == <src.uid>
-    src.sysmessagegreen Voce passa com cuidado sobre sua armadilha !!!!
+    src.sysmessagegreen Voce reconhece sua armadilha!!!!
     return 0
   elif <src.flags> & statf_dead)
     return 0
@@ -337,7 +339,6 @@ if (!<argn1>)		// evita trigger INFINITO
   elif (<tag.armadilha> == <DEF.VENENO_SOLO>)  					 // veneno
     sfx 517
     src.effect 2 i_trap_gas_3 0 100
-    //src.effect 2 i_fx_smoke 0 16 0 65
     src.emoteyellow Atingido por uma fumaca venenosa vinda do solo
     src.damage <R3>,dam_poison
     src.veneno <tag.intensidade>
@@ -364,7 +365,7 @@ endif
   src.newitem=i_mry_instala_armadilha_solo
   src.act.more1=<src.tag.trap_escolhida>				// tipo de armadilha (VER DEFNAMES)
   src.act.more2=(<src.removetrap>/100)				// BONUS no tempo para instalar q vai de 0 a 10 dependendo da skill REMOVETRAP
-  src.act.morep=<src.p>     						// se o cara se mexer cancela e retorna um novo i_kit_armadilha
+  src.act.morep=<src.p>     						// se o cara se mexer cancela 
   src.act.timer=1
   src.act.equip
   src.update
@@ -389,7 +390,7 @@ if !(<cont.p.x> == <morex>) || !(<cont.p.y> == <morey>)
   cont.tag.trap_escolhida =
   remove
   return 1
-elif (<more2>==15) && (<more1>==<DEF.EXPLOSAO_SOLO>)  						   // explosao
+elif (<more2>==15) && (<more1>==<DEF.EXPLOSAO_SOLO>)  					   // explosao
   cont.ctag.armadilha=<DEF.EXPLOSAO_SOLO>
   cont.ctag.intensidade=(<eval <eval <cont.removetrap>/100> * <R25,40>/10> + <R8>)     //dano baseado na skill + um fixo pequeno pra quem nao tem skill.
   cont.ctag.formato=01c18
