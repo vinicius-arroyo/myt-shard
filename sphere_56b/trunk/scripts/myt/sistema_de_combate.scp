@@ -113,8 +113,11 @@ event_kill
 //*************************************
 // @HITTRY
 //*************************************
+//SRC:      esta apanhando
+//DEFAULT:  esta atacando
+//ARGN1:    tempo (speed?) pro hit
 ON=@HITTRY
-//serv.log [HITTRY] <src.account> <eval <actdiff>>
+//serv.log [HITTRY] <name> contra <src.name> <eval <actdiff>>
 //sai do modo batalha se alvo invul, morto, desmaiado, escondido, etc
 if ( <src.flags>&(statf_invul|statf_dead|statf_invisible|statf_insubstantial|statf_stone|statf_hidden))
  serv.log [HITTRY] <src.account> - <account>
@@ -122,6 +125,7 @@ if ( <src.flags>&(statf_invul|statf_dead|statf_invisible|statf_insubstantial|sta
  update
  return 1
 endif
+
 //sempre acerta.
 actdiff=1000
 
@@ -139,31 +143,25 @@ return 1
 //ARGN1:    dano
 ON=@HIT
 
-//fator de agressividade conjunto (ataque e defesa)
-//LOCAL.agm=<eval <tag0.agr>+<src.tag0.agr>> //0 a 9 = defensivo, 10 = neutro, 11 a 20, agressivo
-//fator de agressividade de ataque (proporcional ao tag.agr)
-LOCAL.aga=<eval <between 0,100,<tag0.agr>,10>+50> //50 a 150
-//fator de agressividade de defesa (inversamente proporcional ao tag.agr)
-LOCAL.agd=<eval <between2 0,100,<src.tag0.agr>,10>+50> //150 a 50
+//serv.log [HITTRY] <name> contra <src.name> [<dlocal.a>(<dLOCAL.ga>)/<dlocal.d>(<dLOCAL.gd>)/<dlocal.c>] <eval <actdiff>>
+
+if !<cmb_tryHit>
+   return 1
+endif
+
 //salva special move se for usado
 LOCAL.specialmove=<f_trySpecialMove>
 
-//calcula dano em funcao da skill,arma e agressividade
+//calcula dano base [entre minimo e maximo do golpe]
 //ignora dano calculado pelo sphere
-argn1=<cmb_calcDam <LOCAL.aga>>
+argn1=<cmb_calcBaseDam>
 
 //salva escudo (ou arma) em OBJ
 OBJ=<src.findlayer.layer_hand2>
-//se tiver escudo, tenta bloquear
-if <OBJ.type>==t_shield
-    //se puder bloquear
-    if <cmb_tryBlockAtk <argn1>,<LOCAL.agd>>
-        cmb_blockAtk <argn1>
-        return 1
-    endif
-//senao tenta esquiva
-elif <cmb_tryDodge <LOCAL.agd>>
-    return 1 
+
+//se puder bloquear
+if <cmb_tryBlockAtk <argn1>>
+    return 1
 endif
 
 //Se a arma na HAND1 estiver com algum efeito
@@ -177,6 +175,7 @@ LOCAL.bonus = 0
 LOCAL.bonus += <LOCAL.sm>           //ate 30
 LOCAL.bonus += <cmb_bonusStr>       //1,2,3 para faixas 85,90,95
 LOCAL.bonus += <cmb_bonusAnatomy>   //0 - 4 (anatomy/250)
+LOCAL.bonus += <cmb_bonusTactics>   //0 - 4 (tactics/250)
 LOCAL.bonus += <tag0.moddam>        //?
 
 LOCAL.penal = 0
@@ -385,9 +384,9 @@ else
 endif 
 
 //*****************************************************************************
-// cmb_getAtkSkill
+// cmb_getActSkill
 //*****************************************************************************
-[FUNCTION cmb_getAtkSkill]
+[FUNCTION cmb_getActSkill]
 if (<action> == SKILL_WRESTLING)
     return <wrestling>
 elif (<action> == SKILL_FENCING)
@@ -399,110 +398,41 @@ elif (<action> == SKILL_MACEFIGHTING)
 elif (<action> == SKILL_ARCHERY)
     return <archery>
 endif
-serv.log [cmb_getAtkSkill] Invalid action: <action>
-return 500
 
-//*****************************************************************************
-// cmb_calcDam 
-//*****************************************************************************
-[FUNCTION cmb_calcDam]
-
-if <weapon>
-    LOCAL.d=<R<weapon.dam.lo>,<between <weapon.dam>,<cmb_getAtkSkill>,1000>>
-else
-    LOCAL.d=<R<dam.lo>,<between <dam>,<wrestling>,1000>>
-endif
-
-if !<LOCAL.d>
-    LOCAL.d=<R1,<between 1,10,<wrestling>,1000>>
-endif    
-return <eval (<LOCAL.d>*<argn1>)/100>
-
-//*****************************************************************************
-// cmb_tryBlockAtk <damage>,<defensive_factor_in_%>
-//*****************************************************************************
-[FUNCTION cmb_tryBlockAtk]
-
-//se tiver escudo tenta parrying 
-//se o special move nao for IGNORE AR ou ARMOR PIERCE e passar no teste
-if <OBJ.type>!=t_shield || (<TAG0.specialmove_active>==1) || (<TAG0.specialmove_active>==23)
-    return 0
-endif
-
-//ganha parrying independente se defende ou nao
-//mas evita macros
-if <argn1> > 5 
-    src.skill_gain skill_parrying 
-endif
-
-LOCAL.p=<eval (<src.parrying>-<cmb_getAtkSkill>)+1000> //0 a 2000
-LOCAL.s=<eval <LOCAL.p>*<argn2>>
-//serv.log [PARRYING] PAR:<eval <dLOCAL.s>/4000>% / D:<argn2>% - <argn1>
-//400000 => 50% maximo de parrying
-if <R400000> <= <LOCAL.s>
-    return 1
-endif
 return 0
 
 //*****************************************************************************
-// cmb_blockAtk <damage>
+// cmb_calcBaseDam 
 //*****************************************************************************
-[FUNCTION cmb_blockAtk]
-if !<npc>
-    sysmessageyellow <src.name> apara seu golpe!
-endif
-if !<src.npc>
-    src.sysmessageyellow Voce apara o golpe!
-endif
+[FUNCTION cmb_calcBaseDam]
 
-//danifica escudo (mace da maior dano)
-if (<action> == skill_macefighting)
-    OBJ.hits -= <eval <argn1>/3>
+//weapon or unarmed?
+if <weapon>
+    LOCAL.d=<R<weapon.dam>>
 else
-    OBJ.hits -= <eval <argn1>/6>
-endif
-serv.log [DAM] <argn1> <OBJ.name> <OBJ.hits>
-
-//caso escudo destruido
-if (<OBJ.hits> > 08000 ) && !(<OBJ.attr> & attr_newbie)
-    if !<NPC>
-        sysmessageorange O escudo de <src.name> foi totalmente arruinado!
-    endif
-    if !<src.NPC>
-        src.sysmessageorange Seu escudo foi totalmente arruinado!
-    endif
-    OBJ.remove
-else
-    //atualiza HITS do escudo
-    OBJ.update
+    LOCAL.d=<R<dam>>
 endif
 
-//som e animacao
-dorand 4
-    sfx 0237
-    sfx 0236
-    sfx 023c
-    sfx 023b
-enddo
-anim 19
-
-//*****************************************************************************
-// cmb_tryDodge <defensive_factor_in_%>
-//*****************************************************************************
-[FUNCTION cmb_tryDodge]
-
-if <TAG0.specialmove_active> || (<action> == Skill_Archery) 
-    return 0
-endif
-
-LOCAL.p=<eval (<src.tactics>-<cmb_getAtkSkill>)+1000> //0 a 2000
-LOCAL.s=<eval <LOCAL.p>*<argn1>>
-
-//quando o atacado for um player ou npc e não estiver usando Special Move nem arquery
-//571428 => 35% maximo de esquiva
-if (<R571428> > <LOCAL.s>)
-    return 0
+if !<LOCAL.d>
+    LOCAL.d=<R1,4>
 endif    
+return <LOCAL.d>
+
+
+//*****************************************************************************
+// cmb_tryHit
+//*****************************************************************************
+[FUNCTION cmb_tryHit]
+LOCAL.ga=<eval <tag0.agr>+1>         //1 - 11
+LOCAL.gd=<eval 11-<src.tag0.agr>>    //11 - 1
+
+LOCAL.a=<eval (<cmb_getActSkill>+200)*<LOCAL.ga>>
+LOCAL.d=<eval (<src.cmb_getActSkill>+200)*<LOCAL.gd>>
+LOCAL.c=<eval (<LOCAL.a>*50)/<LOCAL.d>> //*100/2 (result in percent)
+
+if <R100> <= <LOCAL.c>
+    return 1
+endif
 
 if !<npc>
     sysmessageyellow <src.name> esquiva-se de seu golpe!
@@ -519,6 +449,79 @@ dorand 5
     sfx 0232
 enddo 
 anim 18
+
+return 0
+
+//*****************************************************************************
+// cmb_tryBlockAtk <damage>,<defensive_factor_in_%>
+//*****************************************************************************
+[FUNCTION cmb_tryBlockAtk]
+
+//se tiver escudo ou arma, tenta parrying 
+//se o special move nao for IGNORE AR ou ARMOR PIERCE e passar no teste
+if  ( (<OBJ.type>!=t_shield) && !<weapon>) || (<TAG0.specialmove_active>==1) || (<TAG0.specialmove_active>==23)
+    return 0
+endif
+
+//ganha parrying independente se defende ou nao
+//mas evita macros
+if <argn1> > 5 
+    src.skill_gain skill_parrying 
+endif
+
+if <OBJ.type>==t_shield
+    LOCAL.p=<eval <src.parrying>/3>
+else    
+    LOCAL.p=<eval <src.parrying>/6>
+endif    
+
+//se falhar no teste
+if <R1000> > <LOCAL.p>
+    return 0
+endif
+
+if !<npc>
+    sysmessageyellow <src.name> apara seu golpe!
+endif
+if !<src.npc>
+    src.sysmessageyellow Voce apara o golpe!
+endif
+
+//som e animacao
+dorand 4
+    sfx 0237
+    sfx 0236
+    sfx 023c
+    sfx 023b
+enddo
+anim 19
+
+if <OBJ.type>!=t_shield
+    return 1
+endif
+
+//danifica escudo (mace da maior dano)
+if (<action> == skill_macefighting)
+    OBJ.hits -= <eval <argn1>/3>
+else
+    OBJ.hits -= <eval <argn1>/6>
+endif
+//serv.log [DAM] <argn1> <OBJ.name> <OBJ.hits>
+
+//caso escudo destruido
+if (<OBJ.hits> > 08000 ) && !(<OBJ.attr> & attr_newbie)
+    if !<NPC>
+        sysmessageorange O escudo de <src.name> foi totalmente arruinado!
+    endif
+    if !<src.NPC>
+        src.sysmessageorange Seu escudo foi totalmente arruinado!
+    endif
+    OBJ.remove
+else
+    //atualiza HITS do escudo
+    OBJ.update
+endif
+
 return 1
 
 //*****************************************************************************
@@ -666,6 +669,12 @@ return 0
 //*****************************************************************************
 [FUNCTION cmb_bonusAnatomy]
 return <eval <anatomy>/250>
+
+//*****************************************************************************
+// cmb_bonusTactics
+//*****************************************************************************
+[FUNCTION cmb_bonusTactics]
+return <eval <tactics>/250>
 
 //*****************************************************************************
 // cmb_penalPoison
