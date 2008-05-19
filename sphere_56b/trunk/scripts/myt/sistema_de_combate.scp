@@ -13,37 +13,37 @@
 
 //@HIT
 //
-//Verifica Parrying - ??
+//Verifica se acerta hit [(skill_atacante+20%)*(10+agr/2)]/[(skill_defensor+20%)*(10+def/2)*2]*100 [%]
+//  Fim
+//Verifica se usa special move e consome mana se usar
+//Calcula dano base random(min,max)
+//Verifica se cosnegue bloquear com escudo (parrying/3) ou arma (parrying/6)
 //  Danifica Escudo
 //  Fim
-//Tenta esquivar - ??
-//  Esquiva
-//  Fim
+//Executa efeitos de spells agregados
+//Soma dano special move ao base
+//Ajusta dano
+//  STR 
+//    + (STR/3) %       - 0 a 33%
+//  ANATOMY
+//    + (ANATOMY / 2)%  - 0 a 50%
+//  TACTICS
+//    + (TACTICS / 2)%  - 0 a 50%
+//  ATACANTE ENVENENADO
+//   !!!! - (more2 / 15)
+//  STAMINA
+//    - (50 - (STAM/DEX)*50)        - 0 a 50%
+//  PESO
+//    - (WEIGHT / MAXWEIGHT) * 50   - 0 a 50%
+//  QUALIDADE DA ARMA DE ATAQUE
+//    - (50 - (HITS/MAXHITS)*50)    - 0 a 50%
+
 //Tenta envenenar - (atacante é animal venenoso && poisoning > 30% && nao envenenado)
 //  Envenena com 10% poisoning e duração de 20 a 30 ataques.
 //Tenta envenenar - (armas envenenadas && ( 50% swords || 50% fencing || 76% poison ) )
 //  Envenena com spell poison, 30% de skill.
 //Tenta queimar - (armas com fogo)
 //  Queima (fire collumn) - 3 a 6 de dano
-//Ajusta dano
-//  STR 
-//    >= 95% +3
-//    >= 90% +2
-//    >= 85% +1
-//  ANATOMY
-//    + ANATOMY / 25 (0 a 4)
-//  SPECIAL_MOVE
-//    + x
-//  ATACANTE ENVENENADO
-//    - (more2 / 15)
-//  STAMINA
-//    - (3 - (STAM/DEX)*4)
-//  PESO
-//    - (WEIGHT / MAXWEIGHT) * 4 (0 a 4)
-//  QUALIDADE DA ARMA DE ATAQUE
-//    - (3 - (HITS/MAXHITS)*4)
-//  SKILL DE ATAQUE (dano original)
-//    dam.lo a [dam.hi]
 //Define local do ataque ( rand 0 a 10% tactics )
 //  torax
 //  torax
@@ -57,7 +57,7 @@
 //  cabeca
 //  cabeca
 //
-//Danifica armadura protegendo local do ataque - 1 a 4
+//Danifica armadura protegendo local do ataque - dano_base / 6
 //Danifica armas utilizadas - 0 a 1
 //Emite sons
 //Cansa atacante: - 0 a 2 de stamina
@@ -116,8 +116,11 @@ event_kill
 //SRC:      esta apanhando
 //DEFAULT:  esta atacando
 //ARGN1:    tempo (speed?) pro hit
+//o tempo eh dado em decimos de segundo
+//o tempo de swing eh dado por  15000/(speed*(dex+100)) [segundos]
+//o menor valor é 5 (0.5 segundos)
 ON=@HITTRY
-//serv.log [HITTRY] <name> contra <src.name> <eval <actdiff>>
+//serv.log [HITTRY] <serv.time> <name> contra <src.name> <eval <actdiff>> <eval <argn1>>
 //sai do modo batalha se alvo invul, morto, desmaiado, escondido, etc
 if ( <src.flags>&(statf_invul|statf_dead|statf_invisible|statf_insubstantial|statf_stone|statf_hidden))
  serv.log [HITTRY] <src.account> - <account>
@@ -170,19 +173,21 @@ if <DEF.WPE_<argo.more2>>
     TRY cmb_wpe_<argo.more2>
 endif
 
+//soma special move no dano base
 TRY LOCAL.sm = <<DEF.SMO<dLOCAL.specialmove>_FUNC>>
+argn1       += <LOCAL.sm>           //ate 30
+
 LOCAL.bonus = 0
-LOCAL.bonus += <LOCAL.sm>           //ate 30
-LOCAL.bonus += <cmb_bonusStr>       //1,2,3 para faixas 85,90,95
-LOCAL.bonus += <cmb_bonusAnatomy>   //0 - 4 (anatomy/250)
-LOCAL.bonus += <cmb_bonusTactics>   //0 - 4 (tactics/250)
+LOCAL.bonus += <cmb_bonusStr>       //0 a 33%
+LOCAL.bonus += <cmb_bonusAnatomy>   //0 a 50%
+LOCAL.bonus += <cmb_bonusTactics>   //0 a 50%
 LOCAL.bonus += <tag0.moddam>        //?
 
 LOCAL.penal = 0
-LOCAL.penal += <cmb_penalPoison>    //veneno / 15
-LOCAL.penal += <cmb_penalStam>      //-1 a +3
-LOCAL.penal += <cmb_penalWeight>    //0 a 4
-LOCAL.penal += <cmb_penalWeaponQuality> //-1 a +3
+//LOCAL.penal += <cmb_penalPoison>    //REVER
+LOCAL.penal += <cmb_penalStam>      //0 a 50%
+LOCAL.penal += <cmb_penalWeight>    //0 a 50%
+LOCAL.penal += <cmb_penalWeaponQuality> //0 a 50%
 
 cmb_npcUsePoison
 cmb_gainSkill <argn1>
@@ -190,9 +195,9 @@ cmb_damageArmor <argn1>
 cmb_damageWeapon
 cmb_doSounds
 
-///// APLICA Modificadores de dano
-argn1 += <LOCAL.bonus>
-argn1 -= <LOCAL.penal>
+///// APLICA Modificadores de dano em %
+LOCAL.bonus -= <LOCAL.penal>
+argn1 += <eval (<argn1>*<LOCAL.bonus>)/100>
 
 cmb_doDamage <argn1>,<cmb_damType>
 
@@ -461,6 +466,8 @@ return 0
 //se o special move nao for IGNORE AR ou ARMOR PIERCE e passar no teste
 if  ( (<OBJ.type>!=t_shield) && !<weapon>) || (<TAG0.specialmove_active>==1) || (<TAG0.specialmove_active>==23)
     return 0
+elif <src.flags>&(statf_stone|statf_freeze)
+    return 0
 endif
 
 //ganha parrying independente se defende ou nao
@@ -655,26 +662,19 @@ return 1
 // cmb_bonusStr
 //*****************************************************************************
 [FUNCTION cmb_bonusStr]
-if (<str> >= 95)
-    return 3
-elif (<str> >= 90)
-    return 2
-elif (<str> >= 85)
-    return 1
-endif
-return 0
+return <eval <str>/3>
 
 //*****************************************************************************
 // cmb_bonusAnatomy
 //*****************************************************************************
 [FUNCTION cmb_bonusAnatomy]
-return <eval <anatomy>/250>
+return <eval <anatomy>/20>
 
 //*****************************************************************************
 // cmb_bonusTactics
 //*****************************************************************************
 [FUNCTION cmb_bonusTactics]
-return <eval <tactics>/250>
+return <eval <tactics>/20>
 
 //*****************************************************************************
 // cmb_penalPoison
@@ -692,22 +692,22 @@ return 0
 // cmb_penalStam
 //*****************************************************************************
 [FUNCTION cmb_penalStam]
-LOCAL.q = <eval (4*<stam>)/<dex>>
-return <eval 3-<LOCAL.q>>
+LOCAL.q = <eval (50*<stam>)/<dex>>
+return <eval 50-<LOCAL.q>>
 
 //*****************************************************************************
 // cmb_penalWeight
 //*****************************************************************************
 [FUNCTION cmb_penalWeight]
-return <eval (4*<weight>)/<maxweight>>
+return <eval (50*<weight>)/<maxweight>>
 
 //*****************************************************************************
 // cmb_penalWeaponQuality
 //*****************************************************************************
 [FUNCTION cmb_penalWeaponQuality]
 if (<weapon>)
-    LOCAL.q = <eval (4*<weapon.hits>)/<weapon.maxhits>>
-    return <eval 3-<LOCAL.q>>
+    LOCAL.q = <eval (50*<weapon.hits>)/<weapon.maxhits>>
+    return <eval 50-<LOCAL.q>>
 endif
 return 0
 
