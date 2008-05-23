@@ -103,6 +103,117 @@ SPE_20    1 //poison
 // EVENTs
 //*****************************************************************************
 //*****************************************************************************
+
+//*****************************************************************************
+// e_silver_weapon
+//*****************************************************************************
+[EVENTS e_silver_weapon]
+
+//SRC:      esta apanhando
+//DEFAULT:  arma
+ON=@CDAMAGE
+if (<src.npc>==brain_undead) || (<src.npc>==BRAIN_DRAGON) || (<src.npc>==BRAIN_MONSTER)
+    if (<src.karma> < -2000)
+        src.damage <R10,15>,<def.dam_magic>,<uid>
+        src.EFFECT 3,i_fx_curse,6,15,1
+        SOUND snd_spell_harm
+    endif
+endif
+
+[EVENTS e_fragile]
+ON=@STEP
+src.emotered quebrou
+sfx 040
+remove
+return 1
+
+[EVENTS e_machado_luna]
+ON=@CDAMAGE
+//Recarregar a cada 3 horas
+if !(<attr>&01) //se não tá identificado
+    return 0
+endif
+
+//Recarregar a cada 3 horas
+if (!<morex>) && (!<tag0.loading>)
+    tag.loading 1
+    cont.sysmessageorange O Machado de Luna esta exaurido de suas forcas... Mas Luna ha de recarrega-lo em seu tempo!
+    timerf 3600,wp_machado_luna_reload
+endif
+
+[FUNCTION wp_machado_luna_reload]
+tag.loading=0
+morex=2
+more2=30
+
+[EVENTS e_crescente_mond]
+ON=@CDAMAGE
+//Recarregar a cada 3 horas
+if !(<attr>&01) //se não tá identificado
+    return 0
+endif
+
+//Recarregar a cada 3 horas
+if (!<morex>) && (!<tag0.loading>)
+    tag.loading 1
+    cont.sysmessageorange O Crescente de Mond esta exaurido de suas forcas... Mas Mond ha de recarrega-lo em seu tempo!
+    timerf 3600,wp_crescente_mond_reload
+endif
+
+[FUNCTION wp_crescente_mond_reload]
+tag.loading=0
+morex=5
+more2=350
+
+[EVENTS e_pique_atila]
+ON=@CDAMAGE
+//Recarregar a cada 3 horas
+if !(<attr>&01) //se não tá identificado
+    return 0
+endif
+
+//Recarregar a cada 3 horas
+if (!<morex>) && (!<tag0.loading>)
+    tag.loading 1
+    cont.sysmessageorange O Pique de Atila esta exaurido de suas forcas... Mas Atila ha de recarrega-lo em seu tempo!
+    timerf 3600,wp_pique_atila_reload
+endif
+
+[FUNCTION wp_pique_atila_reload]
+tag.loading=0
+morex=2000
+more2=20
+
+[FUNCTION wp_spell]
+ATTR=attr_magic
+MORE2=<argn1> //spell
+MOREX=<argn2> //charges
+
+[TYPEDEF e_NoUntilID]
+on=@equiptest
+if !(<attr>&01) && (!<SRC.IsGM>)
+ src.sysmessageorange <name> parece ter vontade propria.
+ src.unequip
+ return 1
+endif
+
+on=@DCLick
+if !(<attr>&01) && (!<SRC.IsGM>)
+ src.sysmessageorange Voce nao pode usar isto antes de saber o que realmente eh.
+ return 1
+endif
+
+[FUNCTION ITEM_DEGRADATE]
+IF (!<hits>)
+ remove
+ELSE
+ HITS -= 1
+ timerf <argn>,ITEM_DEGRADATE
+ENDIF
+
+//*****************************************************************************
+// e_combat
+//*****************************************************************************
 [EVENTS e_combat] 
 //*************************************
 // @KILL
@@ -168,9 +279,9 @@ if <cmb_tryBlockAtk <argn1>>
 endif
 
 //Se a arma na HAND1 estiver com algum efeito
-if <DEF.WPE_<argo.more2>>
-    serv.log [WPE] <argo.more2>
-    TRY cmb_wpe_<argo.more2>
+if <DEF.WPE_<eval <argo.more2>>>
+    serv.log [WPE] <eval <argo.more2>>
+    TRY cmb_wpe_<eval <argo.more2>>
 endif
 
 //soma special move no dano base
@@ -216,9 +327,9 @@ if (<LOCAL.specialmove>)
     f_clrSpecialMove
 endif
 
-/////Executar script do HIT da arma
+/////Executar script do @CDamage (custom) da arma
 if (<argo>)
-    argo.trigger=@hit
+    argo.trigger @CDAMAGE
 endif
 
 return 1
