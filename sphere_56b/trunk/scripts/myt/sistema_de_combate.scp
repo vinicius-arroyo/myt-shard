@@ -120,6 +120,22 @@ if (<src.npc>==brain_undead) || (<src.npc>==BRAIN_DRAGON) || (<src.npc>==BRAIN_M
     endif
 endif
 
+[EVENTS e_arco]
+ON=@EQUIP
+if (<morey> == 00)
+    src.message Arco sem barbante
+    unequip
+    return 1
+endif
+
+[EVENTS e_besta]
+ON=@EQUIP
+if (<morey> == 00)
+    src.message Besta sem engrenagem
+    unequip
+    return 1
+endif
+
 [EVENTS e_fragile]
 ON=@STEP
 src.emotered quebrou
@@ -398,9 +414,12 @@ argn1=<BETWEEN2 1,<argn1>,<LOCAL.res>,100>
 
 /////aos damage (show counter above player head)
 if <argn1> > 0
+    if !<src.npc>
+        SRC.SENDPACKET  0bf W11 W022 01 D<uid> B<argn1>
+    endif        
     LOCAL.damaged=<uid>
     FORPLAYERS 10
-        if <isonline>
+        if <isonline> && (<uid>!=<src>)
             SENDPACKET  0bf W11 W022 01 D<LOCAL.damaged> B<argn1>
         endif
     ENDFOR
@@ -575,7 +594,7 @@ return 0
 
 //se tiver escudo ou arma, tenta parrying 
 //se o special move nao for IGNORE AR ou ARMOR PIERCE e passar no teste
-if  ( (<OBJ.type>!=t_shield) && !<weapon>) || (<TAG0.specialmove_active>==1) || (<TAG0.specialmove_active>==23)
+if  ( (<OBJ.type>!=t_shield) && !<src.weapon>) || (<TAG0.specialmove_active>==1) || (<TAG0.specialmove_active>==23)
     return 0
 elif <src.flags>&(statf_stone|statf_freeze)
     return 0
@@ -875,7 +894,7 @@ endif
 [FUNCTION cmb_damageWeapon]
 //somente danifica armas de jogador
 if !<NPC> && (<action>!=Skill_Wrestling)
-    weapon.hits -= <R1>
+    weapon.hits -= <R0,1>
     if (<weapon.hits> > 08000 )
         sysmessageorange Sua arma foi destruida!
         if !<src.NPC>
