@@ -1,39 +1,111 @@
-[SKILL 28]
-DEFNAME=Skill_Snooping
-KEY=Snooping
-TITLE=Pickpocket
-PROMPT_MSG=
-DELAY=1.0
-STAT_STR=30
-STAT_INT=50
-STAT_DEX=60
-BONUS_STR=0
-BONUS_DEX=100
-BONUS_INT=0
-BONUS_STATS=25
-//ADV_RATE=2.5,50.0,200.0
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL SNOOPING e STEALING por
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//TODO:
 
-on=@Start
-actdiff=<SNOOP_CALC_DIF>
+//TAGS usadas:
+//tag.light_lvl     //0=escuro, 30=claro
+//tag.snoop_time    //quando podera usar snooping novamente
+//tag.snoop_bag     //ultima mochila aberta
+//tag.snoop_cnt     //quantas tentativas ja foram
 
-on=@Success
-src.sysmessagegreen Voce abriu a bolsa com sucesso!
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
 
-ON=@Fail
-SRC.SYSMESSAGERED Voce falhou ao tentar abrir a bolsa.
-SNOOP_WARN
-return 2
+//*****************************************************************************
+// sk_snooping
+//*****************************************************************************
+[FUNCTION sk_snooping]
 
-ON=@Abort
-SRC.SYSMESSAGEYELLOW Voce desistiu de tentar abrir a bolsa.
+if <serv.time> < <tag0.snoop_time>
+    sysmessagered Aguarde antes de tentar novamente!
+    return 1
+endif
 
+if <tag0.snoop_bag>!=<act>
+    tag.snoop_bag=<act>
+    tag.snoop_cnt=0
+endif    
+
+skill_gain skill_snooping
+tag0.snoop_time=<serv.time>+10 //1 por seg
+
+if <belltest <snooping>,<SNOOP_CALC_DIF>>
+    sysmessagegreen Voce abriu a bolsa com sucesso!
+    act.open
+else
+    sysmessagered Voce falhou ao tentar abrir a bolsa.
+    emotered tenta abrir a bolsa
+    SNOOP_WARN
+endif
+
+if <tag.snoop_cnt> < 20
+    tag.snoop_cnt += 1
+endif
+
+return 1
+
+//*****************************************************************************
+// sk_stealing
+//*****************************************************************************
+[FUNCTION sk_stealing]
+
+//se bloqueado pelo sphere (pesado..)
+if (<actdiff> < 0)
+    return 1
+elif (<act.topobj>==<uid>)
+    sysmessagered Nao pode furtar si mesmo.
+    return 1
+elif (<act.cont.ischar>)
+    sysmessagered Nao pode furtar itens expostos.
+    return 1
+//elif (!<act.topobj.findlayer.layer_pack.rescount>)
+// return 1
+endif
+
+if <serv.time> < <tag0.snoop_time>
+    sysmessagered Aguarde antes de tentar novamente!
+    return 1
+endif
+
+skill_gain skill_stealing
+tag0.snoop_time=<serv.time>+10 //1 por seg
+
+if <belltest <stealing>,<SNOOP_CALC_DIF>>
+    sysmessagegreen Voce furtou <act.name>!
+    act.bounce
+else
+    sysmessagered Voce falhou ao tentar furtar!
+    SNOOP_WARN
+    emotered tenta furtar <act.name>
+endif
+
+if <tag.snoop_cnt> < 20
+    tag.snoop_cnt += 1
+endif
+
+return 1
+
+//*****************************************************************************
+// SNOOP_CALC_DIF
+//*****************************************************************************
 [FUNCTION SNOOP_CALC_DIF]
+
+//Deficuldade por tentativas. 5% por tentativa.
+LOCAL.diff=<eval <tag0.snoop_cnt>*5>
+
 //Dificuldade pela luz: 30%
-IF (<REGION.FLAGS>&region_flag_underground)
- LOCAL.diff=0
-ELSE
- LOCAL.diff=<eval 30-<DEF.luz_<dvar.thour>>>
-ENDIF
+if !(<REGION.FLAGS>&region_flag_underground)
+    LOCAL.diff += <eval 30-<DEF.luz_<dvar.thour>>>
+endif
 
 //Dificuldade pela DEX do alvo 50%
 LOCAL.diff += <BETWEEN 0,50,<act.topobj.dex>,100>
@@ -42,99 +114,66 @@ LOCAL.diff += <BETWEEN 0,50,<act.topobj.dex>,100>
 LOCAL.diff += <BETWEEN 0,20,<act.topobj.snooping>,1000>
 
 //Modificaor para NPCs: +10%
-IF (<act.topobj.NPC>)
- LOCAL.diff += 10
-ENDIF
+if (<act.topobj.NPC>)
+    LOCAL.diff += 10
+endif
 
 //Modificaor para NPCs guardas: +40%
-IF (<act.topobj.IsTEvent.e_guard_town>)
- LOCAL.diff += 40
-ENDIF
+if (<act.topobj.IsTEvent.e_guard_town>)
+    LOCAL.diff += 40
+endif
 
-//Modificaor para stealth/idding: -30%
-IF (<flags>&0800000)
- LOCAL.diff -= 20
-ENDIF
+//Modificao para stealth/hidding: -30%
+if <flags>&statf_hidden
+     LOCAL.diff -= 20
+endif
 
 //Correção de valor negativo
 if (<local.diff> < 0)
- local.diff=0
+    LOCAL.diff=0
+elif (<local.diff> > 200)
+    LOCAL.diff=2000
 else
- LOCAL.diff = <eval <LOCAL.diff>*10>
+    LOCAL.diff = <eval <LOCAL.diff>*10>
 endif
 
-RETURN <dLOCAL.diff>
+RETURN <LOCAL.diff>
 
-
+//*****************************************************************************
+// SNOOP_WARN
+//*****************************************************************************
 [FUNCTION SNOOP_WARN]
 obj=<act.topobj>
-IF (<obj.IsTEvent.e_guard_town>)
- obj.emotered cotovelada
- damage <R10,30> DAM_PHYSICAL <obj.UID>
- obj.timerf 1,say,Aha! Acha que eh <sex esperto/esperta>, <tag.name>?
- obj.timerf 3,say,Voce esta <sex banido/banida> de <serv.resources.<get_town>.name>. Ouviu? <sex Banido/Banida>!
- TOWN_BAN_PLAYER <UID>
- faint
- timerf 8,f_wakeup
- return 1000
-ELIF (<region.tag0.town_type>)
- IF (<tag0.comcapuz>)
-  //Consegue tirar o capuz?
-  IF (<R0,<str>> > <obj.str>)
-   obj.emoteyellow aranca o capuz
-   obj.timerf 1,say,<tag.name>! Eu sabia! Guardas!
-   capuz
-   TOWN_BAN_PLAYER <UID>
-  ENDIF
- ELSE
-  TOWN_BAN_PLAYER <UID>
- ENDIF
- obj=<uid>
- FORCHARS 8
-  if (<IsTEvent.e_guard_town>) && (<obj.CanSeeLOS>)
-   timerf 1,say Ladrao!
-   act=<obj.uid>
-   GUARD_ATTACK <uid>
-   return 1000
-  endif
- ENDFOR
-ENDIF
+if (<obj.IsTEvent.e_guard_town>)
+    obj.emotered cotovelada
+    damage <R10,30> DAM_PHYSICAL <obj.UID>
+    obj.timerf 1,say,Aha! Acha que eh <sex esperto/esperta>, <tag.name>?
+    obj.timerf 3,say,Voce esta <sex banido/banida> de <serv.resources.<get_town>.name>. Ouviu? <sex Banido/Banida>!
+    TOWN_BAN_PLAYER <UID>
+    faint
+    timerf 8,f_wakeup
+    return 1000
+elif (<region.tag0.town_type>)
+    if (<tag0.comcapuz>)
+        //Consegue tirar o capuz?
+        if (<R0,<str>> > <obj.str>)
+            obj.emoteyellow aranca o capuz
+            obj.timerf 1,say,<tag.name>! Eu sabia! Guardas!
+            capuz
+            TOWN_BAN_PLAYER <UID>
+        endif
+    else
+        TOWN_BAN_PLAYER <UID>
+    endif
+    obj=<uid>
+    forchars 8
+        if (<IsTEvent.e_guard_town>) && (<obj.CanSeeLOS>)
+            timerf 1,say Ladrao!
+            act=<obj.uid>
+            GUARD_ATTACK <uid>
+            return 1000
+        endif
+    endfor
+endif
 
-[SKILL 33]
-DEFNAME=Skill_Stealing
-KEY=Stealing
-TITLE=Thief
-PROMPT_MSG=Which item will you attempt to steal?
-DELAY=2.5
-STAT_STR=40
-STAT_INT=50
-STAT_DEX=100
-BONUS_STR=0
-BONUS_DEX=100
-BONUS_INT=0
-BONUS_STATS=10
-//ADV_RATE=10.0,200.0,800.0
-
-on=@Start
-IF (<act.topobj>==<UID>)
- return 1
-ELIF (!<act.topobj.findlayer.21>)
- return 1
-ELIF (!<act.topobj.findlayer.21.rescount>)
- return 1
-ENDIF
-actdiff=<SNOOP_CALC_DIF>
-
-on=@Success
-skill_gain Skill_Stealing
-src.sysmessagegreen Voce roubou com sucesso!
-
-ON=@Fail
-SRC.SYSMESSAGERED Voce falhou ao tentar roubar.
-SNOOP_WARN
-skill_gain Skill_Stealing
-return 2
-
-ON=@Abort
-SRC.SYSMESSAGEYELLOW Voce desistiu de tentar roubar.
 [EOF]
