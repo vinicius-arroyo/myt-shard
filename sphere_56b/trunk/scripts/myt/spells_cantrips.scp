@@ -14,7 +14,7 @@ RUNE_ITEM=i_rune_CLUMSY
 SCROLL_ITEM=i_scroll_CLUMSY
 FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_DIR_ANIM | SPELLFLAG_HARM | SPELLFLAG_FX_TARG | SPELLFLAG_RESIST
 EFFECT_ID=i_fx_curse
-EFFECT=0  			  //3,15 orginal spehre
+EFFECT=0              //3,15 orginal spehre
 DURATION=2*60.0,3*60.0
 MANAUSE=4
 SKILLREQ=MAGERY 10.0
@@ -132,4 +132,139 @@ on=@Effect
 EFFECT 0 i_fx_energy_ray 6 0 0
 DAMAGESPELL s_magic_arrow,dam_pierce,<src.magery>,<src.uid>
 return 1
+
+//###############################################################################
+//              DISPEL FIELD
+//###############################################################################
+
+[Spell 34]
+DEFNAME=s_dispel_field
+NAME=Dispel Field
+SOUND=snd_SPELL_DISPEL_FIELD
+RUNES=AG
+CAST_TIME=40
+FLAGS=SPELLFLAG_TARG_ITEM | SPELLFLAG_SCRIPTED
+MANAUSE=10
+SKILLREQ=MAGERY 50.0
+INTERRUPT=100.0,100.0
+
+on=@start
+IF (!((<src.act.id>==0398c)||(<src.act.id>==03996)||(<src.act.id>==03915)||(<src.act.id>==03921)))
+  src.sysmessageyellow O alvo deve ser um campo magico
+  return 1
+
+ELIF (<src.act.Timer>==(-1)) // impede remover fields que fazem parte do cenário
+  src.sysmessageyellow Este campo nao pode ser cancelado magicamente
+  return 1
+
+ENDIF
+
+on=@select
+return <trycast s_dispel_field,spl_vulgar>
+
+on=@Fail
+f_consumeMana <ctag.cMana>
+
+on=@SUCCESS
+f_consumeMana <ctag.cMana>
+
+ON=@EFFECT
+remove
+
+//###############################################################################
+//              DISPEL
+//###############################################################################
+
+[Spell 41]
+DEFNAME=s_dispel
+NAME=Dispel
+//SOUND=snd_SPELL_DISPEL
+RUNES=AO
+CAST_TIME=40
+FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_DIR_ANIM | SPELLFLAG_RESIST
+EFFECT=1,5
+DURATION=0.0
+MANAUSE=20
+SKILLREQ=MAGERY 60.0
+INTERRUPT=100.0,100.0
+
+on=@select
+return <trycast s_dispel,spl_vulgar>
+
+on=@Fail
+f_consumeMana <ctag.cMana>
+
+on=@SUCCESS
+f_consumeMana <ctag.cMana>
+
+ON=@EFFECT
+f_dispel_creature <effectspell s_dispel,<src.ctag.cskill>>
+return 0 //para prosseguir com as outras funções de dispel
+
+[FUNCTION f_dispel_creature]
+if (<argn> > 0)
+  if (<restest 1 i_mry_summon>)
+    findid.i_mry_summon.more2 = 0
+  endif
+endif
+
+//###############################################################################
+//              MANA DRAIN
+//###############################################################################
+
+[Spell 31]
+DEFNAME=s_mana_drain
+NAME=A mana Mana Drain
+RUNES=OR
+SOUND=snd_SPELL_MANA_DRAIN
+CAST_TIME=3.0
+FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_DIR_ANIM | SPELLFLAG_SCRIPTED
+EFFECT=20,30
+MANAUSE=10
+SKILLREQ=MAGERY 50.0
+INTERRUPT=100.0,100.0
+
+on=@start
+if (<uid>==<src.uid>) // impedir sugar propria mana e ficar macroando medit
+  return 1
+endif
+
+on=@select
+return <trycast s_mana_drain,spl_vulgar>
+
+on=@Fail
+f_consumeMana <ctag.cMana>
+
+on=@SUCCESS
+f_consumeMana <ctag.cMana>
+
+ON=@EFFECT
+f_mana_drain <effectspell s_mana_drain,<src.ctag.cskill>>
+return 1
+
+[FUNCTION f_mana_drain]
+mana -=< argn>
+IF (<oINT> > 62)
+  sysmessagered Voce sente sua energia sendo sugada
+ENDIF
+
+//a idéia de não ter a spellflag_harm e aparecer essa mensagem apenas qnd tem mais de 62 de int é
+//de ser uma magia discreta e que apenas magos e bardos que têm maior nível de controle e percepção
+//do éter perceberiam de cara que a energia esta sendo sugada, enquanto os demais apenas notariam
+//alguma coisa estranha - nesse caso o player veria que sua mana diminuiu e que tem alguem fazendo
+//uma ação incomum, então teria a opção de fazer o RP de o char desconfiar do sujeito).
+//Mas essa é só uma idéia que achei legal e coloquei, qualquer coisa é só tirar ae.
+
+//###############################################################################
+//              MAGIC REFLECTION 
+//###############################################################################
+
+
+
+//###############################################################################
+//              MIND BLAST
+//###############################################################################
+
+
+
 [EOF]
