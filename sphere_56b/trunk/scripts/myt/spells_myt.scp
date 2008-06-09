@@ -589,35 +589,83 @@ on=@timer
 remove
 return 1
 
-//Armadura mágica (memory)
-[ITEMDEF i_spl_changeAR]
+//*****************************************************************************
+// spl_applyResBuff( RESFIRE,RESCOLD,RESPOISON,RESENERGY,RESPHYSICAL,MANA_USE )
+//*****************************************************************************
+//SRC apply buff in DEFAULT
+[FUNCTION spl_applyResBuff]
+//remove buff se jah existir
+if (<restest 1 i_spl_changeRES>)
+    findid.i_spl_changeRES.more2=0
+    findid.i_spl_changeRES.timerd=1
+    return 1
+endif
+SERV.NEWITEM i_spl_changeRES
+NEW.tag.resfire=<argv0>
+NEW.tag.rescold=<argv1>
+NEW.tag.respoison=<argv2>
+NEW.tag.resenergy=<argv3>
+NEW.tag.resphysical=<argv4>
+NEW.MORE2=<argv5>
+NEW.link=<src>
+EQUIP <NEW>
+
+//Memory generica para aplicar buffs de RES*
+[ITEMDEF i_spl_changeRES]
 ID=i_rune_REACTIVE_ARMOR
 TYPE=t_eq_script
 LAYER=layer_special
-NAME=changeAR
+NAME=changeRES
 
 on=@equip
-IF (<more2>)
- TIMER=10
-ENDIF
+if (<more2>)
+    TIMER=10
+endif
+
 src.resfire += <tag.resfire>
+if <src.resfire> < 0
+    tag.resfire -= <src.resfire>
+    src.resfire = 0
+endif
 src.rescold += <tag.rescold>
+if <src.rescold> < 0
+    tag.rescold -= <src.rescold>
+    src.rescold = 0
+endif
 src.respoison += <tag.respoison>
+if <src.respoison> < 0
+    tag.respoison -= <src.respoison>
+    src.respoison = 0
+endif
 src.resenergy += <tag.resenergy>
-src.modar += <more1>
+if <src.resenergy> < 0
+    tag.resenergy -= <src.resenergy>
+    src.resenergy = 0
+endif
+src.modar += <tag.resphysical>
+if !<src.ar> && ( <src.modar> < 0 )
+    tag.resphysical -= <src.modar>
+    src.modar=0
+endif    
+
+//corige se passar do limite
+if (<tag.resphysical> > 0) && (<src.ar> > 60)
+    tag.resphysical -= <eval <src.ar>-60>
+    src.modar -= <eval <src.ar>-60>
+endif
 
 on=@timer
-IF (!<more2>) || (!<link.f_consumeMana <more2>>) || (<link.flags>&statf_dead) || (<cont.flags>&statf_dead)
- cont.resfire -= <tag.resfire>
- cont.rescold -= <tag.rescold>
- cont.respoison -= <tag.respoison>
- cont.resenergy -= <tag.resenergy>
- cont.modar -= <more1>
- remove
- return 1
-ELSE
+if (!<more2>) || (!<link.f_consumemana <more2>>) || (<link.flags>&statf_dead) || (<cont.flags>&statf_dead)
+    cont.resfire -= <tag.resfire>
+    cont.rescold -= <tag.rescold>
+    cont.respoison -= <tag.respoison>
+    cont.resenergy -= <tag.resenergy>
+    cont.modar -= <tag.resphysical>
+    remove
+    return 1
+else
     more2 -= 1
-ENDIF
+endif
 timer 10
 return 1
 
