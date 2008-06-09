@@ -38,13 +38,13 @@ endif
 skill_gain skill_snooping
 tag0.snoop_time=<serv.time>+10 //1 por seg
 
-if <belltest <snooping>,<SNOOP_CALC_DIF>>
+if <belltest <snooping>,<SNOOP_CALC_DIF <act.topobj>>>
     sysmessagegreen Voce abriu a bolsa com sucesso!
     act.open
 else
     sysmessagered Voce falhou ao tentar abrir a bolsa.
     emotered tenta abrir a bolsa
-    SNOOP_WARN
+    SNOOP_WARN <act.topobj>
     disturb
 endif
 
@@ -97,12 +97,12 @@ endif
 skill_gain skill_stealing
 tag0.snoop_time=<serv.time>+10 //1 por seg
 
-if <belltest <stealing>,<SNOOP_CALC_DIF>>
+if <belltest <stealing>,<SNOOP_CALC_DIF <argo.topobj>>>
     sysmessagegreen Voce furtou <argo.name>!
     argo.bounce
 else
     sysmessagered Voce falhou ao tentar furtar!
-    SNOOP_WARN
+    SNOOP_WARN <argo.topobj>
     emotered tenta furtar <argo.name>
     disturb
 endif
@@ -114,10 +114,10 @@ endif
 return 1
 
 //*****************************************************************************
-// SNOOP_CALC_DIF
+// SNOOP_CALC_DIF <target_pc>
 //*****************************************************************************
 [FUNCTION SNOOP_CALC_DIF]
-
+OBJ=<argn1>
 //Deficuldade por tentativas. 5% por tentativa.
 LOCAL.diff=<eval <tag0.snoop_cnt>*5>
 
@@ -127,18 +127,18 @@ if !(<REGION.FLAGS>&region_flag_underground)
 endif
 
 //Dificuldade pela DEX do alvo 50%
-LOCAL.diff += <BETWEEN 0,50,<act.topobj.dex>,100>
+LOCAL.diff += <BETWEEN 0,50,<obj.dex>,100>
 
 //Dificuldade pelo Snooping do alvo 20%
-LOCAL.diff += <BETWEEN 0,20,<act.topobj.snooping>,1000>
+LOCAL.diff += <BETWEEN 0,20,<obj.snooping>,1000>
 
 //Modificaor para NPCs: +10%
-if (<act.topobj.NPC>)
+if (<obj.NPC>)
     LOCAL.diff += 10
 endif
 
 //Modificaor para NPCs guardas: +40%
-if (<act.topobj.IsTEvent.e_guard_town>)
+if (<obj.IsTEvent.e_guard_town>)
     LOCAL.diff += 40
 endif
 
@@ -159,10 +159,10 @@ endif
 RETURN <LOCAL.diff>
 
 //*****************************************************************************
-// SNOOP_WARN
+// SNOOP_WARN <target_pc>
 //*****************************************************************************
 [FUNCTION SNOOP_WARN]
-obj=<act.topobj>
+OBJ=<argn1>
 if (<obj.IsTEvent.e_guard_town>)
     obj.emotered cotovelada
     damage <R10,30> DAM_PHYSICAL <obj.UID>
@@ -188,7 +188,7 @@ elif (<region.tag0.town_type>)
     forchars 8
         if (<IsTEvent.e_guard_town>) && (<obj.CanSeeLOS>)
             timerf 1,say Ladrao!
-            act=<obj.uid>
+            act=<obj>
             GUARD_ATTACK <uid>
             return 1000
         endif
