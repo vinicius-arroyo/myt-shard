@@ -10,15 +10,355 @@
 [DEFNAME  MONSTERPOW]
 MONSTERPOW_MANADRAIN_FAR    01
 MONSTERPOW_MANADRAIN        02
-MONSTERPOW_MEDUSA       04
-MONSTERPOW_CHILL        08
+MONSTERPOW_MEDUSA           04
+MONSTERPOW_CHILL            08
 MONSTERPOW_LIFEDRAIN        010
 
 //Definições de santuários de NPCs (deixa eles mais fortes)
 [DEFNAME  SANCTUARY]
-SANCTUARY_UNDEAD        01
-SANCTUARY_DEAMON        02
+SANCTUARY_UNDEAD            01
+SANCTUARY_DEAMON            02
 SANCTUARY_EXTRAPLANAR       04
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// NPC_UNIQUE
+//*****************************************************************************
+[FUNCTION NPC_UNIQUE]
+timerf 1,_NPC_UNIQUE
+
+//*****************************************************************************
+// _NPC_UNIQUE
+//*****************************************************************************
+[FUNCTION _NPC_UNIQUE]
+if (<instances> > 1)
+ serv.newitem i_carta
+ new.name=NPC Unico
+ new.p=<p>
+ new.tag.text=O NPC <name> eh um NPC unico. So pode haver um no mundo e ja tem. Entao eu sai para tomar um cafe, MAS NAO VOLTO!
+ remove
+endif
+
+//*****************************************************************************
+// NPC_CHANGELING
+//*****************************************************************************
+[FUNCTION NPC_CHANGELING]
+obj=<argv0>
+obody=<body>
+body=<obj.body>
+str=<obj.str>
+hits=<obj.str>
+dex=<obj.dex>
+int=<obj.int>
+mana=<obj.int>
+color=<obj.color>
+for layer 1 24
+ findlayer.<local.layer>.remove
+ local.item=<obj.findlayer.<local.layer>.baseid>
+ local.color=<obj.findlayer.<local.layer>.color>
+ local.mor=<obj.findlayer.<local.layer>.more1>
+ local.mor2=<obj.findlayer.<local.layer>.more2>
+ serv.newitem=<local.item>
+ new.attr=010
+ new.color=<local.color>
+ new.more1=<local.mor>
+ new.more2=<local.mor2>
+ new.cont=<uid>
+ENDFOR
+DORAND 5
+ say=@026 So pode haver um de mim!
+ say=@026 Ah! Impostor! Morra!
+ say=@026 Ola, mim! Morra!
+ say=@026 Conheco alguem identico a voce...
+ say=@026 Como se atreve a me imitar! So pode haver um!
+enddo
+FOR skill 0 54
+ <local.skill>=<src.<local.skill>>
+ENDFOR
+if (<magery> > 500)
+ MODINT=60
+ EVENTS +e_mage_phaser
+endif
+attack <src.uid>
+
+//*****************************************************************************
+// NPC_IMMUNE
+//*****************************************************************************
+[FUNCTION NPC_IMMUNE]
+tag0.immune <eval <argv0>>
+
+//*****************************************************************************
+// NPC_AGGRAVATE
+//*****************************************************************************
+[FUNCTION NPC_AGGRAVATE]
+tag0.aggravate <eval <argv0>>
+
+//*****************************************************************************
+// NPC_REGENDAM
+//*****************************************************************************
+[FUNCTION NPC_REGENDAM]
+tag0.regendam <eval <argv0>>
+
+//*****************************************************************************
+// f_npc_faction_color
+//*****************************************************************************
+[FUNCTION f_npc_faction_color]
+IF (<region.tag0.faction.color>)
+ serv.newitem i_cape
+ new.color=<region.tag0.faction.color>
+ new.name = capa da guarda
+ if (!<ISEMPTY <region.tag.faction.master>>)
+  new.name=<new.name> de <region.tag.faction.master>
+ endif
+ equip <new.uid>
+ENDIF
+
+//*****************************************************************************
+// NPC_CASTER_GARGYL
+//*****************************************************************************
+[FUNCTION NPC_CASTER_GARGYL]
+events +e_cast_gargyl
+tag.mag=4
+tag.spl_terra <eval {1 2}>
+tag.spl_fogo <eval {2 3}>
+tag.spl_morte <eval {1 3}>
+
+//*****************************************************************************
+// f_haut_vanish
+//*****************************************************************************
+[FUNCTION f_haut_vanish]
+events -e_haunt
+if <sector.clients> > 0
+    serv.newitem i_fx_sparkle_2
+    new.p=<p>
+    new.attr=02
+    new.timerd 13
+    new.sfx 05C7
+endif    
+remove
+
+//*****************************************************************************
+// PC_DUPE
+//*****************************************************************************
+[FUNCTION PC_DUPE]
+serv.newnpc c_man
+new.p=<p>
+new.str=<str>
+new.hits=<str>
+new.dex=<dex>
+new.int=<int>
+new.mana=<int>
+new.color=<color>
+new.karma=-9000
+new.fame=10000
+obj=<new.uid>
+for layer 1 24
+ local.item=<findlayer.<local.layer>.baseid>
+ local.color=<findlayer.<local.layer>.color>
+ local.mor=<findlayer.<local.layer>.more1>
+ local.mor2=<findlayer.<local.layer>.more2>
+ serv.newitem <local.item>
+ new.color=<local.color>
+ new.more1=<local.mor>
+ new.more2=<local.mor2>
+ new.cont=<obj>
+ENDFOR
+DORAND 5
+ obj.say So pode haver um de mim!
+ obj.say Ah! Impostor! Morra!
+ obj.say Ola, mim! Morra!
+ obj.say Conheco alguem identico a voce...
+ obj.say Com ose atreve a me imitar! So pode haver um!
+enddo
+FOR skill 0 54
+ obj.<local.skill>=<src.<local.skill>>
+ENDFOR
+obj.attack <UID>
+
+//*****************************************************************************
+// f_NPC_AI_Use
+//*****************************************************************************
+[FUNCTION f_NPC_AI_Use]
+findid.<argv0>.use
+if (<argv1>)
+ consume 1 <argv0>
+endif
+
+//*****************************************************************************
+// f_NPC_AI_Charge
+//*****************************************************************************
+[FUNCTION f_NPC_AI_Charge]
+if (<argn>==1)
+ moddex=<moddex>+100
+ tag.HasCharge=1
+ tag.Charge=1
+ LOCAL.timer=<eval {30 60}>
+ timerf <LOCAL.timer>,f_NPC_AI_Charge
+elif (<argn>==2)
+ moddex=<moddex>-100
+ tag.charge=0
+else
+ tag.HasCharge=0
+ if (<tag0.charge>)
+  tag.charge=0
+  moddex=<moddex>-100
+ endif
+endif
+
+//*****************************************************************************
+// NPCCanCharge
+//*****************************************************************************
+[FUNCTION NPCCanCharge]
+if (<tag0.HasCharge>==1)
+ return 0
+else
+ return 1
+endif
+
+//*****************************************************************************
+// MONSTER_POWER
+//*****************************************************************************
+[FUNCTION MONSTER_POWER]
+tag0.MONSTERPOW=<eval <tag0.MONSTERPOW>|<argv0>>
+
+//*****************************************************************************
+// f_NPC_AI_PowerDelay
+//*****************************************************************************
+[FUNCTION f_NPC_AI_PowerDelay]
+if (<argn>)
+ tag0.HasPower=1
+ timerf <argn>,f_NPC_AI_PowerDelay
+else
+ tag0.HasPower
+endif
+
+//*****************************************************************************
+// NPCCanPower
+//*****************************************************************************
+[FUNCTION NPCCanPower]
+if (<tag0.HasPower>==1)
+ return 0
+else
+ return 1
+endif
+
+//*****************************************************************************
+// f_NPC_POW_Manadrain_Far
+//*****************************************************************************
+[FUNCTION f_NPC_POW_Manadrain_Far]
+LOCAL.mana=<R5,<BETWEEN 5,100,<Focus>,1000>>
+LOCAL.range=<f_rangeValue 6,16,<Focus>>
+OBJ=<UID>
+LOCAL.did=0
+FORPLAYERS 6
+ IF (!<IsGM>)
+  IF (<mana> > <LOCAL.mana>)
+   mana=<mana>-<LOCAL.mana>
+  ELSE
+   mana=0
+  ENDIF
+  effect 3 i_fx_sparkle_2 0 16 0 01f
+  OBJ.mana=<obj.mana>+<LOCAL.mana>
+  cry
+  sysmessagered Sua energia esta sendo sugada!
+  LOCAL.did=1
+ ENDIF
+ENDFOR
+IF (<LOCAL.did>)
+ effect 3 i_fx_heal_effect 0 16 0
+ emoteyellow suga
+ sfx 0209
+ENDIF
+
+//*****************************************************************************
+// f_NPC_POW_Chill
+//*****************************************************************************
+[FUNCTION f_NPC_POW_Chill]
+LOCAL.skill=<eval {0 <argv0>}>
+IF (<LOCAL.SKILL> <= 600)
+ sysmessagegreen Voce esta sentindo frio.
+ emotegreen frio
+ LOCAL.losestam=<eval {1 2}>
+ELIF (<LOCAL.skill> <= 950)
+ sysmessagegreen VOCE ESTA QUASE CONGELANDO DE FRIO!
+ emotegreen muito frio
+ LOCAL.losestam=<eval {2 4}>
+ELSE
+ local.timer=<eval {5 <f_rangeValue 5,25,<local.skill>>}>
+ emotered congelou
+ stonned <local.timer>
+ sysmessagegreen Voce congelou de tanto frio!
+ RETURN 1
+ENDIF
+IF (<stam> > 3) && (<stam> > <LOCAL.losestam>)
+ stam=<stam>-<LOCAL.losestam>
+ENDIF
+damage <LOCAL.losestam> dam_cold
+RETURN 0
+
+//*****************************************************************************
+// npc_driade
+//*****************************************************************************
+[FUNCTION npc_driade]
+SERV.NEWITEM i_armor_female_studded
+NEW.MORE1=02800280
+NEW.FLAGS |= attr_newbie
+NEW.EQUIP
+
+SERV.NEWITEM i_hair_long
+NEW.COLOR=0109
+NEW.EQUIP
+
+//*****************************************************************************
+// npc_driade_bow
+//*****************************************************************************
+[FUNCTION npc_driade_bow]
+SERV.NEWITEM i_armor_female_studded
+NEW.MORE1=02800280
+NEW.FLAGS |= attr_newbie
+NEW.EQUIP
+
+SERV.NEWITEM i_hair_long
+NEW.COLOR=0109
+NEW.EQUIP
+
+SERV.NEWITEM {i_bow 24 i_bow_long 12 i_bow_composite 6 i_bow_elven 1 }
+NEW.MOREY=40
+NEW.EQUIP
+
+SERV.NEWITEM i_arrow
+NEW.AMOUNT={ 12 36 }
+NEW.BOUNCE
+
+//*****************************************************************************
+// f_npc_spawn
+//*****************************************************************************
+[FUNCTION f_npc_spawn]
+//-esta funcao é a unica chamada na inicializacao de todos os NPCs
+//-aplique regras genericas aqui, como configuracao de spawn por tag
+//-o memory de spawn nao esta disponivel ainda nesse momento
+//-o char nao pode ser removido nesse momento
+timerf 1 f_npc_spawn_
+
+[FUNCTION f_npc_spawn_]
+//carrega spawn
+OBJ=<MEMORYFINDTYPE.memory_ispawned.link>
+
+//se for spawn noturno
+if <OBJ.tag0.spawn_night> 
+    events +e_haunt
+endif
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
 
 //*****************************************************************************
 // t_spawn_char
@@ -39,23 +379,10 @@ if <more2> < <amount>
 endif
 
 //*****************************************************************************
-// f_npc_spawn
 //*****************************************************************************
-[FUNCTION f_npc_spawn]
-//-esta funcao é a unica chamada na inicializacao de todos os NPCs
-//-aplique regras genericas aqui, como configuracao de spawn por tag
-//-o memory de spawn nao esta disponivel ainda nesse momento
-//-o char nao pode ser removido nesse momento
-timerf 1 f_npc_spawn_
-
-[FUNCTION f_npc_spawn_]
-//carrega spawn
-OBJ=<MEMORYFINDTYPE.memory_ispawned.link>
-
-//se for spawn noturno
-if <OBJ.tag0.spawn_night> 
-    events +e_haunt
-endif
+// EVENTs Gerais
+//*****************************************************************************
+//*****************************************************************************
 
 //*****************************************************************************
 // e_npc_geral
@@ -201,105 +528,9 @@ ELIF (<karma> > 0)
  endif
 endif
 
-[FUNCTION f_NPC_AI_Use]
-findid.<argv0>.use
-if (<argv1>)
- consume 1 <argv0>
-endif
-
-[FUNCTION f_NPC_AI_Charge]
-if (<argn>==1)
- moddex=<moddex>+100
- tag.HasCharge=1
- tag.Charge=1
- LOCAL.timer=<eval {30 60}>
- timerf <LOCAL.timer>,f_NPC_AI_Charge
-elif (<argn>==2)
- moddex=<moddex>-100
- tag.charge=0
-else
- tag.HasCharge=0
- if (<tag0.charge>)
-  tag.charge=0
-  moddex=<moddex>-100
- endif
-endif
-
-
-[FUNCTION NPCCanCharge]
-if (<tag0.HasCharge>==1)
- return 0
-else
- return 1
-endif
-
-[FUNCTION MONSTER_POWER]
-tag0.MONSTERPOW=<eval <tag0.MONSTERPOW>|<argv0>>
-
-[FUNCTION f_NPC_AI_PowerDelay]
-if (<argn>)
- tag0.HasPower=1
- timerf <argn>,f_NPC_AI_PowerDelay
-else
- tag0.HasPower
-endif
-
-[FUNCTION NPCCanPower]
-if (<tag0.HasPower>==1)
- return 0
-else
- return 1
-endif
-
-[FUNCTION f_NPC_POW_Manadrain_Far]
-LOCAL.mana=<R5,<BETWEEN 5,100,<Focus>,1000>>
-LOCAL.range=<f_rangeValue 6,16,<Focus>>
-OBJ=<UID>
-LOCAL.did=0
-FORPLAYERS 6
- IF (!<IsGM>)
-  IF (<mana> > <LOCAL.mana>)
-   mana=<mana>-<LOCAL.mana>
-  ELSE
-   mana=0
-  ENDIF
-  effect 3 i_fx_sparkle_2 0 16 0 01f
-  OBJ.mana=<obj.mana>+<LOCAL.mana>
-  cry
-  sysmessagered Sua energia esta sendo sugada!
-  LOCAL.did=1
- ENDIF
-ENDFOR
-IF (<LOCAL.did>)
- effect 3 i_fx_heal_effect 0 16 0
- emoteyellow suga
- sfx 0209
-ENDIF
-
-
-[FUNCTION f_NPC_POW_Chill]
-LOCAL.skill=<eval {0 <argv0>}>
-IF (<LOCAL.SKILL> <= 600)
- sysmessagegreen Voce esta sentindo frio.
- emotegreen frio
- LOCAL.losestam=<eval {1 2}>
-ELIF (<LOCAL.skill> <= 950)
- sysmessagegreen VOCE ESTA QUASE CONGELANDO DE FRIO!
- emotegreen muito frio
- LOCAL.losestam=<eval {2 4}>
-ELSE
- local.timer=<eval {5 <f_rangeValue 5,25,<local.skill>>}>
- emotered congelou
- stonned <local.timer>
- sysmessagegreen Voce congelou de tanto frio!
- RETURN 1
-ENDIF
-IF (<stam> > 3) && (<stam> > <LOCAL.losestam>)
- stam=<stam>-<LOCAL.losestam>
-ENDIF
-damage <LOCAL.losestam> dam_cold
-RETURN 0
-
+//*****************************************************************************
+// e_Undead
+//*****************************************************************************
 [EVENTS e_Undead]
 on=@NPCLookAtChar
 if (<src.restest 1 i_spl_death_mask>)
@@ -375,252 +606,9 @@ ELIF (<argn1>==17)  //bless
  ENDIF
 ENDIF
 
-[EVENTS e_reaper]
-on=@GetHit
-IF (<hits> < <eval <str>/4>) && (!<tag0.meta>)
- tag.meta=1
- IF (!<R3>)
-  serv.newnpc c_reaper_redux
- elif (!<R2>)
-  serv.newnpc c_treefellow
- else
-  return 2
- endif
- new.p=<p>
- new.update
- new.effect 3 i_fx_sparkle 0 32 0 
- new.sfx 01e7
- new.emotered metamorfa
- new.hits=(<new.hits>/4)
- new.attack <src.uid>
- src.attack <new.uid>
- remove
- return 1
-ENDIF
-
-[FUNCTION NPC_IMMUNE]
-tag0.immune <eval <argv0>>
-
-[FUNCTION NPC_AGGRAVATE]
-tag0.aggravate <eval <argv0>>
-
-[FUNCTION NPC_REGENDAM]
-tag0.regendam <eval <argv0>>
-
-[EVENTS e_changeling]
-//NPC que se transforma no player que avistar
-on=@NPCActFight
-if (!<src.npc>)
- NPC_CHANGELING <src.uid>
-endif
-
-on=@Death
-FOR layer 0 25
- findlayer.<local.layer>.remove
-ENDFOR
-body=<obody>
-
-[FUNCTION NPC_CHANGELING]
-obj=<argv0>
-obody=<body>
-body=<obj.body>
-str=<obj.str>
-hits=<obj.str>
-dex=<obj.dex>
-int=<obj.int>
-mana=<obj.int>
-color=<obj.color>
-for layer 1 24
- findlayer.<local.layer>.remove
- local.item=<obj.findlayer.<local.layer>.baseid>
- local.color=<obj.findlayer.<local.layer>.color>
- local.mor=<obj.findlayer.<local.layer>.more1>
- local.mor2=<obj.findlayer.<local.layer>.more2>
- serv.newitem=<local.item>
- new.attr=010
- new.color=<local.color>
- new.more1=<local.mor>
- new.more2=<local.mor2>
- new.cont=<uid>
-ENDFOR
-DORAND 5
- say=@026 So pode haver um de mim!
- say=@026 Ah! Impostor! Morra!
- say=@026 Ola, mim! Morra!
- say=@026 Conheco alguem identico a voce...
- say=@026 Como se atreve a me imitar! So pode haver um!
-enddo
-FOR skill 0 54
- <local.skill>=<src.<local.skill>>
-ENDFOR
-if (<magery> > 500)
- MODINT=60
- EVENTS +e_mage_phaser
-endif
-attack <src.uid>
-
-[EVENTS e_spl_planta_carnivora]
-on=@death
-FORITEMS 3
- IF (<baseid>==i_forbiden)
-  remove
- ENDIF
-ENDFOR
-
-on=@destroy
-FORITEMS 3
- IF (<baseid>==i_forbiden)
-  remove
- ENDIF
-ENDFOR
-
-on=@PersonalSpace
-IF (<flags>&0800000) && (!<src.IsGM>)
- src.sysmessagered Uma planta carnivora te achou!
- src.emotered preso por tentaculos
- src.f_cela_imovel 15
- invis=0
- attack <src.uid>
- return 1
-endif
-
-[EVENTS e_paroxysmus]
-on=@SpellCast
-if (<NPC_CanCast>)
- OBJ=<MEMORYFINDTYPE.memory_war_targ.link>
- if (!<obj.cansee>)
-  return 1
- endif
- local.meat=<eval {01e88 1 01e89 1 01e90 1 01e91 1 03d69 1 01ce0 1 01ce8 1 01d9f 1 01dad 1}>
- local.dam=<eval {5 15}>
- OBJ.effect 0 <local.meat> 10 16 0
- obj.damage <local.dam> dam_physical <uid>
- sfx 0232
- serv.newitem <local.meat>
- new.p=<obj.p>
- new.attr=012
- new.timer 5
- anim 5
- SPELL_DELAY <eval {6 32}>
-endif
-return 1
-
-[FUNCTION f_restoreMana]
-mana=<int>
-
-
-/////////////////////////////////////////////////////////
-//////////Kork, o Ciclope GM
-/////////////////////////////////////////////////////////
-
-[ITEMDEF i_stone_hurl]
-ID=i_rock_plain_x
-TYPE=t_script
-NAME=pedras
-FLIP=0
-
-on=@create
-attr |= attr_newbie
-
-on=@DClick
-target
-return 1
-
-ON=@TARGON_ITEM
-target
-return 1
-
-ON=@TARGON_GROUND
-target
-return 1
-
-ON=@TARGON_CHAR
-if (<src.NPC_CanCast>)
- src.anim 12
- src.targ.effect 0 i_rock_7 6 0 0
- src.targ.damage <eval {5 12}> dam_physical <src.uid>
- src.spell_delay 7
-endif
-target
-return 1
-
-[EVENTS e_kork]
-on=@death
-if (!<isplayer>)
- return 0
-endif
-flags=<flags>|(statf_dead|statf_invisible|statf_invul|statf_insubstantial)
-flags=<flags>&~statf_war
-
-if (<tag0.comcapuz>)
-    capuz
-endif
-serv.newitem i_corpse
-new.amount=<body>
-new.morep=<body>,0,<dir>
-new.link=<uid>
-new.more2=<uid>
-new.color=<color>
-new.p=<p>
-for layer 1 24
-    obj=<findlayer.<local.layer>>
-    if (<obj>)
-        obj.cont=<new>
-        obj.layer=<local.layer>
-    endif
-endfor
-new.timer=10
-new.update
-new.emotered desmaiou
-tag.corpse=<new>
-
-//body de morto
-body=<eval c_man+2>
-serv.newitem i_deathshroud
-new.cont=<uid>
-update
-
-forclients
-    update
-endfor
-sysmessageyellow 30 segundos de molho.
-timerf 30,f_returnToLife
-timerf 30,hits,5
-timerf 30,stam,1
-return 1
-
-/////////////////////////////////////////////////////////
-//////////Reis mortos de Luyaran
-/////////////////////////////////////////////////////////
-[EVENTS e_king_undead]
-on=@HITTRY
-dorand 8
- SAY=@026 Liberte-me!
- SAY=@026 Nao quero mais machucar meu povo!
- SAY=@026 Fuja! Nao quero machuca-lo, fuja!
-enddo
-SFX=<hval {0482 0486}>
-
-
-[FUNCTION f_king_give_axe]
-wipeObject i_machado_luna
-serv.newitem i_machado_luna
-src.bounce <new.uid>
-
-[FUNCTION f_king_give_crescent]
-wipeObject i_crescente_mond
-serv.newitem i_crescente_mond
-src.bounce <new.uid>
-
-[FUNCTION f_king_give_pike]
-wipeObject i_pique_atila
-serv.newitem i_pique_atila
-src.bounce <new.uid>
-
-
-/////////////////////////////////////////////////////////
-//////////Criaturas que somem se não for noite
-/////////////////////////////////////////////////////////
+//*****************************************************************************
+// e_haunt
+//*****************************************************************************
 [EVENTS e_haunt]
 ON=@ENVIRONCHANGE
 //emotered [ENVIRONCHANGE]
@@ -642,218 +630,6 @@ endif
 
 //ON=@NPCSEENEWPLAYER
 //ON=@NPCAction
-
-[FUNCTION f_haut_vanish]
-events -e_haunt
-if <sector.clients> > 0
-    serv.newitem i_fx_sparkle_2
-    new.p=<p>
-    new.attr=02
-    new.timerd 13
-    new.sfx 05C7
-endif    
-remove
-
-/////////////////////////////////////////////////////////
-//////////Guardas maus
-/////////////////////////////////////////////////////////
-[EVENTS e_guard_bad]
-ON=@NPCSEENEWPLAYER
-IF (!<src.IsGM>) 
- IF (<ISEMPTY <region.tag.faction.master>>)
-  dorand 4
-   say=@02c Como chegou aqui?
-   say=@02c Intruso! Soem o alarme!
-   say=@02c Intruso! Intruso!
-   say=@02c Ah! Um intruso! Morra!
-  enddo
- else
-  dorand 4
-   say=@02c <region.tag.faction.master> deve ser protegido!
-   say=@02c Intruso! Soem o alarme! Avisem <region.tag.faction.master>!
-   say=@02c Intruso, <region.tag.faction.master>! Intruso!
-   say=@02c Ah! Um intruso! Morra por <region.tag.faction.master>!
-  enddo
-endif
-
-on=@NPCActFight
-IF (!<src.IsGM>) && (!<tag0.taunt>)
- IF (<ISEMPTY <region.tag.faction.master>>)
-  dorand 4
-   say=@02c Nao sei como achou este lugar, mas morrera aqui!
-   say=@02c Intruso imundo!
-   say=@02c Conheca minha amiga morte, seu intrometido!
-   say=@02c O mestre nao gosta de companhia por aqui!
-  enddo
- else
-  dorand 5
-   say=@02c Nao sei como achou este lugar, mas <region.tag.faction.master> mandou matar intrusos!
-   say=@02c Intruso imundo! <region.tag.faction.master> já sabe que voce esta aqui!
-   say=@02c <region.tag.faction.master> comanda por aqui. E voce sera exterminado
-   say=@02c <region.tag.faction.master> nao gosta de companhia por aqui!
-  enddo
-endif
-tag.taunt=1
-timerf <eval <R15>+10>,tag.taunt,0
-
-[FUNCTION f_npc_faction_color]
-IF (<region.tag0.faction.color>)
- serv.newitem i_cape
- new.color=<region.tag0.faction.color>
- new.name = capa da guarda
- if (!<ISEMPTY <region.tag.faction.master>>)
-  new.name=<new.name> de <region.tag.faction.master>
- endif
- equip <new.uid>
-ENDIF
-
-/////////////////////////////////////////////////////////
-//////////events de casting para NPCs
-/////////////////////////////////////////////////////////
-[FUNCTION NPC_CASTER_GARGYL]
-events +e_cast_gargyl
-tag.mag=4
-tag.spl_terra <eval {1 2}>
-tag.spl_fogo <eval {2 3}>
-tag.spl_morte <eval {1 3}>
-
-[EVENTS e_cast_gargyl]
-//Magias de gargula
-on=@SpellCast
-if 1//(<NPC_CanCast>)// && (<argn3>==1)
- //OBJ=<MEMORYFINDTYPE.memory_war_targ.link>
- DORAND <eval <magery>/50>
-  argn1=s_magic_arrow       //Magery 5.0
-  argn1=s_magic_arrow
-  argn1=s_magic_arrow
-  argn1=s_magic_arrow
-  argn1=s_stalagmite
-  argn1=s_stalagmite        //Magery 30.0
-  argn1=s_stalagmite
-  argn1=s_firedarts
-  argn1=s_firedarts
-  argn1=s_firedarts     //Magery 50.0
-  argn1=s_fireball
-  argn1=s_fireball
-  argn1=s_entangle
-  argn1=s_entangle
-  argn1=s_stalagmiteCell    //Magery 75.0
-  argn1=s_stalagmiteCell
-  argn1=s_heatWeapon
-  argn1=s_fear
-  argn1=s_CelaVeneno
-  argn1=s_DeathConfusion    //Magery 100.0
-  argn1=s_magic_arrow
-  argn1=s_stalagmite
-  argn1=s_firedarts
-  argn1=s_fireball
-  argn1=s_entangle      //Magery 125.0
-  argn1=s_stalagmiteCell
-  argn1=s_heatWeapon
-  argn1=s_fear
-  argn1=s_CelaVeneno
-  argn1=s_DeathConfusion    //Magery 150.0
-  argn1=s_fireball
-  argn1=s_fireball
-  argn1=s_fireball
-  argn1=s_entangle
-  argn1=s_entangle      //Magery 175.0
-  argn1=s_stalagmiteCell
-  argn1=s_heatWeapon
-  argn1=s_fear
-  argn1=s_CelaVeneno
-  argn1=s_DeathConfusion    //Magery 200.0
- ENDDO
- serv.log [NPC CASTER] <serv.resources.<argn1>.name>, <argn2>
-endif
-return 0
-
-on=@spellselect
-return 0
-
-[FUNCTION NPC_UNIQUE]
-timerf 1,_NPC_UNIQUE
-
-[FUNCTION _NPC_UNIQUE]
-if (<instances> > 1)
- serv.newitem i_carta
- new.name=NPC Unico
- new.p=<p>
- new.tag.text=O NPC <name> eh um NPC unico. So pode haver um no mundo e ja tem. Entao eu sai para tomar um cafe, MAS NAO VOLTO!
- remove
-endif
-
-/////////////////////////////////////////////////////////
-//////////ARMADURA DE CAVALOS
-/////////////////////////////////////////////////////////
-// SERVE PARA DEIXAR ARMADURA NO LOOT DO CAVALO - SOMENTE A(s) PARTE(s) QUE ESTIVER(em) EQUIPADA(s)
-
-[EVENTS e_cavalo_armor]
-
-On=@death
- 
-if (<TAG.TRASEIRA> == 1)
-    serv.newitem=i_armadura_traseira
-    new.bounce
-endif
-
-if (<TAG.FRONTAL> == 1)
-    serv.newitem=i_armadura_frontal
-    new.bounce
-endif 
-
-[TYPEDEF t_horse_armor]
-
-ON=@DCLICK
-if (<distance> > 2)
-    src.sysmessageyellow Muito longe
-else
-    src.sysmessageyellow Selecione o cavalo:
-    target
-endif    
-return 1
-
-ON=@TARGON_ITEM
-src.sysmessageyellow Usado apenas em cavalos
-return 1
-
-ON=@TARGON_CHAR
-if (<src.targ.distance> > 2 )
-    src.sysmessagered Voce nao alcanca o animal
-    return 1
-elif (<baseid>==i_armadura_traseira) && (<src.targ.tag0.traseira>)
-    src.sysmessageyellow O cavalo ja esta com a parte traseira da armadura equipada.
-    return 1
-elif (<baseid>==i_armadura_frontal) && (<src.targ.tag0.frontal>)
-    src.sysmessageyellow O cavalo ja esta com a parte frontal da armadura equipada.
-    return 1
-elif (<src.targ.body> == c_horse_gray) || (<src.targ.body> == c_horse_white) || (<src.targ.body> == c_horse_brown_dk) || (<src.targ.body> == c_horse_brown_lt) || (<src.targ.body> == c_horse_tan) || (<src.targ.body> == c_horse_black)
-    src.targ.tag.corpo <src.targ.body>
-elif (<src.targ.body> == c_cavalo_armadura)
-    //nop
-else
-    src.sysmessagered Isto nao e um cavalo.
-    return 1
-endif
-
-src.emotegreen Equipando armadura no cavalo
-sfx 89
-
-if <baseid>==i_armadura_traseira
-    src.targ.tag.traseira = 1
-else
-    src.targ.tag.frontal = 1
-endif
-
-if <src.targ.tag.traseira> && <src.targ.tag.frontal>
-    src.targ.body=c_cavalo_armadura
-endif
-
-serv.newitem i_suporte_cavalo
-new.movenear <src.targ> 1
-remove
-src.targ.update
-return 1
 
 //*****************************************************************************
 // e_icemade
@@ -899,168 +675,12 @@ new.emotered desfez
 remove
 return 1
 
-[EVENTS e_sucubus]
-on=@NPCseenewplayer
-dorand 5
- say=@0741 Tolice sua ter vindo ate aqui...
- say=@0741 Afinal... Companhia!
- say=@0741 Oh nao... Mais um cadaver.
- say=@084d  *sorri maliciosamente*
- say=@084d  *parece contente*
-enddo
-
-on=@hit
-if (!<R30>) && (<src.body>==0190)
- emotered beija lascivamente
- src.f_spl_confusion <MAGICRESISTANCE>
-elif (!<R4>) && (<src.body>==0191)
- dorand 8
-  say=@0741 Femeas devem morrer.
-  say=@0741 Sua femea imunda!
-  say=@0741 So aprecio machos.
-  say=@0741 Morra, femea!
-  say=@0741 So pode haver UMA femea.
-  say=@0741 Femea gorda e feiosa!
-  say=@0741 Voce eh bela de mais para viver.
-  say=@0741 Eu sou mais bela que voce. Morra!
- enddo
- argn1=(<argn1>*100/70)
-endif
-
-
-[EVENTS e_hydra]
-ON=@NpcRestock
-ITEM=i_coin_silver,{3 15}
-
-on=@SPELLSELECT
-//Uma fireball em cada inimigo.
-if (!<R9>) && (<NPC_CanCast>)
- OBJ=<UID>
- FORCHARMEMORYTYPE memory_war_targ
-  link.effect 0 i_fx_fireball 6 16 0
-  link.DAMAGESPELL s_Fireball,dam_fire,<obj.magery>,<obj.UID>
- ENDFOR
- sfx snd_spell_fireball
- spell_delay 50
- return 1
-endif
-return 1
-
-[EVENTS e_reptalon]
-on=@SPELLSELECT
-OBJ=<memoryfindtype.memory_war_targ.link>
-IF (!<R2>) && (<NPC_CanCast>)
- obj.effect 0 i_fx_fireball 6 16 1 0122
- obj.damage <eval {8 16}>,dam_cold,<UID>
- sfx 05C8
- spell_delay 30
-ELIF (!<R2>) && (<NPC_CanCast>)
- obj.effect 0 i_fx_fireball 6 16 1
- obj.damage <eval {8 16}>,dam_fire
- sfx snd_spell_fireball
- spell_delay 30
-ELIF (<NPC_CanCast>)
- obj.effect 0 i_fx_energy_ray 6 16 0
- obj.damage <eval {8 16}>,dam_energy
- sfx 05c3
- spell_delay 30
-ENDIF
-return 1
-
-
-[EVENTS e_senhor_abismo]
-on=@NPCseenewplayer
-dorand 5
- say=@0741 Tolice sua ter vindo ate aqui...
- say=@0741 Afinal... Companhia!
- say=@0741 Oh nao... Mais um cadaver.
- say=@084d *sorri maliciosamente*
- say=@084d *parece contente*
-enddo
-
-on=@SPELLSELECT
-OBJ=<memoryfindtype.memory_war_targ.link>
-IF (!<R2>) && (<NPC_CanCast>)
- obj.effect 0 i_fx_fireball 6 16 1 0122
- obj.damage <eval {17 22}>,dam_cold,<UID>
- sfx 05C8
- spell_delay 5
-ELIF (!<R2>) && (<NPC_CanCast>)
- obj.effect 0 i_fx_fireball 6 16 1
- obj.damage <eval {17 22}>,dam_fire
- sfx snd_spell_fireball
- spell_delay 5
-ELIF (<NPC_CanCast>)
- obj.effect 0 i_fx_energy_ray 6 16 0
- obj.damage <eval {17 30}>,dam_energy
- sfx 05c3
- spell_delay 5
-ENDIF
-return 1
-
-[EVENTS e_gargula_fogo]
-on=@SPELLSELECT
-OBJ=<memoryfindtype.memory_war_targ.link>
-IF (!<R2>) && (<NPC_CanCast>)
- obj.effect 0 i_fx_fireball 6 16 1
- obj.damage <eval {12 20}>,dam_fire
- sfx snd_spell_fireball
- spell_delay 30
-ELIF (!<R2>) && (<NPC_CanCast>)
- obj.effect 3 i_fx_vortex 6 45 1 1160
- obj.damage <eval {25 32}>,dam_fire
- sfx snd_spell_fire_field
- spell_delay 30
-ENDIF
-return 1
-
+//*****************************************************************************
+// e_no_corpse
+//*****************************************************************************
 [EVENTS e_no_corpse]
 on=@Death
 remove
-return 1
-
-[FUNCTION npc_driade]
-SERV.NEWITEM i_armor_female_studded
-NEW.MORE1=02800280
-NEW.FLAGS |= attr_newbie
-NEW.EQUIP
-
-SERV.NEWITEM i_hair_long
-NEW.COLOR=0109
-NEW.EQUIP
-
-[FUNCTION npc_driade_bow]
-SERV.NEWITEM i_armor_female_studded
-NEW.MORE1=02800280
-NEW.FLAGS |= attr_newbie
-NEW.EQUIP
-
-SERV.NEWITEM i_hair_long
-NEW.COLOR=0109
-NEW.EQUIP
-
-SERV.NEWITEM {i_bow 24 i_bow_long 12 i_bow_composite 6 i_bow_elven 1 }
-NEW.MOREY=40
-NEW.EQUIP
-
-SERV.NEWITEM i_arrow
-NEW.AMOUNT={ 12 36 }
-NEW.BOUNCE
-
-[EVENTS e_gazer_lava]
-on=@SPELLSELECT
-OBJ=<memoryfindtype.memory_war_targ.link>
-IF (!<R2>) && (<NPC_CanCast>)
- obj.effect 0 i_fx_fireball 6 16 1
- obj.damage <eval {8 15}>,dam_fire
- sfx snd_spell_fireball
- spell_delay 20
-ELIF (!<R2>) && (<NPC_CanCast>)
- obj.effect 3 i_fx_vortex 6 45 1 1160
- obj.damage <eval {8 15}>,dam_fire
- sfx snd_spell_fire_field
- spell_delay 20
-ENDIF
 return 1
 
 //*****************************************************************************
@@ -1115,6 +735,418 @@ SFX 011d
 remove
 return 1
 
+
+//*****************************************************************************
+//*****************************************************************************
+// EVENTs NPCs Específicos
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// e_reaper
+//*****************************************************************************
+[EVENTS e_reaper]
+on=@GetHit
+IF (<hits> < <eval <str>/4>) && (!<tag0.meta>)
+ tag.meta=1
+ IF (!<R3>)
+  serv.newnpc c_reaper_redux
+ elif (!<R2>)
+  serv.newnpc c_treefellow
+ else
+  return 2
+ endif
+ new.p=<p>
+ new.update
+ new.effect 3 i_fx_sparkle 0 32 0 
+ new.sfx 01e7
+ new.emotered metamorfa
+ new.hits=(<new.hits>/4)
+ new.attack <src.uid>
+ src.attack <new.uid>
+ remove
+ return 1
+ENDIF
+
+//*****************************************************************************
+// e_changeling
+//*****************************************************************************
+[EVENTS e_changeling]
+//NPC que se transforma no player que avistar
+on=@NPCActFight
+if (!<src.npc>)
+ NPC_CHANGELING <src.uid>
+endif
+
+on=@Death
+FOR layer 0 25
+ findlayer.<local.layer>.remove
+ENDFOR
+body=<obody>
+
+//*****************************************************************************
+// e_spl_planta_carnivora
+//*****************************************************************************
+[EVENTS e_spl_planta_carnivora]
+on=@death
+FORITEMS 3
+ IF (<baseid>==i_forbiden)
+  remove
+ ENDIF
+ENDFOR
+
+on=@destroy
+FORITEMS 3
+ IF (<baseid>==i_forbiden)
+  remove
+ ENDIF
+ENDFOR
+
+on=@PersonalSpace
+IF (<flags>&0800000) && (!<src.IsGM>)
+ src.sysmessagered Uma planta carnivora te achou!
+ src.emotered preso por tentaculos
+ src.f_cela_imovel 15
+ invis=0
+ attack <src.uid>
+ return 1
+endif
+
+//*****************************************************************************
+// e_paroxysmus
+//*****************************************************************************
+[EVENTS e_paroxysmus]
+on=@SpellCast
+if (<NPC_CanCast>)
+ OBJ=<MEMORYFINDTYPE.memory_war_targ.link>
+ if (!<obj.cansee>)
+  return 1
+ endif
+ local.meat=<eval {01e88 1 01e89 1 01e90 1 01e91 1 03d69 1 01ce0 1 01ce8 1 01d9f 1 01dad 1}>
+ local.dam=<eval {5 15}>
+ OBJ.effect 0 <local.meat> 10 16 0
+ obj.damage <local.dam> dam_physical <uid>
+ sfx 0232
+ serv.newitem <local.meat>
+ new.p=<obj.p>
+ new.attr=012
+ new.timer 5
+ anim 5
+ SPELL_DELAY <eval {6 32}>
+endif
+return 1
+
+//*****************************************************************************
+// e_kork
+//*****************************************************************************
+[EVENTS e_kork]
+on=@death
+if (!<isplayer>)
+ return 0
+endif
+flags=<flags>|(statf_dead|statf_invisible|statf_invul|statf_insubstantial)
+flags=<flags>&~statf_war
+
+if (<tag0.comcapuz>)
+    capuz
+endif
+serv.newitem i_corpse
+new.amount=<body>
+new.morep=<body>,0,<dir>
+new.link=<uid>
+new.more2=<uid>
+new.color=<color>
+new.p=<p>
+for layer 1 24
+    obj=<findlayer.<local.layer>>
+    if (<obj>)
+        obj.cont=<new>
+        obj.layer=<local.layer>
+    endif
+endfor
+new.timer=10
+new.update
+new.emotered desmaiou
+tag.corpse=<new>
+
+//body de morto
+body=<eval c_man+2>
+serv.newitem i_deathshroud
+new.cont=<uid>
+update
+
+forclients
+    update
+endfor
+sysmessageyellow 30 segundos de molho.
+timerf 30,f_returnToLife
+timerf 30,hits,5
+timerf 30,stam,1
+return 1
+
+//*****************************************************************************
+// e_king_undead
+//*****************************************************************************
+[EVENTS e_king_undead]
+on=@HITTRY
+dorand 8
+ SAY=@026 Liberte-me!
+ SAY=@026 Nao quero mais machucar meu povo!
+ SAY=@026 Fuja! Nao quero machuca-lo, fuja!
+enddo
+SFX=<hval {0482 0486}>
+
+//*****************************************************************************
+// e_guard_bad
+//*****************************************************************************
+[EVENTS e_guard_bad]
+ON=@NPCSEENEWPLAYER
+IF (!<src.IsGM>) 
+ IF (<ISEMPTY <region.tag.faction.master>>)
+  dorand 4
+   say=@02c Como chegou aqui?
+   say=@02c Intruso! Soem o alarme!
+   say=@02c Intruso! Intruso!
+   say=@02c Ah! Um intruso! Morra!
+  enddo
+ else
+  dorand 4
+   say=@02c <region.tag.faction.master> deve ser protegido!
+   say=@02c Intruso! Soem o alarme! Avisem <region.tag.faction.master>!
+   say=@02c Intruso, <region.tag.faction.master>! Intruso!
+   say=@02c Ah! Um intruso! Morra por <region.tag.faction.master>!
+  enddo
+endif
+
+on=@NPCActFight
+IF (!<src.IsGM>) && (!<tag0.taunt>)
+ IF (<ISEMPTY <region.tag.faction.master>>)
+  dorand 4
+   say=@02c Nao sei como achou este lugar, mas morrera aqui!
+   say=@02c Intruso imundo!
+   say=@02c Conheca minha amiga morte, seu intrometido!
+   say=@02c O mestre nao gosta de companhia por aqui!
+  enddo
+ else
+  dorand 5
+   say=@02c Nao sei como achou este lugar, mas <region.tag.faction.master> mandou matar intrusos!
+   say=@02c Intruso imundo! <region.tag.faction.master> já sabe que voce esta aqui!
+   say=@02c <region.tag.faction.master> comanda por aqui. E voce sera exterminado
+   say=@02c <region.tag.faction.master> nao gosta de companhia por aqui!
+  enddo
+endif
+tag.taunt=1
+timerf <eval <R15>+10>,tag.taunt,0
+
+
+//*****************************************************************************
+// e_cast_gargyl
+//*****************************************************************************
+[EVENTS e_cast_gargyl]
+//Magias de gargula
+on=@SpellCast
+if 1//(<NPC_CanCast>)// && (<argn3>==1)
+ //OBJ=<MEMORYFINDTYPE.memory_war_targ.link>
+ DORAND <eval <magery>/50>
+  argn1=s_magic_arrow       //Magery 5.0
+  argn1=s_magic_arrow
+  argn1=s_magic_arrow
+  argn1=s_magic_arrow
+  argn1=s_stalagmite
+  argn1=s_stalagmite        //Magery 30.0
+  argn1=s_stalagmite
+  argn1=s_firedarts
+  argn1=s_firedarts
+  argn1=s_firedarts     //Magery 50.0
+  argn1=s_fireball
+  argn1=s_fireball
+  argn1=s_entangle
+  argn1=s_entangle
+  argn1=s_stalagmiteCell    //Magery 75.0
+  argn1=s_stalagmiteCell
+  argn1=s_heatWeapon
+  argn1=s_fear
+  argn1=s_CelaVeneno
+  argn1=s_DeathConfusion    //Magery 100.0
+  argn1=s_magic_arrow
+  argn1=s_stalagmite
+  argn1=s_firedarts
+  argn1=s_fireball
+  argn1=s_entangle      //Magery 125.0
+  argn1=s_stalagmiteCell
+  argn1=s_heatWeapon
+  argn1=s_fear
+  argn1=s_CelaVeneno
+  argn1=s_DeathConfusion    //Magery 150.0
+  argn1=s_fireball
+  argn1=s_fireball
+  argn1=s_fireball
+  argn1=s_entangle
+  argn1=s_entangle      //Magery 175.0
+  argn1=s_stalagmiteCell
+  argn1=s_heatWeapon
+  argn1=s_fear
+  argn1=s_CelaVeneno
+  argn1=s_DeathConfusion    //Magery 200.0
+ ENDDO
+ serv.log [NPC CASTER] <serv.resources.<argn1>.name>, <argn2>
+endif
+return 0
+
+on=@spellselect
+return 0
+
+//*****************************************************************************
+// e_sucubus
+//*****************************************************************************
+[EVENTS e_sucubus]
+on=@NPCseenewplayer
+dorand 5
+ say=@0741 Tolice sua ter vindo ate aqui...
+ say=@0741 Afinal... Companhia!
+ say=@0741 Oh nao... Mais um cadaver.
+ say=@084d  *sorri maliciosamente*
+ say=@084d  *parece contente*
+enddo
+
+on=@hit
+if (!<R30>) && (<src.body>==0190)
+ emotered beija lascivamente
+ src.f_spl_confusion <MAGICRESISTANCE>
+elif (!<R4>) && (<src.body>==0191)
+ dorand 8
+  say=@0741 Femeas devem morrer.
+  say=@0741 Sua femea imunda!
+  say=@0741 So aprecio machos.
+  say=@0741 Morra, femea!
+  say=@0741 So pode haver UMA femea.
+  say=@0741 Femea gorda e feiosa!
+  say=@0741 Voce eh bela de mais para viver.
+  say=@0741 Eu sou mais bela que voce. Morra!
+ enddo
+ argn1=(<argn1>*100/70)
+endif
+
+
+//*****************************************************************************
+// e_hydra
+//*****************************************************************************
+[EVENTS e_hydra]
+ON=@NpcRestock
+ITEM=i_coin_silver,{3 15}
+
+on=@SPELLSELECT
+//Uma fireball em cada inimigo.
+if (!<R9>) && (<NPC_CanCast>)
+ OBJ=<UID>
+ FORCHARMEMORYTYPE memory_war_targ
+  link.effect 0 i_fx_fireball 6 16 0
+  link.DAMAGESPELL s_Fireball,dam_fire,<obj.magery>,<obj.UID>
+ ENDFOR
+ sfx snd_spell_fireball
+ spell_delay 50
+ return 1
+endif
+return 1
+
+//*****************************************************************************
+// e_reptalon
+//*****************************************************************************
+[EVENTS e_reptalon]
+on=@SPELLSELECT
+OBJ=<memoryfindtype.memory_war_targ.link>
+IF (!<R2>) && (<NPC_CanCast>)
+ obj.effect 0 i_fx_fireball 6 16 1 0122
+ obj.damage <eval {8 16}>,dam_cold,<UID>
+ sfx 05C8
+ spell_delay 30
+ELIF (!<R2>) && (<NPC_CanCast>)
+ obj.effect 0 i_fx_fireball 6 16 1
+ obj.damage <eval {8 16}>,dam_fire
+ sfx snd_spell_fireball
+ spell_delay 30
+ELIF (<NPC_CanCast>)
+ obj.effect 0 i_fx_energy_ray 6 16 0
+ obj.damage <eval {8 16}>,dam_energy
+ sfx 05c3
+ spell_delay 30
+ENDIF
+return 1
+
+//*****************************************************************************
+// e_senhor_abismo
+//*****************************************************************************
+[EVENTS e_senhor_abismo]
+on=@NPCseenewplayer
+dorand 5
+ say=@0741 Tolice sua ter vindo ate aqui...
+ say=@0741 Afinal... Companhia!
+ say=@0741 Oh nao... Mais um cadaver.
+ say=@084d *sorri maliciosamente*
+ say=@084d *parece contente*
+enddo
+
+on=@SPELLSELECT
+OBJ=<memoryfindtype.memory_war_targ.link>
+IF (!<R2>) && (<NPC_CanCast>)
+ obj.effect 0 i_fx_fireball 6 16 1 0122
+ obj.damage <eval {17 22}>,dam_cold,<UID>
+ sfx 05C8
+ spell_delay 5
+ELIF (!<R2>) && (<NPC_CanCast>)
+ obj.effect 0 i_fx_fireball 6 16 1
+ obj.damage <eval {17 22}>,dam_fire
+ sfx snd_spell_fireball
+ spell_delay 5
+ELIF (<NPC_CanCast>)
+ obj.effect 0 i_fx_energy_ray 6 16 0
+ obj.damage <eval {17 30}>,dam_energy
+ sfx 05c3
+ spell_delay 5
+ENDIF
+return 1
+
+//*****************************************************************************
+// e_gargula_fogo
+//*****************************************************************************
+[EVENTS e_gargula_fogo]
+on=@SPELLSELECT
+OBJ=<memoryfindtype.memory_war_targ.link>
+IF (!<R2>) && (<NPC_CanCast>)
+ obj.effect 0 i_fx_fireball 6 16 1
+ obj.damage <eval {12 20}>,dam_fire
+ sfx snd_spell_fireball
+ spell_delay 30
+ELIF (!<R2>) && (<NPC_CanCast>)
+ obj.effect 3 i_fx_vortex 6 45 1 1160
+ obj.damage <eval {25 32}>,dam_fire
+ sfx snd_spell_fire_field
+ spell_delay 30
+ENDIF
+return 1
+
+//*****************************************************************************
+// e_gazer_lava
+//*****************************************************************************
+[EVENTS e_gazer_lava]
+on=@SPELLSELECT
+OBJ=<memoryfindtype.memory_war_targ.link>
+IF (!<R2>) && (<NPC_CanCast>)
+ obj.effect 0 i_fx_fireball 6 16 1
+ obj.damage <eval {8 15}>,dam_fire
+ sfx snd_spell_fireball
+ spell_delay 20
+ELIF (!<R2>) && (<NPC_CanCast>)
+ obj.effect 3 i_fx_vortex 6 45 1 1160
+ obj.damage <eval {8 15}>,dam_fire
+ sfx snd_spell_fire_field
+ spell_delay 20
+ENDIF
+return 1
+
+//*****************************************************************************
+// e_serpente_gelo
+//*****************************************************************************
 [EVENTS e_serpente_gelo]
 on=@NPCseenewplayer
 if (<src.isgm>)
@@ -1125,6 +1157,9 @@ if (<hits> == <str>)
 endif
 ATTACK <src.uid>
 
+//*****************************************************************************
+// e_gazer_elder
+//*****************************************************************************
 [EVENTS e_gazer_elder]
 on=@GetHit
 if (!<tag0.furia>) && (<hits> <= <eval (<str>/8)*3>)
@@ -1142,41 +1177,9 @@ if (!<tag0.furia>) && (<hits> <= <eval (<str>/8)*3>)
  timerd 90,tag.furia,0
 endif
 
-[FUNCTION PC_DUPE]
-serv.newnpc c_man
-new.p=<p>
-new.str=<str>
-new.hits=<str>
-new.dex=<dex>
-new.int=<int>
-new.mana=<int>
-new.color=<color>
-new.karma=-9000
-new.fame=10000
-obj=<new.uid>
-for layer 1 24
- local.item=<findlayer.<local.layer>.baseid>
- local.color=<findlayer.<local.layer>.color>
- local.mor=<findlayer.<local.layer>.more1>
- local.mor2=<findlayer.<local.layer>.more2>
- serv.newitem <local.item>
- new.color=<local.color>
- new.more1=<local.mor>
- new.more2=<local.mor2>
- new.cont=<obj>
-ENDFOR
-DORAND 5
- obj.say So pode haver um de mim!
- obj.say Ah! Impostor! Morra!
- obj.say Ola, mim! Morra!
- obj.say Conheco alguem identico a voce...
- obj.say Com ose atreve a me imitar! So pode haver um!
-enddo
-FOR skill 0 54
- obj.<local.skill>=<src.<local.skill>>
-ENDFOR
-obj.attack <UID>
-
+//*****************************************************************************
+// e_yamandon
+//*****************************************************************************
 [EVENTS e_yamandon]
 on=@HitTry
 IF (<NPC_CANCAST>) && (<belltest <tactics>,80.0>)
@@ -1186,6 +1189,9 @@ IF (<NPC_CANCAST>) && (<belltest <tactics>,80.0>)
  spell_delay <R50,80>
 ENDIF
 
+//*****************************************************************************
+// e_abyssmal_captain
+//*****************************************************************************
 [EVENTS e_abyssmal_captain]
 on=@HitTry
 IF (<NPC_CANCAST>) && (<belltest <tactics>,90.0>)
@@ -1196,6 +1202,9 @@ IF (<NPC_CANCAST>) && (<belltest <tactics>,90.0>)
 ENDIF
 
 
+//*****************************************************************************
+// e_abyssmal_spore
+//*****************************************************************************
 [EVENTS e_abyssmal_spore]
 ON=@EnvironChange
 serv.newitem i_esporos_venenosos
@@ -1208,6 +1217,275 @@ IF (<NPC_CANCAST>) && (!<R4>)
  spell_delay <R30,80>
 ENDIF
 
+
+//*****************************************************************************
+// e_esfinge
+//*****************************************************************************
+[EVENTS e_esfinge]
+on=@SPELLSELECT
+OBJ=<memoryfindtype.memory_war_targ.link>
+IF (!<R2>) && (<NPC_CanCast>)
+ obj.effect 0 i_fx_fireball 6 16 1 0122
+ obj.damage <eval {8 16}>,dam_cold,<UID>
+ sfx 05C8
+ spell_delay 30
+ELIF (!<R2>) && (<NPC_CanCast>)
+ obj.effect 0 i_fx_fireball 6 16 1
+ obj.damage <eval {8 16}>,dam_fire
+ sfx snd_spell_fireball
+ spell_delay 30
+ELIF (<NPC_CanCast>)
+ obj.effect 0 i_fx_energy_ray 6 16 0
+ obj.damage <eval {8 16}>,dam_energy
+ sfx 05c3
+ spell_delay 30
+ENDIF
+
+//*****************************************************************************
+// e_aranha_phaser
+//*****************************************************************************
+[EVENTS e_aranha_phaser]
+on=@NPCseenewplayer
+if (<src.isgm>)
+ return 1
+endif
+if (<mana> == <INT>)
+ mana=1000
+endif
+ATTACK <src.uid>
+return 1
+
+//*****************************************************************************
+// A e_Giant_Black_Widow
+//*****************************************************************************
+[EVENTS e_Giant_Black_Widow]
+ON=@GetHit
+    IF !(<R9>)
+        SERV.NEWNPC C_DREAD_SPIDER
+        NEW.P=<P>
+        NEW.HOME=<NEW.P>
+        NEW.HOMEDIST=7
+        NEW.TIMERF 120,remove
+    ENDIF
+
+ON=@HitTry
+    IF !(<R4>)
+        SERV.NEWITEM i_spider_web
+        NEW.P=<SRC.P>
+        FOR <R3>
+            NEW.FLIP
+        ENDFOR
+        NEW.ATTR=012
+        NEW.TIMER <R12>
+        SRC.NOMOVE <R12>
+    endif    
+        
+//*****************************************************************************
+// e_naga_negra
+//*****************************************************************************
+[EVENTS e_naga_negra]
+on=@NPCseenewNPC
+if (<src.flags>&01) || (<src.restest 1 i_spl_death_mask>)
+ return 1
+endif
+ATTACK <src.uid>
+
+
+on=@NPCseenewplayer
+IF (!<src.IsGM>)
+ dorand 5
+  say=@084d *hissss*
+  say=@0741 Afinal... Comida!
+  say=@0741 Oh nao... Maissss um cadaver.
+  say=@084d  *sibila maliciosamente*
+  say=@084d  *agita-se e prepara-se para o bote*
+ enddo
+ENDIF
+    
+//*****************************************************************************
+// e_unicornio
+//*****************************************************************************
+[EVENTS e_unicornio]    
+on=@SPELLSELECT
+OBJ=<memoryfindtype.memory_war_targ.link>
+IF (!<R2>) && (<NPC_CanCast>)
+ obj.effect 0 i_fx_fireball 6 16 1 0122
+ obj.damage <eval {8 16}>,dam_cold,<UID>
+ sfx 05C8
+ spell_delay 30
+ELIF (!<R2>) && (<NPC_CanCast>)
+ obj.effect 0 i_fx_fireball 6 16 1
+ obj.damage <eval {8 16}>,dam_fire
+ sfx snd_spell_fireball
+ spell_delay 30
+ELIF (<NPC_CanCast>)
+ obj.effect 0 i_fx_energy_ray 6 16 0
+ obj.damage <eval {8 16}>,dam_energy
+ sfx 05c3
+ spell_delay 30
+ENDIF
+return 1    
+
+//*****************************************************************************
+// e_explode_on_death
+//*****************************************************************************
+[EVENTS e_explode_on_death]
+ON=@Death
+// Create death explosion to damage those nearby.
+NEWITEM=i_fx_explode
+act.TYPE=T_EXPLOSION
+act.ATTR=ATTR_MOVE_NEVER | ATTR_CAN_DECAY
+act.LINK=<uid>
+act.morex=10 // damage
+act.morey=090 // wFlags DAMAGE_GENERAL
+act.morez=4 // iDist
+act.p=<p>
+act.TIMERD=5 // immediate decay
+SFX 011d
+
+//*****************************************************************************
+// e_expmagic_on_death
+//*****************************************************************************
+[EVENTS e_expmagic_on_death]
+on=@Death
+sfx 0fr
+LOCAL.DAMAGE=<eval <magery>/120>
+FORPLAYERS 4
+ damage <LOCAL.DAMAGE> dam_magic
+ effect 3 i_fx_glow_spike 0 16 0
+ENDFOR
+
+//*****************************************************************************
+// e_tlaloc
+//*****************************************************************************
+[EVENTS e_tlaloc]
+on=@Environchange
+if (<isplayer>) && (!<restest 1 i_necronomico>)
+ serv.newitem i_necronomico
+ new.cont=<uid>
+ new.attr |= attr_newbie
+endif
+
+on=@death
+IF (<isplayer>)
+ aid
+ bark 4
+ invis
+ serv.newitem i_gold
+ new.type t_normal
+ new.attr 092
+ new.color -1
+ new.timer 3
+ new.p=<p>
+ new.effect 2 i_fire_column 0 30 0 055C
+ new.sfx 01e1
+ return 1
+endif
+
+on=@ClientToolTip
+f_sendTooltip <name>, O mestre Liche
+return 1
+
+//*****************************************************************************
+// e_exrei_adelber
+//*****************************************************************************
+[EVENTS e_exrei_adelber]
+ON=@RECEIVEITEM
+IF (<argo.baseid>==i_vela_luna)
+ face <SRC>
+ flags |= 04
+ Say Obrigado, gentil alma.
+ timerf 2,say,Pegue isto como agradecimento.
+ src.timerf 4,giveUniqueItem i_machado_luna
+ timerf 6,f_haut_vanish
+ return 0
+endif
+return 1
+
+ON=@NPCSEENEWPLAYER
+IF (<src.restest 1 i_vela_luna>)
+ say=@026 A vela de Luna... Voce a tem! Luna o abencoe...
+ karma=2000
+ update
+ELSE
+ dorand 3
+  SAY=@026 Liberte-me!
+  SAY=@026 Nao quero mais machucar meu povo!
+  SAY=@026 Fuja! Nao quero machuca-lo, fuja!
+ enddo
+ENDDO
+SFX=<hval {0482 0486}>
+
+
+//*****************************************************************************
+// e_exrei_adelber2
+//*****************************************************************************
+[EVENTS e_exrei_adelber2]
+ON=@NPCSEENEWPLAYER
+IF (<src.restest 1 i_livro_mond>)
+ say=@026 O livro de Mond... Voce o tem! Mond o abencoe...
+ karma=2000
+ update
+ELSE
+ dorand 3
+  SAY=@026 Liberte-me!
+  SAY=@026 Nao quero mais machucar meu povo!
+  SAY=@026 Fuja! Nao quero machuca-lo, fuja!
+ enddo
+ENDDO
+SFX=<hval {0482 0486}>
+
+ON=@RECEIVEITEM
+IF (<argo.baseid>==i_livro_mond)
+ face <SRC>
+ flags |= 04
+ Say Obrigado, gentil alma.
+ timerf 2,say,Pegue isto como agradecimento.
+ src.timerf 4,giveUniqueItem i_crescente_mond
+ timerf 6,f_haut_vanish
+ return 0
+endif
+return 1
+
+//*****************************************************************************
+// e_exrei_sidroc
+//*****************************************************************************
+[EVENTS e_exrei_sidroc]
+ON=@NPCSEENEWPLAYER
+IF (<src.restest 1 i_sino_atila>) 
+ say=@026 O sino de Atila... Voce o tem! Atila o faça forte!
+ karma=2000
+ update
+ELSE
+ dorand 3
+  SAY=@026 Liberte-me!
+  SAY=@026 Nao quero mais machucar meu povo!
+  SAY=@026 Fuja! Nao quero machuca-lo, fuja!
+ enddo
+ENDDO
+SFX=<hval {0482 0486}>
+
+ON=@RECEIVEITEM
+IF (<argo.baseid>==i_sino_atila)
+ face <SRC>
+ flags |= 04
+ Say Obrigado, gentil alma.
+ timerf 2,say,Pegue isto como agradecimento.
+ src.timerf 4,giveUniqueItem i_pique_atila
+ timerf 6,f_haut_vanish
+ return 0
+endif
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_esporos_venenosos
+//*****************************************************************************
 [ITEMDEF i_esporos_venenosos]
 NAME=esporos venenosos
 ID=i_bee_swarm
@@ -1238,154 +1516,9 @@ IF (<src.IsPlayer>)
 ENDIF
 return 1
 
-[EVENTS e_esfinge]
-on=@SPELLSELECT
-OBJ=<memoryfindtype.memory_war_targ.link>
-IF (!<R2>) && (<NPC_CanCast>)
- obj.effect 0 i_fx_fireball 6 16 1 0122
- obj.damage <eval {8 16}>,dam_cold,<UID>
- sfx 05C8
- spell_delay 30
-ELIF (!<R2>) && (<NPC_CanCast>)
- obj.effect 0 i_fx_fireball 6 16 1
- obj.damage <eval {8 16}>,dam_fire
- sfx snd_spell_fireball
- spell_delay 30
-ELIF (<NPC_CanCast>)
- obj.effect 0 i_fx_energy_ray 6 16 0
- obj.damage <eval {8 16}>,dam_energy
- sfx 05c3
- spell_delay 30
-ENDIF
-
-[EVENTS e_aranha_phaser]
-on=@NPCseenewplayer
-if (<src.isgm>)
- return 1
-endif
-if (<mana> == <INT>)
- mana=1000
-endif
-ATTACK <src.uid>
-return 1
-
 //*****************************************************************************
-// A ARAGNIA
+// i_tlaloc_invis
 //*****************************************************************************
-[EVENTS e_Giant_Black_Widow]
-ON=@GetHit
-    IF !(<R9>)
-        SERV.NEWNPC C_DREAD_SPIDER
-        NEW.P=<P>
-        NEW.HOME=<NEW.P>
-        NEW.HOMEDIST=7
-        NEW.TIMERF 120,remove
-    ENDIF
-
-ON=@HitTry
-    IF !(<R4>)
-        SERV.NEWITEM i_spider_web
-        NEW.P=<SRC.P>
-        FOR <R3>
-            NEW.FLIP
-        ENDFOR
-        NEW.ATTR=012
-        NEW.TIMER <R12>
-        SRC.NOMOVE <R12>
-    endif    
-    
-    
-[EVENTS e_naga_negra]
-on=@NPCseenewNPC
-if (<src.flags>&01) || (<src.restest 1 i_spl_death_mask>)
- return 1
-endif
-ATTACK <src.uid>
-
-
-on=@NPCseenewplayer
-IF (!<src.IsGM>)
- dorand 5
-  say=@084d *hissss*
-  say=@0741 Afinal... Comida!
-  say=@0741 Oh nao... Maissss um cadaver.
-  say=@084d  *sibila maliciosamente*
-  say=@084d  *agita-se e prepara-se para o bote*
- enddo
-ENDIF
-    
-[EVENTS e_unicornio]    
-on=@SPELLSELECT
-OBJ=<memoryfindtype.memory_war_targ.link>
-IF (!<R2>) && (<NPC_CanCast>)
- obj.effect 0 i_fx_fireball 6 16 1 0122
- obj.damage <eval {8 16}>,dam_cold,<UID>
- sfx 05C8
- spell_delay 30
-ELIF (!<R2>) && (<NPC_CanCast>)
- obj.effect 0 i_fx_fireball 6 16 1
- obj.damage <eval {8 16}>,dam_fire
- sfx snd_spell_fireball
- spell_delay 30
-ELIF (<NPC_CanCast>)
- obj.effect 0 i_fx_energy_ray 6 16 0
- obj.damage <eval {8 16}>,dam_energy
- sfx 05c3
- spell_delay 30
-ENDIF
-return 1    
-
-[EVENTS e_explode_on_death]
-ON=@Death
-// Create death explosion to damage those nearby.
-NEWITEM=i_fx_explode
-act.TYPE=T_EXPLOSION
-act.ATTR=ATTR_MOVE_NEVER | ATTR_CAN_DECAY
-act.LINK=<uid>
-act.morex=10 // damage
-act.morey=090 // wFlags DAMAGE_GENERAL
-act.morez=4 // iDist
-act.p=<p>
-act.TIMERD=5 // immediate decay
-SFX 011d
-
-[EVENTS e_expmagic_on_death]
-on=@Death
-sfx 0fr
-LOCAL.DAMAGE=<eval <magery>/120>
-FORPLAYERS 4
- damage <LOCAL.DAMAGE> dam_magic
- effect 3 i_fx_glow_spike 0 16 0
-ENDFOR
-
-[EVENTS e_tlaloc]
-on=@Environchange
-if (<isplayer>) && (!<restest 1 i_necronomico>)
- serv.newitem i_necronomico
- new.cont=<uid>
- new.attr |= attr_newbie
-endif
-
-on=@death
-IF (<isplayer>)
- aid
- bark 4
- invis
- serv.newitem i_gold
- new.type t_normal
- new.attr 092
- new.color -1
- new.timer 3
- new.p=<p>
- new.effect 2 i_fire_column 0 30 0 055C
- new.sfx 01e1
- return 1
-endif
-
-on=@ClientToolTip
-f_sendTooltip <name>, O mestre Liche
-return 1
-
 [ITEMDEF i_tlaloc_invis]
 ID=i_horn_dreadhorn
 TYPE=t_script
@@ -1404,89 +1537,9 @@ new.effect 2 i_fire_column 0 30 0 055C
 new.sfx 01e1
 return 1
 
-[EVENTS e_exrei_adelber]
-ON=@RECEIVEITEM
-IF (<argo.baseid>==i_vela_luna)
- face <SRC>
- flags |= 04
- Say Obrigado, gentil alma.
- timerf 2,say,Pegue isto como agradecimento.
- src.timerf 4,f_king_give_axe
- timerf 6,f_haut_vanish
- return 0
-endif
-return 1
-
-ON=@NPCSEENEWPLAYER
-IF (<src.restest 1 i_vela_luna>)
- say=@026 A vela de Luna... Voce a tem! Luna o abencoe...
- karma=2000
- update
-ELSE
- dorand 3
-  SAY=@026 Liberte-me!
-  SAY=@026 Nao quero mais machucar meu povo!
-  SAY=@026 Fuja! Nao quero machuca-lo, fuja!
- enddo
-ENDDO
-SFX=<hval {0482 0486}>
-
-
-[EVENTS e_exrei_adelber2]
-ON=@NPCSEENEWPLAYER
-IF (<src.restest 1 i_livro_mond>)
- say=@026 O livro de Mond... Voce o tem! Mond o abencoe...
- karma=2000
- update
-ELSE
- dorand 3
-  SAY=@026 Liberte-me!
-  SAY=@026 Nao quero mais machucar meu povo!
-  SAY=@026 Fuja! Nao quero machuca-lo, fuja!
- enddo
-ENDDO
-SFX=<hval {0482 0486}>
-
-ON=@RECEIVEITEM
-IF (<argo.baseid>==i_livro_mond)
- face <SRC>
- flags |= 04
- Say Obrigado, gentil alma.
- timerf 2,say,Pegue isto como agradecimento.
- src.timerf 4,f_king_give_crescent
- timerf 6,f_haut_vanish
- return 0
-endif
-return 1
-
-[EVENTS e_exrei_sidroc]
-ON=@NPCSEENEWPLAYER
-IF (<src.restest 1 i_sino_atila>) 
- say=@026 O sino de Atila... Voce o tem! Atila o faça forte!
- karma=2000
- update
-ELSE
- dorand 3
-  SAY=@026 Liberte-me!
-  SAY=@026 Nao quero mais machucar meu povo!
-  SAY=@026 Fuja! Nao quero machuca-lo, fuja!
- enddo
-ENDDO
-SFX=<hval {0482 0486}>
-
-ON=@RECEIVEITEM
-IF (<argo.baseid>==i_sino_atila)
- face <SRC>
- flags |= 04
- Say Obrigado, gentil alma.
- timerf 2,say,Pegue isto como agradecimento.
- src.timerf 4,f_king_give_pike
- timerf 6,f_haut_vanish
- return 0
-endif
-return 1
-
-
+//*****************************************************************************
+// i_vela_luna
+//*****************************************************************************
 [ITEMDEF i_vela_luna]
 ID=01C14
 NAME=A Vela de Luna
@@ -1499,6 +1552,9 @@ on=@dclick
 src.sysmessage Este fogo nunca queima e esta vela nunca se apaga.
 return 1
 
+//*****************************************************************************
+// i_livro_mond
+//*****************************************************************************
 [ITEMDEF i_livro_mond]
 ID=01C13
 NAME=O Livro de Respostas de Mond
@@ -1511,6 +1567,9 @@ on=@dclick
 src.sysmessage Neste livro nao ha respostas. So perguntas
 return 1
 
+//*****************************************************************************
+// i_sino_atila
+//*****************************************************************************
 [ITEMDEF i_sino_atila]
 ID=01C12
 NAME=O sino de Atila
@@ -1523,7 +1582,9 @@ on=@dclick
 sfx 0507
 return 1
 
-
+//*****************************************************************************
+// i_gerador_assombracao
+//*****************************************************************************
 [ITEMDEF i_gerador_assombracao]
 ID=i_worldgem_bit
 NAME=Gerador de Assombraçoes
@@ -1557,10 +1618,52 @@ endif
 timer=450
 return 1
 
+//*****************************************************************************
+// i_pet_giantbeetle
+//*****************************************************************************
 [ITEMDEF 9743]
 DEFNAME=i_pet_giantbeetle
 NAME=Giant Beetle
 
+//*****************************************************************************
+// i_pet_unicorn
+//*****************************************************************************
 [ITEMDEF 9678]
 DEFNAME=i_pet_unicorn
 NAME=Unicorn
+
+//*****************************************************************************
+// i_stone_hurl
+//*****************************************************************************
+[ITEMDEF i_stone_hurl]
+ID=i_rock_plain_x
+TYPE=t_script
+NAME=pedras
+FLIP=0
+
+on=@create
+attr |= attr_newbie
+
+on=@DClick
+target
+return 1
+
+ON=@TARGON_ITEM
+target
+return 1
+
+ON=@TARGON_GROUND
+target
+return 1
+
+ON=@TARGON_CHAR
+if (<src.NPC_CanCast>)
+ src.anim 12
+ src.targ.effect 0 i_rock_7 6 0 0
+ src.targ.damage <eval {5 12}> dam_physical <src.uid>
+ src.spell_delay 7
+endif
+target
+return 1
+
+[EOF]
