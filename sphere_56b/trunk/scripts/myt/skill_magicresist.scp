@@ -1,89 +1,129 @@
-[events e_magic_resistance]
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL MAGIC RESISTANCE por
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+//
+//TAGS usadas:
+//*****************************************************************************
 
-on=@spellcast
-act.events = +e_magic_resistance
 
- events=+e_magic_resistance
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
 
-on=@spelleffect
+//*****************************************************************************
+// sk_magic_resist spell,magery
+//*****************************************************************************
+//argn1=spell
+//argn2=magery skill
+//SRC=caster
+//DEFAULT=target
+[FUNCTION sk_magic_resist]
 
-if (<isitem>)
-    return 1
+if <serv.spell.<argn1>.flags>&spellflag_resist
+    serv.log <name> can resist <serv.spell.<argn1>.name>
+    skill_gain skill_magicresistance
+endif    
+
+//*****************************************************************************
+// sk_magic_resist_bonus
+//*****************************************************************************
+[FUNCTION sk_magic_resist_bonus]
+TAG.resistance=<eval (<magicresistance>-400)*2>
+TAG.resistance=<eval <TAG.resistance>/30> //0 a 40
+if <TAG.resistance> < 0
+    TAG.resistance=0
+endif
+return <TAG.resistance>
+
+//*****************************************************************************
+// rescoldmod <value>
+//*****************************************************************************
+[FUNCTION rescoldmod]
+TAG.rescold = <eval <TAG0.rescold>+(<argv0>)>
+if <TAG0.resistance> > <TAG.rescold>
+    RESCOLD=<TAG0.resistance>
+else
+    RESCOLD=<TAG.rescold>
 endif
 
-// Definindo Circulo da Magia
-tag.spellcircle=0
-if ( <argn> <= 8 )
- tag.spellcircle=1
-elif ( <argn> <= 16 )
- tag.spellcircle=2
-elif ( <argn> <= 24 )
- tag.spellcircle=3
-elif ( <argn> <= 32 )
- tag.spellcircle=4
-elif ( <argn> <= 40 )
- tag.spellcircle=5
-elif ( <argn> <= 48 )
- tag.spellcircle=6
-elif ( <argn> <= 56 )
- tag.spellcircle=7
-elif ( <argn> <= 64 )
- tag.spellcircle=8
+if <TAG.rescold> < 0
+    LOCAL.d=<eval <argv0>-<TAG.rescold>>
+    TAG.rescold = 0
+    return <LOCAL.d>
+endif
+return <argv0>
+
+//*****************************************************************************
+// resfiremod <value>
+//*****************************************************************************
+[FUNCTION resfiremod]
+TAG.resfire = <eval <TAG0.resfire>+(<argv0>)>
+if <TAG0.resistance> > <TAG.resfire>
+    RESFIRE=<TAG0.resistance>
+else
+    RESFIRE=<TAG.resfire>
 endif
 
-// Calculando melhor chance de resistir
-tag.spellresist1=<eval (<magicresistance>)/(50)>
-tag.spellresist2=<eval (<magicresistance>/(10)) + (- (<src.magery> + (-200)) / (50) + (<tag.spellcircle> * (5)) )>
-if (<tag.spellresist1> >= <tag.spellresist2>)
- tag.spellresistchance=<tag.spellresist1>
-elif (<tag.spellresist2> > <tag.spellresist1>)
- tag.spellresistchance=<tag.spellresist2>
+if <TAG.resfire> < 0
+    LOCAL.d=<eval <argv0>-<TAG.resfire>>
+    TAG.resfire = 0
+    return <LOCAL.d>
+endif
+return <argv0>
+
+//*****************************************************************************
+// respoisonmod <value>
+//*****************************************************************************
+[FUNCTION respoisonmod]
+TAG.respoison = <eval <TAG0.respoison>+(<argv0>)>
+if <TAG0.resistance> > <TAG.respoison>
+    RESPOISON=<TAG0.resistance>
+else
+    RESPOISON=<TAG.respoison>
 endif
 
-// Aplicando chances de resistir
-tag.spellresistsuccess=0
-if ( {1 100} <= <tag.spellresistchance>)
- tag.spellresistsuccess=1
+if <TAG.respoison> < 0
+    LOCAL.d=<eval <argv0>-<TAG.respoison>>
+    TAG.respoison = 0
+    return <LOCAL.d>
+endif
+return <argv0>
+
+//*****************************************************************************
+// resenergymod <value>
+//*****************************************************************************
+[FUNCTION resenergymod]
+TAG.resenergy = <eval <TAG0.resenergy>+(<argv0>)>
+if <TAG0.resistance> > <TAG.resenergy>
+    RESENERGY=<TAG0.resistance>
+else
+    RESENERGY=<TAG.resenergy>
 endif
 
-// Aplicando chances de subir resistencia a magia
-if ({1 <eval (<magicresistance>)/(10)>} == 1) && (<uid> != <src.uid>)
- magicresistance=<magicresistance>+(0.1)
+if <TAG.resenergy> < 0
+    LOCAL.d=<eval <argv0>-<TAG.resenergy>>
+    TAG.resenergy = 0
+    return <LOCAL.d>
 endif
+return <argv0>
 
-// Calculando % de bonus ao danobase baseado em EVAL x RESISTANCE
-if (<magicresistance> >= <src.evaluatingintel>)
- tag.spellevaldanobonus=<eval ( (<src.evaluatingintel> + (- <magicresistance>)) / (2000) ) + (1)>
-elif (<magicresistance> < <src.evaluatingintel>)
- tag.spellevaldanobonus=<eval ( (<src.evaluatingintel> + (- <magicresistance>)) / (5000) ) + (1)>
-endif
 
-// Calculando dano a ser recebido
-on=@GetHit
-if ( (<src.action> == Skill_magery) && (<tag.spellcircle> != 0)
+//*****************************************************************************
+// resistanceInit
+//*****************************************************************************
+[FUNCTION resistanceInit]
+rescold=<sk_magic_resist_bonus>
+resfire=<sk_magic_resist_bonus>
+respoison=<sk_magic_resist_bonus>
+resenergy=<sk_magic_resist_bonus>
 
-// ###################################
- // Dano base Resistido
- if (<tag.spellresistsuccess> == 1)
-  tag.spelldanobase=<eval <argn>/2> // 50% menor
- // Dano base Normal
- elif (<tag.spellresistsuccess> == 0)
-  tag.spelldanobase=<argn>
- endif
-
-// ###################################
- // Bonus 
-  tag.spelldanobonus=<eval (<tag.spellevaldanobonus> * <tag.spelldanobase>)>
-
-// ###################################
- // Calculando dano a ser recebido
-  tag.spelldano=<eval (<tag.spelldanobase> + <tag.spelldanobonus>)>
-
-// ###################################
- // Aplicando o dano
-  if (<tag.spellresistsuccess> == 1)
-   say * Resistiu a magia *
-  endif
-  hits -= <tag0.spelldano>
-return 1
-endif
+[EOF]
