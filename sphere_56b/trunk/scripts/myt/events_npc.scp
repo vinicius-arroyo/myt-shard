@@ -197,8 +197,7 @@ if (<argn>==1)
  moddex=<moddex>+100
  tag.HasCharge=1
  tag.Charge=1
- LOCAL.timer=<eval {30 60}>
- timerf <LOCAL.timer>,f_NPC_AI_Charge
+ timerf <R30,60>,f_NPC_AI_Charge
 elif (<argn>==2)
  moddex=<moddex>-100
  tag.charge=0
@@ -219,12 +218,6 @@ if (<tag0.HasCharge>==1)
 else
  return 1
 endif
-
-//*****************************************************************************
-// MONSTER_POWER
-//*****************************************************************************
-[FUNCTION MONSTER_POWER]
-tag0.MONSTERPOW=<eval <tag0.MONSTERPOW>|<argv0>>
 
 //*****************************************************************************
 // f_NPC_AI_PowerDelay
@@ -300,40 +293,6 @@ IF (<stam> > 3) && (<stam> > <LOCAL.losestam>)
 ENDIF
 damage <LOCAL.losestam> dam_cold
 RETURN 0
-
-//*****************************************************************************
-// npc_driade
-//*****************************************************************************
-[FUNCTION npc_driade]
-SERV.NEWITEM i_armor_female_studded
-NEW.MORE1=02800280
-NEW.FLAGS |= attr_newbie
-NEW.EQUIP
-
-SERV.NEWITEM i_hair_long
-NEW.COLOR=0109
-NEW.EQUIP
-
-//*****************************************************************************
-// npc_driade_bow
-//*****************************************************************************
-[FUNCTION npc_driade_bow]
-SERV.NEWITEM i_armor_female_studded
-NEW.MORE1=02800280
-NEW.FLAGS |= attr_newbie
-NEW.EQUIP
-
-SERV.NEWITEM i_hair_long
-NEW.COLOR=0109
-NEW.EQUIP
-
-SERV.NEWITEM {i_bow 24 i_bow_long 12 i_bow_composite 6 i_bow_elven 1 }
-NEW.MOREY=40
-NEW.EQUIP
-
-SERV.NEWITEM i_arrow
-NEW.AMOUNT={ 12 36 }
-NEW.BOUNCE
 
 //*****************************************************************************
 // f_npc_spawn
@@ -433,18 +392,6 @@ if (<CAN>&MT_RUN)
     endif
 endif
 
-//////////////////////////////
-//  PODERES DE MONTROS (a distância)
-//////////////////////////////
-if <NPCCanPower> && <tag0.MONSTERPOW> && (<R<INT>0> < <FOCUS>)
-    //Mana Drain Far
-    //Drena mana de todos os players da tela
-    if (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_MANADRAIN_FAR>)
-        f_NPC_AI_PowerDelay 3
-        f_NPC_POW_Manadrain_Far
-    endif
-endif
-
 //Setar parâmetro de agreção
 if (<src.hits> > 95)
     tag.agr=8
@@ -462,26 +409,6 @@ endif
 
 ON=@HIT
 SETMEMORY <DEF.memory_iaggressor>,<SRC.UID>
-
-if <NPCCanPower> && <tag0.MONSTERPOW> && (<R<INT>0> < <FOCUS>)
-    if (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_LIFEDRAIN>) 
-        f_NPC_AI_PowerDelay 4
-        hits += <R1,<argn1>>
-        emotered suga
-        src.sysmessageorange <name> esta sugando sua vida.
-    endif
-    
-    if (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_CHILL>)
-        //Chill
-        //Efeito de clima frio. Talvez congele.
-        f_NPC_AI_PowerDelay 6
-        src.f_NPC_POW_Chill <Focus>
-    endif
-    
-    if (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_MANADRAIN>)
-        f_NPC_AI_PowerDelay 6
-    endif
-endif
 
 ON=@GETHIT
 //serv.log [EPVM] <name>
@@ -521,6 +448,56 @@ ELIF (<karma> > 0)
   f_gmLog <name> atacando <src.name> por karmas contrarios
   attack <src.uid>
  endif
+endif
+
+//*****************************************************************************
+// e_manadrain_far
+//*****************************************************************************
+[EVENTS e_manadrain_far]
+
+ON=@NPCACTFIGHT
+
+if <NPCCanPower> && (<R<INT>0> < <FOCUS>)
+    //Mana Drain Far
+    //Drena mana de todos os players da tela
+    f_NPC_AI_PowerDelay 3
+    f_NPC_POW_Manadrain_Far
+endif
+
+//*****************************************************************************
+// e_manadrain
+//*****************************************************************************
+[EVENTS e_manadrain]
+
+ON=@HIT
+if <NPCCanPower> && (<R<INT>0> < <FOCUS>)
+    f_NPC_AI_PowerDelay 6
+endif
+
+//*****************************************************************************
+// e_lifedrain
+//*****************************************************************************
+[EVENTS e_lifedrain]
+
+ON=@HIT
+if <NPCCanPower> && (<R<INT>0> < <FOCUS>)
+    f_NPC_AI_PowerDelay 4
+    hits += <R1,<argn1>>
+    emotered suga
+    src.sysmessageorange <name> esta sugando sua vida.
+endif
+
+//*****************************************************************************
+// e_chill
+//*****************************************************************************
+[EVENTS e_chill]
+
+ON=@HIT
+if <NPCCanPower> && (<R<INT>0> < <FOCUS>)
+    //Chill
+    //Efeito de clima frio. Talvez congele.
+    f_NPC_AI_PowerDelay 6
+    src.f_NPC_POW_Chill <Focus>
 endif
 
 //*****************************************************************************
