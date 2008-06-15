@@ -198,20 +198,14 @@ endif
 
 [Spell 31]
 DEFNAME=s_mana_drain
-NAME=A mana Mana Drain
-RUNES=OR
+NAME=Mana Drain
 SOUND=snd_SPELL_MANA_DRAIN
-CAST_TIME=3.0
+CAST_TIME=2.0
 FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_DIR_ANIM | SPELLFLAG_SCRIPTED
 EFFECT=20,30
 MANAUSE=10
 SKILLREQ=MAGERY 50.0
 INTERRUPT=100.0,100.0
-
-on=@start
-if (<uid>==<src.uid>) // impedir sugar propria mana e ficar macroando medit
-  return 1
-endif
 
 on=@select
 return <trycast s_mana_drain,spl_vulgar>
@@ -219,25 +213,50 @@ return <trycast s_mana_drain,spl_vulgar>
 on=@Fail
 f_consumeMana <ctag.cMana>
 
-on=@SUCCESS
+on=@success
 f_consumeMana <ctag.cMana>
 
-ON=@EFFECT
-f_mana_drain <effectspell s_mana_drain,<src.ctag.cskill>>
-return 1
+ON=@start
+if (<uid>==<src.act.uid>)  // impedir self cast, macro medit
+  return 1
+endif
+
+ON=@effect
+  f_mana_drain <effectspell s_mana_drain,<src.ctag.cskill>>
+  return 1
 
 [FUNCTION f_mana_drain]
-mana -=< argn>
+if (<argn> > <mana>)
+  argn = <mana>         // impedir que mana chegue a menos de 0
+endif
+mana -= <argn>
+
 IF (<oINT> > 62)
   sysmessagered Voce sente sua energia sendo sugada
 ENDIF
 
-//a idéia de não ter a spellflag_harm e aparecer essa mensagem apenas qnd tem mais de 62 de int é
-//de ser uma magia discreta e que apenas magos e bardos que têm maior nível de controle e percepção
-//do éter perceberiam de cara que a energia esta sendo sugada, enquanto os demais apenas notariam
-//alguma coisa estranha - nesse caso o player veria que sua mana diminuiu e que tem alguem fazendo
-//uma ação incomum, então teria a opção de fazer o RP de o char desconfiar do sujeito).
-//Mas essa é só uma idéia que achei legal e coloquei, qualquer coisa é só tirar ae.
+
+//###############################################################################
+//              TELEKINESIS
+//###############################################################################
+
+[Spell 21]
+DEFNAME=s_telekinesis
+NAME=Telekinesis
+SOUND=snd_SPELL_telekinesis
+CAST_TIME=0.5
+FLAGS=SPELLFLAG_TARG_OBJ | SPELLFLAG_SCRIPTED
+MANAUSE=10
+SKILLREQ=MAGERY 40.0
+INTERRUPT=100.0,100.0
+
+ON=@EFFECT
+src.ctag.p=<src.p>
+src.p=<p>
+dclick
+src.p=<src.ctag.p>
+return 1
+
 
 //###############################################################################
 //              MAGIC REFLECTION 
