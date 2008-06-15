@@ -346,6 +346,9 @@ NEW.BOUNCE
 timerf 1 f_npc_spawn_
 
 [FUNCTION f_npc_spawn_]
+if !<MEMORYFINDTYPE.memory_ispawned.link>
+    serv.log [MISS] <uid>
+endif
 //carrega spawn
 OBJ=<MEMORYFINDTYPE.memory_ispawned.link>
 
@@ -414,99 +417,91 @@ resendtooltip
 // e_PvM
 //*****************************************************************************
 [EVENTS e_PvM]
-//CAHRGE - NPCs que podem correr, correm contra o player.
-on=@NPCActFight
+
+ON=@NPCACTFIGHT
+SETMEMORY <DEF.memory_fight>,<SRC>
+
 if (<CAN>&MT_RUN)
- if (<magery> == 0) && (<distance <src.uid>> > 2) && (<NPCCanCharge>)
-  f_NPC_AI_Charge 1
- elif (<magery> == 0) && (<distance <src.uid>> < 2) && (<tag0.charge>==1)
-  f_NPC_AI_Charge 2
- endif
+    if !<magery>
+        if (<distance <src>> > 2)
+            if <NPCCanCharge>
+                f_NPC_AI_Charge 1
+            endif
+        elif <tag0.charge>
+            f_NPC_AI_Charge 2
+        endif
+    endif
 endif
-SETMEMORY <DEF.memory_fight>,<SRC.UID>
 
 //////////////////////////////
 //  PODERES DE MONTROS (a distância)
 //////////////////////////////
-IF (<NPCCanPower>) && (<tag0.MONSTERPOW>)
-//Mana Drain Far
-//Drena mana de todos os players da tela
- if (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_MANADRAIN_FAR>) && (RAND(<eval <INT>*250>) < <FOCUS>)
-  f_NPC_AI_PowerDelay 3
-  f_NPC_POW_Manadrain_Far
- endif
-ENDIF//////////////FIM PODERES DE MONSTROS
+if <NPCCanPower> && <tag0.MONSTERPOW> && (<R<INT>0> < <FOCUS>)
+    //Mana Drain Far
+    //Drena mana de todos os players da tela
+    if (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_MANADRAIN_FAR>)
+        f_NPC_AI_PowerDelay 3
+        f_NPC_POW_Manadrain_Far
+    endif
+endif
 
 //Setar parâmetro de agreção
-IF (!<R2>)
- IF (<SRC.HITS> > 95)
-  tag.agr=8
- elif (<src.hits> > 80)
-  tag.agr=6
- elif (<src.hits> > 60)
-  tag.agr=5
- elif (<hits> > 60)
-  tag.agr=5
- elif (<hits> > 40)
-  tag.agr=4
- else
-  tag.agr=3
- endif
-ENDIF
+if (<src.hits> > 95)
+    tag.agr=8
+elif (<src.hits> > 80)
+    tag.agr=6
+elif (<src.hits> > 60)
+    tag.agr=5
+elif (<hits> > 60)
+    tag.agr=5
+elif (<hits> > 40)
+    tag.agr=4
+else
+    tag.agr=3
+endif
 
-on=@Hit
+ON=@HIT
 SETMEMORY <DEF.memory_iaggressor>,<SRC.UID>
-IF (<CAN>&MT_USEHANDS)
- //Tenho poção de stam? Preciso usar? Posso usar?
- if (<restest 1 i_bottle_red>) && (<stam> < <eval <maxstam>/3>) && (<NPC>!=brain_undead) && (RAND(<INT>) > 25)
-  LOCAL.timer=<eval {1 3}>
-  timerf <LOCAL.timer>,f_NPC_AI_Use,i_bottle_red,1
- endif
-ENDIF
 
-//////////////////////////////
-//  PODERES DE MONTROS (de perto)
-//////////////////////////////
-IF (<NPCCanPower>) && (<tag0.MONSTERPOW>)
- if (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_LIFEDRAIN>) && (RAND(<eval <INT>*100>) < <FOCUS>)
-  f_NPC_AI_PowerDelay 4
-  hits=<hits>+{{0 <argn1>} <argn1>}
-  emotered suga
-  src.sysmessageorange <name> esta sugando sua vida.
- elif (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_CHILL>) && (RAND(<eval <INT>*100>) < <FOCUS>)
-  //Chill
-  //Efeito de clima frio. Talvez congele.
-  f_NPC_AI_PowerDelay 6
-  src.f_NPC_POW_Chill <Focus>
- elif (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_MANADRAIN>) && (RAND(<eval <INT>*90>) < <FOCUS>)
-  f_NPC_AI_PowerDelay 6
-  //FAZER///////FAZER////////FAZER////////FAZER////////FAZER//////
- endif
-ENDIF//////////////FIM PODERES DE MONSTROS
+if <NPCCanPower> && <tag0.MONSTERPOW> && (<R<INT>0> < <FOCUS>)
+    if (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_LIFEDRAIN>) 
+        f_NPC_AI_PowerDelay 4
+        hits += <R1,<argn1>>
+        emotered suga
+        src.sysmessageorange <name> esta sugando sua vida.
+    endif
+    
+    if (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_CHILL>)
+        //Chill
+        //Efeito de clima frio. Talvez congele.
+        f_NPC_AI_PowerDelay 6
+        src.f_NPC_POW_Chill <Focus>
+    endif
+    
+    if (<tag0.MONSTERPOW>&<DEF.MONSTERPOW_MANADRAIN>)
+        f_NPC_AI_PowerDelay 6
+    endif
+endif
 
-
-
-on=@GetHit
+ON=@GETHIT
 //serv.log [EPVM] <name>
-SETMEMORY <DEF.memory_harmedby>,<SRC.UID>
-IF !(<flags>&020)
- attack <src.uid>
-ENDIF
-IF (<CAN>&MT_USEHANDS)
- //Tenho poção de heal? Preciso usar? Posso usar?
- if (<restest 1 i_bottle_yellow>) && (<hits> < <eval <maxhits>/3>) && (<NPC>!=brain_undead) && (RAND(<INT>) > 25)
-  LOCAL.timer=<eval {1 3}>
-  timerf <LOCAL.timer>,f_NPC_AI_Use,i_bottle_yellow,1
- //Tenho poção de cure? Preciso usar? Posso usar?
- elif (<restest 1 i_bottle_orange>) && (<ispoisoned>) && (<NPC>!=brain_undead) && (RAND(<INT>) > 25)
-  LOCAL.timer=<eval {1 3}>
-  timerf <LOCAL.timer>,f_NPC_AI_Use,i_bottle_orange,1
- //Tenho poção de str? Preciso usar? Posso usar?
- elif (<restest 1 i_bottle_white>) && (<src.str> > <str>) && (RAND(<INT>) > 25)
-  LOCAL.timer=<eval {1 3}>
-  timerf <LOCAL.timer>,f_NPC_AI_Use,i_bottle_white,1
- endif
-ENDIF
+SETMEMORY <DEF.memory_harmedby>,<SRC>
+//Posso usar potions?
+if (<CAN>&MT_USEHANDS) && (<NPC>!=brain_undead) && (<R<INT>> > 25)
+    //Tenho poção de heal? Preciso usar? 
+    if (<restest 1 i_bottle_yellow>) && (<hits> < <eval <maxhits>/3>)
+        timerf <R1,3>,f_NPC_AI_Use,i_bottle_yellow,1
+    //Tenho poção de cure? Preciso usar?
+    elif (<restest 1 i_bottle_orange>) && (<ispoisoned>)
+        timerf <R1,3>,f_NPC_AI_Use,i_bottle_orange,1
+    //Tenho poção de str? Preciso usar?
+    elif (<restest 1 i_bottle_white>) && (<src.str> > <str>)
+        timerf <R1,3>,f_NPC_AI_Use,i_bottle_white,1
+    //Tenho poção de stam? Preciso usar?
+    elif (<restest 1 i_bottle_red>) && (<stam> < <eval <maxstam>/3>)
+        timerf <R1,3>,f_NPC_AI_Use,i_bottle_red,1
+    endif
+endif
 
 [COMMENT comentario]
 ON=@NPCLookAtChar
