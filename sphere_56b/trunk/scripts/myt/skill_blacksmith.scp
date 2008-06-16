@@ -142,6 +142,27 @@ endif
 return 1
 
 //*****************************************************************************
+// t_enferrujado
+//*****************************************************************************
+//usado em itens enferrujados
+[TYPEDEF t_enferrujado]
+ON=@dclick
+src.sysmessageyellow Esse item esta enferrujado!
+if <hits> != 1
+    hits = 1
+    name=<name> [enferrujado]
+endif    
+return 1
+
+ON=@equip
+src.sysmessageyellow Esse item esta enferrujado!
+if <hits> != 1
+    hits = 1
+    name=<name> [enferrujado]
+endif    
+return 1
+
+//*****************************************************************************
 //*****************************************************************************
 // FUNCTIONs
 //*****************************************************************************
@@ -165,30 +186,25 @@ if ( !<argo> )
     src.sysmessage O que deseja reparar?
     targetf repairfix
     return 1
-endif
 
-if (<argo><040000000) 
- src.sysmessage Somente itens podem ser reparados.
- return 1
-endif
+elif (<argo><040000000) 
+    src.sysmessage Somente itens podem ser reparados.
+    return 1
 
-if !(<restest 5 i_ingot_iron>)
+elif !(<restest 5 i_ingot_iron>)
     src.sysmessage Voce precisa de pelo menos 5 lingotes de ferro.
     return 1
-endif
 
-if (<ARGO.TOPOBJ.DISTANCE>>=2) || (<SRC.TARG.CanSeeLos>!=1)
+elif (<ARGO.TOPOBJ.DISTANCE>>=2) || (<SRC.TARG.CanSeeLos>!=1)
     src.sysmessage Esta muito longe.
     return 1
-endif
 
 //make sure item is armor/swords etc
-if (<argo.type>!=t_weapon_mace_smith) && (<argo.type>!=t_weapon_sword) && (<argo.type>!=t_weapon_fence) && (<argo.type>!=t_armor) && (<argo.type>!=t_weapon_axe) && (<argo.type>!=t_weapon_mace_pick) && (<argo.type>!=t_weapon_mace_sharp) && (<argo.type>!=t_shield)
+elif (<argo.type>!=t_weapon_mace_smith) && (<argo.type>!=t_weapon_sword) && (<argo.type>!=t_weapon_fence) && (<argo.type>!=t_armor) && (<argo.type>!=t_weapon_axe) && (<argo.type>!=t_weapon_mace_pick) && (<argo.type>!=t_weapon_mace_sharp) && (<argo.type>!=t_shield) && (<argo.type>!=t_enferrujado)
     src.sysmessage Voce nao pode reparar isto.
     return 1
-endif
 
-if (<argo.hits>>=<argo.maxhits>)
+elif (<argo.hits>>=<argo.maxhits>)
     src.sysmessage Nao esta danificado. 
     return 1
 endif
@@ -232,29 +248,43 @@ LOCAL.consume=<eval 5-(<src.blacksmithing>/201)>
 src.consume <LOCAL.consume> i_ingot_iron
 
 OBJ=<argv[0]>
+LOCAL.rep=0
 if ( <LOCAL.chance1> < <src.blacksmithing> )
-    src.sysmessage Reparo finalizado com sucesso.
+    src.sysmessagegreen Reparo finalizado com sucesso.
     OBJ.maxhits=<eval <OBJ.maxhits>-1>
     OBJ.hits=<OBJ.maxhits>
+    LOCAL.rep=1
 elif ( <LOCAL.chance2> < <src.blacksmithing> )
-    src.sysmessage Reparo incompleto.
+    src.sysmessageyellow Reparo incompleto.
     OBJ.maxhits=<eval <OBJ.maxhits>-1>
-    LOCAL.maxinc=<eval (<OBJ.maxhits>-<OBJ.hits>)-1>
-    OBJ.hits=<eval <OBJ.hits>+rand(<LOCAL.maxinc>)>
+    LOCAL.maxinc=<eval <OBJ.maxhits>-<OBJ.hits>>
+    OBJ.hits += <R<LOCAL.maxinc>>
+    LOCAL.rep=1
 elif ( <LOCAL.chance3> > <src.blacksmithing> )
-    src.sysmessage Reparo falhou e o material foi danificado!!  
+    src.sysmessageyellow Reparo falhou e o material foi danificado!!
     OBJ.maxhits=<eval <OBJ.maxhits>-1>
-    LOCAL.maxdec=<eval <OBJ.hits>-1>
-    OBJ.hits=<eval <OBJ.hits>-rand(<LOCAL.maxdec>)>
+    OBJ.hits -= <eval <R<OBJ.hits>>+1>
 else
-    src.sysmessage Voce nao conseguiu reparar.
+    src.sysmessagered Voce nao conseguiu reparar.
 endif
 
 src.skill_gain skill_blacksmithing
 
+if <LOCAL.rep> && (<OBJ.type>==t_enferrujado)
+    OBJ.type=<serv.itemdef.<obj.baseid>.type>
+    OBJ.name=<serv.itemdef.<obj.baseid>.name>
+    src.sysmessagegreen Ferrugem removido!
+endif
+
 if (<OBJ.maxhits>==0)
-    src.sysmessage Este item possui muitos remendos e nao pode ser mais reparado.
+    src.sysmessagered Este item possui muitos remendos e nao pode ser mais reparado.
     OBJ.remove
+
+elif (<OBJ.hits><=0)
+    src.sysmessagered Este item foi destruido.
+    OBJ.remove
+else
+    OBJ.update
 endif
 
 return 1
