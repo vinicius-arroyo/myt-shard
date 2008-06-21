@@ -47,9 +47,9 @@ SEASON_verao        1
 SEASON_outono       2
 
 //Constantes de clima
-weather_dry=3
 weather_snow=2
 weather_rain=1
+weather_dry=0
 
 //valores max e min de temperaturas suportadas
 tBodyMax2=50
@@ -119,9 +119,7 @@ temp_primavera=0
 
 dungeon_light=30
 
-snow_temp_up=7
-rain_temp_up=25
-rain_temp_down=23
+snow_temp_max=7
 
 //*****************************************************************************
 //*****************************************************************************
@@ -131,7 +129,9 @@ rain_temp_down=23
 [EVENTS e_clima]
 ON=@ENVIRONCHANGE
 //sysmessageyellow [e_clima] ENVIRONCHANGE
-src.f_correctLight <src.region.flags>
+if !<src.npc>
+    src.f_correctLight <src.region.flags>
+endif
 
 [REGIONTYPE r_clima]
 
@@ -139,58 +139,63 @@ ON=@ENTER
 //corrige luz ao entrar em cada regiao
 if !<src.npc>
     src.f_correctLight <flags>
-    region.light 30
 endif
 
-//ON=@CLIPERIODIC
-
 ON=@REGPERIODIC
-
-//efeitos de clima desabilitados
-return 0
 
 //NPCs nao disparam esse evento, mas por garantia.....
 if <src.npc>
     return 0
-endif
-
-//escuro para todos
-//light 30
-
-//Bloqueia casos que não há clima
-if (<flags>&region_flag_underground)
+//areas muito grandes nao tem clima
+elif (<defname>==a_world) || (<defname>==a_dungeons)
     return 0
+//bloqueia efeitos em underground
+elif (<flags>&region_flag_underground)
+    return 0
+//se clima jah ativo, verifica se esta na hora de desabilitar    
+elif <tag0.weather_active>
+    if <serv.time> > <tag0.weather_active>
+        serv.log [CLIMA] <name> - SECO
+        dry
+        tag.weather=<def.weather_dry>
+        tag.weather_active=0
+    endif
+    return 0
+//se clima jah ativo, verifica se esta na hora de habilitar o proximo efeito
+elif <tag0.weather_next>
+    if <serv.time> > <tag0.weather_next>
+        tag.weather_next=0
+    else
+        return 0
+    endif
 endif
 
-
-//acerta o clima
 LOCAL.temp=<eval <var.temperature>+<tag0.modtemp>>
 //serv.log [CLIMA] <name> - <dLOCAL.temp>/<var.temperature>
-if (<LOCAL.temp> >= rain_temp_down) && (<LOCAL.temp> <= rain_temp_up)
-    if (<tag0.weather>!=1)
-        tag.weather=1
-//        rainchance=064
-//        coldchance=0
-        rain
-//        serv.log [CLIMA] <name> - CHUVA
-    endif
-elif (<LOCAL.temp> <= snow_temp_up)
-    if (<tag0.weather>!=2)
-        tag.weather=2
-//        rainchance=0
-//        coldchance=064
+
+//set duration: 1 minute to 1 hour
+LOCAL.ton=<R600,36000>
+tag.weather_active=<eval <serv.time>+<LOCAL.ton>>
+LOCAL.toff=0
+
+//20% chance of raining / snowing
+if !<R5>
+    if (<LOCAL.temp> <= snow_temp_max)
         snow
-//        serv.log [CLIMA] <name> - NEVE
-    endif        
-else
-    if (<tag0.weather>!=3)
-        tag.weather=3
-//        rainchance=010
-//        coldchance=0
-        dry
-//        serv.log [CLIMA] <name> - SECO
-    endif        
+        tag.weather=<def.weather_snow>
+    else
+        rain
+        tag.weather=<def.weather_rain>
+    endif
+    
+    //o proximo efeito soh podera aparecer de 1min a 1h apos acabar esse
+    LOCAL.toff=<R600,36000>
+    tag.weather_next=<eval <tag.weather_active>+<LOCAL.toff>>
 endif
+
+serv.log [CLIMA] <name> - <tag0.weather> - <eval <LOCAL.ton>/600>m/<eval <LOCAL.toff>/600>m
+
+
 
 //*****************************************************************************
 //*****************************************************************************
@@ -256,21 +261,21 @@ COLOR=026
 
 ON=@STEP
 if (!<argn1>)   //Só quando pisa a 1ª vez
- SRC.TAG.no_clima=<tag0.no_clima>
- if (<tag0.light>)
-  src.tag.PersonalLight=<tag.light>
- else
-  src.tag.PersonalLight=
- endif
- src.f_correctLight <src.region.flags>
+    src.tag.no_clima=<tag0.no_clima>
+    if (<tag0.light>)
+        src.tag.PersonalLight=<tag.light>
+    else
+        src.tag.PersonalLight=
+    endif
+    src.f_correctLight <src.region.flags>
 endif
 
 ON=@DCLICK
 if (!<src.IsGM>)
- Sysmessagered So GMs.
- return 1
+    sysmessagered So GMs.
+    return 1
 endif
-src.ctag.clima.UID=<UID>
+src.ctag.clima.uid=<uid>
 src.ctag.clima.no_clima=<tag0.no_clima>
 src.ctag.clima.light=<tag0.light>
 src.dialog d_cont_clima
@@ -299,20 +304,7 @@ ON=@CREATE
 color=0321
 
 ON=@DClick
-LOCAL.temp=<temp_get>
-IF (<LOCAL.temp> < 0)
- LOCAL.color=0480
-ELIF (<LOCAL.temp> < 9 )
- LOCAL.color=0122
-ELIF (<LOCAL.temp> < 20 )
- LOCAL.color=09C
-ELIF (<LOCAL.temp> < 26 )
- LOCAL.color=0146
-ELSE
- LOCAL.color=026
-ENDIF
-message=@<LOCAL.color> Temperatura: <dLOCAL.temp>oC
-message=@<LOCAL.color> Estacao: <VAR.tSeason>
+temp_now
 return 1
 
 //*****************************************************************************
@@ -392,17 +384,6 @@ if (<VAR.tMin> >= minutos_por_hora) //minuto
  event_serverTick
 // serv.log [TEMPO] - <eval <var.tHour>>:<eval <var.tMin>> -- <eval <var.tDay>>/<eval <var.tMonth>>/<eval <var.tYear>>
 
- // serv.allclients findid.i_mry_clima.timer=8
- // serv.allclients sector.light=0
- // if (0<var.fixclima>==1)
- //  say *arrumando clima*
- //  serv.allclients events +e_clima
- //  serv.allclients sysmessageorange ,*arrumando clima*
- // endif
-  //mantem todo o world escuro
- serv.log [FIX LIGHT]
- serv.resources.a_world.light 30
-
  if (<VAR.tHour> >= horas_por_dia)  //hora
   VAR.tHour=0
   VAR.tDay=<VAR.tDay>+1
@@ -441,18 +422,64 @@ endif
 return 1
 
 //*****************************************************************************
+// fix_world
+//*****************************************************************************
+[FUNCTION fix_world]
+//mantem todo o world escuro e sem chuva/neve (hardcoded)
+serv.log [FIX LIGHT-WEATHER]
+serv.resources.a_world.light 30
+serv.resources.a_world.rainchance 0
+serv.resources.a_world.coldchance 0
+
+//*****************************************************************************
+// fix_weather
+//*****************************************************************************
+[FUNCTION fix_weather]
+//mantem todo o world escuro e sem chuva/neve (hardcoded)
+serv.log [FIX REGION WEATHER]
+region.tag.weather=0
+region.tag.weather_active=0
+region.tag.weather_next=0
+
+//*****************************************************************************
 // time_now
 //*****************************************************************************
 //mostra a data e hora atual
-[function time_now]
+[FUNCTION time_now]
  sysmessageyellow Data: <eval <var.tHour>>:<eval <var.tMin>> - <eval <var.tDay>>/<eval <var.tMonth>>/<eval <var.tYear>>
+return 1
+
+//*****************************************************************************
+// temp_now
+//*****************************************************************************
+//mostra a temperatura atual
+[FUNCTION temp_now]
+LOCAL.temp=<temp_get>
+IF (<LOCAL.temp> < 0)
+ LOCAL.color=0480
+ELIF (<LOCAL.temp> < 9 )
+ LOCAL.color=0122
+ELIF (<LOCAL.temp> < 20 )
+ LOCAL.color=09C
+ELIF (<LOCAL.temp> < 26 )
+ LOCAL.color=0146
+ELSE
+ LOCAL.color=026
+ENDIF
+sysmessage=@<LOCAL.color> Temperatura: <dLOCAL.temp>oC
+sysmessage=@<LOCAL.color> Estacao: <VAR.tSeason>
+doswitch <region.tag0.weather>
+    sysmessage=@<LOCAL.color> Tempo: Seco
+    sysmessage=@<LOCAL.color> Tempo: Chuvoso
+    sysmessage=@<LOCAL.color> Tempo: Nevando
+enddo
 return 1
 
 //*****************************************************************************
 // temp_get
 //*****************************************************************************
 //pega a temperatura da regiao atual
-[function temp_get]
+[FUNCTION temp_get]
 return <eval <VAR.temperature>+<region.tag0.modtemp>>
 
 //*****************************************************************************
@@ -530,12 +557,11 @@ endif
 
 //adiciona neve ou poça
 IF !(<region.flags>&region_flag_underground)
-    LOCAL.temp=<eval <temp_get>>
-    IF (<LOCAL.temp> >= rain_temp_down) && (<LOCAL.temp> <= rain_temp_up)
+    doswitch <region.tag0.weather>
+        local.c=
         temp_addSplash
-    ELIF (<LOCAL.temp> <= snow_temp_up)
         temp_addSnow
-    ENDIF
+    enddo
 endif
 
 //nao da calor se chovendo
