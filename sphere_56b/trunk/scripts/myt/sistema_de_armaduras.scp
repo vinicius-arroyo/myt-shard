@@ -1,0 +1,128 @@
+//*****************************************************************************
+// t_horse_armor
+//*****************************************************************************
+[TYPEDEF t_horse_armor]
+
+ON=@DCLICK
+if (<distance> > 2)
+    src.sysmessageyellow Muito longe
+else
+    src.sysmessageyellow Selecione o cavalo:
+    target
+endif    
+return 1
+
+ON=@TARGON_ITEM
+src.sysmessageyellow Usado apenas em cavalos
+return 1
+
+ON=@TARGON_CHAR
+if (<src.targ.distance> > 2 )
+    src.sysmessagered Voce nao alcanca o animal
+    return 1
+elif (<baseid>==i_armadura_traseira) && (<src.targ.tag0.traseira>)
+    src.sysmessageyellow O cavalo ja esta com a parte traseira da armadura equipada.
+    return 1
+elif (<baseid>==i_armadura_frontal) && (<src.targ.tag0.frontal>)
+    src.sysmessageyellow O cavalo ja esta com a parte frontal da armadura equipada.
+    return 1
+elif (<src.targ.body> == c_horse_gray) || (<src.targ.body> == c_horse_white) || (<src.targ.body> == c_horse_brown_dk) || (<src.targ.body> == c_horse_brown_lt) || (<src.targ.body> == c_horse_tan) || (<src.targ.body> == c_horse_black)
+    src.targ.tag.corpo <src.targ.body>
+elif (<src.targ.body> == c_cavalo_armadura)
+    //nop
+else
+    src.sysmessagered Isto nao e um cavalo.
+    return 1
+endif
+
+src.emotegreen Equipando armadura no cavalo
+sfx 89
+
+if <baseid>==i_armadura_traseira
+    src.targ.tag.traseira = 1
+else
+    src.targ.tag.frontal = 1
+endif
+
+if <src.targ.tag.traseira> && <src.targ.tag.frontal>
+    src.targ.body=c_cavalo_armadura
+endif
+
+serv.newitem i_suporte_cavalo
+new.movenear <src.targ> 1
+remove
+src.targ.update
+return 1
+
+//*****************************************************************************
+// e_cavalo_armor
+//*****************************************************************************
+[EVENTS e_cavalo_armor]
+
+On=@death
+ 
+if (<TAG.TRASEIRA> == 1)
+    serv.newitem=i_armadura_traseira
+    new.bounce
+endif
+
+if (<TAG.FRONTAL> == 1)
+    serv.newitem=i_armadura_frontal
+    new.bounce
+endif 
+
+[TYPEDEF t_armor_leather]
+ON=@EQUIP
+src.eqArmor <uid>
+
+ON=@UNEQUIP
+src.unequipArmor <uid>    
+
+[TYPEDEF t_armor]
+ON=@EQUIP
+src.eqArmor <uid>
+
+ON=@UNEQUIP
+src.unequipArmor <uid>    
+
+
+[TYPEDEF t_shield]
+ON=@EQUIP
+src.eqArmor <uid>
+
+ON=@UNEQUIP
+src.unequipArmor <uid>    
+
+[FUNCTION armor_getModdex]
+ref3=<argn>
+return <ref3.tdata3>
+
+[FUNCTION eqArmor]
+//serv.log [MDXA] <account>
+local.moddex=<armor_getModdex <argn>>
+ref3=<argn>
+
+//serv.log aplicando moddex -<dlocal.moddex> em <hval <ref3.dispid>>
+moddex -= <local.moddex>
+
+//Aplica resistência a danos especiais
+ref3.morex=<resfiremod <ref3.morex>>
+ref3.morey=<rescoldmod <ref3.morey>>
+ref3.morez=<respoisonmod <ref3.morez>>
+ref3.morem=<resenergymod <ref3.morem>>
+
+[FUNCTION unequipArmor]
+//serv.log [MDXB] <account>
+local.moddex=<armor_getModdex <argn>>
+ref3=<argn>
+
+//serv.log aplicando moddex <dlocal.moddex> em <hval <ref3.dispid>>
+moddex += <local.moddex>
+
+//Retira resistência a danos especiais
+resfiremod -<ref3.morex>
+rescoldmod -<ref3.morey>
+respoisonmod -<ref3.morez>
+resenergymod -<ref3.morem>
+
+[EOF]
