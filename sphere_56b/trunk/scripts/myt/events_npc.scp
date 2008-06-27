@@ -305,9 +305,10 @@ RETURN 0
 timerf 1 f_npc_spawn_
 
 [FUNCTION f_npc_spawn_]
-if !<MEMORYFINDTYPE.memory_ispawned.link>
-    serv.log [MISS] <uid>
+if !<MEMORYFINDTYPE.memory_ispawned>
+    return 0
 endif
+
 //carrega spawn
 OBJ=<MEMORYFINDTYPE.memory_ispawned.link>
 
@@ -333,10 +334,12 @@ ON=@TIMER
 //se for adicionar o NPC
 if <more2> < <amount>
     //se tiver tag de NPC NOTURNO e estiver de dia, nao cria
-    if <tag0.spawn_night> && (<var.tHour> > 5) && (<var.tHour> < 20)
-        //tenta novamente depois
-        timer=600
-        return 1
+    if (<var.tHour> > 5) && (<var.tHour> < 20)
+        if <tag0.spawn_night> || strmatch(*e_undead*,<serv.chardef.<more1>.tevents>)
+            //tenta novamente depois
+            timer=600
+            return 1
+        endif
     endif
 endif
 
@@ -630,7 +633,9 @@ endif
 return 0
 
 ON=@EnvironChange
-if (<temp_get> > 0)
+if (<temp_get> > 0) && !<tag0.removed>
+ serv.log derreteu <uid> <local.p>
+ tag.removed=1
  serv.newitem i_neve
  new.p=<p>
  new.timer={8 12}
