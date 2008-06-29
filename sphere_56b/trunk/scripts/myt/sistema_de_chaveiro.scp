@@ -1,9 +1,13 @@
-//////////////////////////////////////////////////////////////
-////////////// Sistema de Chaveiro completo   ///////////////
-/////////////   Mystical Tales Shard         ///////////////
-////////////    Jean Gabin          ///////////////
-/////////// Galthar, o Errante (update)///////////////
-/////////////////////////////////////////////////////////
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE CHAVEIRO por
+//  Jean Gabin
+//  Galthar
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
 
 // Neste script você encontrará:
 // - Fechaduras para serem instaladas em portas, baús e caixas com fechadura
@@ -12,20 +16,20 @@
 // - sistema de cópia de chave integrado ao tinker
 // - Chave-mestra para GM (abre qualquer coisa sem o priv de GM)
 
-// Id`s:
-// - Cadeado = 0dcf (colorir) color=03cf
-// - Fechadura = 012ab (colorir) color=03cf
-// - keyring = 01011 i_key_ring
-// - iron key = 01010 i_key_iron // reforcada
-// - copper key = 0100e  i_key_copper // normal
-// - gold key = 01013 i_key_gold // complexa
-// - rusty iron key = 01012 i_key_rusty // simples
-// - magic key = 
+//TODO:
+//
+//TAGS usadas:
+//tag.fechadura -nas portas/containers com o tipo da trava
+//*****************************************************************************
 
-// - cadeado = (chave é i_key_rusty) lockpicking 30 - acima: erro = 2 para 1 - timer 15 - skillmake = tinkering 40 - para instalar não requer skill
-// - fechadura simples = (chave é i_key_copper)lockpicking 50 - acima: erro = 2 para 1 - timer 20 - skillmake = tinkering 50 - skillinstall = tinkering 35
-// - fechadura normal = (chave é i_key_iron)lockpicking 70 - acima: erro = 2 para 1 - timer 30 - skillmake = tinkering 70 - skillinstall = tinkering 40
-// - fechadura complexa = (chave é i_key_gold)lockpicking 90 - acima: erro = 4 para 1 - timer 40 - skillmake = tinkering 90 - skillinstall = tinkering 50
+[PLEVEL 2]
+fechadura
+
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
 
 [DEFNAME KEY_LOCK]
 FECHADURA_CADEADO   1
@@ -35,41 +39,110 @@ FECHADURA_COMPLEXA  4
 
 LOCK_MIN_SKILL_00 00
 LOCK_MIN_SKILL_01 00
-LOCK_MIN_SKILL_02 300
-LOCK_MIN_SKILL_03 300
-LOCK_MIN_SKILL_04 300
+LOCK_MIN_SKILL_02 350
+LOCK_MIN_SKILL_03 500
+LOCK_MIN_SKILL_04 500
 
+LOCK_NAME_0 Nenhuma
 LOCK_NAME_00 Nenhuma
 LOCK_NAME_01 Cadeado
 LOCK_NAME_02 Fechadura Simples
 LOCK_NAME_03 Fechadura Normal
 LOCK_NAME_04 Fechadura Complexa
 
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// fechadura
+//*****************************************************************************
+[FUNCTION fechadura]
+if !<argo>
+    src.sysmessageyellow Selecione porta/container:
+    targetf fechadura
+    return 1
+elif (<argo.type>!=t_door) && (<argo.type>!=t_door_locked) && (<argo.type>!=t_container) && (<argo.type>!=t_container_locked)
+    src.sysmessageyellow Apenas portas ou containeres.
+    return 1
+endif
+
+src.cTAG.tranca_uid=<argo>
+src.cTAG.tranca_typ=<argo.tag.fechadura>
+menu m_gm_tranca
+
+//*****************************************************************************
+// CHECK_TARG_OWNER_PRESENSE
+//*****************************************************************************
+[FUNCTION CHECK_TARG_OWNER_PRESENSE]
+REF1=<targ>
+forplayers 3
+    if (<isonline>)
+        if (<uid>==<REF1.tag0.dono>) || (<uid>==<REF1.tag0.owner>)
+            return 1
+        endif
+    endif
+endfor
+return 0
+
+//*****************************************************************************
+// f_makekey
+//*****************************************************************************
+//Faz uma chave para o container/porta do tipo <argv0>. Também usado no sistema de aluguel e artesão.
+//Retonra a UID da chave (para efeitos bounce, p= e etc...)
+[FUNCTION f_makekey]
+//cria a chave apropriada para a tranca
+doswitch (<argv0>)
+    return 0
+    serv.newitem=i_key_rusty
+    serv.newitem=i_key_copper
+    serv.newitem=i_key_iron
+    serv.newitem=i_key_gold
+enddo
+new.more1=<R01000,0ffff> //codigo
+new.attr |= attr_newbie
+src.bounce <new>
+return <new>
+
+//*****************************************************************************
+// key_addname
+//*****************************************************************************
+[FUNCTION key_addname]
+src.targ.tag.name <args>
+src.targ.update
+
+//*****************************************************************************
+// cont_uid
+//*****************************************************************************
+[FUNCTION cont_uid]
+if (<more2>==50)  // acaba com o loop eterno
+return 1
+elif (0<FINDCONT(<more2>).UID>==<src.targ.link>)
+return 1
+ENDIF
+more2=<more2>+1
+cont_uid
+RETURN 1
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_container_locked
+//*****************************************************************************
 [TYPEDEF t_container_locked]
 on=@DROPON_SELF
 src.sysmessageyellow Nao pode colocar nada dentro sem destrancar.
 return 1
 
-
-///////////////////////////////////////////////////////////////////////////
-////////////////////  fechadura, chave e cadeado simples  /////////////////
-///////////////////////////////////////////////////////////////////////////
-
-///////////////////////////// fechadura
-
-[ITEMDEF i_fechadura]  
-ID=0E7A//012ab
-NAME=Kit Fechadura
-RESOURCES=i_springs, i_gears,
-TYPE=t_fechadura
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Chaveiro
-DESCRIPTION=Fechadura
-
-on=@create
-color=03cf // AO CRIAR A FECHADURA COM O SISTEMA DE TINKERING PRECISA COLOCAR O MORE1 COM O TIPO DE FECHADURA
-more1=2  // retirar isto quando unir ao sistema de tinker
-
+//*****************************************************************************
+// t_fechadura
+//*****************************************************************************
 //more1=tipo
 //more2=codigo
 [TYPEDEF t_fechadura]
@@ -82,6 +155,7 @@ ON=@DCLICK
 if (<topobj> != <src>)
     src.sysmessagered Coloque na bolsa antes de instalar.
     return 1
+//cria chave no primeiro uso    
 elif !<more2>
     obj=<f_makekey <more1>>
     more2=<obj.more1>
@@ -157,41 +231,13 @@ elif (<src.targ.type>==t_door) || (<src.targ.type>==t_container)
     src.update
     remove
 else
-    src.sysmessagered Nao e possivel instalar uma fechadura neste local.
+    src.sysmessagered Nao e possivel instalar.
 endif
 return 1
 
-[FUNCTION CHECK_TARG_OWNER_PRESENSE]
-REF1=<targ>
-forplayers 3
-    if (<isonline>)
-        if (<uid>==<REF1.tag0.dono>) || (<uid>==<REF1.tag0.owner>)
-            return 1
-        endif
-    endif
-endfor
-return 0
-
-///////////////////////////// cadeado
-
-
-[ITEMDEF i_cadeado]  
-ID=0dcf
-NAME=Cadeado
-RESOURCES=i_springs, i_gears,
-TYPE=t_fechadura
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Chaveiro
-DESCRIPTION=Cadeado
-
-on=@create
-color=03cf
-more1=1 // no 9 o cadeado está quebrado e inutilizável 
-
-///////////////////////////////////////////////////////////////////
-////////////////////////  chaves  ////////////////////////////////
-/////////////////////////////////////////////////////////////////
-
+//*****************************************************************************
+// t_key
+//*****************************************************************************
 [TYPEDEF t_key]
 ON=@CLIENTTOOLTIP
 if (STRMATCH(<tag.name>,))
@@ -222,16 +268,16 @@ elif (<src.targ.distance> > 1)
     target 
     return 1
 elif <tdata3>!=<src.targ.tag0.fechadura>
-    src.sysmessagered Esta chave nao entra no buraco da fechadura
+    src.sysmessagered Esta chave nao entra!
     return 1
 elif <more1>!=<src.targ.more1>
-    src.sysmessagered Esta chave nao pertence a esta fechadura
+    src.sysmessagered Esta chave nao serve!
     return 1
 else
     if <tdata3>==1 //cadeado?
         src.emotered abre cadeado
         sfx 1451
-        src.targ.more1=     // tira o codigo da porta
+        src.targ.more1=     // tira o codigo da porta. sphere nao aceita mais a chave.
         serv.newitem=i_cadeado
         new.more2=<more1>
         new.bounce
@@ -242,13 +288,51 @@ else
         elif (<src.targ.type>==t_container_locked)
             src.targ.type=t_container
         endif        
+        return 1
     endif        
 endif
 
-[FUNCTION key_addname]
-src.targ.tag.name <args>
-src.targ.update
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
 
+//*****************************************************************************
+// i_fechadura
+//*****************************************************************************
+[ITEMDEF i_fechadura]  
+ID=0E7A//012ab
+NAME=Kit Fechadura
+RESOURCES=i_springs, i_gears,
+TYPE=t_fechadura
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Chaveiro
+DESCRIPTION=Fechadura
+
+ON=@CREATE
+color=03cf // AO CRIAR A FECHADURA COM O SISTEMA DE TINKERING PRECISA COLOCAR O MORE1 COM O TIPO DE FECHADURA
+more1=2  // retirar isto quando unir ao sistema de tinker
+
+//*****************************************************************************
+// i_cadeado
+//*****************************************************************************
+[ITEMDEF i_cadeado]  
+ID=0dcf
+NAME=Cadeado
+RESOURCES=i_springs, i_gears,
+TYPE=t_fechadura
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Chaveiro
+DESCRIPTION=Cadeado
+
+ON=@CREATE
+color=03cf
+more1=1 // no 9 o cadeado está quebrado e inutilizável 
+
+//*****************************************************************************
+// i_key_rusty
+//*****************************************************************************
 [ITEMDEF 01013]
 DEFNAME=i_key_rusty
 NAME=Chave de cadeado
@@ -260,8 +344,9 @@ SUBSECTION=Chaveiro
 DESCRIPTION=Chave de cadeado
 TDATA3=1
 
-//////////////////////////////////////
-
+//*****************************************************************************
+// i_key_copper
+//*****************************************************************************
 [ITEMDEF 0100e]
 DEFNAME=i_key_copper
 NAME=Chave simples
@@ -274,8 +359,9 @@ DESCRIPTION=Chave simples
 SKILLMAKE=TINKERING 43.0,t_tinker_tools
 TDATA3=2
 
-//////////////////////////////////////
-
+//*****************************************************************************
+// i_key_iron
+//*****************************************************************************
 [ITEMDEF 01010]
 DEFNAME=i_key_iron
 NAME=Chave normal
@@ -288,10 +374,9 @@ DESCRIPTION=Chave normal
 SKILLMAKE=TINKERING 30.0,t_tinker_tools
 TDATA3=3
 
-
-//////////////////////////////////////
-
-
+//*****************************************************************************
+// i_key_gold
+//*****************************************************************************
 [ITEMDEF 0100f]
 DEFNAME=i_key_gold
 NAME=Chave complexa
@@ -304,9 +389,9 @@ DESCRIPTION=Chave complexa
 SKILLMAKE=TINKERING 60.0,t_tinker_tools
 TDATA3=4
 
-
-//////////////////////////////////////
-
+//*****************************************************************************
+// i_key_ring
+//*****************************************************************************
 [ITEMDEF 01011]
 DEFNAME=i_key_ring
 NAME=Chaveiro
@@ -323,8 +408,9 @@ ON=@DCLICK
     SRC.MESSAGE Arraste e solte as chaves no chaveiro para guarda-las.
 return 1
 
-//////////////////////////////////////
-
+//*****************************************************************************
+// i_key_ring_1
+//*****************************************************************************
 [ITEMDEF 01769]
 DEFNAME=i_key_ring_1
 NAME=Chaveiro com chaves
@@ -369,18 +455,6 @@ elif (strmatch(<src.targ.tag.fechadura>,cadeado))
 endif
 
 
-[FUNCTION cont_uid]
-if (<more2>==50)  // acaba com o loop eterno
-return 1
-elif (0<FINDCONT(<more2>).UID>==<src.targ.link>)
-return 1
-ENDIF
-more2=<more2>+1
-cont_uid
-RETURN 1
-
-
-
 [ITEMDEF 0176a]
 //key ring
 DUPEITEM=01769
@@ -389,8 +463,9 @@ DUPEITEM=01769
 //key ring
 DUPEITEM=01769
 
-//////////////////////////////////////
-
+//*****************************************************************************
+// i_key_magic
+//*****************************************************************************
 [ITEMDEF 01012]
 DEFNAME=i_key_magic
 NAME=Chave mestra
@@ -431,7 +506,7 @@ elif (<src.targ.type> == t_container_locked)
 elif (<src.targ.type> == t_container)
     if (<src.targ.baseid>==i_basket_bushel) || (<src.targ.baseid>==i_pouch) || (<src.targ.baseid>==i_basket_2) || (<src.targ.baseid>==i_backpack) || (<src.targ.baseid>==i_bag) || (<src.targ.baseid>==i_barrel_open) || (<src.targ.baseid>==i_basket_round) || (<src.targ.baseid>==i_basket_square) || (<src.targ.baseid>==i_tub_empty) || (<src.targ.baseid>==i_keg_small) || (<src.targ.baseid>==i_basin)
         src.sysmessagered Nao e possivel trancar isto.
-    return 1
+        return 1
     else
         src.targ.type> == t_container_locked
         src.sysmessagegreen Voce trancou o container.
@@ -440,13 +515,11 @@ elif (<src.targ.type> == t_container)
 return 1
 endif
 
-
-////////////////////////////////////////////////////////////////
-/////////////  Memory instalando fechadura  ////////////////////
-////////////////////////////////////////////////////////////////
-
+//*****************************************************************************
+// i_mry_install_fechadura
+//*****************************************************************************
 [ITEMDEF i_mry_install_fechadura]
-id=i_memory
+ID=i_memory
 NAME=Instalando Fechadura
 TYPE=t_eq_script
 LAYER=layer_special
@@ -462,11 +535,13 @@ if !(<cont.p.x> == <morex>) || !(<cont.p.y> == <morey>)
     cont.bounce <new>
     remove
     return 1
-elif (<more2>==20) && (<more1>==<DEF.FECHADURA_SIMPLES>)   // se é simples
-    
-elif (<more2>==30) && (<more1>==<DEF.FECHADURA_NORMAL>)    // se é normal
+elif <cont.isgm>
 
-elif (<more2>==40) && (<more1>==<DEF.FECHADURA_COMPLEXA>)  // se é complexa
+elif (<more2>>=20) && (<more1>==<DEF.FECHADURA_SIMPLES>)   // se é simples
+    
+elif (<more2>>=30) && (<more1>==<DEF.FECHADURA_NORMAL>)    // se é normal
+
+elif (<more2>>=40) && (<more1>==<DEF.FECHADURA_COMPLEXA>)  // se é complexa
 
 else
     dorand 6
@@ -485,27 +560,16 @@ cont.Skill_Gain Skill_Tinkering
 remove
 return 1
 
-[PLEVEL 2]
-fechadura
-
-[FUNCTION fechadura]
-if !<argo>
-    src.sysmessageyellow Selecione porta/container:
-    targetf fechadura
-    return 1
-elif (<argo.type>!=t_door) && (<argo.type>!=t_door_locked) && (<argo.type>!=t_container) && (<argo.type>!=t_container_locked)
-    src.sysmessageyellow Apenas portas ou containeres.
-    return 1
-endif
-
-src.cTAG.tranca_uid=<argo>
-src.cTAG.tranca_typ=<argo.tag.fechadura>
-menu m_gm_tranca
+//*****************************************************************************
+//*****************************************************************************
+// MENUs
+//*****************************************************************************
+//*****************************************************************************
 
 [MENU m_gm_tranca]
-(MyT] Tranca [MyT)
-on=0 Tipo de fechadura: <def.LOCK_NAME_<ctag.tranca_typ>>
-ctag.tranca_typ += 1
+(MyT] Fechaduras [MyT)
+on=0 Tipo de fechadura: <def.LOCK_NAME_<ctag0.tranca_typ>>
+ctag0.tranca_typ += 1
 if (<ctag.tranca_typ> > 4)
     ctag.tranca_typ=0
 endif
@@ -531,11 +595,11 @@ menu m_gm_tranca
 
 on=0 Copiar chave (codigo: <UID.<cTAG.tranca_uid>.more1>)
 OBJ=<f_makekey <cTAG.tranca_typ>>
-OBJ.more1=<uid.<cTAG.tranca_uid>.more1>
-if (<LOCAL.key>)
+if (<OBJ>)
+    OBJ.more1=<uid.<cTAG.tranca_uid>.more1>
     sysmessageyellow Chave copiada com codigo <OBJ.more1>
 else
-    sysmessageyellow <UID.<cTAG.tranca_uid>.name> nao tem uma tranca!
+    sysmessageyellow Nao tem uma tranca!
 endif
 menu m_gm_tranca
 
@@ -544,27 +608,10 @@ LOCAL.key=<f_makekey <cTAG.tranca_typ>>
 if (<LOCAL.key>)
     sysmessageyellow Codigo trocado para <UID.<LOCAL.key>.more1>.
 else
-    sysmessageyellow <UID.<cTAG.tranca_uid>.name> nao tem uma tranca!
+    sysmessageyellow Nao tem uma tranca!
 endif
 uid.<cTAG.tranca_uid>.more1=<uid.<LOCAL.key>.more1>
 menu m_gm_tranca
 
-
-[FUNCTION f_makekey]
-//Faz uma chave para o container/porta do tipo <argv0>. Também usado no sistema de aluguel e artesão.
-//Retonra a UID da chave (para efeitos bounce, p= e etc...)
-
-//cria a chave apropriada para a tranca
-doswitch (<argv0>)
-    return 0
-    serv.newitem=i_key_rusty
-    serv.newitem=i_key_copper
-    serv.newitem=i_key_iron
-    serv.newitem=i_key_gold
-enddo
-new.more1=<R01000,0ffff> //codigo
-new.attr |= attr_newbie
-bounce <new>
-return <new>
 
 [EOF]
