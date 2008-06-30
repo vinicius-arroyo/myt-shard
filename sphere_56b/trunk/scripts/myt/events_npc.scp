@@ -190,34 +190,58 @@ if (<argv1>)
 endif
 
 //*****************************************************************************
-// f_NPC_AI_Charge
+// npcai_charge
 //*****************************************************************************
-[FUNCTION f_NPC_AI_Charge]
-if (<argn>==1)
- moddex=<moddex>+100
- tag.HasCharge=1
- tag.Charge=1
- timerf <R30,60>,f_NPC_AI_Charge
-elif (<argn>==2)
- moddex=<moddex>-100
- tag.charge=0
+[FUNCTION npcai_charge]
+tag.npcai_charge=1
+serv.newitem i_npc_charge
+new.cont=<uid>
+new.timer=1
+
+[ITEMDEF i_npc_charge]
+ID=01C14
+NAME=CHARGE
+TYPE=t_eq_script
+LAYER=layer_special
+
+ON=@CREATE
+more1=1
+
+ON=@TIMER
+if (<more1>==1)
+ cont.moddex += 80
+ cont.emoteyellow corre
+ cont.tag.npcai_charge=1
+ more1=2
+ timer=<R5,15>
+elif (<more1>==2)
+ cont.moddex -= 110
+ cont.emoteyellow ofegante
+ cont.tag.npcai_charge=2
+ more1=3
+ timer=<R10,25>
+elif (<more1>==3)
+ cont.moddex += 30
+ cont.emoteyellow recuperado
+ cont.tag.npcai_charge=3
+ more1=4
+ timer=<R120,300>
 else
- tag.HasCharge=0
- if (<tag0.charge>)
-  tag.charge=0
-  moddex=<moddex>-100
- endif
+ cont.tag.npcai_charge=
+// cont.emoteyellow release
+ remove
 endif
+return 1
 
 //*****************************************************************************
-// NPCCanCharge
+// npcai_cancharge
 //*****************************************************************************
-[FUNCTION NPCCanCharge]
-if (<tag0.HasCharge>==1)
- return 0
-else
- return 1
+[FUNCTION npcai_cancharge]
+//only npcs who can run, dont have magery and charge is not active
+if (<CAN>&MT_RUN) && !<tag0.npcai_charge> && !<magery>
+    return 1
 endif
+return 0
 
 //*****************************************************************************
 // f_NPC_AI_PowerDelay
@@ -383,16 +407,8 @@ resendtooltip
 ON=@NPCACTFIGHT
 SETMEMORY <DEF.memory_fight>,<SRC>
 
-if (<CAN>&MT_RUN)
-    if !<magery>
-        if (<distance <src>> > 2)
-            if <NPCCanCharge>
-                f_NPC_AI_Charge 1
-            endif
-        elif <tag0.charge>
-            f_NPC_AI_Charge 2
-        endif
-    endif
+if <npcai_cancharge> && (<distance <src>> > 2)
+    npcai_charge
 endif
 
 //Setar parâmetro de agreção
@@ -412,6 +428,11 @@ endif
 
 ON=@HIT
 SETMEMORY <DEF.memory_iaggressor>,<SRC.UID>
+
+//cancela charge qndo acerta alvo
+if <tag0.npcai_charge>==1
+    findid.i_npc_charge.trigger @timer
+endif
 
 ON=@GETHIT
 //serv.log [EPVM] <name>
