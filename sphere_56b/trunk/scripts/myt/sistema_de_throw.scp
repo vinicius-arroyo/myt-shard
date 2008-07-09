@@ -1,97 +1,114 @@
-// ########################
-// --- Arremessar Items ---
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE THROW
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
 
 [PLEVEL 1]
 arremessar
 
+//*****************************************************************************
+// arremessar
+//*****************************************************************************
 [FUNCTION arremessar] 
-if (<src.findlayer(layer_hand1)> == 1) || (<src.findlayer(layer_hand2)> == 1)
- src.findlayer(layer_hand1).unequip
- src.findlayer(layer_hand2).unequip
+findlayer.layer_hand1.unequip
+findlayer.layer_hand2.unequip
+
+if !<tag0.skill_throw>
+    if <tag0.arremecarskill>
+        tag.skill_throw=<tag.arremecarskill>
+        tag.arremecarskill=
+    else        
+        tag.skill_throw=<R500,600>
+    endif        
 endif
- src.findid.i_arremecar.remove
- src.newitem i_arremecar
- src.act.cont <src.uid>
- src.act.use
 
-[itemdef i_arremecar]
-id=i_deed
-layer=30
-type=t_eq_script
-name=Funcao arremessar
-
-on=@dclick
- src.tag.arremecaritem 0
- if (0<src.tag.arremecarskill> == 0)
-  src.tag.arremecarskill <R500,600>
- endif
- src.sysmessage (Arremessar Skill) - <eval <src.tag.arremecarskill>/10>%!
- target Selecione o objeto que deseja arremecar...
- return 1
-
-on=@targon_item
- if (0<src.tag.arremecaritem> == 1)
-  src.sysmessage Nao e possivel arremecar neste objeto...
-  return 1
- elif (<src.targ.topobj> != <src>)
-  src.sysmessage Este objeto nao lhe pertence...
-  return 1
- elif (<src.targ> == <src.findlayer.layer_pack>)
-  src.sysmessage Nao pode atirar sua mochila.
-  return 1
- elif (<src.targ.weight> > 200)
-  src.sysmessage Este objeto e muito pesado...
-  return 1
- elif (<src.targ.distance> > 10)
-  src.sysmessage Muito longe!!
-  return 1
- endif
- src.tag.arremecarid=<src.targ.id>
- src.tag.arremecaruid=<src.targ.uid>
- src.tag.arremecarweight=<src.targ.weight>
- src.tag.arremecaritem 1
- src.targ.timer 600                          // evita timer -1 qdo item cai no chao apos arremesso
- src.targ.attr |= attr_decay                 // evita timer -1 qdo item cai no chao apos arremesso
- target Selecione a criatura em que deseja arremessar...
- return 1
-
-on=@targon_char
- if (0<src.tag.arremecaritem> == 0)
-  src.sysmessage Objeto nao foi selecionado...
-  return 1
- elif (<src.targ> == <src>)
-  src.sysmessage Nao e possivel arremecar em voce mesmo...
-  return 1
- elif !(<src.canseelos <src.targ>>)
-  src.sysmessage Nao pode ver o alvo
-  return 1
- elif (<src.targ.distance> > 10)
-  src.sysmessage Muito longe!!
-  return 1
- endif
-
-var.hit={9 4 3 7 9 2 10 6} 
-var.miss={9 3 2 6 8 1 10 6} 
-subirarremecarskill
-
-src.say * Arremessa objeto *
-src.anim 11 
-sfx 0232
-src.targ.effect 0,<src.tag.arremecarid>,10,1,0
-
-if (<var.hit> > <var.miss>)
-//  try uid.<src.tag.arremecaruid>.cont=<src.targ.findlayer(21).uid>
-    src.targ.damage <eval <src.tag.arremecarskill>/100>
+if <stam> <= 10
+    sysmessageyellow Muito cansado para arremessar.
 else
-    src.targ.emoteyellow esquiva
-    try uid.<src.tag.arremecaruid>.p=<src.targ.p>
+    sysmessagegreen Skill Arremessar: <eval <tag.skill_throw>/10>%
+    sysmessagegreen Selecione o objeto que deseja arremessar...
+    targetf throw_object
 endif
 
-remove
-return 1
-
-[function subirarremecarskill]
-if (<R1,10>==1) && (0<src.tag.arremecarskill> < 1000)
- src.tag.arremecarskill=<eval <src.tag.arremecarskill>+1>
- src.sysmessageblue (Arremessar Skill) - Aumentou 0.1%!
+//*****************************************************************************
+// throw_object
+//*****************************************************************************
+[FUNCTION throw_object]
+if !<argo>
+    sysmessagered Isso nao pode ser arremessado.
+    return 1
+elif <argo.topobj>!=<uid>
+    sysmessagered Isto nao te pertence...
+    return 1
+elif <argo.layer>==layer_pack
+    sysmessagered Nao pode atirar sua mochila.
+    return 1
+elif <argo.weight> > 200
+    sysmessagered Muito pesado...
+    return 1
 endif
+ 
+sysmessagegreen Selecione o alvo...
+targetf throw_target <argo>
+
+//*****************************************************************************
+// throw_target
+//*****************************************************************************
+[FUNCTION throw_target]
+ 
+if <argo>==<uid>
+    sysmessagered Nao e possivel arremessar em voce mesmo...
+    return 1
+elif <argo.topobj>==<uid>
+    sysmessagered Nao e possivel arremessar em voce mesmo...
+    return 1
+elif !<argo.canseelos <uid>>
+    sysmessagered Nao pode ver o alvo...
+    return 1
+endif
+
+if (<tag.skill_throw> < 1000) && !<R5>
+    tag.skill_throw += 1
+    sysmessageblue Skill Arremessar: Subiu 0.1%!
+endif
+
+ref1=<argv0>
+emoteyellow Arremessa <ref1.name>
+anim 11 
+sfx 0232
+argo.effect 0,<ref1>,10,1,0
+face <argo>
+
+if (<R1000> < <tag.skill_throw>)
+    argo.emoteyellow ui
+    argo.damage <eval <tag.skill_throw>/100>
+else
+    if <argo.isitem>
+        argo.emoteyellow intacto
+    else
+        argo.emoteyellow esquiva
+    endif        
+endif
+
+if <ref1.amount>>1
+    serv.newdupe <ref1>
+    ref1.decrement
+    new.amount=1
+    ref1=<new>
+endif
+ref1.movenear <argo>
+ref1.attr |= attr_decay
+
+if <ref1.timer> <= 0
+    ref1.timer=120
+endif
+
+stam -= 10
+
