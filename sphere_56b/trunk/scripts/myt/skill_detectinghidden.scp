@@ -1,3 +1,21 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL DETECTING HIDDEN por
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
+
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+
 [DEFNAME DetectingHidden]
 //Tempo antes de poder detectar no mesmo lugar
 DetectingHidden_timer   15
@@ -5,116 +23,143 @@ DetectingHidden_timer   15
 //Distância mínima de um lugar já detectado para poder detectar
 DetectingHidden_dist    8
 
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// sk_DetectingHidden
+//*****************************************************************************
 [FUNCTION sk_DetectingHidden]
-//Função inicial chamada pelo botão da skill
-
-//Checar se o char pode detectar aqui
-LOCAL.canDet=1
-obj=<uid>
-FORCHARLAYER 30
- IF (<BaseID>==i_mry_DetectingHidden)                   //Ele usou essa skill faz pouco tempo?
-  IF (<obj.distance <morep>> < DetectingHidden_dist)            //Foi aqui perto?
-   LOCAL.canDet=0                           //Se sim, cancele tudo.
-  ENDIF
- ENDIF
-ENDFOR
-IF (!<LOCAL.canDet>)
- SYSMESSAGERED Voce procurou aqui faz pouco tempo.
- return 1
-//abuso do sistema...
-elif (<ctag0.dh_timer> > 0)
- return 1
+if !<dh_canDetect>
+    sysmessagered Voce procurou aqui faz pouco tempo.
+else
+    serv.newitem i_mry_detectinghidden
+    new.equip
+    new.use
 endif
-local.timer=<f_rangeValue 15,5,<DetectingHidden>>
-DORAND 3
- emoteyellow observando atentamente
- emoteyellow procurando
- emoteyellow apalpando o ambiente
-ENDDO
-
-ctag.disturb=
-ctag.e_no_move_x=<p.x>
-ctag.e_no_move_y=<p.y>
-events +e_no_attack
-events +e_no_dclick
-
-ctag.dh_timer=<LOCAL.timer>
-
-TIMERF 1,DetectingHidden_,<DetectingHidden>
 return 1
 
-[FUNCTION DetectingHidden_]
-
-if (<ctag0.disturb>) || (<ctag.e_no_move_x>!=<p.x>) || (<ctag.e_no_move_y>!=<p.y>)
-    sysmessageyellow Interrompido
-    ctag.dh_timer=
-    return 1
-elif (0<ctag0.dh_timer> > 0)
-    ctag.dh_timer=<eval <ctag0.dh_timer>-1>
-    TIMERF 1,DetectingHidden_,<argv0>
-    return 1
-endif
+//*****************************************************************************
+// dh_canDetect
+//*****************************************************************************
+[FUNCTION dh_canDetect]
 obj=<uid>
-LOCAL.vision=<eval (<argn>/166)+2>
+forcharlayer layer_special
+    if (<baseid>==i_mry_detectinghidden)                    //ele usou essa skill faz pouco tempo?
+        if (<obj.distance <morep>> < detectinghidden_dist)  //foi aqui perto?
+            return 0                                        //entao nao pode detectar ainda
+        endif
+    endif
+endfor
+return 1                                                    //pode detectar
+
+//*****************************************************************************
+// dh_search
+//*****************************************************************************
+[FUNCTION dh_search]
+obj=<uid>
+LOCAL.vision=<eval (<detectinghidden>/166)+2>
 FORITEMS <LOCAL.vision>
 
- //Para traps
- if (<type>==t_trap) && ((<BELLTEST <argn>,<morey>>) || (<obj.IsGM>))   //Para todas as traps no campo de visao E se eu passar no teste.
-  if (<morez>==0) && (<attr>&080)                   //Se for uma armadilha do chão (morez=t_normal=0)
-   attr &= ~attr_invis                         //Apareça
-   update
-  endif
-  if (!<canseelos>) && (<morez>==0)
-   attr |= attr_invis
-   removefromview
-  elif (<canseelos>)
-   if (<color>!=026)                            //se eu não estiver detectada
-    tag.color=0<color>
-    color=026
-    update
-   endif
-   message @028, [armadilha]
-   f_resetTrap
-  endif
-
- //Para itens invisiveis
- elif (<attr>&attr_invis) && (!<IsEmpty <tag.Detecting_Hidden>>) && (<obj.canseelos <uid>>)
-  if (<BELLTEST <argn>,<tag0.Detecting_Hidden>>) || (<obj.IsGM>) || (!<tag0.Detecting_Hidden>)
-   if !(strmatch(<tag.name>,)
-    name=<tag.name>
-   endif
-   color=<tag0.color>
-   attr &= ~attr_invis
-   update
-   message @04, [escondido]
-  endif
- endif
+    //testa se pode ver mesmo e se esta invisivel
+    if <obj.canseelos <uid>> && (<attr>&attr_invis)
+        if <type>==t_trap
+            if <BELLTEST <obj.detectinghidden>,<morey>> || <obj.IsGM>
+                if (<color>!=026)                 //se não estiver detectada
+                    tag.color=<color>
+                    color=026
+                endif
+                
+                attr &= ~attr_invis
+                
+                update
+                message @028, [armadilha]
+                f_resetTrap
+            endif
+        //Para itens invisiveis
+        elif !<IsEmpty <tag.Detecting_Hidden>>
+            if <BELLTEST <obj.detectinghidden>,<tag0.Detecting_Hidden>> || <obj.IsGM> || !<tag0.Detecting_Hidden>
+                if !(strmatch(<tag.name>,)
+                    name=<tag.name>
+                endif
+                color=<tag0.color>
+                attr &= ~attr_invis
+                update
+                message @04, [escondido]
+            endif
+        endif
+    endif        
 ENDFOR
 
 FORCHARS <LOCAL.vision>
-//    serv.log [DH] vendo <uid>/<name>
-    if (<flags>&statf_hidden) && (<obj.canseelos <uid>>)
-        if (<BELLTEST <argn>,<detectinghidden>>) || (<obj.IsGM>)
-            hiding_leave   
+    if <obj.canseelos <uid>> && <tag0.sk_hiding>
+        if <BELLTEST <obj.detectinghidden>,<hiding>> || <obj.IsGM>
+            hiding_leave
             message @04, [escondido]
         endif    
     endif
 ENDFOR
 
-serv.newitem i_mry_DetectingHidden
-new.morep=<p>
-new.timer <DEF.DetectingHidden_timer>
-new.equip
-SKILL_GAIN skill_DetectHidden
+skill_gain skill_detecthidden
 sysmessageyellow Voce nao esta mais procurando.
 
+//*****************************************************************************
+//*****************************************************************************
+// MEMORIEs
+//*****************************************************************************
+//*****************************************************************************
 
-[ITEMDEF i_mry_DetectingHidden]
+//*****************************************************************************
+// i_mry_detectinghidden
+//*****************************************************************************
+[ITEMDEF i_mry_detectinghidden]
 ID=i_rune_reveal
 NAME=DetectingHidden
 TYPE=t_eq_script
 LAYER=layer_special
 
-on=@Timer
-remove
+ON=@TIMER
+
+if (<cont.ctag0.disturb>) || (<cont.ctag.e_no_move_x>!=<cont.p.x>) || (<cont.ctag.e_no_move_y>!=<cont.p.y>)
+    cont.sysmessageyellow Interrompido
+    remove
+    return 1
+elif <more1>
+    timer=1
+    more1 -= 1
+    return 1
+elif !<more2>    
+    timer=<DEF.DetectingHidden_timer>
+    more2=1
+    cont.dh_search
+    return 1
+else
+    remove
+endif
 return 1
+
+ON=@DCLICK
+
+morep=<cont.p>
+more1=<BETWEEN2 5,15,<cont.detectinghidden>,1000>
+more2=0
+
+DORAND 3
+    cont.emoteyellow observando atentamente
+    cont.emoteyellow procurando
+    cont.emoteyellow apalpando o ambiente
+ENDDO
+
+cont.ctag.disturb=
+cont.ctag.e_no_move_x=<cont.p.x>
+cont.ctag.e_no_move_y=<cont.p.y>
+cont.events +e_no_attack
+cont.events +e_no_dclick
+
+timer=1
+return 1
+
+[EOF]
