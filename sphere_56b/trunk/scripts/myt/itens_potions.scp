@@ -225,7 +225,10 @@ if (0<src.findlayer.layer_flag_potionused.uid>)
  return 0
 endif
 //Reduzir 80% do efeito.
-more2=<eval ((<more2>*2)/10)>
+if !<tag0.fix>
+    more2=<eval ((<more2>*2)/10)>
+    tag.fix=1
+endif
 
 // --- MANA ---
 
@@ -680,8 +683,10 @@ ON=@Create
 
 //A poção está muito forte. Atenuar.
 ON=@DClick
-more2=<eval <more2>/3>
-
+if !<tag0.fix>
+    more2=<eval <more2>/3>
+    tag.fix=1
+endif
 
 // --- Poção da proteção maxima ---
 
@@ -953,10 +958,41 @@ return 1
 [FUNCTION petrify]
 sfx 05A9
 stone
-serv.newitem i_gold
+serv.newitem i_coin_copper
 new.color 1
 new.p=<p>
 new.nudgeup 20
 new.attr 012
 new.timer 3
 new.emoteyellow petrifica
+
+[EVENTS e_chardclick_effect]
+ON=@CHARDCLICK
+if <IsEmpty <tag.chardclickef>>
+    events -e_chardclick_effect
+    return 1
+elif (<serv.time> < <ctag0.no_cdeffct>)
+    sysmessageyellow Aguarde...
+    return 1
+elif (<act.flags>&01f)
+    sysmessageyellow Voce nao pode afetar este alvo.
+    return 1
+elif (!<canseelos <act>>)
+    sysmessagered Voce nao consegue ver o alvo.
+    return 1
+elif (<distance <act>> > 5)
+    sysmessagered Muito longe...
+    return 1
+endif
+ctag.no_cdeffct=<eval <serv.time>+100>
+call <tag.chardclickef>
+return 1
+
+[FUNCTION ef_apaixonado]
+anim 6
+emoteyellow charme
+sfx 0179
+act.petrify
+act.sysmessageyellow Voce se sente atraido
+act.timerf 10,stone
+return 1
