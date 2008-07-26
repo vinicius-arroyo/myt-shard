@@ -76,9 +76,6 @@ if !<argo>
 elif <argo.ischar>
     sysmessagered Selecione somente itens!
     return 1
-elif <argo.weight> > 10
-    sysmessagered Muito pesado!
-    return 1
 elif (<argo.topobj>==<uid>)
     sysmessagered Nao pode furtar si mesmo.
     return 1
@@ -93,11 +90,30 @@ elif (<argo.attr>&attr_move_never)
     return 1
 //elif (!<act.topobj.findlayer.layer_pack.rescount>)
 // return 1
-endif
-
-if <serv.time> < <tag0.snoop_time>
+elif <serv.time> < <tag0.snoop_time>
     sysmessagered Aguarde antes de tentar novamente!
     return 1
+else
+    //0 to 10.0 stones
+    LOCAL.mw=<eval <stealing>/10>
+
+    //weight per item
+    LOCAL.iw=<eval <argo.weight>/<argo.amount>>
+    
+    //max items that can be stolen
+    if <LOCAL.iw>
+        LOCAL.ia=<eval <LOCAL.mw>/<LOCAL.iw>>
+    else
+        LOCAL.ia=<argo.amount>
+    endif
+    
+//    emoteyellow iw:<dLOCAL.iw> ia:<dLOCAL.ia>
+
+    //if cant
+    if !<LOCAL.ia>
+        sysmessagered Muito pesado!
+        return 1
+    endif
 endif
 
 skill_gain skill_stealing
@@ -105,12 +121,25 @@ tag0.snoop_time=<serv.time>+10 //1 por seg
 
 if <belltest <stealing>,<SNOOP_CALC_DIF <argo.topobj>>>
     sysmessagegreen Voce furtou <argo.name>!
-    argo.bounce
+    
+    if <LOCAL.ia> >= <argo.amount>
+        argo.bounce
+    else
+        serv.newdupe <argo>
+        new.amount=<LOCAL.ia>
+        new.bounce
+        argo.decrement <LOCAL.ia>
+    endif
 else
     sysmessagered Voce falhou ao tentar furtar!
+    argo.topobj.sysmessageyellow Voce nota alguem mexendo em sua mochila!
     SNOOP_WARN <argo.topobj>
-    emotered tenta furtar <argo.name>
     disturb
+    
+    //tem uma chance de mostrar pra todos q errou
+    if <R1200> > <stealing>
+        emotered tenta furtar
+    endif        
 endif
 
 if <tag.snoop_cnt> < 20
