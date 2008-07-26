@@ -35,6 +35,18 @@ else
  return concentrada
 endif
 
+[FUNCTION potion_consume]
+decrement
+serv.newitem i_bottle_empty
+new.bounce
+serv.newitem i_handr_1
+new.layer=layer_flag_potionused
+new.timer=16
+new.attr=attr_decay|attr_newbie
+new.type=t_spell
+new.cont=<src>
+new.link=<src>
+
 //########################################################
 //##                            ##
 //##            Poções ordinárias       ##
@@ -58,28 +70,27 @@ on=@create
 more2={0 2000}
 
 on=@dclick
-if (0<src.findlayer.layer_flag_potionused.uid>)
- return 0
+if <src.findlayer.layer_flag_potionused>
+    return 0
 endif
+
 src.effect 3 i_fx_sparkle 0 16 0
 if (<more2> <= 890)
- LOCAL.effect={8 15}
+    src.hits += <R8,15>
 elif (<more2> <= 1000)
- LOCAL.effect={22 27}
+    src.hits += <R22,27>
 elif (<more2> <= 1500)
- LOCAL.effect={33 55}
+    src.hits += <R33,55>
 else
- src.sfx 0202 
- LOCAL.effect={65 90}
+    src.sfx 0202 
+    src.hits += <R65,90>
 endif
-LOCAL.effect=<eval <LOCAL.effect>>
-src.hits=<eval <src.hits>+<LOCAL.effect>>
-if (<src.hits> > <src.maxhits>)
- src.hits=<src.maxhits>
+
+if <src.hits> > <src.maxhits>
+    src.hits=<src.maxhits>
 endif
-decrement
-serv.newitem i_bottle_empty
-new.bounce
+
+potion_consume
 return 1
 
 // --- NIGHTSIGHT ---
@@ -221,9 +232,6 @@ ON=@Create
     MORE2={ 30.0 80.0 }
 
 on=@dclick
-if (0<src.findlayer.layer_flag_potionused.uid>)
- return 0
-endif
 //Reduzir 80% do efeito.
 if !<tag0.fix>
     more2=<eval ((<more2>*2)/10)>
@@ -247,28 +255,27 @@ ON=@Create
     MORE2={0 200}
 
 on=@dclick
-if (0<src.findlayer.layer_flag_potionused.uid>)
- return 0
+if <src.findlayer.layer_flag_potionused>
+    return 0
 endif
+
 src.effect 3 i_fx_sparkle 0 16 0
 if (<more2> <= 890)
- LOCAL.effect={5 15}
+    src.mana += <R5,15>
 elif (<more2> <= 1000)
- LOCAL.effect={17 27}
+    src.mana += <R17,27>
 elif (<more2> <= 1500)
- LOCAL.effect={30 55}
+    src.mana += <R30,55>
 else
- src.sfx 01e7
- LOCAL.effect={60 80}
+    src.sfx 01e7
+    src.mana += <R60,80>
 endif
-LOCAL.effect=<eval <LOCAL.effect>>
-src.mana=<eval <src.mana>+<LOCAL.effect>>
-if (<src.mana> > <src.maxmana>)
- src.mana=<src.maxmana>
+
+if <src.mana> > <src.maxmana>
+    src.mana=<src.maxmana>
 endif
-decrement
-serv.newitem i_bottle_empty
-new.bounce
+
+potion_consume
 return 1
 
 
@@ -306,15 +313,9 @@ SUBSECTION=Potions
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 on=@create
+more1=s_magic_reflection
 more2=50
 
-
-on=@dclick
-src.spelleffect s_magic_reflection,<more2>
-decrement
-serv.newitem i_bottle_empty
-new.bounce
-return 1
 
 // --- Encolher ---
 
@@ -485,17 +486,16 @@ SUBSECTION=Potions
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 on=@dclick
-if (<topobj.uid> != <src.uid>)
- src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
- return 1
+if <src.findlayer.layer_flag_potionused>
+    return 0
 endif
-src.newitem i_mry_morvor
-src.act.equip
-src.act.more1=<src.stamina>
-src.act.more2={10 20}
-src.act.timer=1
-src.sysmessage Voce se sente estranhamnte vigoroso.
-src.consume 1 <baseid>
+serv.newitem i_mry_morvor
+new.equip
+new.more1=<src.stamina>
+new.more2={10 20}
+new.timer=1
+src.sysmessage Voce se sente estranhamente vigoroso.
+potion_consume
 return 1
 
 [itemdef i_mry_morvor]
@@ -531,14 +531,11 @@ SUBSECTION=Potions
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 ON=@DCLICK
-if (<topobj> != <src>)
-    src.sysmessageyellow Voce deve estar com esse tipo de pocao nas maos...
-    return 1
+if <src.findlayer.layer_flag_potionused>
+    return 0
 endif
 src.invis_enter
-decrement
-serv.newitem i_bottle_empty
-new.bounce
+potion_consume
 return 1
 
 // --- Furor de Batalha ---
@@ -553,9 +550,8 @@ SUBSECTION=Potions
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 on=@dclick
-if (<topobj.uid> != <src.uid>)
- src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
- return 1
+if <src.findlayer.layer_flag_potionused>
+    return 0
 endif
 src.newitem i_mry_furor
 src.act.equip
@@ -567,9 +563,10 @@ src.wrestling=(<src.wrestling>+200)
 src.swordsmanship=(<src.swordsmanship>+200)
 src.macefighting=(<src.macefighting>+200)
 src.parrying=(<src.parrying>+200)
-src.consume 1 <baseid>
 src.skill_init
 src.say=@026 Graurrrr!
+
+potion_consume
 return 1
 
 [itemdef i_mry_furor]
@@ -703,16 +700,17 @@ SUBSECTION=Potions
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 ON=@DClick
-    src.spelleffect s_Protection 650
-    src.spelleffect s_reactive_armor 750
-    src.spelleffect s_magic_reflection 1000
+if <src.findlayer.layer_flag_potionused>
+    return 0
+endif
+src.spelleffect s_Protection 650
+src.spelleffect s_reactive_armor 750
+src.spelleffect s_magic_reflection 1000
 
-    src.sysmessageblue Uma aura lhe cobre bloqueando ataques fisicos e magicos!
-    src.sfx 0216
-    src.emotered pele brilhando
-decrement
-serv.newitem i_bottle_empty
-new.bounce
+src.sysmessageblue Uma aura lhe cobre bloqueando ataques fisicos e magicos!
+src.sfx 0216
+src.emotered pele brilhando
+potion_consume
 return 1
 
 
@@ -731,10 +729,11 @@ SUBSECTION=Potions
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 ON=@DClick
+if <src.findlayer.layer_flag_potionused>
+    return 0
+endif
 src.f_polymorph c_bear_grizzly,30,40,30,-20
-decrement
-serv.newitem i_bottle_empty
-new.bounce
+potion_consume
 return 1
 
 
@@ -753,6 +752,9 @@ SUBSECTION=Potions
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 ON=@DClick
+if <src.findlayer.layer_flag_potionused>
+    return 0
+endif
 DOSWITCH <eval <src.int>/200>
  local.body c_zombie
  local.body c_zombie
@@ -762,9 +764,7 @@ DOSWITCH <eval <src.int>/200>
 ENDDO
 src.f_polymorph <local.body>,30,-10,-30,0
 src.f_death_mask 30
-decrement
-serv.newitem i_bottle_empty
-new.bounce
+potion_consume
 return 1
 
 
@@ -786,9 +786,8 @@ SUBSECTION=Potions
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 on=@dclick
-if (<topobj.uid> != <src.uid>)
- src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
- return 1
+if <src.findlayer.layer_flag_potionused>
+    return 0
 endif
 src.newitem i_mry_veneno_roxo
 src.act.tag.ocolor=<src.color>
@@ -799,7 +798,7 @@ src.sysmessagered Voce esta roxo!!!
 src.sfx 040
 src.emotered quebrou a garrafa
 src.spelleffect s_Poison 500
-src.consume 1 <baseid>
+potion_consume
 return 1
 
 [itemdef i_mry_veneno_roxo]
@@ -828,11 +827,12 @@ SUBSECTION=Potions
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 ON=@DClick
+if <src.findlayer.layer_flag_potionused>
+    return 0
+endif
 src.sysmessagered Grande coragem a sua!
 src.f_polymorph c_chicken,150,-30,-30,-30
-decrement
-serv.newitem i_bottle_empty
-new.bounce
+potion_consume
 return 1
 
 
@@ -852,7 +852,9 @@ on=@create
 more2=2000
 
 on=@dclick
-if !(<attr>&attr_identified)
+if <src.findlayer.layer_flag_potionused>
+    return 0
+elif !(<attr>&attr_identified)
  src.sysmessageyellow Voce fica com muito medo de tomar esta pocao.
  src.emotegreen treme
  return 1
@@ -864,9 +866,7 @@ else
  src.timerf 61,hits,5
  src.timerf 60,events,-e_breath_o_fire
 endif
-decrement
-serv.newitem i_bottle_empty
-new.bounce
+potion_consume
 return 1
 
 
@@ -912,7 +912,9 @@ on=@create
 more2=2000
 
 on=@dclick
-if !(<attr>&attr_identified)
+if <src.findlayer.layer_flag_potionused>
+    return 0
+elif !(<attr>&attr_identified)
  src.sysmessageyellow Voce fica com muito medo de tomar esta pocao.
  src.emotegreen treme
  return 1
@@ -924,9 +926,7 @@ else
  src.timerf 61,hits,5
  src.timerf 60,events,-e_breath_o_freeze
 endif
-decrement
-serv.newitem i_bottle_empty
-new.bounce
+potion_consume
 return 1
 
 
