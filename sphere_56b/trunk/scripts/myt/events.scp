@@ -25,12 +25,8 @@
 //*****************************************************************************
 
 [DEFNAME charCreation]
-//regenerates one mana point every n seconds
-ev_elf_mana_timer=3
 //check drow bonuses every n seconds
 ev_drow_check_timer=5
-//regenerates one stam point every n seconds
-ev_dwarf_stam_timer=3
 
 //*****************************************************************************
 //*****************************************************************************
@@ -66,10 +62,7 @@ SRC.ACT.TAG.OVERRIDE.REGENVAL_2 10
 ON=@LOGIN
 src.nightsight 0
 f_elfSight
-findid.i_elfo_mana.remove
-newitem=i_elfo_mana
-act.link <src.uid>
-act.cont <src.uid>
+setRegenBasePm 3,15,3
 
 ON=@ITEMEQUIP
 //remove visao elfica se carregar fonte de luz
@@ -82,25 +75,6 @@ ON=@ITEMUNEQUIP
 if <act.layer>==layer_light
     f_elfSight
 endif
-
-
-[ITEMDEF i_elfo_mana]
-id=i_deed
-name=Elfo - Mana
-type=t_eq_script
-layer=layer_special
-weight=0
-
-on=@create
-timer=ev_elf_mana_timer
-return 1
-
-on=@timer
-if (<link.mana> < <eval <link.int>-10>)
-  link.mana=<link.mana>+1
-endif
-timer=ev_elf_mana_timer
-return 1
 
 //carrega um light source no layer light em q soh o player (src) veja
 [FUNCTION f_elfSight]
@@ -125,6 +99,7 @@ src.findid.i_drow_check.remove
 serv.newitem=i_drow_check
 new.link <src>
 new.cont <src>
+setRegenBasePm 6,10,5
 
 //mantem o layer light livre para visao noturna
 ON=@ITEMUNEQUIP
@@ -182,10 +157,11 @@ return 1
 //Quando são atingidos e estão com poucos pontos de vida dão dano no inimigo.
 [EVENTS e_orc]
 
-on=@login
+ON=@LOGIN
 src.findlayer(layer_hair).remove
 src.findlayer(layer_beard).remove
 src.findlayer(layer_helm).hitpoints 999
+setRegenBasePm 15,3,3
 src.update
 
 on=@hit
@@ -215,13 +191,9 @@ attr=attr_static|attr_move_never
 //-Se queimao ao tocar itens magicos
 [EVENTS e_anao]
 
-on=@login
+ON=@LOGIN
 src.tag.resisteaoclima=1
-
-src.findid.i_anao_stam.remove
-src.newitem=i_anao_stam
-src.act.link <src.uid>
-src.act.cont <src.uid>
+setRegenBasePm 9,4,8
 
 on=@itemDclick
 
@@ -238,29 +210,13 @@ if (<act.attr>&attr_magic) && (<src.isgm>==0)
  act.p=<src.p>
 endif
 
-[ITEMDEF i_anao_stam]
-id=i_deed
-name=Anao - Stam
-type=t_eq_script
-layer=layer_special
-weight=0
-
-on=@create
-timer=ev_dwarf_stam_timer
-return 1
-
-on=@timer
-if (<link.stam> < <eval <link.dex>-10>)
-  link.stam=<link.stam>+1
-endif
-timer=ev_dwarf_stam_timer
-return 1
-
 //*****************************************************************************
 // HUMANOS
 //*****************************************************************************
 [EVENTS e_humano]
 
+ON=@LOGIN
+setRegenBasePm 7,7,7
 
 //*****************************************************************************
 // ARQUEIRO
@@ -509,7 +465,7 @@ return 0                    // SKILL_FENCING
 return 0                    // SKILL_WRESTLING
 return 0                    // SKILL_LUMBERJACK
 return 0                    // SKILL_MINING
-return 0                    // SKILL_MEDITATION
+return <sk_meditation>      // SKILL_MEDITATION
 return 0                    // SKILL_STEALTH
 return 0                    // SKILL_REMOVETRAP
 return 0                    // SKILL_NECROMANCY
@@ -573,7 +529,7 @@ return 0                    // SKILL_FENCING
 return 0                    // SKILL_WRESTLING
 return 0                    // SKILL_LUMBERJACK
 return 0                    // SKILL_MINING
-return 0                    // SKILL_MEDITATION
+return 1                    // SKILL_MEDITATION
 return <sk_hiding>          // SKILL_STEALTH
 return 0                    // SKILL_REMOVETRAP
 return 1                    // SKILL_NECROMANCY
@@ -637,7 +593,7 @@ skill_gain <src.action>     // SKILL_FENCING
 skill_gain <src.action>     // SKILL_WRESTLING
 skill_gain <src.action>     // SKILL_LUMBERJACK
 skill_gain <src.action>     // SKILL_MINING
-skill_gain <src.action>     // SKILL_MEDITATION
+return 0                    // SKILL_MEDITATION
 return 0                    // SKILL_STEALTH
 skill_gain <src.action>     // SKILL_REMOVETRAP
 return 0                    // SKILL_NECROMANCY
@@ -819,6 +775,5 @@ if (<argn1>==3)
         end
     endif
 endif
-
 
 [EOF]
