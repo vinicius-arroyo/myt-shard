@@ -15,6 +15,10 @@
 
 //TAGS usadas:
 //REGION.TAG.modtemp    //modificador de temperatura por regiao
+//REGION.TAG.weather
+//REGION.TAG.weather_active
+//REGION.TAG.type
+//REGION.TAG.temperature
 //SRC.TAG.no_clima  //habilita ou desabilita checagem de clima
 //
 //VARS usadas:
@@ -24,7 +28,6 @@
 //VAR.tMonth
 //VAR.tYear
 //VAR.tSeason
-//VAR.temperature
 
 //*****************************************************************************
 //*****************************************************************************
@@ -50,6 +53,13 @@ SEASON_outono       2
 weather_snow=2
 weather_rain=1
 weather_dry=0
+
+//Tipos de regioes
+REGION_NORMAL=0
+REGION_DESERT=1
+REGION_UNDERGROUND=2
+REGION_ICELAND=3
+REGION_TROPICAL=4
 
 //valores max e min de temperaturas suportadas
 tBodyMax2=50
@@ -87,30 +97,57 @@ luz_22=29
 luz_23=30
 luz_24=30
 
-temp_0=15
-temp_1=15
-temp_2=15
-temp_3=16
-temp_4=16
-temp_5=17
-temp_6=17
-temp_7=18
-temp_8=18
-temp_9=19
-temp_10=19
-temp_11=19
-temp_12=20
-temp_13=19
-temp_14=19
-temp_15=18
-temp_16=18
-temp_17=17
-temp_18=17
-temp_19=16
-temp_20=16
-temp_21=16
-temp_22=15
-temp_23=15
+//REGION_NORMAL
+temp0_0=15
+temp0_1=15
+temp0_2=15
+temp0_3=16
+temp0_4=16
+temp0_5=17
+temp0_6=17
+temp0_7=18
+temp0_8=18
+temp0_9=19
+temp0_10=19
+temp0_11=19
+temp0_12=20
+temp0_13=19
+temp0_14=19
+temp0_15=18
+temp0_16=18
+temp0_17=17
+temp0_18=17
+temp0_19=16
+temp0_20=16
+temp0_21=16
+temp0_22=15
+temp0_23=15
+
+//REGION_DESERT
+temp01_0=19
+temp01_1=18
+temp01_2=17
+temp01_3=16
+temp01_4=15
+temp01_5=14
+temp01_6=18
+temp01_7=22
+temp01_8=26
+temp01_9=30
+temp01_10=33
+temp01_11=35
+temp01_12=37
+temp01_13=38
+temp01_14=37
+temp01_15=36
+temp01_16=35
+temp01_17=33
+temp01_18=31
+temp01_19=29
+temp01_20=27
+temp01_21=25
+temp01_22=23
+temp01_23=21
 
 temp_verao=7
 temp_outono=-2
@@ -143,6 +180,13 @@ endif
 
 ON=@REGPERIODIC
 
+//calcula e salva temperatura para facilitar calculo dos efeitos
+if <flags>&region_flag_underground
+    TAG.temperature=<TAG0.modtemp>
+else
+    TAG.temperature=<eval <DEF.temp<TAG0.type>_<eval <VAR.tHour>>>+<DEF.temp_<VAR.tSeason>>+<TAG0.modtemp>>
+endif
+
 //NPCs nao disparam esse evento, mas por garantia.....
 if <src.npc>
     return 0
@@ -170,8 +214,8 @@ elif <tag0.weather_next>
     endif
 endif
 
-LOCAL.temp=<eval <var.temperature>+<tag0.modtemp>>
-//serv.log [CLIMA] <name> - <dLOCAL.temp>/<var.temperature>
+LOCAL.temp=<TAG0.temperature>
+//serv.log [CLIMA] <name> - <dLOCAL.temp>/<TAG0.temperature>
 
 //set duration: 1 minute to 1 hour
 LOCAL.ton=<R600,36000>
@@ -179,7 +223,7 @@ tag.weather_active=<eval <serv.time>+<LOCAL.ton>>
 LOCAL.toff=0
 
 //20% chance of raining / snowing
-if !<R5>
+if !<R5> && (<TAG0.type>!=<DEF.REGION_DESERT>) && !(<FLAGS>&region_flag_underground)
     if (<LOCAL.temp> <= snow_temp_max)
         snow
         tag.weather=<def.weather_snow>
@@ -304,7 +348,7 @@ ON=@CREATE
 color=0321
 
 ON=@DClick
-temp_now
+src.temp_now
 return 1
 
 //*****************************************************************************
@@ -417,7 +461,6 @@ if (<VAR.tMin> >= minutos_por_hora) //minuto
    endif
   endif
  endif
- VAR.temperature=<eval <DEF.temp_<eval <VAR.tHour>>>>+<eval <DEF.temp_<VAR.tSeason>>>
 endif
 return 1
 
@@ -480,7 +523,7 @@ return 1
 //*****************************************************************************
 //pega a temperatura da regiao atual
 [FUNCTION temp_get]
-return <eval <VAR.temperature>+<region.tag0.modtemp>>
+return <REGION.TAG0.temperature>
 
 //*****************************************************************************
 // temp_check()
@@ -498,7 +541,7 @@ if (<tag0.no_clima>) || (<flags>&statf_indoors)
     return 0
 endif
 
-LOCAL.temp=<eval <temp_get>>
+LOCAL.temp=<temp_get>
 
 //'calcula' quantidade de roupa
 if (<tag0.comcapuz>)
