@@ -1,210 +1,128 @@
-[events e_evaluatingintel_new]
-on=@skillstart
-if ( (<src.action>|0d2000000) == Skill_EvaluatingIntel)
-src.action=
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL EVAL INT por
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+//
+//TAGS usadas:
+//*****************************************************************************
 
- if (<src.findid.i_EvaluatingIntel_int> == 1) || (<src.findid.i_EvaluatingIntel_mana> == 1)
-  src.sysmessage Aguarde um pouco...
-  return 1
- endif
+[DEFNAME evin_msg]
+evin_int1=Parece mais esperto que uma pedra, porem menos que uma madeira
+evin_int2=Parece um pouco mais inteligente que uma pedra
+evin_int3=Parece um imbecil
+evin_int4=Nao parece muito brilhante
+evin_int5=Parece ter uma media inteligencia
+evin_int6=Parece ser muito inteligente
+evin_int7=Parece extremamente inteligente
+evin_int8=Parece extraordinariamente inteligente
+evin_int9=Parece possuir um intelecto perfeito
+evin_int10=Parece definitivamente um genio
+evin_int11=Possui uma inteligencia sobrenatural
+   
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
 
+//*****************************************************************************
+// sk_evalint
+//*****************************************************************************
+[FUNCTION sk_evalint]
 
- // ###############
- // Verificar alvos
- if (<src.targ.uid> == <src.uid>)
-  src.sysmessage Voce nao pode usar EvaluatingIntel em si mesmo...
-  return 1
- endif
- if (<src.targ.flags>&statf_dead)
-  src.sysmessage Voce nao pode usar EvaluatingIntel em mortos...
-  return 1
- endif
- if (<src.targ.canseelos> == 0)
-  src.sysmessage Seu alvo esta fora da linha de visao...
-  return 1
- endif
- 
- // ###############
- // Gravando o alvo
- src.tag.EvaluatingIntelalvo=<src.targ.uid>
-
- // ###############
- // Removendo possiveis memorys
- src.findid.i_EvaluatingIntel_int.remove
- src.findid.i_EvaluatingIntel_mana.remove
-
-
- // ###############
- // Abrindo menu de opcoes
- if (<src.EvaluatingIntel> < 76.0)
-  src.menu m_EvaluatingIntel_normal
- elif (<src.EvaluatingIntel> >= 76.0)
-  src.menu m_EvaluatingIntel_advanced
- endif
-
-return 1
+if !<argo>
+    src.sysmessagegreen Quem deseja analisar?
+    targetf sk_evalint
+    return 1
+elif !<argo.canseelos>
+    src.sysmessagered Seu alvo esta fora da linha de visao...
+    return 1
+elif <argo>==<src>
+    src.sysmessagered Voce nao pode usar em si mesmo...
+    return 1
+elif <argo.isitem>
+    src.sysmessagered Voce nao pode usar em objetos...
+    return 1
+elif <argo.flags>&statf_dead
+    src.sysmessagered Voce nao pode usar em almas...
+    return 1
+elif (<src.findid.i_evalint_mry>)
+    src.sysmessagered Voce ainda nao pode usar...
+    return 1
 endif
 
-// ################
-//     Menus 
+src.emoteyellow Observando <argo.name>
+src.newitem i_evalint_mry
+NEW.more=<eval 11-(<src.evaluatingintel>/100)>
 
-[menu m_EvaluatingIntel_normal]
-Que informacao deseja obter da criatura alvo?
+if ( <NEW.more> <= 0 )
+    NEW.more=1
+endif
 
-on=0 Inteligencia
- f_EvaluatingIntel_int
+NEW.link=<argo>
+NEW.cont=<src>
+NEW.timer=1
 
-[menu m_EvaluatingIntel_advanced]
-Que informacao deseja obter da criatura alvo?
-
-on=0 Inteligencia
- f_EvaluatingIntel_int
-
-on=0 Mana
- f_EvaluatingIntel_mana
-
-
-// ################
-//     Funcoes
-
-[function f_EvaluatingIntel_int]
- src.say * Observando *
- src.newitem i_EvaluatingIntel_int
- src.act.more=<eval (((<src.EvaluatingIntel>)/(100)) + (- 11)) * (- 1)>
- src.act.link=<src.tag.EvaluatingIntelalvo>
- src.act.equip
- src.act.timer=1
-
-[function f_EvaluatingIntel_mana]
- src.say * Observando *
- src.newitem i_EvaluatingIntel_mana
- src.act.more=<eval (((<src.EvaluatingIntel>)/(100)) + (- 11)) * (- 1)>
- src.act.link=<src.tag.EvaluatingIntelalvo>
- src.act.equip
- src.act.timer=1
-
-// ################
-//   Memory Items
-
-[itemdef i_EvaluatingIntel_int]
-id=i_deed
-name=EvaluatingIntel Memory
-type=t_Eq_script
-layer=30
-
-on=@create
-attr=attr_decay
-
-
-on=@timer
- // ###############
- // Checar Canseelos
- timercsl_EvaluatingIntel
- if (<cont.tag.timercsl_EvaluatingIntel> == 0)
-  cont.sysmessage Seu alvo esta fora da linha de visao...
-  remove
-  return 1
- endif
-
- // ###############
- if (<more> > 1)
-  more=<more>+(-1)
-  timer=1
-  return 1
- elif !(<more> > 1)
-   f_EvaluatingIntel_tentarsubir
-   if (<link.int> <= 9)
-    link.message Parece mais espero que uma pedra, porem menos que uma madeira
-   elif (<link.int> <= 19)
-    link.message Parece um pouco mais inteligente que uma pedra
-   elif (<link.int> <= 29)
-    link.message Parece um imbecil
-   elif (<link.int> <= 39)
-    link.message Nao parece uma pessoa brilhante
-   elif (<link.int> <= 49)
-    link.message Parece ter uma media inteligencia
-   elif (<link.int> <= 59)
-    link.message Parece ser muito inteligente
-   elif (<link.int> <= 69)
-    link.message Parece extremamente inteligente
-   elif (<link.int> <= 79)
-    link.message Parece extraordinariamente inteligente
-   elif (<link.int> <= 89)
-    link.message Parece possuir um intelecto perfeito
-   elif (<link.int> <= 99)
-    link.message Parece definitivamente um genio
-   elif (<link.int> >= 100)
-    link.message Possui uma inteligencia sobrenatural
-   endif
-  remove
- endif
 return 1
 
 
-[itemdef i_EvaluatingIntel_mana]
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+//more=tempo do eval
+[ITEMDEF i_evalint_mry]
 id=i_deed
-name=EvaluatingIntel Memory
-type=t_Eq_script
-layer=30
-
-on=@create
-attr=attr_decay
-
-
-on=@timer
- // ###############
- // Checar Canseelos
- cont.tag.timercsl_EvaluatingIntel=1
- timercsl_EvaluatingIntel
- if (<cont.tag.timercsl_EvaluatingIntel> == 0)
-  cont.sysmessage Seu alvo esta fora da linha de visao...
-  remove
-  return 1
- endif
-
- // ###############
- if (<more> > 1)
-  more=<more>+(-1)
-  timer=1
-  return 1
- elif !(<more> > 1)
-   f_EvaluatingIntel_tentarsubir
-   link.message Esta com <eval (<link.mana>*100)/<link.int>>% de sua forca mental
-  remove
- endif
-return 1
-
-// ###############################
-// Function de Canseelos no @timer
-
-[function timercsl_EvaluatingIntel]
- cont.findid.i_bit_EvaluatingIntel.remove
- cont.newitem i_bit_EvaluatingIntel
- cont.act.link <link.uid>
- cont.act.p <cont.p>
- cont.act.timer=2
-
-[itemdef i_bit_EvaluatingIntel]
-id=i_nodraw
-name=CanSeeLos Tester
-layer=0
+name=EvalInt
 type=t_eq_script
+layer=layer_special
+weight=0
 
-on=@create
-attr=attr_decay
+ON=@TIMER
+if !<cont.canseelos <link>>
+    cont.sysmessageyellow Seu alvo esta fora da linha de visao...
+    remove
+    return 1
+// Se for perturbado ou estiver incapacitado:
+elif (<cont.f_isDisturbed>)
+    cont.sysmessageyellow Voce nao esta em condicoes de analisar nada.
+    remove
+    return 1
+//loop de animacao
+elif (<more>)
+    more -= 1
+    timer=1
+    return 1 
+endif
 
-on=@step
- src.tag.timercsl_EvaluatingIntel <link.canseelos>
- remove
-return 1
+//transforma em uma escala de 0 a 10
+LOCAL.int=<eval <link.int>/10>
 
-on=@timer
+//muda a escala para cada nivel de skill
+if ( <cont.evaluatingintel> < 30.0 )
+    LOCAL.int=<eval ((<LOCAL.int>/5)*5)+2>
+elif ( <cont.evaluatingintel> < 70.0 )
+    LOCAL.int=<eval ((<LOCAL.int>/2)*2)+1>
+else
+    LOCAL.int=<eval <LOCAL.int>+1>
+endif
+
+if ( <LOCAL.int> > 11 )
+    LOCAL.int = 11
+endif
+
+cont.sysmessagegreen <DEF.evin_int<eval <LOCAL.int>>>
+cont.sysmessagegreen Esta com <eval (<link.mana>*100)/<link.maxmana>>% de sua forca mental
+
+cont.skill_gain SKILL_EVALUATINGINTEL
 remove
 return 1
 
-// ######################
-// Chance de subir
-[function f_EvaluatingIntel_tentarsubir]
-if ({1 <eval (<cont.EvaluatingIntel>)/(10)>} == 1)
- cont.EvaluatingIntel=<cont.EvaluatingIntel>+(0.1)
-endif
+[EOF]
