@@ -1,0 +1,267 @@
+// Created 7/11/2008 11:42:43, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+
+[DEFNAME criacao]
+//Essas coisas a seguir, definem tabelas e meus.
+cc_group_gather		1
+cc_group_produce	2
+cc_group_combat		3
+cc_group_stealth	4
+cc_group_lore		5
+cc_group_magic		6
+
+cc_skill_1		Extracao
+cc_skill_1_1		10	//camping
+cc_skill_1_2		18	//Fishing
+cc_skill_1_3		44	//Lamber Tcheca
+cc_skill_1_4		45	//Mining
+cc_skill_1_5		35	//Tamming
+
+cc_skill_2		Producao
+cc_skill_2_1		7	//Blacksmithing
+cc_skill_2_2		8	//Boscrafting
+cc_skill_2_3		11	//Carpentry
+cc_skill_2_4		13	//Cooking
+cc_skill_2_5		34	//Tailoging
+cc_skill_2_6		37	//Tinkering
+
+cc_skill_3		Combate
+cc_skill_3_3		31	//Archery
+cc_skill_3_6		42	//Fencing
+cc_skill_3_5		41	//Macefighting
+cc_skill_3_1		5	//Parrying
+cc_skill_3_4		40	//Swordsmanship
+cc_skill_3_2		27	//Tactics
+cc_skill_3_7		43	//Wrestling
+
+cc_skill_4		Furtividade
+cc_skill_4_1		31	//Archery
+cc_skill_4_2		14	//Detect hidden
+cc_skill_4_3		42	//Fencing
+cc_skill_4_4		21	//Hidding
+cc_skill_4_5		24	//Lockpicking
+cc_skill_4_6		48	//Remove Trap
+cc_skill_4_7		28	//Snooping
+cc_skill_4_8		33	//Stealing
+cc_skill_4_9		47	//Stealth
+cc_skill_4_10		43	//Wrestling
+
+cc_skill_5		Conhecimento
+cc_skill_5_1		1	//Anatomy
+cc_skill_5_2		2	//Animal Lore
+cc_skill_5_3		4	//Arms Lore
+cc_skill_5_4		17	//Healing
+cc_skill_5_5		23	//Inscription
+cc_skill_5_6		29	//Musicianship
+cc_skill_5_7		32	//Spirit Speak
+cc_skill_5_8		38	//Tracking
+cc_skill_5_9		10	//Camping
+cc_skill_5_10		18	//Fishing
+
+cc_skill_6		Magia
+cc_skill_6_1		0	//Alchemy
+cc_skill_6_2		16	//Eval Int
+cc_skill_6_3		25	//Magery
+cc_skill_6_4		46	//Meditation
+cc_skill_6_5		26	//magicResist
+cc_skill_6_6		36	//Taste ID
+
+[PLEVEL 2]
+cc_test
+
+[function cc_test]
+//Começa a seleção de skills
+
+//apagar ctags de skills e caps
+for s 0 54
+ try ctag.cc_skill_<dlocal.s>=0
+ try ctag.cc_cap_<dlocal.s>=60
+end
+
+//Apagar ctags de itens pré-selecionados
+ctag.sets=
+for s 1 4
+ try ctag.set_<dlocal.s>=
+end
+
+//chama o gump
+dialog d_criacao_teste
+
+[FUNCTION cc_unsetGroupSkills]
+//Quando o playa desmarca um grumpo de skills
+local.s=1
+WHILE !(<IsEmpty <DEF.cc_skill_<argn>_<dlocal.s>>>)
+ local.n=<DEF.cc_skill_<argn>_<dlocal.s>>
+ try ctag.cc_skill_<dlocal.n>=
+ try ctag.cc_cap_<dlocal.n>=60
+ for i 1 4
+  if !(<IsEmpty <ctag.set_<dlocal.i>>>)
+   if (<ctag0.set_<dlocal.i>>==<DEF.cc_skill_<argn>_<dlocal.s>>)
+    try ctag.set_<dlocal.i>=
+    ctag.sets=<ctag0.sets>-1
+   endif
+  endif
+ end
+ local.s += 1
+END
+
+[FUNCTION cc_setGroupSkills]
+//Quando o playa marca um grumpo de skills
+local.s=1
+WHILE !(<IsEmpty <DEF.cc_skill_<argn>_<dlocal.s>>>)
+ local.n=<DEF.cc_skill_<argn>_<dlocal.s>>
+ try ctag.cc_skill_<dlocal.n>=30
+ try ctag.cc_cap_<dlocal.n>=100
+ local.s += 1
+END
+
+[FUNCTION cc_setSkill]
+//Quando o playa marca uma skill
+local.s=<argn>		//Mais facil usar dlocal do que <eval>
+try ctag.cc_skill_<dlocal.s>=50
+try ctag.cc_cap_<dlocal.s>=125
+
+[FUNCTION cc_unsetSkill]
+//Quando o playa desmarca uma skill
+local.s=<argn>		//Mais facil usar dlocal do que <eval>
+try ctag.cc_skill_<dlocal.s>=30
+try ctag.cc_cap_<dlocal.s>=100
+
+[FUNCTION cc_set]
+//Quando qualquer botão é apertado, decide se vai marcar ou desmarcar, se é
+//grupo ou skill e qual é.
+local.isSet=<cc_IsSet <argn>>
+if (<local.IsSet>)	//dessetar
+ try ctag.set_<dlocal.IsSet>=
+ if (<argn> > 100)	//É um grupo
+  cc_unsetGroupSkills <eval <argn>-100>
+ else			//É uma skill
+  cc_unsetSkill <argn>
+ endif
+ ctag.sets=<ctag0.sets>-1
+ DIALOG d_criacao_teste
+ return 1
+endif
+			//setar
+ctag.sets=<ctag0.sets>+1
+if (<argn> > 100)	//É um grupo
+ cc_setGroupSkills <eval <argn>-100>
+else			//É uma skill
+ cc_setSkill <argn>
+endif
+for s 1 4
+ if (<IsEmpty <ctag.set_<dlocal.s>>>)
+  try ctag.set_<dlocal.s>=<argn>
+  DIALOG d_criacao_teste
+  return 1
+ endif
+end
+DIALOG d_criacao_teste
+
+[function cc_canSetGroup]
+//Decide se o playa pode ou não marcar um grupo
+if (<ctag0.sets> < 2) || (<cc_IsSet <eval <argn>+100>>)
+ return 1
+endif
+return 0
+
+[function cc_canSetSkill]
+//Decide se um player pode ou não marcar uma skill
+if (<ctag0.sets> < 4) || (<cc_IsSet <argn>>)
+ return 1
+endif
+return 0
+
+[FUNCTION cc_IsSet]
+//Testa de o playa já marcou aquela skill/grupo
+//Não pode usar ctag0 pq pode retornar 0 que é alchemy
+for s 1 4
+ if !(<IsEmpty <ctag.set_<dlocal.s>>>)
+  if (<ctag.set_<dlocal.s>>==<argn>)
+   return <local.s>	//Botão de PRESSED
+  endif
+ endif
+end
+return 0		//Botão de UNPRESSED
+
+[FUNCTION cc_buttonIsSet]
+//Define qual vai ser o gump do botão.
+//9027 = marcado (checked)
+//9026 = em branco (unchecked)
+return <QVAL <cc_IsSet <argn>>?9027:9026>
+
+[FUNCTION cc_draw_group]
+//Desenha no gump o grupo de skill <argn>, que é conforme a tabela lá em cima, <DEF.cc_group_mage>,
+//<def.cc_group_combat> e etc.
+local.canset=<cc_canSetGroup <argn>>
+if (<local.canset>)
+ button - - <cc_buttonIsSet <eval <argn>+100>> 9027 1 0 <eval <argn>+100>	//Botão da categoria
+endif
+dtext +20 - 48 <DEF.cc_skill_<argn>>
+dorigin *6 -
+local.s=1
+WHILE !(<IsEmpty <DEF.cc_skill_<argn>_<dlocal.s>>>)
+ dorigin - *25
+ if (<cc_canSetSkill <eval <DEF.cc_skill_<argn>_<dlocal.s>>>>) && <cc_IsSet <eval <argn>+100>>
+  button - - <cc_buttonIsSet <eval <DEF.cc_skill_<argn>_<dlocal.s>>>> 9027 1 0 <eval <DEF.cc_skill_<argn>_<dlocal.s>>>
+ endif
+ dtext +22 - 166 <serv.skill.<eval <DEF.cc_skill_<argn>_<dlocal.s>>>.name>
+ dtext +132 - 0 <dctag0.cc_skill_<eval <DEF.cc_skill_<argn>_<dlocal.s>>>>.0 (<dctag0.cc_cap_<eval <DEF.cc_skill_<argn>_<dlocal.s>>>>.0)
+ local.s += 1
+end
+
+
+[DIALOG d_criacao_teste]
+//O gump em sí
+0,25
+page 0
+resizepic 0 0 2620 800 600
+gumppic 308 25 2501
+dtext 314 25 26 Mystical Tales Shard
+
+dorigin 75 75					//Realoca a orgigem do desenho
+resizepic -6 -6 9400 225 170			//Desenha o fundo
+call cc_draw_group <DEF.cc_group_gather>	//Manda desenhar o grupo de skill <argn>
+
+dorigin 75 248
+resizepic -6 -6 9400 225 290
+call cc_draw_group <DEF.cc_group_lore>
+
+dorigin 306 288
+resizepic -6 -6 9400 225 190
+call cc_draw_group <DEF.cc_group_produce>
+
+dorigin 306 75
+resizepic -6 -6 9400 225 210
+call cc_draw_group <DEF.cc_group_combat>
+
+dorigin 537 75
+resizepic -6 -6 9400 225 290
+call cc_draw_group <DEF.cc_group_stealth>
+
+dorigin 537 368
+resizepic -6 -6 9400 225 190
+call cc_draw_group <DEF.cc_group_magic>
+
+IF (<ctag0.sets>==4)
+ button 668 570 247 248 1 0 200
+ENDIF
+button 68 570 241 242 1 0 201
+
+[DIALOG d_criacao_teste text]
+
+[DIALOG d_criacao_teste button]
+ON=0 199
+cc_set <argn>
+
+ON=200
+for s 0 54
+ try tag.override.skillcap_<dlocal.s>=<ctag.cc_cap_<dlocal.s>>*10
+ try <dlocal.s>=<ctag.cc_skill_<dlocal.s>>*10
+ try ctag.cc_cap_<dlocal.s>=
+ try ctag.cc_skill_<dlocal.s>
+end
+
+
+[EOF]
