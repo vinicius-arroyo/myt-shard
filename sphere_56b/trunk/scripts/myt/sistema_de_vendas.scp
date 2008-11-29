@@ -237,10 +237,10 @@ if ( <DB.connected> )
         for R 0 <eval <DB.ROW.NUMROWS>-1>
             REF1=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
             REF2=<DB.ROW.<eval <LOCAL.R>>.idItem>
-            if (!<REF1.isplayer>)
-                serv.log [VENDOR] NOT PLAYER: <REF1>
-                local.removedPlayer=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
-            elif (!<REF2>)
+//            if (!<REF1.isplayer>)
+//                serv.log [VENDOR] NOT PLAYER: <REF1>
+//                local.removedPlayer=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
+            if (!<REF2>)
                 local.removedItem=<DB.ROW.<eval <LOCAL.R>>.idItem>
                 serv.log [VENDOR] INVALID ITEM: <local.removedItem>
             else
@@ -263,6 +263,48 @@ endif
 
 
 SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPerPage) + 1)> 
+return 1
+
+//*****************************************************************************
+// vendor_sellNpcItem( item, preco TOTAL )
+//*****************************************************************************
+//coloca um item a venda no vendedor que sera revertido em dinheiro para cidade
+//preco deve ser na menor moeda de menor valor, neste caso o cobre.
+//esse tipo de venda nao permite devolucao ao player
+//
+//SRC deve ser o player vendedor
+//DEFAULT deve ser o NPC vendor
+
+[FUNCTION vendor_sellNpcItem]
+OBJ=<argv[0]>
+
+if !(<DB.connected>)
+    src.sysmessage Erro. O item nao foi colocado a venda.
+    return 0
+endif
+
+//create npc vendorbox if doesnt exist
+REF1=<findlayer.layer_vendor_extra.uid>
+if (!<REF1>)
+    SERV.NEWITEM i_bankbox
+    NEW.layer=layer_vendor_extra
+    NEW.cont=<uid>
+    REF1=<NEW>
+endif
+
+//remove from players bag and place it inside a new bag in the vendor bankbox
+//this prevents stacking items
+SERV.NEWITEM i_bag
+NEW.cont=<REF1>
+NEW.name=<OBJ.name>
+OBJ.cont=<NEW>
+OBJ.removefromview
+
+//insert item into DB
+DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <uid>>,idItem=<eval <OBJ>>,quantity=<eval <OBJ.amount>>,price=(<eval <argv[1]>>/<eval <OBJ.amount>>),playerName='<DB.ESCAPEDATA <name>>',itemType=<eval <TAG.vendor_type>>,defName='<OBJ.baseid>',itemName='<DB.ESCAPEDATA <OBJ.name>>';"
+
+SRC.UPDATE
+
 return 1
 
 //*****************************************************************************
@@ -447,10 +489,13 @@ TOWN_ADDCASH <LOCAL.fee>
 
 SAY Obrigado pela compra e volte sempre!
 
+//se for item do npc
+if <LOCAL.idVendor>==<LOCAL.idPlayer>
+    TOWN_ADDCASH <LOCAL.paycheck>
 //se for item da guilda mercante e NPC em uma town
-if (<OBJ.tag0.guildItem>) && (<region.tag0.town_type>)
+elif (<OBJ.tag0.guildItem>) && (<region.tag0.town_type>)
     f_sendMessage <LOCAL.idPlayer>,Voce vendeu <eval <LOCAL.amount>> <OBJ.name> por <eval <LOCAL.totalPrice>>.O reino agradece.,SM_GREEN
-    region.tag0.town_tresure += <LOCAL.paycheck>
+    TOWN_ADDCASH <LOCAL.paycheck>
     OBJ.tag0.guildItem=
 else
     //transfere o dinheiro para o banco do player vendedor
@@ -918,6 +963,57 @@ endif
 findlayer.layer_vendor_extra.open
 
 //*****************************************************************************
+// vendor_addVendorQuest
+//*****************************************************************************
+[FUNCTION vendor_addVendorQuest]
+if !<TAG0.vendor_type>
+    src.sysmessageyellow Nao eh um vendedor...
+    return
+endif
+
+dspeech +jobQUEST_SYSTEM
+events +e_quest_npc
+
+LOCAL.d=<TAG0.vendor_type>
+if ( <LOCAL.d>==vendor_type_weapons )
+    LOCAL.name=Fornecimento de Armas
+    LOCAL.desc=Forneca armas
+elif ( <LOCAL.d>==vendor_type_armor )
+    LOCAL.name=Fornecimento de Armaduras
+    LOCAL.desc=Forneca armaduras
+elif ( <LOCAL.d>==vendor_type_magic )
+    LOCAL.name=Fornecimento de Pocoes e Reagentes
+    LOCAL.desc=Forneca pocoes e reagentes
+elif ( <LOCAL.d>==vendor_type_food )
+    LOCAL.name=Fornecimento de Alimentos
+    LOCAL.desc=Forneca alimentos
+elif ( <LOCAL.d>==vendor_type_misc )
+    LOCAL.name=Fornecimento
+    LOCAL.desc=Forneca produtos como x,y e z
+elif ( <LOCAL.d>==vendor_type_clothes )
+    LOCAL.name=Fornecimento de Roupas e Joias
+    LOCAL.desc=Forneca roupas e joias
+elif ( <LOCAL.d>==vendor_type_raw )
+    LOCAL.name=Fornecimento de Materia Prima
+    LOCAL.desc=Forneca materia prima
+else
+    src.sysmessageyellow Tipo de vendedor desconhecido...
+    return
+endif
+
+DB.EXECUTE "INSERT INTO quests SET idNpc=<eval <uid>>, name='<LOCAL.name>', description='<LOCAL.desc>', mayRepeat=1"
+DB.QUERY "SELECT MAX(idQuest) as idQuest FROM quests WHERE idNpc=<eval <uid>>"
+if (<DB.ROW.NUMROWS> == 0)
+    src.sysmessageyellow Erro criando quest...
+    return
+endif    
+LOCAL.idQuest=<DB.ROW.0.idQuest>
+DB.EXECUTE "INSERT INTO questSteps SET idQuest=<eval <LOCAL.idQuest>>, idStep=0,type=<eval <DEF.quest_type_custom>>,param1='i_quest_vendor_deeds',description='<LOCAL.desc>',param2='00'"
+serv.log [QUEST-VENDOR] (<src.account>) Criada: <LOCAL.name>: <LOCAL.desc>
+
+src.sysmessageyellow Criado com sucesso
+
+//*****************************************************************************
 //*****************************************************************************
 // DIALOGOS E MENUS
 //*****************************************************************************
@@ -1118,8 +1214,12 @@ endif
 for x  <LOCAL.startItem> <LOCAL.endItem> 
 
     OBJ=<SRC.CTAG0.vendor_owners<eval <LOCAL.x>>>
-    LOCAL.vendor=<OBJ.TAG.name>
-
+    if <OBJ.isplayer>
+        LOCAL.vendor=<OBJ.TAG.name>
+    else
+        LOCAL.vendor=<OBJ.name>
+    endif
+    
     //carrega item armazenado
     OBJ=<SRC.CTAG0.vendor_items<eval <LOCAL.x>>>
     
@@ -1650,8 +1750,16 @@ return 1
 ON=oi
 ON=ola
 ON=olá
-    say Gostaria de comprar ou vender algo? Retirar talvez?
 
+    quest_closeDialogs
+    SRC.CTAG.quest_selectedNpc=<uid>
+    quest_createNpcQuestList
+    if <SRC.CTAG0.quest_numQuests> > 0
+            message O que deseja fazer?
+            dialog d_quest_list
+    else            
+        say Gostaria de comprar ou vender algo? Retirar talvez?
+    endif
 
 
 
