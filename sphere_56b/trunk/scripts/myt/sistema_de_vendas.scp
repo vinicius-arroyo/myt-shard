@@ -265,6 +265,22 @@ endif
 SRC.CTAG.vendor_numPages=<eval (((<SRC.CTAG.vendor_numItems>-1) / vendor_itemsPerPage) + 1)> 
 return 1
 
+
+
+//*****************************************************************************
+// vendor_calcTotalPrice( unitPrice, amount )
+//*****************************************************************************
+[FUNCTION vendor_calcTotalPrice]
+ 
+if (<strpos 0 . <argv0> > > 0)
+    FLOAT.totalPrice=<FLOATVAL ( <argv0>  * <eval <argv1>>) + 0.9>
+    LOCAL.i=<strpos 0 . <FLOAT.totalPrice>>
+    LOCAL.totalPrice=<strsub 0 <LOCAL.i> <FLOAT.totalPrice>>
+else
+    LOCAL.totalPrice=<eval <argv0> * <argv1>>
+endif
+return <LOCAL.totalPrice>
+
 //*****************************************************************************
 // vendor_sellNpcItem( item, preco TOTAL )
 //*****************************************************************************
@@ -276,7 +292,7 @@ return 1
 //DEFAULT deve ser o NPC vendor
 
 [FUNCTION vendor_sellNpcItem]
-OBJ=<argv[0]>
+REF2=<argv[0]>
 
 if !(<DB.connected>)
     src.sysmessage Erro. O item nao foi colocado a venda.
@@ -296,14 +312,12 @@ endif
 //this prevents stacking items
 SERV.NEWITEM i_bag
 NEW.cont=<REF1>
-NEW.name=<OBJ.name>
-OBJ.cont=<NEW>
-OBJ.removefromview
+NEW.name=<REF2.name>
+REF2.cont=<NEW>
+REF2.removefromview
 
 //insert item into DB
-DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <uid>>,idItem=<eval <OBJ>>,quantity=<eval <OBJ.amount>>,price=(<eval <argv[1]>>/<eval <OBJ.amount>>),playerName='<DB.ESCAPEDATA <name>>',itemType=<eval <TAG.vendor_type>>,defName='<OBJ.baseid>',itemName='<DB.ESCAPEDATA <OBJ.name>>';"
-
-SRC.UPDATE
+DB.EXECUTE "INSERT INTO vendorItems SET timestamp=NOW(),idVendor=<eval <uid>>,idPlayer=<eval <uid>>,idItem=<eval <REF2>>,quantity=<eval <REF2.amount>>,price=(<eval <argv[1]>>/<eval <REF2.amount>>),playerName='<DB.ESCAPEDATA <name>>',itemType=<eval <TAG.vendor_type>>,defName='<REF2.baseid>',itemName='<DB.ESCAPEDATA <REF2.name>>';"
 
 return 1
 
@@ -344,16 +358,7 @@ else
     LOCAL.amount = <argv[2]>
 endif
 
-//se quantidade diferente do disponivel...
-if ( <LOCAL.amount> != <OBJ.amount> )
-    //duplica item, arruma a quantidade com o resto e coloca na bag
-    SERV.NEWDUPE <OBJ>
-    NEW.amount = <eval <OBJ.amount> - <LOCAL.amount>>
-    NEW.bounce
-
-    //acerta quantidade que sera vendida    
-    OBJ.amount = <LOCAL.amount>
-endif
+OBJ=<splitStack <OBJ>,<LOCAL.amount>>
 
 //create player vendorbox if doesnt exist
 REF1=<src.findlayer.layer_vendor_extra.uid>
@@ -425,35 +430,26 @@ else
 endif
 
 //verifica se comprador tem dinheiro suficiente e recolhe
-
-if (<strpos 0 . <argv[1]>> > 0)
-    FLOAT.totalPrice=<FLOATVAL ( <argv[1]> * <eval <LOCAL.amount>>) + 0.9>
-    LOCAL.i=<strpos 0 . <FLOAT.totalPrice>>
-    LOCAL.totalPrice=<strsub 0 <LOCAL.i> <FLOAT.totalPrice>>
-else
-    LOCAL.totalPrice=<eval <argv[1]> * <LOCAL.amount>>
-endif
+LOCAL.totalPrice=<vendor_calcTotalPrice <argv1>,<LOCAL.amount>>
 
 if !( <vendor_getCash <LOCAL.totalPrice>> )
     SAY Esta achando que vivo de caridade? Volte quando tiver dinheiro suficiente para a compra.
     return 1
 endif
 
-//se quantidade diferente do disponivel...
-if ( <LOCAL.amount> != <OBJ.amount> )
+REF2=<splitStack <OBJ>,<LOCAL.amount>>
 
-    //duplica item, arruma a quantidade com o resto e coloca na bag
-    SERV.NEWDUPE <OBJ>
-    NEW.amount = <eval <OBJ.amount> - <LOCAL.amount>>
+//salva bag de 'protecao'
+REF1=<OBJ.cont>
 
-    //acerta quantidade que sera comprada
-    OBJ.amount = <LOCAL.amount>
+//entrega item ao player comprador
+REF2.bounce
 
-    //entrega item ao player comprador
-    OBJ.bounce
-    
+//se teve que dividir a pilha
+if ( <OBJ> != <REF2> )
+
     //atualiza lista de vendas
-    DB.EXECUTE "UPDATE vendorItems SET idItem=<eval <NEW>>, quantity=<eval <NEW.amount>> WHERE id=<eval <LOCAL.id>>"
+    DB.EXECUTE "UPDATE vendorItems SET idItem=<eval <OBJ>>, quantity=<eval <OBJ.amount>> WHERE id=<eval <LOCAL.id>>"
 
 else
     if <OBJ.topobj>==<src>
@@ -461,11 +457,6 @@ else
         src.sysmessageyellow [VENDAS] ERRO: <argv0>/<OBJ>/<src>/<LOCAL.totalPrice>. Avise a staff.
         return 1
     endif
-    //salva bag de 'protecao'
-    REF1=<OBJ.cont>
-    
-    //entrega item ao player comprador
-    OBJ.bounce
 
     //remove bag de 'protecao'
     REF1.remove
