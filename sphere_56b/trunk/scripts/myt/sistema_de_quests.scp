@@ -238,7 +238,39 @@ return 1
 OBJ=<argv[0]>
 if ( <OBJ.amount> > 0 ) && (<eval <OBJ.tag.param1>>)
     if ( <OBJ.cont.restest <OBJ.amount> <OBJ.tag.param1>>)
-        OBJ.cont.consume <OBJ.amount> <OBJ.tag.param1>
+        //se for vendedor, coloca a venda
+        if <OBJ.link.tag0.vendor_type>
+            LOCAL.amount=<OBJ.amount>
+
+            while (<LOCAL.amount> > 0) && (<LOCAL.amount> < 1000)
+                //get item
+                REF1=<OBJ.cont.findid <OBJ.tag.param1>>
+
+                //get unit price
+                if !<LOCAL.v>
+                    LOCAL.v=<merchant_get_value <REF1>>
+                    if <LOCAL.v> <= 0
+                        obj.cont.sysmessageyellow Erro. Preco nao cadastrado na guild.
+                        return
+                    endif
+                endif
+                
+                //split stack
+                REF1=<splitStack <REF1>,<LOCAL.amount>>
+                
+                //adjust remaining amount
+                LOCAL.amount -= <REF1.amount>
+
+                //sell it
+                LOCAL.totalPrice=<vendor_calcTotalPrice <LOCAL.v>,<REF1.amount>>
+
+                OBJ.link.vendor_sellNpcItem <REF1>,<LOCAL.totalPrice>
+                
+            endwhile
+
+        else
+            OBJ.cont.consume <OBJ.amount> <OBJ.tag.param1>
+        endif
         OBJ.cont.sysmessageyellow Voce finalizou um objetivo da quest.    
         quest_nextStep <OBJ>
     else
@@ -337,8 +369,8 @@ return 1
 //*****************************************************************************
 //cria lista com as quests
 //
-//SRC é o player
-//DEFAULT é o NPC
+//SRC  o player
+//DEFAULT  o NPC
 [FUNCTION quest_createNpcQuestList]
 SRC.CTAG.quest_page=1
 SRC.CTAG.quest_numQuests=0
@@ -369,7 +401,7 @@ return 1
 //*****************************************************************************
 //cria lista com as quests
 //
-//DEFAULT é o player
+//DEFAULT  o player
 [FUNCTION quest_createPlayerQuestList]
 CTAG.quest_page=1
 CTAG.quest_numQuests=0
@@ -394,7 +426,7 @@ return 1
 //*****************************************************************************
 //cria lista com as quests
 //
-//DEFAULT é o player
+//DEFAULT  o player
 [FUNCTION quest_createPlayerDoneList]
 CTAG.quest_page=1
 CTAG.quest_numQuests=0
@@ -419,8 +451,8 @@ return 1
 //*****************************************************************************
 //inicia a quest selecionada em SRC.CTAG.quest_selectedQuest
 //
-//SRC é o player
-//DEFAULT é o NPC
+//SRC  o player
+//DEFAULT  o NPC
 [FUNCTION quest_startSelectedQuest]
 
 if ( <TAG0.quest_npcInQuest> )
@@ -446,8 +478,8 @@ return 1
 //*****************************************************************************
 //executa o proximo passo da quest selecionada
 //
-//SRC é o player
-//DEFAULT é o NPC?
+//SRC  o player
+//DEFAULT  o NPC?
 [FUNCTION quest_nextStep]
 
 if !( <DB.connected> ) || !<argv[0]>
@@ -555,7 +587,7 @@ if ( <DB.connected> )
 endif
 OBJ.remove
 
-src.sysmessageyellow Um objetivo da missão falhou.
+src.sysmessageyellow Um objetivo da misso falhou.
 
 //*****************************************************************************
 // quest_drawGumps
