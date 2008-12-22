@@ -34,9 +34,11 @@ SMO10_SKILL     750         //Movig shot
 SMO11_SKILL     750         //Paralyzing blow
 SMO12_SKILL     500         //Shadow strike
 SMO13_SKILL     800         //Whirlwind attack
+SMO14_SKILL     650         //Riding Swipe
 SMO15_SKILL     850         //Frenzied Whirlwind
 SMO16_SKILL     800         //Block
 SMO17_SKILL     800         //Defence Mastery
+SMO18_SKILL     750         //Nerve Strike
 SMO19_SKILL     750         //Talon Strike
 SMO20_SKILL     750         //Feint
 SMO21_SKILL     700         //Dual Weild
@@ -44,6 +46,7 @@ SMO22_SKILL     800         //Double Shot
 SMO23_SKILL     600         //Armor Pierce
 SMO24_SKILL     760         //Bladeweave
 SMO25_SKILL     760         //Force Arrow
+SMO26_SKILL     800         //Lighting Arrow
 SMO27_SKILL     600         //Psychic Attack
 SMO28_SKILL	600	    //Sepent Arrow
 SMO29_SKILL     800         //Force of Nature
@@ -62,9 +65,11 @@ SMO10_NAME      Movig Shot
 SMO11_NAME      Paralyzing Blow
 SMO12_NAME      Shadow Strike
 SMO13_NAME      Whirlwind Attack
+SMO14_NAME      Riding Swipe
 SMO15_NAME      Frenzied Whirldwind
 SMO16_NAME      Block
 SMO17_NAME      Defence Mastery
+SMO18_NAME      Nerve Strike
 SMO19_NAME      Talon Strike
 SMO20_NAME      Feint
 SMO21_NAME      Dual Weild
@@ -72,6 +77,7 @@ SMO22_NAME      Double Shot
 SMO23_NAME      Armor Pierce
 SMO24_NAME      Bladeweave
 SMO25_NAME      Force Arrow
+SMO26_NAME      Lighting Arrow
 SMO27_NAME      Psychic Attack
 SMO28_NAME	Serpent Arrow
 SMO29_NAME      Force of Nature
@@ -89,9 +95,11 @@ SMO10_MANA      15          //Movig shoot
 SMO11_MANA      20          //Paralyzing blow
 SMO12_MANA      30          //Shadow strike
 SMO13_MANA      20          //Whirlwind attack
+SMO14_MANA      20          //Riding Swipe
 SMO15_MANA      30          //Frenzied Whirlwind
 SMO16_MANA      20          //Block
 SMO17_MANA      30          //Defence Master
+SMO18_MANA      25          //Nerve Strike
 SMO19_MANA      10          //Talon Strike
 SMO20_MANA      15          //Feint
 SMO21_MANA      10          //Dual Weild
@@ -99,6 +107,7 @@ SMO22_MANA      20          //Double Shot
 SMO23_MANA      10          //Armor Pierce
 SMO24_MANA      19          //Bladeweave
 SMO25_MANA      30          //Force Arrow
+SMO26_MANA      30          //Lighting Arrow
 SMO27_MANA      10          //Psichic Attack
 SMO28_MANA      17          //Serpent Arrow
 SMO29_MANA      30          //Force of Nature
@@ -117,9 +126,11 @@ SMO10_FUNC      f_sm_movingShot     //Movig shoot
 SMO11_FUNC      f_sm_paralyzingBlow //Paralyzing blow
 SMO12_FUNC      f_sm_shadowStrike   //Shadow strike
 SMO13_FUNC      f_sm_whirlwindAttack//Whirlwind attack
+SMO14_FUNC      f_sm_RidingSwipe    //Riding Swipe
 SMO15_FUNC      f_sm_FenziWhirl     //Frenzied Whirlwind
 SMO16_FUNC      f_sm_block          //Block
 SMO17_FUNC      f_sm_DefMastery     //Defence Mastery
+SMO18_FUNC      f_sm_NerveStrike    //Nerve Strike
 SMO19_FUNC      f_sm_TalonStrike    //Talon Strike
 SMO20_FUNC      f_sm_Feint          //Feint
 SMO21_FUNC      f_sm_doubleStrike   //Dual Weild
@@ -127,6 +138,7 @@ SMO22_FUNC      f_sm_double_shot    //Double Shot
 SMO23_FUNC      f_sm_IgnoreAR       //Armor Pierce
 SMO24_FUNC      f_sm_Bladeweave     //Bladeweave
 SMO25_FUNC      f_sm_ForceArrow     //Force Arrow
+SMO26_FUNC      f_sm_LightArrow     //Lighting Arrow
 SMO27_FUNC      f_sm_PsyAttack      //Psychic Attack
 SMO28_FUNC      f_sm_infecting      //Serpent Arrow
 SMO29_FUNC      f_sm_ForceNature    //Force of Nature
@@ -359,6 +371,16 @@ ON=@SPELLEFFECT
 if (<argn1>==4) || (<argn1>==11)
  sysmessagered Voce não pode ser curado! Recebeu um ataque mortal!
  return 1
+endif
+
+ON=@DCLICK
+if (<NPC>)
+ if (<hits> < <maxhits>)
+  src.sysmessagered Voce nao pode montar nele enquanto ele estiver ferido!
+  return 1
+ else
+  events -e_mortalStrike
+ endif
 endif
 //Testa no skill_healing se pode ou não ser tratado com bandagens.
 
@@ -623,5 +645,57 @@ end
 //50 de dano poison
 src.timerf 1 damage,50,dam_poison,<uid>
 sfx 05BE
+
+//*****************************************************************************
+// f_sm_LightArrow
+//*****************************************************************************
+[FUNCTION f_sm_LightArrow]
+//Dano em corrente para quem está a x tiles de distância
+if !(0<argn>)
+ src.f_sm_LightArrow <BETWEEN 1,4,<tactics>,1000>
+ timerf 1,sfx,<eval <DEF.SND_THUNDER>>
+ return 0
+endif
+obj=<UID>
+forchars <argn>
+ if (<uid>!=<obj>)
+  timerf 1 damage,<R5,10>,dam_energy,<obj.uid>
+  timerf 1 effect,1,1,1,1
+ endif
+end
+
+//*****************************************************************************
+// f_sm_NerveStrike
+//*****************************************************************************
+[FUNCTION f_sm_NerveStrike]
+//Dano extra e rápida paralizia
+sfx 0525
+src.stun <R2,5>
+src.emotered paralizado
+return <R7,12>
+
+//*****************************************************************************
+// f_sm_RidingSwipe
+//*****************************************************************************
+[FUNCTION f_sm_RidingSwipe]
+//Se você está a pé, desmonta oponente e dá Mortal Strike no cavalo.
+//Se você esta motnado, Aumenta dano e da Stun
+if !(<src.flags>&statf_onhorse)
+ sysmessageyellow Seu alvo nao esta montado...
+ return 0
+endif
+if <findlayer.layer_horse>
+ OBJ=<src.findlayer.layer_horse.more2>
+ src.emotered cai
+ src.dismount
+ LOCAL.dam=<R5,10>
+ OBJ.DAMAGE <local.dam> dam_god <UID>   //ferir o cavalo
+ OBJ.events +e_mortalStrike
+ OBJ.timerf,60,events,-e_mortalStrike
+ return <LOCAL.dam> //Aumenta o dano de 5 a 10
+endif
+src.stun <R2,5>
+src.emotered paralizado
+return <R7,12>
 
 [EOF]
