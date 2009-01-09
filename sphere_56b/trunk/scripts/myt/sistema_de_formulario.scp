@@ -13,6 +13,7 @@
 - Novo sistema de criação de personagens
 - Transportar a parte de teleport para local segundo a raça para o sistema de criação de char
 - Verificação de validade do e-mail. O sistema pode dar bode por flood de multi-acc bagunceiro
+- Funções para aceitar contas com username que são apenas números
 
 
 == Uso prático:
@@ -143,7 +144,11 @@ formulario
 //Assim que um char for criado ou fizer login chama esta função para conhecer o stsus da conta
 //e então tomar a provicência correta
 if (<serv.account.<src.account>.plevel>==0)	//Conta não aprovada
- DB.QUERY="SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>'";
+ IF (<IsNum <src.account>>)
+  DB.QUERY="SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <eval <src.account>>>'";
+ ELSE
+  DB.QUERY="SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>'";
+ ENDIF
  if (!<DB.ROW.NUMROWS>) || (STRMATCH(,<DB.ROW.0.mail>))
   try src.go <DEF.FORM_NEWBIEPOINT>
   serv.account.<src.account>.MAXCHARS=1
@@ -174,19 +179,26 @@ if (<serv.account.<src.account>.plevel>==0)	//Conta não aprovada
  src.DIALOG d_formulario 1
  return 1
 else 	//Jogador/GM antigo
- DB.QUERY="SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>'";
+ IF (<IsNum <src.account>>)
+  DB.QUERY="SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <eval <src.account>>>'";
+ ELSE
+  DB.QUERY="SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>'";
+ ENDIF
  if (!<DB.ROW.NUMROWS>) || (STRMATCH(,<DB.ROW.0.mail>)) //Jogador novo sem cadastro
   src.dialog d_form_new 1
   return 1
- else if (<IsGM>) //GM cadastrado. Mostrar se tem contas para avaliar.
-  DB.QUERY="SELECT COUNT(idAcct) AS cnt FROM accounts WHERE status='waiting';"
-  if (<DB.ROW.0.cnt>)
-   timerf 7,sysmessageyellow,Existem <eval <DB.ROW.0.cnt>> formularios a serem avaliados.
-   timerf 9,sysmessageyellow,Digite '.formulario' para lista-los.
+ else
+  if (<src.IsGM>) //GM cadastrado. Mostrar se tem contas para avaliar.
+   DB.QUERY="SELECT COUNT(idAcct) AS cnt FROM accounts WHERE status='waiting';"
+   if (<DB.ROW.0.cnt>)
+    timerf 7,sysmessageyellow,Existem <eval <DB.ROW.0.cnt>> formularios a serem avaliados.
+    timerf 9,sysmessageyellow,Digite '.formulario' para lista-los.
+   endif
+  else
+   if (<tag0.char_criado>==2) //Jogador antigo, cadastrado, char novo
+    tag0.char_criado=1
+    try src.go <DEF.STARTPOINT_<src.tag.raca>>
   endif
- else if (<tag0.char_criado>==2) //Jogador antigo, cadastrado, char novo
-  tag0.char_criado=1
-  try src.go <DEF.STARTPOINT_<src.tag.raca>>
  endif
 endif
 
@@ -330,14 +342,22 @@ formulario 1
 //Carreca para ctags as respostas de <ctag.form.account> para aceitação dos GMs.
 //Carrega as ultimas questões de <src.account> para o formulario.
 IF (<IsGM>)
- DB.QUERY="SELECT t1.question, t1.title, t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<ctag.form.account>' AND t1.id=t2.questionid ORDER BY t1.ord;"
+ IF (<IsNum <ctag.form.account>>)
+  DB.QUERY="SELECT t1.question, t1.title, t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<DB.ESCAPEDATA <eval <ctag.form.account>>>' AND t1.id=t2.questionid ORDER BY t1.ord;"
+ ELSE
+  DB.QUERY="SELECT t1.question, t1.title, t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<DB.ESCAPEDATA <ctag.form.account>>' AND t1.id=t2.questionid ORDER BY t1.ord;"
+ ENDIF
  FOR q 0 <eval <DEF.FORM_QUESTIONS>-1>
   try ctag.form.t_<dlocal.q>=<DB.ROW.<dlocal.q>.title>
   try ctag.form.q_<dlocal.q>=<DB.ROW.<dlocal.q>.question>
   try ctag.form.a_<dlocal.q>=<DB.ROW.<dlocal.q>.answer>
  ENDFOR
 ELSE
- DB.QUERY="SELECT t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<src.account>' AND t1.id=t2.questionid ORDER BY t1.ord;"
+ IF (<IsNum <src.account>>)
+  DB.QUERY="SELECT t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<DB.ESCAPEDATA <eval <src.account>>>' AND t1.id=t2.questionid ORDER BY t1.ord;"
+ ELSE
+  DB.QUERY="SELECT t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<DB.ESCAPEDATA <src.account>>' AND t1.id=t2.questionid ORDER BY t1.ord;"
+ ENDIF
  FOR q 0 <DEF.FORM_QUESTIONS>
   try ctag.form.a_<eval <local.q>+1>=<DB.ROW.<eval <local.q>>.answer>
  ENDFOR
@@ -431,7 +451,11 @@ FOR r 0 <eval <DB.ROW.NUMROWS>-1>
  local.acc=<DB.ROW.<dlocal.r>.username>
  dtext +10 *20 918 <serv.account.<local.acc>.dtag.form.try>
  button +80 +2 1209 1210 1 0 <eval <DB.ROW.<dlocal.r>.idAcct>+2500>
- dtext +96 - 918 <local.acc>
+ IF (<IsNuM <local.acc>>)
+  dtext +96 - 918 <dlocal.acc>
+ ELSE
+  dtext +96 - 918 <local.acc>
+ ENDIF
 ENDFOR
 IF (<ctag0.form.page>)
  button 279 447 2223 2223 1 0 4 //pg-
@@ -454,10 +478,18 @@ IF (<ctag0.form.page> < <DEF.FORM_QUESTIONS>)
  dhtmlgump 18 231 600 194 13 1 <ctag.form.a_<dctag.form.page>>
 ELSE
  dtext 25 90 4 Notas sobre a conta:
- dhtmlgump 18 114 600 118 16 1 Conta: <ctag.form.account><DEF.BR>Tentativas: <eval <serv.account.<ctag.form.account>.tag0.form.try>><DEF.BR>Ultima consideracao de avaliador: <serv.account.<ctag.form.account>.tag.form.reason>
+ IF (<IsNum <ctag.form.account>>)
+  dhtmlgump 18 114 600 118 16 1 Conta: <dctag.form.account><DEF.BR>Tentativas: <eval <serv.account.<ctag.form.account>.tag0.form.try>><DEF.BR>Ultima consideracao de avaliador: <serv.account.<dctag.form.account>.tag.form.reason>
+ ELSE
+  dhtmlgump 18 114 600 118 16 1 Conta: <ctag.form.account><DEF.BR>Tentativas: <eval <serv.account.<ctag.form.account>.tag0.form.try>><DEF.BR>Ultima consideracao de avaliador: <serv.account.<ctag.form.account>.tag.form.reason>
+ ENDIF
  dtext 28 238 4 Consideracao do avaliador:
  resizepic 15 260 9350 610 173
- dtextentry 23 269 592 158 0 0 <serv.account.<ctag.form.account>.tag.form.reason>
+ IF (<IsNum <ctag.form.account>>)
+  dtextentry 23 269 592 158 0 0 <serv.account.<dctag.form.account>.tag.form.reason>
+ ELSE
+  dtextentry 23 269 592 158 0 0 <serv.account.<ctag.form.account>.tag.form.reason>
+ ENDIF
  button 15 441 2443 2444 1 0 15
  dtext 18 441 63 aprovar
  button 562 441 2443 2444 1 0 16
@@ -500,7 +532,11 @@ IF (<local.redo>)
 ENDIF
 
 //Checar conta errada ou fantasma
-DB.QUERY="SELECT name, mail FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>';"
+IF (<IsNum <src.account>>)
+ DB.QUERY="SELECT name, mail FROM accounts WHERE username='<DB.ESCAPEDATA <eval <src.account>>>';"
+ELSE
+ DB.QUERY="SELECT name, mail FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>';"
+ENDIF
 if (!0<DB.ROW.NUMROWS>) || !(STRMATCH(*@*.*,<DB.ROW.0.mail>)) || !(STRMATCH(* *,<DB.ROW.0.name>))
  sysmessagered Sua conta ainda nao foi efetivada. Preencha o formulario.
  src.dialog d_form_new 1
@@ -509,14 +545,22 @@ endif
 
 //Tudo okay, pode enviar
 //Aumentar a contagem de tentativas se foi rejeitada
-DB.QUERY="SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>' and status='rejected';"
+IF (<IsNum <src.account>>)
+ DB.QUERY="SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <eval <src.account>>>' and status='rejected';"
+ELSE
+ DB.QUERY="SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>' and status='rejected';"
+ENDIF
 if (<DB.ROW.NUMROWS>)
  src.account.tag.form.try = <src.account.tag0.form.try>+1
 endif
 
 //As questões antigas serão deletadas pois se algum GM trocar a ordem das questões ou
 //alterar/adicionar alguma questão, pode dar conflito entre a DB e o gump.
-DB.EXECUTE="DELETE FROM form_answers WHERE username='<DB.ESCAPEDATA <src.account>>';"
+IF (<IsNum <src.account>>)
+ DB.EXECUTE="DELETE FROM form_answers WHERE username='<DB.ESCAPEDATA <eval <src.account>>>';"
+ELSE
+ DB.EXECUTE="DELETE FROM form_answers WHERE username='<DB.ESCAPEDATA <src.account>>';"
+ENDIF
 
 //pegar ID das questões
 DB.QUERY="SELECT id FROM form_questions WHERE ord < <eval <DEF.FORM_QUESTIONS>+1> ORDER BY ord;"
@@ -527,11 +571,19 @@ endfor
 
 //Salva respostas
 FOR a 1 <DEF.FORM_QUESTIONS>
- DB.EXECUTE="INSERT INTO form_answers SET username='<DB.ESCAPEDATA <src.account>>', questionid=<dlocal.q_<eval <dlocal.a>>>, answer='<DB.ESCAPEDATA <local.a_<eval <dlocal.a>>>>';"
+ IF (<IsNum <src.account>>)
+  DB.EXECUTE="INSERT INTO form_answers SET username='<DB.ESCAPEDATA <eval <src.account>>>', questionid=<dlocal.q_<eval <dlocal.a>>>, answer='<DB.ESCAPEDATA <local.a_<eval <dlocal.a>>>>';"
+ ELSE
+  DB.EXECUTE="INSERT INTO form_answers SET username='<DB.ESCAPEDATA <src.account>>', questionid=<dlocal.q_<eval <dlocal.a>>>, answer='<DB.ESCAPEDATA <local.a_<eval <dlocal.a>>>>';"
+ ENDIF
 ENDFOR
 
 //trocar status na DB
-DB.EXECUTE="UPDATE accounts SET status='waiting' WHERE username='<DB.ESCAPEDATA <src.account>>';"
+IF (<IsNum <src.account>>)
+ DB.EXECUTE="UPDATE accounts SET status='waiting' WHERE username='<DB.ESCAPEDATA <eval <src.account>>>';"
+ELSE
+ DB.EXECUTE="UPDATE accounts SET status='waiting' WHERE username='<DB.ESCAPEDATA <src.account>>';"
+ENDIF
 
 sysmessagered Excelente!!!
 sysmessageyellow Assim que possivel um membro da Staff avaliara seu formulario!
@@ -669,7 +721,11 @@ try src.go <DEF.STARTPOINT_<src.tag.raca>>
 
 ON=15
 //GM aprova conta
-DB.EXECUTE="UPDATE accounts SET status='active' WHERE username='<ctag.form.account>';"
+IF (<IsNum <ctag.form.account>>)
+ DB.EXECUTE="UPDATE accounts SET status='active' WHERE username='<dctag.form.account>';"
+ELSE
+ DB.EXECUTE="UPDATE accounts SET status='active' WHERE username='<ctag.form.account>';"
+ENDIF
 serv.account.<ctag.form.account>.tag.form.reason=<argtxt[0]>
 obj=<serv.account.<ctag.form.account>.char.0>
 from_clearctags
@@ -681,7 +737,11 @@ return 1
 
 ON=16
 //GM reprova conta
-DB.EXECUTE="UPDATE accounts SET status='rejected' WHERE username='<ctag.form.account>';"
+IF (<IsNum <ctag.form.account>>)
+ DB.EXECUTE="UPDATE accounts SET status='rejected' WHERE username='<dctag.form.account>';"
+ELSE
+ DB.EXECUTE="UPDATE accounts SET status='rejected' WHERE username='<ctag.form.account>';"
+ENDIF
 serv.account.<ctag.form.account>.tag.form.reason=<argtxt[0]>
 obj=<serv.account.<ctag.form.account>.char.0>
 from_clearctags
@@ -800,7 +860,11 @@ IF (<DB.ROW.NUMROWS>)
  DIALOG d_form_new
  return 0
 ENDIF
-DB.QUERY="SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>';"
+IF (<IsNum <src.account>>)
+ DB.QUERY="SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <eval <src.account>>>';"
+ELSE
+ DB.QUERY="SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>';"
+ENDIF
 IF (<DB.ROW.NUMROWS>)	//jogador já cadastrado
  local.idAcct=<DB.ROW.0.idAcct>
  IF (<serv.account.<src.account>.plevel>) //Jogador já joga na MyT
@@ -809,7 +873,11 @@ IF (<DB.ROW.NUMROWS>)	//jogador já cadastrado
   DB.EXECUTE="UPDATE accounts SET name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>', status='form' WHERE idAcct=<dlocal.idAcct>";
  ENDIF
 ELSE			//Jogador não cadastrado
- DB.EXECUTE="INSERT INTO accounts SET username='<DB.ESCAPEDATA <src.account>>', name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>';"
+ IF (<IsNum <src.account>>)
+  DB.EXECUTE="INSERT INTO accounts SET username='<DB.ESCAPEDATA <src.account>>', name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>';"
+ ELSE
+  DB.EXECUTE="INSERT INTO accounts SET username='<DB.ESCAPEDATA <src.account>>', name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>';"
+ ENDIF
 ENDIF
 IF (<serv.account.<src.account>.plevel>==0)
  playerform
@@ -823,8 +891,13 @@ ON=0
 IF !(<IsGM>)
  IF (<serv.account.<src.account>.plevel>==0)
   SERV.LOG [FORMULARIO] conta <src.account> nao aceita Regras e TdS. Conta deletada.
-  DB.EXECUTE="DELETE FROM accounts WHERE username='<src.account>';"
-  DB.EXECUTE="DELETE FROM form_answers WHERE username='<src.account>';"
+  IF (<IsNum <src.account>>)
+   DB.EXECUTE="DELETE FROM accounts WHERE username='<eval <src.account>>';"
+   DB.EXECUTE="DELETE FROM form_answers WHERE username='<eval <src.account>>';"
+  ELSE
+   DB.EXECUTE="DELETE FROM accounts WHERE username='<src.account>';"
+   DB.EXECUTE="DELETE FROM form_answers WHERE username='<src.account>';"
+  ENDIF
   TRYSRV serv.account <src.account> DELETE
  endif
 ENDIF
