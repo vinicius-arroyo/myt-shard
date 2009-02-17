@@ -31,10 +31,11 @@
 //TAG.skill_ts                  //timestamp da proxima vez q um skill pode ser usado
 //TAG.skill_spa                 //contador de infracoes. qntas vezes passou o limite de skill/segundo
 //TAG.skill_blocked             //ha limite de skill ativo no char
-//TAG.skill_maxSkillValue       //valor maximo que uma skill pode chegar (depende do tempo online)  
+//TAG.skill_maxSkillValue       //valor maximo que uma skill pode chegar (depende do tempo de vida (on+off) do char)  
+//TAG.skill_maxSkillSumValue    //valor maximo que a soma das skills podem chegar (depende do tempo de vida (on+off) do char)  
 //TAG.skill_maxIncrease         //maximo de skill que pode ser ganha de uma vez (depende do skillsum)
 //TAG.skill_<name>              //contador secundario de cada skill. sempre que atinge o limite incrementa a skill real
-
+//TAG.rp                        //media das notas de RP do personagem
 //*****************************************************************************
 //*****************************************************************************
 // DEFNAMEs
@@ -44,6 +45,21 @@
 [DEFNAME skills_custom]
 //increase 0.02% every action (minimum)
 bonusIncrease       = 20
+
+rpMin=-10       //valores para pontos de RP
+rpMax=10
+
+//skillcap
+scMin=600       //skillcap minimo (sem bonus)
+scMax=1000      //skillcap maximo (sem bonus)
+scRpMin=5       //menor valor para ter bonus de RP
+scRpBonus=50    //(5% por ponto entre 5 e 10)
+scRate=19440    //(324 minutos * 60 segundos por .1% de skill)
+
+//skillsumcap
+sscMin=5000     //skillsumcap minimo
+sscMax=8000     //skillsumcap maximo
+sscInc=150      //(sscMax-sscMin)/(rpMax-rpMin)=15 incrementos por ponto de RP
 
 SKILL_ALCHEMY       =0
 SKILL_ANATOMY       =1
@@ -143,7 +159,7 @@ if (!<npc>)
     //  sysmessage [SKILL] Habilidade bloqueada
         TAG.skill_blocked=1
         if ( <LOCAL.amnt> > <TAG0.skill_maxSkillValue> )
-            TRY <DEF.<argv[0]>> <TAG0.skill_maxSkillValue>
+//            TRY <DEF.<argv[0]>> <TAG0.skill_maxSkillValue>
             serv.log <account>/<uid>: <argv[0]> passou dos limites: <LOCAL.amnt>
         endif
         serv.log <account>: <argv[0]> bloqueada
@@ -155,7 +171,7 @@ endif
 //aumente o valor para skills usadas muito rapidamente, como sword
 doswitch <DEF.<argv[0]>>
 LOCAL.threshold=160     // SKILL_ALCHEMY
-LOCAL.threshold=100     // SKILL_ANATOMY
+LOCAL.threshold=250     // SKILL_ANATOMY
 LOCAL.threshold=160     // SKILL_ANIMALLORE
 LOCAL.threshold=1000    // SKILL_ITEMID
 LOCAL.threshold=200     // SKILL_ARMSLORE
@@ -308,14 +324,29 @@ return 1
 // skill_init(skill)
 //*****************************************************************************
 [FUNCTION skill_init]
-TAG.skill_maxIncrease=<eval ((<skillclass.skillsum>-<skilltotal>)*100)/<skillclass.skillsum>>
+//calc base value with time
+TAG0.skill_maxSkillValue = <DEF.scMin>
+TAG0.skill_maxSkillValue += <eval <age>/<DEF.scRate>>
+
+//cap max without RP bonus
+if <TAG0.skill_maxSkillValue> > <DEF.scMax>
+    TAG0.skill_maxSkillValue=<DEF.scMax>
+endif
+
+//apply RP bonus
+if <TAG0.rp> > <DEF.scRpMin>
+    TAG0.skill_maxSkillValue += <eval (<TAG0.rp>-<DEF.scRpMin>)* <DEF.scRpBonus>> 
+endif
+
+//calc base value with RP
+TAG0.skill_maxSkillSumValue = <DEF.sscMin>
+TAG0.skill_maxSkillSumValue += <eval (<TAG0.rp>-<DEF.rpMin>)* <DEF.sscInc>> 
+
+TAG.skill_maxIncrease=<eval ((<TAG0.skill_maxSkillSumValue>-<skilltotal>)*100)/<TAG0.skill_maxSkillSumValue>>
 if ( <TAG.skill_maxIncrease> < 0 )
   TAG.skill_maxIncrease=0
 endif
 
-TAG0.skill_maxSkillValue=<eval (<account.TOTALCONNECTTIME>/8)+600>
-if ( <TAG0.skill_maxSkillValue> > 1000 )
-  TAG.skill_maxSkillValue=1000
-endif
+serv.log SC:<eval <TAG0.skill_maxSkillValue>> SSC:<eval <skilltotal>>/<eval <TAG0.skill_maxSkillSumValue>> MI:<eval <TAG.skill_maxIncrease>>
 
 [EOF]
