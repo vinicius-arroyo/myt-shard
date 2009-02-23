@@ -7,6 +7,8 @@ SM_ORANGE=02c
 SND_GLASS={{03e 041} 1 {038d 0390} 1}
 SND_THUNDER={05CE 1 028 1 029 1 0206 1}
 
+spellflag_eval_boosts 0400000		//Spellflag. Eval int é 50% do EFFECT
+
 [PLEVEL 6]
 f_connectDB
 worldrespawn
@@ -402,7 +404,7 @@ anim 20                     //Animação de @GetHit
 bark 3
 
 //*****************************************************************************
-//  EFFECTSPELL <spell>,<skill_dif>
+//  EFFECTSPELL <spell>,<skill_dif>,<UIDcaster>
 //*****************************************************************************
 //Retorna o EFFECT de uma magia de acordo com uma skill
 //Se a spell tiver spellflag_resist, calcula o retorno para MagicResist do DEFAULT.
@@ -412,6 +414,14 @@ LOCAL.skill=<argn1>
 LOCAL.min=<strarg <LOCAL.eff>>
 LOCAL.eff=<streat <LOCAL.eff>>
 
+//Eavl Int entra na jogada?
+if (<serv.resources.<argv0>.FLAGS>&spellflag_eval_boosts)
+ if (0<argv2>)
+  obj=<argv2>
+  local.skill=<eval (<local.skill>/2)+(<f_rangeValue <LOCAL.min>,<LOCAL.eff>,<obj.EvaluatingIntel>>/2)>
+  obj.SKILL_GAIN Skill_EvaluatingIntel
+ endif
+endif
 
 //Resisting spells?
 if !<isitem>
@@ -434,14 +444,57 @@ endif
 
 LOCAL.eff=<R<LOCAL.min>,<LOCAL.eff>>
 LOCAL.eff=<f_rangeValue <LOCAL.min>, <LOCAL.eff>, <argv1>>
-RETURN <LOCAL.eff>
+RETURN <eval <LOCAL.eff>>
+
+//*****************************************************************************
+//  DURATIONSPELL <spell>,<skill_dif>,<UIDcaster>
+//*****************************************************************************
+//Retorna o DURATION de uma magia de acordo com uma skill
+//Se a spell tiver spellflag_resist, calcula o retorno para MagicResist do DEFAULT.
+[FUNCTION DURATIONSPELL]
+LOCAL.eff=<SERV.SPELL.<argv0>.DURATION>
+LOCAL.skill=<argn1>
+LOCAL.min=<strarg <LOCAL.eff>>
+LOCAL.eff=<streat <LOCAL.eff>>
+
+//Eavl Int entra na jogada?
+if (<serv.resources.<argv0>.FLAGS>&spellflag_eval_boosts)
+ if (0<argv2>)
+  obj=<argv2>
+  local.skill=<eval (<local.skill>/2)+(<f_rangeValue <LOCAL.min>,<LOCAL.eff>,<obj.EvaluatingIntel>>/2)>
+  obj.SKILL_GAIN Skill_EvaluatingIntel
+ endif
+endif
+
+//Resisting spells?
+if !<isitem>
+ if (<serv.resources.<argv0>.FLAGS>&spellflag_resist)
+  if (<BELLTEST <MagicResistance>,<LOCAL.skill>>)
+   //Resistir totalmente?
+   sysmessageblue Voce resiste a magia.
+   if (<BELLTEST <MagicResistance>,140.0>)   //Resistir totalmente
+    LOCAL.min=0
+    LOCAL.eff=0
+    sfx 05C1
+    emotered resistiu
+   else                      //Resistir parcialmente
+    LOCAL.eff=<f_rangeValue <LOCAL.min>,<LOCAL.eff>,<eval 1010-<MagicResistance>>>
+   endif
+  endif
+  SKILL_GAIN Skill_MagicResistance
+ endif
+endif
+
+LOCAL.eff=<R<LOCAL.min>,<LOCAL.eff>>
+LOCAL.eff=<f_rangeValue <LOCAL.min>, <LOCAL.eff>, <argv1>>
+RETURN <eval <LOCAL.eff>>
 
 //*****************************************************************************
 //  DAMAGESPELL <spell>,<dam_type>,<skill>,<UIDcaster>
 //*****************************************************************************
 //Danifica conforme a magia <argv0> com tipo <argv1> como se tivesse magery <argv2> por <<argv3>.UID>
 [FUNCTION damagespell]
-LOCAL.dam=<EFFECTSPELL <argv0>, <argv2>>
+LOCAL.dam=<EFFECTSPELL <argv0>, <argv2>, <argv3>>
 DAMAGE <LOCAL.dam> <EVAL <argv1>> <argv3>                           //aplica o dano com o tipo modificado
 RETURN <LOCAL.dam>
 
@@ -1013,6 +1066,34 @@ if (<strpos 0 . <argv0>> > 0)
 else
     return <eval <argv0>>   //xxx
 endif
+
+//*****************************************************************************
+// maximum a,b,c...n
+//*****************************************************************************
+//Retorna o maior valor dos argumentos.
+//xxxxx=<maximum 5,7,12,-1,120.0,750,0>
+[FUNCTION maximum]
+local.ret=<argv[0]>
+for i 1 <eval <argv>-1>
+ if (<argv[<local.i>]> > <local.ret>)
+  local.ret=<argv[<local.i>]>
+ endif
+end
+return <local.ret>
+
+//*****************************************************************************
+// minimum a,b,c...n
+//*****************************************************************************
+//Retorna o menos valor dos argumentos.
+//xxxxx=<minimum 5,7,12,-1,120.0,750,0>
+[FUNCTION minimum]
+local.ret=<argv[0]>
+for i 1 <eval <argv>-1>
+ if (<argv[<local.i>]> < <local.ret>)
+  local.ret=<argv[<local.i>]>
+ endif
+end
+return <local.ret>
 
 //*****************************************************************************
 // guard (uidToGuard) XXX
