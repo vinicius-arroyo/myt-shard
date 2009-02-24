@@ -12,6 +12,19 @@
 
 //TAGS usadas:
 
+
+//CREATE TABLE  `mytserver`.`rpGrade` (
+//  `idGrade` int(10) unsigned NOT NULL auto_increment,
+//  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+//  `charUid` int(10) unsigned NOT NULL,
+//  `charAcct` int(10) unsigned NOT NULL,
+//  `gmUid` int(10) unsigned NOT NULL,
+//  `gmAcct` int(10) unsigned NOT NULL,
+//  `grade` smallint(6) NOT NULL,
+//  PRIMARY KEY  (`idGrade`),
+//  UNIQUE KEY `Index_2` USING BTREE (`charUid`,`gmAcct`)
+//) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
 [PLEVEL 2]
 ficha
 prender
@@ -74,6 +87,9 @@ if (<argo.isplayer>)
         end
     endif
     
+    src.targ.rp_updateGrade
+    src.targ.rp_getGmGrade <src.tag0.idAcct>
+    
     dialog d_ficha_1
 else
     sysmessageyellow Nao eh um jogador valido.
@@ -135,6 +151,60 @@ if (<DB.connected>)
 endif
 
 //*****************************************************************************
+// rp_updateGrade
+//*****************************************************************************
+//gera a nota media do <DEFAULT> a partir do DB
+[FUNCTION rp_updateGrade]
+if (<DB.connected>)
+    DB.QUERY "SELECT round(avg(grade)) AS grade FROM rpGrade WHERE charUid=<eval <uid>>"
+    
+    if (<DB.ROW.NUMROWS> > 0)
+        CTAG.rp_grade=<DB.ROW.0.grade>
+    else
+        CTAG.rp_grade=0
+    endif
+endif
+
+//*****************************************************************************
+// rp_getGmGrade(gmDbId)
+//*****************************************************************************
+//pega a nota dada pelo GM para o <DEFAULT>
+[FUNCTION rp_getGmGrade]
+if (<DB.connected>)
+    DB.QUERY "SELECT grade FROM rpGrade WHERE charUid=<eval <uid>> AND gmAcct=<eval <argv0>>"
+    
+    if (<DB.ROW.NUMROWS> > 0)
+        TRY CTAG.rp_<argv0>=<DB.ROW.0.grade>
+    else
+        TRY CTAG.rp_<argv0>=0
+    endif
+endif
+
+//*****************************************************************************
+// rp_setGrade(nota)
+//*****************************************************************************
+//muda a nota de RP do <DEFAULT> dada pelo GM <SRC>
+[FUNCTION rp_setGrade]
+
+if <argv0> > 10
+    LOCAL.n = 10
+elif <argv0> < -10
+    LOCAL.n = -10
+else
+    LOCAL.n = <argv0>
+endif
+
+serv.log [RP] <account> (<uid>) recebeu nota: <eval <LOCAL.n>> do <src.account> 
+
+if (<DB.connected>)
+    LOCAL.q = "timestamp=NOW(), charUid=<eval <uid>>, charAcct=<eval <tag0.idAcct>>, gmUid=<eval <src>>, gmAcct=<eval <src.tag0.idAcct>>, grade=<eval <LOCAL.n>>"
+    DB.EXECUTE "INSERT INTO rpGrade SET <LOCAL.q> ON DUPLICATE KEY UPDATE <LOCAL.q>"
+endif
+
+rp_updateGrade
+rp_getGmGrade <src.tag0.idAcct>
+
+//*****************************************************************************
 //*****************************************************************************
 // ITEMDEFs
 //*****************************************************************************
@@ -193,10 +263,17 @@ text 302 190 1153 4
 text 493 191 1153 5
 text 302 230 1153 6
 text 490 225 1153 7
-button 107 295 250 251 1 0 1
-button 123 295 252 253 1 0 2
-text 144 296 162 8
-text 173 296 1153 9
+text 107 296 1153 8
+gumppic 200 297 2444
+textentry 212 297 20 15 0 1 9
+button 270 293 2151 2152 1 0 2
+if <src.account.plevel> > 4
+    dtext 305 297 1153 (Media <eval <src.targ.ctag0.rp_grade>>)
+endif
+//button 107 295 250 251 1 0 1
+//button 123 295 252 253 1 0 2
+//text 144 296 162 8
+//text 173 296 1153 9
 button 404 300 252 253 1 0 3
 button 420 300 250 251 1 0 4
 text 440 301 162 10
@@ -237,8 +314,8 @@ Raca
 Classe
 UID
 Tempo Online
-<eval 0<src.targ.tag.luck>>
-Pontos de Interpretacao (+ ou -)
+Sua Nota RP
+<eval <src.targ.ctag0.rp_<src.tag0.idAcct>>>
 <eval 0<src.targ.tag.pontosdealma>>
 Pontos de Alma
 STR
@@ -268,13 +345,13 @@ Estatisticas
 [DIALOG d_ficha_1 BUTTON]
 on=1
 //RP+
-src.targ.tag.luck=<eval <src.targ.tag.luck>+1>
+//src.targ.tag.luck=<eval <src.targ.tag.luck>+1>
 src.dialog d_ficha_1
 return 1
 
 on=2
-//RP-
-src.targ.tag.luck=<eval <src.targ.tag.luck>-1>
+//nova nota RP
+src.targ.rp_setGrade <argtxt[1]>
 src.dialog d_ficha_1
 return 1
 
