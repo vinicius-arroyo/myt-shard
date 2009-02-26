@@ -120,19 +120,27 @@ endif
 
 [EVENTS e_arco]
 ON=@EQUIP
-if (<morey> == 00)
-    src.message Arco sem barbante
+
+if <morey> <= 0
+    src.sysmessagered Arco sem barbante
     unequip
     return 1
 endif
 
+//mantem, senao nao aciona @EQUIP
+ON=@DCLICK
+
+
 [EVENTS e_besta]
 ON=@EQUIP
-if (<morey> == 00)
-    src.message Besta sem engrenagem
+if <morey> <= 0
+    src.sysmessagered Besta sem engrenagem
     unequip
     return 1
 endif
+
+//mantem, senao nao aciona @EQUIP
+ON=@DCLICK
 
 [EVENTS e_fragile]
 ON=@STEP
@@ -325,6 +333,9 @@ cmb_doSounds
 
 ///// APLICA Modificadores de dano em %
 LOCAL.bonus -= <LOCAL.penal>
+
+//serv.log [COMBAT] BonusTotal%:<dLOCAL.bonus>
+
 argn1 += <eval (<argn1>*<LOCAL.bonus>)/100>
 
 cmb_doDamage <argn1>,<cmb_damType>
@@ -554,6 +565,9 @@ endif
 if !<LOCAL.d>
     LOCAL.d=<R1,4>
 endif    
+
+//serv.log [COMBAT] BaseDam:<dLOCAL.d>
+
 return <LOCAL.d>
 
 
@@ -795,18 +809,21 @@ return 1
 // cmb_bonusStr
 //*****************************************************************************
 [FUNCTION cmb_bonusStr]
+//serv.log [COMBAT] BonusStr:<eval <str>/3>
 return <eval <str>/3>
 
 //*****************************************************************************
 // cmb_bonusAnatomy
 //*****************************************************************************
 [FUNCTION cmb_bonusAnatomy]
+//serv.log [COMBAT] BonusAnatomy:<eval <anatomy>/20>
 return <eval <anatomy>/20>
 
 //*****************************************************************************
 // cmb_bonusTactics
 //*****************************************************************************
 [FUNCTION cmb_bonusTactics]
+//serv.log [COMBAT] BonusTactics:<eval <tactics>/20>
 return <eval <tactics>/20>
 
 //*****************************************************************************
@@ -817,6 +834,7 @@ if (<restest 1 i_veneno>)
     if !<R3>
         sysmessagegreen O veneno esta te enfraquecendo. Seus golpes estao fracos!
     endif
+//    serv.log [COMBAT] PenalPoison:<eval <findid.i_veneno.more2>/15>
     return <eval <findid.i_veneno.more2>/15>
 endif
 return 0
@@ -825,13 +843,15 @@ return 0
 // cmb_penalStam
 //*****************************************************************************
 [FUNCTION cmb_penalStam]
-LOCAL.q = <eval (50*<stam>)/<dex>>
+LOCAL.q = <eval (50*<stam>)/<maxstam>>
+//serv.log [COMBAT] PenalStam:<eval 50-<LOCAL.q>>
 return <eval 50-<LOCAL.q>>
 
 //*****************************************************************************
 // cmb_penalWeight
 //*****************************************************************************
 [FUNCTION cmb_penalWeight]
+//serv.log [COMBAT] PenalWeight:<eval (50*<weight>)/<maxweight>>
 return <eval (50*<weight>)/<maxweight>>
 
 //*****************************************************************************
@@ -840,6 +860,7 @@ return <eval (50*<weight>)/<maxweight>>
 [FUNCTION cmb_penalWeaponQuality]
 if (<weapon>)
     LOCAL.q = <eval (50*<weapon.hits>)/<weapon.maxhits>>
+//    serv.log [COMBAT] PenalWeaponQuality:<eval 50-<LOCAL.q>>
     return <eval 50-<LOCAL.q>>
 endif
 return 0
@@ -914,8 +935,8 @@ if !<NPC> && (<action>!=Skill_Wrestling)
  
     if <action>==Skill_Archery
         weapon.morey -= 1
-        if (!<weapon.morey>)
-            weapon.cont=<findlayer.layer_pack>
+        if (!<weapon.morey>) || (<weapon.morey><0)
+            weapon.morey=0
             if <weapon.type>==t_weapon_bow
                sysmessageorange O barbante do seu arco se partiu!
                emoteorange barbante quebrou
@@ -927,6 +948,7 @@ if !<NPC> && (<action>!=Skill_Wrestling)
             endif   
         endif
         weapon.update
+        weapon.cont=<findlayer.layer_pack>
     endif
 endif
 
