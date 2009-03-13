@@ -4,7 +4,7 @@
 #				MyT - Mystical Tales Shard			#
 #										#
 #			     Class Forge, o criador de classes			#
-#				    v1.0 - 03/2009				#
+#				    v1.1 - 03/2009				#
 #				  Galthar, o Errante				#
 #################################################################################
 
@@ -225,11 +225,10 @@ if (0<DB.ROW.0.ID>)
  ctag.cforge_classID=<DB.ROW.0.ID>
  ctag.cforge_revision=<DB.ROW.0.revision>
  ctag.cforge_udate=<DB.ROW.0.date>
- return 1
 else
  sysmessagered Erro! A classe <ctag.cforge_className> nao foi salva.
- return 0
 endif
+DIALOG d_forge_class 5
 
 [FUNCTION cforge_Update]
 //Faz UPDATE na entrada da DB
@@ -246,11 +245,10 @@ if (<DB.ROW.0.revision>==<local.nRev>)
  sysmessagegreen Classe '<ctag.cforge_className>' agora tem revisao <dlocal.nRev>
  ctag.cforge_revision=<DB.ROW.0.revision>
  ctag.cforge_date=<DB.ROW.0.date>
- return 1
 else
  sysmessagered Erro! A classe <ctag.cforge_className> nao foi revisada.
- return 0
 endif
+DIALOG d_forge_class 5
 
 [FUNCTION cforge_CopyClass]
 //Cria uma nova classe baseada nos dados do cache
@@ -270,7 +268,8 @@ DIALOG d_forge_class 4
 [FUNCTION cforge_Delete]
 //Deleta a classe com ID=<dctag.cforge_classID>
 DB.QUERY=DELETE from classes WHERE ID=<dctag.cforge_classID>
-sysmessageorange Classe 'ctag.cforge_className' excluida!
+DB.QUERY=DELETE from class_inventory WHERE classid=<dctag.cforge_classID>
+sysmessageorange Classe '<ctag.cforge_className>' excluida!
 sysmessageblue Voce pode reinviar a classe conforme modificada recentemente. Os dados permanecem na tela.
 ctag.cforge_classID=
 DIALOG d_forge_class 4
@@ -452,16 +451,26 @@ end
 //Popular classes
 if (!<IsEmpty <ctag.cforge_superclass>>)
  dorigin 175 62
- DB.QUERY "SELECT ID, classname FROM classes WHERE superclass='<DB.ESCAPEDATA <ctag.cforge_superclass>>';"
+ DB.QUERY "SELECT ID, classname, flags FROM classes WHERE superclass='<DB.ESCAPEDATA <ctag.cforge_superclass>>';"
  local.j.max=14
- for j 0 <eval <DB.ROW.NUMROWS>-1>
-  if (<local.j> > <local.j.max>)//nova coluna
-   local.j.max += 15
-   dorigin *140 62
-  endif
-  button - *20 <QVAL <DB.ROW.<dlocal.j>.ID>==<ctag0.cforge_ClassID>?2362:2360> 2362 1 0 <eval <DB.ROW.<dlocal.j>.ID>+3000>
-  dtext +16 -4 2100 <DB.ROW.<dlocal.j>.classname>
- end
+ if (<DB.ROW.NUMROWS>)
+  for j 0 <eval <DB.ROW.NUMROWS>-1>
+   if (<local.j> > <local.j.max>)//nova coluna
+    local.j.max += 15
+    dorigin *140 62
+   endif
+   //Determina cor do botão
+   IF (<DB.ROW.<dlocal.j>.ID>==<ctag0.cforge_ClassID>)//Classe em edição
+    local.but=2362
+   ELIF (0<DB.ROW.<dlocal.j>.flags>&01)//classe bloqueada
+    local.but=2360
+   ELSE//Classe jogavel
+    local.but=2361
+   ENDIF
+   button - *20 <dlocal.but> 2362 1 0 <eval <DB.ROW.<dlocal.j>.ID>+3000> //<QVAL <DB.ROW.<dlocal.j>.ID>==<ctag0.cforge_ClassID>?2362:2360>
+   dtext +16 -4 2100 <DB.ROW.<dlocal.j>.classname>
+  end
+ endif
  button 18 410 2443 2444 0 1 201
  dtext 28 411 62 Voltar
  button 86 410 2443 2444 1 0 101
@@ -659,7 +668,6 @@ ON=403
 // Modificar background
 cforge_updateBackground <argtxt[0]>
 sysmessageorange Background modificado!
-DIALOG d_forge_class 4
 
 ON=501
 // Add item
@@ -725,7 +733,6 @@ cforge_LoadItem <local.ID>
 A classe '<ctag.cforge_className>' ja existe. Deseja sobrescrever?
 ON=0 SIM
 cforge_Save
-DIALOG d_forge_class 4
 
 ON=0 NAO
 DIALOG d_forge_class 4
@@ -734,7 +741,6 @@ DIALOG d_forge_class 4
 A superclasse '<ctag.cforge_superclass>' nao existe. Deseja criar a superclasse?
 ON=0 SIM
 cforge_Save
-DIALOG d_forge_class 4
 
 ON=0 NAO
 DIALOG d_forge_class 4
@@ -743,7 +749,6 @@ DIALOG d_forge_class 4
 Tem certeza que deseja EXCLUIR PERMANENTEMENTE a classe '<ctag.cforge_className>'?
 ON=0 SIM
 cforge_Delete
-DIALOG d_forge_class 4
 
 ON=0 NAO
 DIALOG d_forge_class 4
