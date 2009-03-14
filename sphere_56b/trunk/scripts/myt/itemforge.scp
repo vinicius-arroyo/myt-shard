@@ -39,10 +39,6 @@ Tags utilizadas:
 - cTAG.itemforge_Create
 
 ToDo:
-- Completar itemforge_DBExists (função)
-- Completar itemforge_DBLoad (função)
-- Completar itemforge_DBSave (função)
-- Completar itemforge_DBDelete (função)
 - Completar itemforge_find (search tool)
 - Browser (por categorias e subcategorias do Axis. Multipage. Rola copiar do sistema de vendas mole-mole.)
   - itemforge_DBListCats (lista categorias de Axis da DB) (função/gump)
@@ -52,6 +48,43 @@ ToDo:
   - Voltar (de itens pra subsection pra category)
   - itemforge_Browse (função handler do browser)
 
+SQL:
+
+DROP TABLE IF EXISTS `mytserver`.`itemforge`;
+CREATE TABLE  `mytserver`.`itemforge` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `revision` int(10) unsigned NOT NULL,
+  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `itemdef` varchar(45) NOT NULL,
+  `dispid` int(10) unsigned NOT NULL,
+  `name` varchar(45) NOT NULL,
+  `category` varchar(45) NOT NULL,
+  `subsection` varchar(45) NOT NULL,
+  `weight` int(10) unsigned NOT NULL,
+  `value` int(10) unsigned NOT NULL,
+  `type` varchar(45) NOT NULL,
+  `tevents` varchar(90) NOT NULL,
+  `resources` varchar(120) NOT NULL,
+  `resources2` varchar(120) character set latin1 collate latin1_bin NOT NULL,
+  `skillmake` varchar(45) NOT NULL,
+  `layer` varchar(45) NOT NULL,
+  `pile` int(10) unsigned NOT NULL,
+  `tdata1` varchar(45) NOT NULL,
+  `tdata2` varchar(45) NOT NULL,
+  `tdata3` varchar(45) NOT NULL,
+  `tdata4` varchar(45) NOT NULL,
+  `dam` varchar(45) NOT NULL,
+  `armor` int(10) unsigned NOT NULL,
+  `speed` int(10) unsigned NOT NULL,
+  `skill` varchar(45) NOT NULL,
+  `reqstr` int(10) unsigned NOT NULL,
+  `twohands` varchar(1) NOT NULL,
+  `color` int(10) unsigned NOT NULL,
+  `create` varchar(255) NOT NULL,
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `byItemdef` USING BTREE (`itemdef`,`revision`)
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
 [PLEVEL 4]
 itemforge
 
@@ -59,25 +92,27 @@ itemforge
 section [
 sectione ]
 
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
 
-
-////////////////////////////////////////////////////////////////
-//
-//			FUNÇÕES
-//
-////////////////////////////////////////////////////////////////
-
-[FUNCTION slash2]
+//*****************************************************************************
+// slash2
+//*****************************************************************************
 //Imprime os caracteres '//'
+[FUNCTION slash2]
 local.s=a/a
 return <strsub 1,1,<local.s>><strsub 1,1,<local.s>>
 
-///////////
-//Funções do sistema Item Forge
-//////////////////////
 
-[FUNCTION itemforge]
+//*****************************************************************************
+// itemforge
+//*****************************************************************************
 // .itemforge [ browse | find {string} | new | insert | edit ]
+[FUNCTION itemforge]
+
 //Função principal para client
 if !(<eval strlen(<args>)>) || (STRMATCH(browse,<args>)
  itemforge_browse
@@ -99,6 +134,9 @@ elif (STRMATCH(edit,<args>)
 endif
 return 1
 
+//*****************************************************************************
+// itemforge_clear
+//*****************************************************************************
 [FUNCTION itemforge_clear]
 //Limpa das cTAGS do cache do sistema
 cTAG.ITEMFORGE_Tab
@@ -132,6 +170,9 @@ cTAG.itemforge_TwoHands
 cTAG.itemforge_Color
 cTAG.itemforge_Create
 
+//*****************************************************************************
+// itemforge_open
+//*****************************************************************************
 [FUNCTION itemforge_open]
 //Abre o gump na tab <argn>
 dialogclose d_itemforge
@@ -143,6 +184,9 @@ endif
 DIALOG d_itemforge <cTAG0.ITEMFORGE_Tab>
 RETURN 1
 
+//*****************************************************************************
+// itemforge_insert
+//*****************************************************************************
 [FUNCTION itemforge_insert]
 //TARGETF. Copia os atributos de um item do World pro cache.
 if (<itemforge_DBExists <argo.defname>>)
@@ -200,93 +244,197 @@ endif
 src.itemforge_open
 return 1
 
+//*****************************************************************************
+// itemforge_edit
+//*****************************************************************************
 [FUNCTION itemforge_edit]
+REF1=<argn>
 //TARGETF. Abre para edição um item com cache baseado numa instance no world.
-if (!<itemforge_DBExists <argo.defname>>)
- sysmessageorange O item <argo.defname> NAO existe no banco de dados. Crie um novo item.
- itemforge_insert <argo>
+if (!<itemforge_DBExists <REF1.defname>>)
+ sysmessageorange O item <REF1.defname> NAO existe no banco de dados. Crie um novo item.
+ itemforge_insert <REF1>
  return 0
 endif
-itemforge_DBLoad <argo.defname>
+itemforge_DBLoad <REF1.defname>
 return 1
 
+//*****************************************************************************
+// itemforge_find
+//*****************************************************************************
 [FUNCTION itemforge_find]
 sysmessageyellow Procurando por <args> no banco de dados.
 //Procura por strings parecidas com <args> entre os Name e DefNames da DB
 //e retorna lista no ITEMFORGE_BROWSE
 
-///////////
-//Funções do banco de dados
-//////////////////////
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs - BANCO DE DADOS
+//*****************************************************************************
+//*****************************************************************************
 
-[FUNCTION itemforge_DBExists]
+//*****************************************************************************
+// itemforge_DBExists <itemdef>
+//*****************************************************************************
 //Retorna se existe uma entrada na DB com o ITEMDEF <args>
+[FUNCTION itemforge_DBExists]
+
+if <DB.connected>
+    DB.QUERY "SELECT 1 FROM itemforge WHERE itemdef='<args>'"
+    if (<DB.ROW.NUMROWS> > 0)
+        src.sysmessagegreen Item encontrado.
+        return 1
+    else
+        src.sysmessagegreen Item '<args>' nao existe.
+        return 0
+    endif
+else
+    src.sysmessagered DB desligado.
+endif
+
 return 0
 
+//*****************************************************************************
+// itemforge_DBLoad
+//*****************************************************************************
 [FUNCTION itemforge_DBLoad]
+
+if !<DB.connected>
+    src.sysmessagered DB desligado.
+    return 0
+endif
+
 //Popula a lista de ctags para o cache gump
 if (<argn>)
  //Fazer a query pela ID
+ LOCAL.f="id=<eval <argn>>"
 else (!<IsEmpty <args>>)
  //Fazer a query pelo DEFNAME (revisão mais atual)
+ LOCAL.f="itemdef='<args>'"
 else
  return 0
 endif
+
+DB.QUERY "SELECT * FROM itemforge WHERE <LOCAL.f> ORDER BY revision DESC LIMIT 1"
+if (<DB.ROW.NUMROWS> > 0)
+    src.sysmessagegreen Item carregado.
+else
+    src.sysmessagegreen Item <LOCAL.f> nao existe.
+    return 0
+endif
+
 //Popular cache.
-cTAG.ITEMFORGE_ID=<DB.ROW.0.
-cTAG.ITEMFORGE_Rev=<DB.ROW.0.
-cTAG.ITEMFORGE_Date=<DB.ROW.0.
-cTAG.itemforge_ItemDef=<DB.ROW.0.
-cTAG.itemforge_DispID=<DB.ROW.0.
-cTAG.itemforge_Name=<DB.ROW.0.
-cTAG.itemforge_Category=<DB.ROW.0.
-cTAG.itemforge_Subsection=<DB.ROW.0.
-cTAG.itemforge_Weight=<DB.ROW.0.
-cTAG.itemforge_Value=<DB.ROW.0.
-cTAG.itemforge_Type=<DB.ROW.0.
-cTAG.itemforge_TEvents=<DB.ROW.0.
-cTAG.itemforge_Resources=<DB.ROW.0.
-cTAG.itemforge_Resources2=<DB.ROW.0.
-cTAG.itemforge_SkillMake=<DB.ROW.0.
-cTAG.itemforge_Layer=<DB.ROW.0.
-cTAG.itemforge_Pile=<DB.ROW.0.
-cTAG.itemforge_TData1=<DB.ROW.0.
-cTAG.itemforge_TData2=<DB.ROW.0.
-cTAG.itemforge_TData3=<DB.ROW.0.
-cTAG.itemforge_TData4=<DB.ROW.0.
-cTAG.itemforge_Dam=<DB.ROW.0.
-cTAG.itemforge_Armor=<DB.ROW.0.
-cTAG.itemforge_Speed=<DB.ROW.0.
-cTAG.itemforge_Skill=<DB.ROW.0.
-cTAG.itemforge_ReqSTR=<DB.ROW.0.
-cTAG.itemforge_TwoHands=<DB.ROW.0.
-cTAG.itemforge_Color=<DB.ROW.0.
-cTAG.itemforge_Create=<DB.ROW.0.
+cTAG.ITEMFORGE_ID=<DB.ROW.0.id>
+cTAG.ITEMFORGE_Rev=<DB.ROW.0.revision>
+cTAG.ITEMFORGE_Date=<DB.ROW.0.timestamp>
+cTAG.itemforge_ItemDef=<DB.ROW.0.itemdef>
+cTAG.itemforge_DispID=<DB.ROW.0.dispid>
+cTAG.itemforge_Name=<DB.ROW.0.name>
+cTAG.itemforge_Category=<DB.ROW.0.category>
+cTAG.itemforge_Subsection=<DB.ROW.0.subsection>
+cTAG.itemforge_Weight=<DB.ROW.0.weight>
+cTAG.itemforge_Value=<DB.ROW.0.value>
+cTAG.itemforge_Type=<DB.ROW.0.type>
+cTAG.itemforge_TEvents=<DB.ROW.0.tevents>
+cTAG.itemforge_Resources=<DB.ROW.0.resources>
+cTAG.itemforge_Resources2=<DB.ROW.0.resources2>
+cTAG.itemforge_SkillMake=<DB.ROW.0.skillmake>
+cTAG.itemforge_Layer=<DB.ROW.0.layer>
+cTAG.itemforge_Pile=<DB.ROW.0.pile>
+cTAG.itemforge_TData1=<DB.ROW.0.tdata1>
+cTAG.itemforge_TData2=<DB.ROW.0.tdata2>
+cTAG.itemforge_TData3=<DB.ROW.0.tdata3>
+cTAG.itemforge_TData4=<DB.ROW.0.tdata4>
+cTAG.itemforge_Dam=<DB.ROW.0.dam>
+cTAG.itemforge_Armor=<DB.ROW.0.armor>
+cTAG.itemforge_Speed=<DB.ROW.0.speed>
+cTAG.itemforge_Skill=<DB.ROW.0.skill>
+cTAG.itemforge_ReqSTR=<DB.ROW.0.reqstr>
+cTAG.itemforge_TwoHands=<DB.ROW.0.twohands>
+cTAG.itemforge_Color=<DB.ROW.0.color>
+cTAG.itemforge_Create=<DB.ROW.0.create>
 itemforge_open
 return 1
 
-[FUNCTION itemforge_DBSave]
+//*****************************************************************************
+// itemforge_DBSave
+//*****************************************************************************
 //Salva os dados das ctags na DB.
-//Se o item já existe (cTAG.ITEMFORGE_ID != 0), criar revisão.
-local.id=0	//TEM QUE RETORNAR A ID DEPOIS DE SALVAR!
-return <local.id>
+[FUNCTION itemforge_DBSave]
+LOCAL.q = INSERT INTO itemforge SET timestamp=NOW(),
+LOCAL.q .= itemdef = "<cTAG.itemforge_ItemDef>",
+LOCAL.q .= dispid = <eval <cTAG.itemforge_DispID>>,
+LOCAL.q .= name = "<cTAG.itemforge_Name>",
+LOCAL.q .= category = "<cTAG.itemforge_Category>",
+LOCAL.q .= subsection = "<cTAG.itemforge_Subsection>",
+LOCAL.q .= weight = <eval <cTAG.itemforge_Weight>>,
+LOCAL.q .= value = <eval <cTAG.itemforge_Value>>,
+LOCAL.q .= type = "<cTAG.itemforge_Type>",
+LOCAL.q .= tevents = "<cTAG.itemforge_TEvents>",
+LOCAL.q .= resources = "<cTAG.itemforge_Resources>",
+LOCAL.q .= resources2 = "<cTAG.itemforge_Resources2>",
+LOCAL.q .= skillmake = "<cTAG.itemforge_SkillMake>",
+LOCAL.q .= layer = "<cTAG.itemforge_Layer>",
+LOCAL.q .= pile = <eval <cTAG.itemforge_Pile>>,
+LOCAL.q .= tdata1 = "<cTAG.itemforge_TData1>",
+LOCAL.q .= tdata2 = "<cTAG.itemforge_TData2>",
+LOCAL.q .= tdata3 = "<cTAG.itemforge_TData3>",
+LOCAL.q .= tdata4 = "<cTAG.itemforge_TData4>",
+LOCAL.q .= dam = "<cTAG.itemforge_Dam>",
+LOCAL.q .= armor = <eval <cTAG.itemforge_Armor>>,
+LOCAL.q .= speed = <eval <cTAG.itemforge_Speed>>,
+LOCAL.q .= skill = "<cTAG.itemforge_Skill>",
+LOCAL.q .= reqstr = <eval <cTAG.itemforge_ReqSTR>>,
+LOCAL.q .= twohands = "<cTAG.itemforge_TwoHands>",
+LOCAL.q .= color = <eval <cTAG.itemforge_Color>>,
+LOCAL.q .= `create` = "<cTAG.itemforge_Create>",
 
+LOCAL.rev=0
+if <cTAG.ITEMFORGE_ID>
+    LOCAL.rev=<eval <cTAG.ITEMFORGE_Rev>+1>
+endif
+
+LOCAL.q .= revision=<dLOCAL.rev>
+
+serv.log [ITEMFORGE] Nova revisao: <LOCAL.q>
+
+DB.EXECUTE <LOCAL.q>
+
+DB.QUERY "SELECT id FROM itemforge WHERE itemdef='<cTAG.itemforge_ItemDef>' ORDER BY revision DESC LIMIT 1"
+if (<DB.ROW.NUMROWS> > 0)
+    return <DB.ROW.0.id>
+endif
+
+src.sysmessagered Erro: Item adicionado nao encontrado...
+return 0
+
+//*****************************************************************************
+// itemforge_DBDelete
+//*****************************************************************************
 [FUNCTION itemforge_DBDelete]
 //Elimina todos os dados de todas as verisões do item
 if (<argn>)
  //Executar a query pela ID
+ DB.EXECUTE "DELETE FROM itemforge WHERE id=<eval <argn>>"
+ serv.log [ITEMFORGE] Removido: <eval <argn>>
 else (!<IsEmpty <args>>)
  //Executar a query pelo DEFNAME
-else
- return 0
+ DB.EXECUTE "DELETE FROM itemforge WHERE itemdef='<args>'"
+ serv.log [ITEMFORGE] Removido: <args>
 endif
 
+return 0
 
 
-///////////
-//Funções da página Sumario
-//////////////////////
 
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs - PAGINA DE SUMARIO
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// f_itemforge_castSummary
+//*****************************************************************************
 [FUNCTION f_itemforge_castSummary]
 //Popula o HTML da Tab 'Sumário' com dados relevantes do item.
 serv.newitem i_gold
@@ -384,6 +532,9 @@ endif
 new.remove
 return <local.text>
 
+//*****************************************************************************
+// f_itemforge_CopyItem
+//*****************************************************************************
 [FUNCTION f_itemforge_CopyItem]
 //Cria uma nova entrada baseada nos dados em cache.
 sysmessageorange Copiando...
@@ -398,6 +549,9 @@ src.promptconsole f_itemforge_changeItemdef
 //Funções da página Geral
 //////////////////////
 
+//*****************************************************************************
+// f_itemforge_changeItemdef
+//*****************************************************************************
 [FUNCTION f_itemforge_changeItemdef]
 //Troca o ItemDef do chache por <arg>
 if (<serv.resources.<args>>)
@@ -410,6 +564,9 @@ endif
 itemforge_open 2
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeDispID
+//*****************************************************************************
 [FUNCTION f_itemforge_changeDispID]
 //Troca o DispID do chache por <arg>
 if (<IsNum <argv0>>)
@@ -420,6 +577,9 @@ endif
 itemforge_open 2
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeName
+//*****************************************************************************
 [FUNCTION f_itemforge_changeName]
 //Troca o Name do chache por <arg>
 if (STRMATCH([1-9]*,<args>)
@@ -430,6 +590,9 @@ endif
 itemforge_open 2
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeCategory
+//*****************************************************************************
 [FUNCTION f_itemforge_changeCategory]
 //Troca o Category do chache por <arg>
 if (STRMATCH([1-9]*,<args>)
@@ -440,6 +603,9 @@ endif
 itemforge_open 2
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeSubsection
+//*****************************************************************************
 [FUNCTION f_itemforge_changeSubsection]
 //Troca o Subsection do chache por <arg>
 if (STRMATCH([1-9]*,<args>)
@@ -450,6 +616,9 @@ endif
 itemforge_open 2
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeWeight
+//*****************************************************************************
 [FUNCTION f_itemforge_changeWeight]
 //Troca o Weight do chache por <arg>
 if (<IsNum <argv0>>)
@@ -460,6 +629,9 @@ endif
 itemforge_open 2
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeValue
+//*****************************************************************************
 [FUNCTION f_itemforge_changeValue]
 //Troca o Value do chache por <arg>
 if (<IsNum <argv0>>)
@@ -471,11 +643,15 @@ itemforge_open 2
 return 1
 
 
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs - PAGINA DE COMPORTAMENTO
+//*****************************************************************************
+//*****************************************************************************
 
-///////////
-//Funções da página Comportamento
-//////////////////////
-
+//*****************************************************************************
+// f_itemforge_changeType
+//*****************************************************************************
 [FUNCTION f_itemforge_changeType]
 //Troca o Type do chache por <arg>
 if (!<serv.typedefs.<args>>)
@@ -486,24 +662,36 @@ endif
 itemforge_open 3
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeTEvents
+//*****************************************************************************
 [FUNCTION f_itemforge_changeTEvents]
 //Troca o TEvents do chache por <arg>
 cTAG.ITEMFORGE_TEvents=<args>
 itemforge_open 3
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeResources
+//*****************************************************************************
 [FUNCTION f_itemforge_changeResources]
 //Troca o Resources do chache por <arg>
 cTAG.ITEMFORGE_Resources=<args>
 itemforge_open 3
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeResources2
+//*****************************************************************************
 [FUNCTION f_itemforge_changeResources2]
 //Troca o Resources2 do chache por <arg>
 cTAG.ITEMFORGE_Resources2=<args>
 itemforge_open 3
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeSkillMake
+//*****************************************************************************
 [FUNCTION f_itemforge_changeSkillMake]
 //Troca o SkillMake do chache por <arg>
 if (!<serv.resources.<strarg <args>>>)
@@ -516,6 +704,9 @@ endif
 itemforge_open 3
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeLayer
+//*****************************************************************************
 [FUNCTION f_itemforge_changeLayer]
 //Troca o Layer do chache por <arg>
 if (<IsNum <args>>)
@@ -537,12 +728,18 @@ endif
 itemforge_open 3
 return 1
 
+//*****************************************************************************
+// f_itemforge_changePile
+//*****************************************************************************
 [FUNCTION f_itemforge_changePile]
 //Troca o Pile do chache por <arg>
 cTAG.ITEMFORGE_Pile=<QVAL <argn>?1:0>
 itemforge_open 3
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeTData1
+//*****************************************************************************
 [FUNCTION f_itemforge_changeTData1]
 //Troca o TData1 do chache por <arg>
 IF (!<IsNum <args>>)
@@ -553,6 +750,9 @@ ENDIF
 itemforge_open 3
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeTData2
+//*****************************************************************************
 [FUNCTION f_itemforge_changeTData2]
 //Troca o TData2 do chache por <arg>
 IF (!<IsNum <args>>)
@@ -563,6 +763,9 @@ ENDIF
 itemforge_open 3
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeTData3
+//*****************************************************************************
 [FUNCTION f_itemforge_changeTData3]
 //Troca o TData3 do chache por <arg>
 IF (!<IsNum <args>>)
@@ -573,6 +776,9 @@ ENDIF
 itemforge_open 3
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeTData4
+//*****************************************************************************
 [FUNCTION f_itemforge_changeTData4]
 //Troca o TData4 do chache por <arg>
 IF (!<IsNum <args>>)
@@ -583,12 +789,15 @@ ENDIF
 itemforge_open 3
 return 1
 
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs - PAGINA DE CARACTERISTICAS
+//*****************************************************************************
+//*****************************************************************************
 
-
-///////////
-//Funções da página Características
-//////////////////////
-
+//*****************************************************************************
+// f_itemforge_changeDam
+//*****************************************************************************
 [FUNCTION f_itemforge_changeDam]
 //Troca o Dam do chache por <arg>
 IF (<IsNum <argv0>>) && (<IsNum <argv1>>) && (<IsEmpty <argv2>>)
@@ -599,6 +808,9 @@ endif
 itemforge_open 4
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeArmor
+//*****************************************************************************
 [FUNCTION f_itemforge_changeArmor]
 //Troca o Armor do chache por <arg>
 if (!<IsNum <argn>>)
@@ -609,6 +821,9 @@ endif
 itemforge_open 4
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeSpeed
+//*****************************************************************************
 [FUNCTION f_itemforge_changeSpeed]
 //Troca o Speed do chache por <arg>
 if (!<IsNum <argn>>)
@@ -619,6 +834,9 @@ endif
 itemforge_open 4
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeSkill
+//*****************************************************************************
 [FUNCTION f_itemforge_changeSkill]
 //Troca o Skill do chache por <arg>
 if (!<serv.skill.<argv0>>)
@@ -629,24 +847,33 @@ endif
 itemforge_open 4
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeReqSTR
+//*****************************************************************************
 [FUNCTION f_itemforge_changeReqSTR]
 //Troca o ReqSTR do chache por <arg>
 cTAG0.ITEMFORGE_ReqSTR=<argn>
 itemforge_open 4
 return 1
 
+//*****************************************************************************
+// f_itemforge_changeTwoHands
+//*****************************************************************************
 [FUNCTION f_itemforge_changeTwoHands]
 //Troca o TwoHands do chache por <arg>
 cTAG0.ITEMFORGE_TwoHands=<QVAL 0<argn>?1:0>
 itemforge_open 4
 return 1
 
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs - PAGINA DE CREATE
+//*****************************************************************************
+//*****************************************************************************
 
-
-///////////
-// Funções da página @Create
-//////////////////////
-
+//*****************************************************************************
+// f_itemforge_changeColor
+//*****************************************************************************
 [FUNCTION f_itemforge_changeColor]
 //Troca o Color do chache por <arg>
 if (<IsNum <argv0>>)
@@ -657,6 +884,9 @@ endif
 itemforge_open 5
 return 1
 
+//*****************************************************************************
+// f_itemforge_refreshCreate
+//*****************************************************************************
 [FUNCTION f_itemforge_refreshCreate]
 //Troca o Create do chache por <arg>
 cTAG0.ITEMFORGE_Create=<args>
@@ -664,17 +894,15 @@ itemforge_open 5
 return 1
 
 
+//*****************************************************************************
+//*****************************************************************************
+// GUMPs
+//*****************************************************************************
+//*****************************************************************************
 
-////////////////////////////////////////////////////////////////
-//
-//			GUMPS
-//
-////////////////////////////////////////////////////////////////
-
-// Created 26/2/2009 04:59:38, with Gump Studio.
-// Exported with with SphereExporter ver 1.1.
-// Script for 0.56/Revisions
-
+//*****************************************************************************
+// d_itemforge
+//*****************************************************************************
 [DIALOG d_itemforge]
 100,75
 nomove
