@@ -20,7 +20,6 @@
 //*****************************************************************************
 //*****************************************************************************
 
-
 //*****************************************************************************
 // t_eq_bank_box
 //*****************************************************************************
@@ -34,15 +33,7 @@ ON=@DROPON_SELF
 //    if ( <TAG0.OVERRIDE.MAXWEIGHT>=!350)
         TAG.OVERRIDE.MAXWEIGHT=7500
 //    endif
-
-//src.sysmessageyellow w: <weight> i: <argo.weight> n:<argo.amount>
-
-    if ( <eval <weight>+<argo.weight>> > <TAG.OVERRIDE.MAXWEIGHT> )
-        src.sysmessageyellow Sua caixa bancaria esta cheia.
-        if !(<src.isgm>)
-            return 1
-        endif
-    endif
+    return <bank_checkWeight <argo.weight>>
     
 //*****************************************************************************
 // TYPEDEFs
@@ -51,15 +42,10 @@ ON=@DROPON_SELF
 //de um
 [TYPEDEF t_container]
 ON=@DROPON_SELF
-if (<topobj.isplayer>)
+if <topobj.isplayer>
     REF2 = <topobj.findlayer.layer_bankbox>
-    if (<REF2> && <inContainer <REF2>>)
-        if ( <eval <weight>+<argo.weight>> > <REF2.TAG.OVERRIDE.MAXWEIGHT> )
-            src.sysmessageyellow Sua caixa bancaria esta cheia.
-            if !(<src.isgm>)
-                return 1
-            endif
-        endif    
+    if <REF2> && <inContainer <REF2>>
+        return <REF2.bank_checkWeight <argo.weight>>
     endif
 endif
 
@@ -112,6 +98,22 @@ LOCAL.cash=<EVAL <LOCAL.copper>+(<LOCAL.silver>*10)+(<LOCAL.gold>*100)>
 if (<LOCAL.cash> >= <argv[0]>)
  return <LOCAL.cash>
 endif
+return 0
+
+//*****************************************************************************
+// bank_checkWeight( weight )
+//*****************************************************************************
+//verifica se cabe o peso especificado no banco
+//DEFAULT deve ser o BANCO (container)
+[FUNCTION bank_checkWeight]
+LOCAL.n=<eval <weight>+<argn>>
+if ( <LOCAL.n> > <TAG.OVERRIDE.MAXWEIGHT> )
+    src.sysmessageyellow Sua caixa bancaria esta cheia. Retire algo.
+    if !(<src.isgm>)
+        return 1
+    endif
+endif
+src.sysmessageyellow Voce tem <eval <LOCAL.n>/10> de <eval <TAG.OVERRIDE.MAXWEIGHT>/10> stones disponiveis.
 return 0
 
 //*****************************************************************************
