@@ -39,14 +39,6 @@ Tags utilizadas:
 - cTAG.itemforge_Create
 
 ToDo:
-- Completar itemforge_find (search tool)
-- Browser (por categorias e subcategorias do Axis. Multipage. Rola copiar do sistema de vendas mole-mole.)
-  - itemforge_DBListCats (lista categorias de Axis da DB) (função/gump)
-  - itemforge_DBListSubs (lista subsections da category cTAG.ITEMFORGE_Category) (função/gump)
-  - itemforge_DBListItems (lista os itens da categoria cTAG.ITEMFORGE_Category na subsection cTAG.ITEMFORGE_Subsection)(função/gump)
-  - Caminho no topo
-  - Voltar (de itens pra subsection pra category)
-  - itemforge_Browse (função handler do browser)
 
 SQL:
 
@@ -106,7 +98,6 @@ sectione ]
 local.s=a/a
 return <strsub 1,1,<local.s>><strsub 1,1,<local.s>>
 
-
 //*****************************************************************************
 // itemforge
 //*****************************************************************************
@@ -120,8 +111,9 @@ elif (STRMATCH(new,<args>)
  itemforge_clear
  itemforge_open
 elif (STRMATCH(find*,<args>)
- if (<STRLEN(<srteat <args>>)> > 3)
-  itemforge_find <srteat <args>>
+ LOCAL.a=<streat <args>>
+ if STRLEN(<LOCAL.a>) > 3
+  itemforge_find <LOCAL.a>
  else
   sysmessagered Palavra muito curta. Tente 4 letras ou mais.
  endif
@@ -133,6 +125,12 @@ elif (STRMATCH(edit,<args>)
  targetf itemforge_edit
 endif
 return 1
+
+//*****************************************************************************
+// itemforge_browse
+//*****************************************************************************
+[FUNCTION itemforge_browse]
+itemforge_DBlistCats
 
 //*****************************************************************************
 // itemforge_clear
@@ -275,8 +273,13 @@ return 1
 //*****************************************************************************
 [FUNCTION itemforge_find]
 sysmessageyellow Procurando por <args> no banco de dados.
-//Procura por strings parecidas com <args> entre os Name e DefNames da DB
-//e retorna lista no ITEMFORGE_BROWSE
+
+list_new "ItemForge - Procurando por <args>"
+list_newDbCol 25,itemdef,Itemdef
+list_newDbCol 200,name,Nome
+list_setAction itemforge_DBlistItems_load
+list_loadFromDb "SELECT itemdef,name FROM itemforge WHERE itemdef LIKE '%<args>%' OR name LIKE '%<args>%' ORDER BY itemdef"
+list_show 1
 
 //*****************************************************************************
 //*****************************************************************************
@@ -436,7 +439,56 @@ endif
 
 return 0
 
+//*****************************************************************************
+// itemforge_DBlistCats
+//*****************************************************************************
+[FUNCTION itemforge_DBlistCats]
+list_new "ItemForge -  Selecione a categoria"
+list_newDbCol 25,category,Categoria
+list_setAction itemforge_DBlistSubs
+list_loadFromDb "SELECT DISTINCT category FROM itemforge ORDER BY category"
+list_show 1
 
+//*****************************************************************************
+// itemforge_DBlistSubs <category_id>
+//*****************************************************************************
+[FUNCTION itemforge_DBlistSubs]
+if <argn>
+    LOCAL.category_id=<argn>
+    CTAG.itemforge_category=<cTAG.list_row<LOCAL.category_id>_01>
+endif
+
+list_new "ItemForge - <CTAG.itemforge_category> -> Selecione a secao"
+list_newDbCol 25,subsection,Secao
+list_setAction itemforge_DBlistItems
+list_setActionBack itemforge_DBlistCats
+list_loadFromDb "SELECT DISTINCT subsection FROM itemforge WHERE category='<CTAG.itemforge_category>' ORDER BY subsection"
+list_show 1
+
+//*****************************************************************************
+// itemforge_DBlistItems <subsection_id>
+//*****************************************************************************
+[FUNCTION itemforge_DBlistItems]
+
+LOCAL.subsection_id=<argn>
+CTAG.itemforge_subsection=<cTAG.list_row<LOCAL.subsection_id>_01>
+//sysmessageyellow [LIST] - Procurando por category='<CTAG.itemforge_category>' and subsection='<CTAG.itemforge_subsection>'
+list_new "ItemForge - <CTAG.itemforge_category> -> <CTAG.itemforge_subsection> -> Selecione o item"
+list_newDbCol 25,itemdef,Itemdef
+list_newDbCol 200,name,Nome
+list_setAction itemforge_DBlistItems_load
+list_setActionBack itemforge_DBlistSubs
+list_loadFromDb "SELECT itemdef,name FROM itemforge WHERE category='<CTAG.itemforge_category>' and subsection='<CTAG.itemforge_subsection>' ORDER BY itemdef"
+list_show 1
+
+//*****************************************************************************
+// itemforge_DBlistItems <item_id>
+//*****************************************************************************
+[FUNCTION itemforge_DBlistItems_load]
+LOCAL.id=<argn>
+
+itemforge_DBLoad <cTAG.list_row<LOCAL.id>_01>
+itemforge_open
 
 //*****************************************************************************
 //*****************************************************************************
