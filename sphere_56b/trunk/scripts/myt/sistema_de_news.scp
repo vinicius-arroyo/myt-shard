@@ -1,0 +1,189 @@
+[COMMENT sistema_de_news]
+##################################################################
+##		         Mystical Tales Shard			##
+##		       Sistema de noticias v1.0			##
+##		             10/04/2009				##
+##								##
+##		Por:						##
+##		Galthar, o Errante				##
+##		US_Marine					##
+##################################################################
+
+	-=TAGs utilizadas=-
+	
+cTAG.news_title
+cTAG.news_date
+cTAG.news_news
+ctag.news_next
+ctag.news_prev
+tag.lastnewsdate
+
+
+	-=Tabelas MySQL=-
+	
+CREATE TABLE `mytserver`.`news` (
+  `NewsDate` DATETIME NOT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `news` TEXT(1024) NOT NULL,
+  PRIMARY KEY (`NewsDate`)
+)
+ENGINE = MyISAM;
+
+
+	-=Como fas/=-
+.addnews para adicionar nova notícia
+.news [1] para ler notícias
+	Se tiver argumento 1, ignora o comando caso não haja notícias novas.
+	
+##################################################################
+
+
+[PLEVEL 1]
+news
+noticias
+
+[PLEVEL 3]
+addnews
+
+[FUNCTION news_clearCTags]
+cTAG.news_title=
+cTAG.news_date=
+cTAG.news_news=
+ctag.news_next=
+ctag.news_prev=
+
+
+[FUNCTION news]
+//Chama o dialog de notícias.
+//Se tem argn, evita chamar o dialog se não há notícias novas.
+news_clearCTags
+IF (<IsEmpty <tag.lastnewsdate>>)
+ DB.QUERY="SELECT CURRENT_TIMESTAMP() as nTime;"
+ tag.lastnewsdate=<DB.ESCAPEDATA <DB.ROW.0.nTime>>
+ DB.QUERY="SELECT * FROM news WHERE NewsDate > DATE_SUB(CURDATE(),INTERVAL 30 DAY) LIMIT 2;"
+ Sysmessageyellow Noticias do ultimo mes!
+else
+ DB.QUERY="SELECT * FROM news WHERE NewsDate > '<DB.ESCAPEDATA <tag.lastnewsdate>>' LIMIT 2;"
+endif
+
+IF (!<DB.ROW.NUMROWS>)
+ serv.log Nao rolou
+ if (!<argn>)
+  DB.QUERY="SELECT * FROM news WHERE NewsDate < CURRENT_TIMESTAMP() ORDER BY NewsDate DESC LIMIT 1;"
+ else
+  return 1
+ endif
+ENDIF
+
+cTAG.news_title=<DB.ROW.0.title>
+cTAG.news_date=<DB.ROW.0.NewsDate>
+cTAG.news_news=<DB.ROW.0.news>
+IF (STRLEN(<DB.ROW.1.news>))
+ ctag.news_next=1
+endif
+DB.QUERY="SELECT * FROM news WHERE NewsDate < '<cTAG.news_date>' ORDER BY NewsDate ASC LIMIT 1;"
+IF (<DB.ROW.NUMROWS>)
+ ctag.news_prev=1
+ENDIF
+DIALOG d_news
+
+
+[FUNCTION news_previousNews]
+//Chama uma notícia mais velha
+DB.QUERY="SELECT * FROM news WHERE NewsDate < '<DB.ESCAPEDATA <cTAG.news_date>>' ORDER BY NewsDate DESC LIMIT 2;"
+news_clearCTags
+cTAG.news_title=<DB.ROW.0.title>
+cTAG.news_date=<DB.ROW.0.NewsDate>
+cTAG.news_news=<DB.ROW.0.news>
+ctag.news_next=1
+DB.QUERY="SELECT * FROM news WHERE NewsDate < '<DB.ESCAPEDATA <cTAG.news_date>>' LIMIT 1;"
+IF (<DB.ROW.NUMROWS>)
+ ctag.news_prev=1
+ENDIF
+DIALOG d_news
+
+
+[FUNCTION news_nextNews]
+//Chama uma notícia mais nova
+DB.QUERY="SELECT * FROM news WHERE NewsDate > '<DB.ESCAPEDATA <cTAG.news_date>>' ORDER BY NewsDate ASC LIMIT 2;"
+news_clearCTags
+cTAG.news_title=<DB.ROW.0.title>
+cTAG.news_date=<DB.ROW.0.NewsDate>
+cTAG.news_news=<DB.ROW.0.news>
+IF (STRLEN(<DB.ROW.1.news>))
+ ctag.news_next=1
+endif
+ctag.news_prev=1
+DIALOG d_news
+
+[FUNCTION addnews]
+//Adiciona uma notícia
+DIALOG d_news_add
+
+// Created 10/4/2009 14:37:10, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+
+[DIALOG d_news]
+0,0
+page 0
+resizepic 0 0 2600 313 367
+dtext 130 17 62 Noticias
+dhtmlgump 27 43 258 37 0 0 <DEF.BFONT_RED><DEF.CENTER><DEF.BFONT_SIZE7><cTAG.news_title>
+dhtmlgump 27 85 258 21 0 0 <DEF.BFONT_DBLUE>Data: <DEF.BFONT_BLACK><cTAG.news_date>
+dhtmlgump 25 113 262 205 1 1 <cTAG.news_news>
+if (<ctag0.news_prev>)
+ button 50 326 4014 4015 1 0 1
+endif
+if (<ctag0.news_next>)
+ button 231 326 4005 4006 1 0 2
+endif
+button 269 323 2609 248 1 0 0
+
+[DIALOG d_news text]
+
+[DIALOG d_news button]
+ON=0
+// Close
+DB.QUERY="SELECT CURRENT_TIMESTAMP() as nTime;"
+tag.lastnewsdate=<DB.ESCAPEDATA <DB.ROW.0.nTime>>
+news_clearCTags
+
+ON=1
+// Previous
+news_previousNews
+
+
+ON=2
+// Next
+news_nextNews
+
+
+// Created 10/4/2009 14:43:24, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+
+[DIALOG d_news_add]
+0,0
+page 0
+resizepic 0 0 2600 493 367
+dtext 172 19 62 Adicionar Noticia
+dtext 23 48 2100 Titulo
+resizepic 62 45 9350 403 28
+dtextentry 67 49 390 20 0 0
+dtext 218 73 2100 Noticia
+resizepic 23 93 9350 446 222
+dtextentry 29 98 432 211 0 1
+button 207 321 247 248 1 0 1
+
+[DIALOG d_news_add text]
+
+[DIALOG d_news_add button]
+ON=0
+// Close
+
+ON=1
+DB.EXECUTE="INSERT INTO news SET NewsDate=CURRENT_TIMESTAMP(), title='<DB.ESCAPEDATA <argtxt[0]>>', news='<DB.ESCAPEDATA <argtxt[1]>>'
+
+
+[EOF]
