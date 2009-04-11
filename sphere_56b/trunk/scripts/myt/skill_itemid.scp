@@ -1,112 +1,119 @@
-[DEFNAME ItemID]
-//Tempo antes de poder identificar outro item
-ItemID_timer	15
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL ARMS LORE
+//
+//  Galthar  
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
 
-[FUNCTION sk_ItemID]
+//TODO:
+
+//TAGS usadas:
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// sk_itemid
+//*****************************************************************************
 //Função inicial chamada pelo botão da skill
-
-//Checar se o player pode fazer isso
-if (<action> != -1) || (<ctag0.action>!=0) || (<flags>&statf_cantcraft)
- SYSMESSAGERED Voce esta ocupado com outro afazer.
- return 1
-endif 
-SYSMESSAGEYELLOW Que item costaria de identificar?
-targetf sk_ItemID_
-
-[FUNCTION sk_ItemID_]
-//Checar se é identificavel
-IF (!<argo.isitem>)
- sysmessagered Voce nao pode identificar isso.
- return 1
-endif
-IF (<argo.topobj>!=<UID>)
- sysmessagered Voce deve ter o item em sua posse.
- return 1
-endif
-IF (<argo.attr>&attr_identified)
- sysmessageyellow Este item ja esta identificado.
- return 1
-endif
-IF (<argo.type>==t_potion) || (<argo.type>==t_food) || (<argo.type>==t_food_raw)
- sysmessageyellow Voce nao pode identificar isto sem experimentar.
- return 1
-endif
-
-//Checar se o char pode identificar
-IF (<restest 1 i_mry_ItemID>)					//Ele usou essa skill faz pouco tempo?
- sysmessagered Aguarde antes de tentar novamente.
- return 1
-ENDIF
-local.timer=<f_rangeValue 15,3,<ItemID>>
-DORAND 2
- emoteyellow examinando atentamente
- emoteyellow examinando item
-ENDDO
-TIMERF <local.timer>,ItemID_
-ctag.action=3
-cTag.cItem=<argo.uid>
-cTag.cPX=<p.x>
-cTag.cPY=<p.Y>
+[FUNCTION sk_itemid]
+if (<src.findid.i_itemid_mry>)
+    src.sysmessagered Voce ainda nao pode analisar outro item.
+else
+    sysmessageyellow O que gostaria de identificar?
+    targetf sk_itemid_
+endif    
 return 1
 
-[FUNCTION ItemID_]
-ctag.action=
-OBJ=<cTag.cItem>
+[FUNCTION sk_itemid_]
 
-//Antiexploit
-IF (<flags>&statf_cantcraft) && (!<IsGM>)
- sysmessagered Voce nao pode identificar o item por que foi perturbado.
- return 1
-endif
-IF ((<ctag0.cPX>!=<p.x>) || (<ctag0.cPY>!=<p.y>))  && (!<IsGM>)
- sysmessagered Sua atencao foi desviada. Voce nao identificou o item.
- return 1
-endif
-IF (<obj.topobj>!=<UID>) && (!<IsGM>)
- sysmessagered Aonde esta o item? Voce foi roubado!
- susto
- return 1
-endif
-
-//Tentar identificar
-IF (<obj.isweapon>) || (<obj.isarmor>)
- LOCAL.diff=<f_rangeValue 0,1000,<obj.maxhits>>
-//ELIF outros tipos de item.
-ELSE
- //Itens em geral
- LOCAL.diff=<eval {300 600}>
+if !<argo>
+    src.sysmessagered Selecione um objeto em sua posse para identificar.
+    return 1
+elif <argo.topobj>!=<uid>
+    src.sysmessagered Voce deve ter o objeto em sua posse.
+    return 1
+elif (<argo.type>==t_potion) || (<argo.type>==t_food) || (<argo.type>==t_food_raw) || (<argo.type>==t_fruit)
+    src.sysmessagered Voce nao pode identificar isto sem experimentar.
+    return 1
+elif (<argo.attr>&attr_identified)
+    src.sysmessagered Este objeto ja esta identificado.
+    return 1
+elif !<argo.isitem>
+    src.sysmessagered Voce nao pode identificar isso.
+    return 1
 endif
 
+src.emoteyellow observando <argo.name>
+src.newitem i_itemid_mry
+NEW.more=<eval 11-(<src.itemid>/100)>
 
-//Sucesso/falha
-if (<BELLTEST <ItemID>,<LOCAL.diff>>) || (<IsGM>)
- surpreso
- obj.attr |= attr_identified
- obj.updatex
- sysmessageblue Voce identificou o item.
+if ( <NEW.more> <= 0 )
+    NEW.more=1
+endif
+
+NEW.link=<argo>
+NEW.cont=<src>
+NEW.timer=1
+
+return 1    
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+[ITEMDEF i_itemid_mry]
+id=i_deed
+name=ItemID
+type=t_eq_script
+layer=layer_special
+weight=0
+
+ON=@TIMER
+
+// Se estiver fora de visao
+if <cont>!=<link.topobj>
+    cont.sysmessageyellow O objeto que estava analisando sumiu!!
+    remove
+    return 1
+endif 
+
+// Se for perturbado ou estiver incapacitado:
+if (<cont.f_isDisturbed>)
+    cont.sysmessageyellow Voce nao esta em condicoes de analisar nada.
+    remove
+    return 1
+endif
+
+//loop de animacao
+if (<more>)
+    more=<more>-1
+    timer=1
+    return 1 
+endif
+
+if (<R1000> < <cont.itemid>)
+    link.attr |= attr_identified
+    link.update
+    
+    cont.surpreso
+    cont.sysmessagegreen Voce identificou o item.
 else
- confuso
- sysmessagered Voce falhou ao tentar identificar o item.
+    cont.confuso
+    cont.sysmessagered Voce nao identificou o item.
 endif
 
-//Temporizar a skill
-serv.newitem i_mry_ItemID
-equip <new>
-new.timer <DEF.ItemID_timer>
-
-//Ganhar skill
-SKILL_GAIN SKILL_ITEMID
-
-
-[ITEMDEF i_mry_ItemID]
-ID=i_spell_circle_3
-NAME=ItemID
-TYPE=t_eq_script
-LAYER=layer_special
-
-on=@create
-color=1430
-
-on=@Timer
+cont.skill_gain skill_itemid
 remove
 return 1
+
+[EOF]
