@@ -1,0 +1,391 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA INFORMACOES DE ITEMS
+//
+//  Galthar  
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//TAGS usadas:
+//CTAG.iteminfo
+
+[PLEVEL 1]
+analisar
+
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+
+[DEFNAME INFO_FUNCTIONS]
+INFO_t_weapon_axe           = info_weapons
+INFO_t_weapon_mace_smith    = info_weapons
+INFO_t_weapon_mace_sharp    = info_weapons
+INFO_t_weapon_sword         = info_weapons
+INFO_t_weapon_fence         = info_weapons
+INFO_t_weapon_bow           = info_weapons
+INFO_t_weapon_mace_staff    = info_weapons
+INFO_t_weapon_mace_crook    = info_weapons
+INFO_t_weapon_mace_pick     = info_weapons
+INFO_t_weapon_arrow         = info_weapons
+INFO_t_weapon_bolt          = info_weapons
+INFO_t_weapon_xbow          = info_weapons
+//INFO_t_string               = info_weapons
+INFO_t_weapon_mace_smith    = info_weapons
+INFO_t_weapon_mace_staff    = info_weapons
+INFO_t_weapon_mace_crook    = info_weapons
+INFO_t_weapon_mace_pick     = info_weapons
+
+INFO_t_armor                = info_armors
+INFO_t_armor_leather        = info_armors
+INFO_t_shield               = info_armors
+
+[COMMENT]
+INFO_t_wand )
+INFO_t_potion )
+INFO_t_potion_empty )
+INFO_t_reagente )
+INFO_t_almofariz )
+INFO_t_espiriteira )
+INFO_t_destilador )
+INFO_t_balao )
+INFO_t_misturador )
+INFO_t_tubo )
+
+
+INFO_t_food )
+INFO_t_food_raw )
+INFO_t_fish )
+INFO_t_fruit )
+INFO_t_meat_raw )
+INFO_t_recipient )
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// analisar
+//*****************************************************************************
+[FUNCTION analisar]
+sysmessageyellow O que gostaria de analisar?
+targetf analisar_
+
+[FUNCTION analisar_]
+if !<argo>
+    sysmessageyellow Nao eh possivel analisar isto. Selecione outro item.
+    targetf analisar_
+endif
+ctag.iteminfo = <argo>
+dialog d_itemid_analize
+
+//*****************************************************************************
+// info_item
+//*****************************************************************************
+//retorna informacoes explicativas sobre o item
+[FUNCTION info_item]
+if !<isempty <DEF.INFO_<type>>>
+  return <<DEF.INFO_<type>>>
+endif
+
+return Nenhuma informacao encontrada para <name>
+
+//*****************************************************************************
+// info_weapons
+//*****************************************************************************
+//retorna informacoes explicativas sobre armas
+[FUNCTION info_weapons]
+
+if (!<maxhits>)
+    serv.log [INFO_WEAPONS] NO MAXHITS: <name> <type> <uid> <src>
+    maxhits=1
+endif
+
+//gm ve tudo
+if (<src.isgm>) || (<attr>&attr_identified)
+    LOCAL.c=1
+else
+    LOCAL.c=0
+endif
+
+//definir nome de exibição
+LOCAL.name=<name>
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
+    LOCAL.name=<DEF.<baseid>_IDNAME>
+endif
+
+//sneek peak de gm?
+if !(<attr>&attr_identified) && <src.isgm>
+    LOCAL.t = <DEF.bfont_yellow><LOCAL.name> <DEF.bfont_white>[nao identificado]
+else
+    LOCAL.t = <DEF.bfont_yellow><LOCAL.name> <DEF.bfont_white>[identificado]
+endif
+
+//mostra dano
+LOCAL.t .= "<DEF.BR><DEF.bfont_dcyan>Dano:<DEF.bfont_white> "
+LOCAL.min=<dam.lo>
+LOCAL.max=<dam.hi>
+LOCAL.d=<eval (<dam.hi>+<dam.lo>)/2>
+if (<LOCAL.d><5)
+    LOCAL.t .= Fraco
+elif (<LOCAL.d><10)
+    LOCAL.t .= Baixo
+elif (<LOCAL.d><25)
+    LOCAL.t .= Medio
+elif (<LOCAL.d><40)
+    LOCAL.t .= Forte
+else
+    LOCAL.t .= Muito forte
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+//mostra durabilidade
+LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Qualidade:<DEF.bfont_white> "
+LOCAL.min=<hits>
+LOCAL.max=<maxhits>
+LOCAL.d=<eval (<hits>*100)/<maxhits>>
+if (<LOCAL.d><25)
+    LOCAL.t .= Pessimo
+elif (<LOCAL.d><50)
+    LOCAL.t .= Degradado
+elif (<LOCAL.d><75)
+    LOCAL.t .= Bom
+else
+    LOCAL.t .= Perfeito
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+//forca necessaria
+LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Forca para uso:<DEF.bfont_white> "
+LOCAL.min=<reqstr>
+if (<reqstr><25)
+    LOCAL.t .= Nenhuma
+elif (<reqstr><50)
+    LOCAL.t .= Pouca
+elif (<reqstr><75)
+    LOCAL.t .= Moderada
+else
+    LOCAL.t .= Alta
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>)"
+endif
+
+//duas maos?
+if (<TWOHANDS>)
+    LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Duas Maos<DEF.bfont_white>"
+endif
+
+
+//mostrar atributos
+if <LOCAL.c>
+
+    if (<dmgfire>)
+        LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Fogo:<DEF.bfont_white> +<eval <dmgfire>>"
+    endif
+    if (<dmgcold>)
+        LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Gelo:<DEF.bfont_white> +<eval <dmgcold>>"
+    endif
+    if (<dmgpoison>)
+        LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Veneno:<DEF.bfont_white> +<eval <dmgpoison>>"
+    endif
+    if (<dmgenergy>)
+        LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Eletricidade:<DEF.bfont_white> +<eval <dmgenergy>>"
+    endif
+    
+    if (<attr>&attr_cursed)
+        LOCAL.t .= <DEF.br><DEF.bfont_lpurple>amaldiçoado
+    endif
+    if (<attr>&attr_cursed2)
+        LOCAL.t .= <DEF.br><DEF.bfont_lpurple>maldito
+    endif
+    if (<attr>&attr_blessed)
+        LOCAL.t .= <DEF.br><DEF.bfont_dcyan>abençoado
+    endif
+    if (<attr>&attr_blessed2)
+        LOCAL.t .= <DEF.br><DEF.bfont_dcyan>sagrado
+    endif
+
+    if (<morex>==s_poison)
+        LOCAL.t .= <DEF.br><DEF.bfont_dcyan>Envenenado
+    elif (<attr>&attr_magic)
+        if (<morex>) && (<morex>!=s_poison)
+            LOCAL.t .= <DEF.br><DEF.bfont_dcyan>Magia:<DEF.bfont_white> <serv.spell.<more2>.name>
+        else
+            LOCAL.t .= <DEF.br><DEF.bfont_dcyan>Mágico
+        endif
+    endif
+       
+endif
+
+//definir TOOLTIP se houver
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDTIP>>)
+  LOCAL.t .= <DEF.br><DEF.bfont_cyan><DEF.<baseid>_IDTIP>
+endif
+
+return <LOCAL.t>
+
+//*****************************************************************************
+// info_armors
+//*****************************************************************************
+//retorna informacoes explicativas sobre armaduras
+[FUNCTION info_armors]
+//gm ve tudo
+if (<src.isgm>) || (<attr>&attr_identified)
+    LOCAL.c=1
+else
+    LOCAL.c=0
+endif
+
+//definir nome de exibição
+LOCAL.name=<name>
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
+  LOCAL.name=<DEF.<baseid>_IDNAME>
+endif
+
+//sneek peak de gm?
+if !(<attr>&attr_identified) && <src.isgm>
+    LOCAL.t = <DEF.bfont_yellow><LOCAL.name> <DEF.bfont_white>[nao identificado]
+else
+    LOCAL.t = <DEF.bfont_yellow><LOCAL.name> <DEF.bfont_white>[identificado]
+endif
+
+//mostra protecao
+LOCAL.t .= "<DEF.BR><DEF.bfont_dcyan>Protecao:<DEF.bfont_white> "
+LOCAL.min=<armor.lo>
+LOCAL.max=<armor.hi>
+LOCAL.d=<eval (<armor.hi>+<armor.lo>)/2>
+if (<LOCAL.d><5)
+    LOCAL.t .= Fraca
+elif (<LOCAL.d><10)
+    LOCAL.t .= Pouca
+elif (<LOCAL.d><25)
+    LOCAL.t .= Media
+elif (<LOCAL.d><40)
+    LOCAL.t .= Forte
+else
+    LOCAL.t .= Muito forte
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+
+//mostra qualidade
+LOCAL.t .= "<DEF.BR><DEF.bfont_dcyan>Qualidade:<DEF.bfont_white> "
+LOCAL.min=<hits>
+LOCAL.max=<maxhits>
+LOCAL.d=<eval (<hits>*100)/<maxhits>>
+if (<LOCAL.d><25)
+    LOCAL.t .= Pessimo
+elif (<LOCAL.d><50)
+    LOCAL.t .= Degradado
+elif (<LOCAL.d><75)
+    LOCAL.t .= Bom
+else
+    LOCAL.t .= Perfeito
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+//forca necessaria
+LOCAL.t .= "<DEF.BR><DEF.bfont_dcyan>Forca para uso:<DEF.bfont_white> "
+LOCAL.min=<reqstr>
+if (<reqstr><25)
+    LOCAL.t .= Nenhuma
+elif (<reqstr><50)
+    LOCAL.t .= Pouca
+elif (<reqstr><75)
+    LOCAL.t .= Moderada
+else
+    LOCAL.t .= Alta
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>)"
+endif
+
+
+//mostrar atributos
+if <LOCAL.c>
+  
+    if (<attr>&attr_cursed)
+        LOCAL.t .= <DEF.br><DEF.bfont_lpurple>amaldiçoado
+    endif
+    if (<attr>&attr_cursed2)
+        LOCAL.t .= <DEF.br><DEF.bfont_lpurple>maldito
+    endif
+    if (<attr>&attr_blessed)
+        LOCAL.t .= <DEF.br><DEF.bfont_dcyan>abençoado
+    endif
+    if (<attr>&attr_blessed2)
+        LOCAL.t .= <DEF.br><DEF.bfont_dcyan>sagrado
+    endif
+
+
+    if (<attr>&attr_magic)
+
+//        if (<morex>) && (<morex>!=s_poison)
+//            LOCAL.t .= <DEF.bfont_dcyan>Magia:<DEF.bfont_white> <serv.spell.<more2>.name><DEF.br>
+//        else
+            LOCAL.t .= <DEF.br><DEF.bfont_dcyan>Mágico
+//        endif
+    endif
+
+
+    if <morex>
+        LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Fogo:<DEF.bfont_white> +<eval <morex>>"
+    endif
+    if <morey>y
+        LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Gelo:<DEF.bfont_white> +<eval <morey>>"
+    endif
+    if <morez>
+        LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Veneno:<DEF.bfont_white> +<eval <morez>>"
+    endif
+    if <morem>
+        LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Eletricidade:<DEF.bfont_white> +<eval <morem>>"
+    endif
+        
+endif
+
+//definir TOOLTIP se houver
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDTIP>>)
+    LOCAL.t .= <DEF.br><DEF.bfont_cyan><DEF.<baseid>_IDTIP>
+endif
+
+return <LOCAL.t>
+
+
+
+//*****************************************************************************
+//*****************************************************************************
+// DIALOGs
+//*****************************************************************************
+//*****************************************************************************
+
+[DIALOG d_itemid_analize]
+250,150
+page 0
+resizepic 0 0 2620 360 230
+checkertrans 5 7 348 214
+
+obj = <ctag0.iteminfo>
+dhtmlgump 7 8 345 211 0 1 <obj.info_item>
+
+[DIALOG d_itemid_analize text]
+
+[DIALOG d_itemid_analize button]
+
+[EOF]

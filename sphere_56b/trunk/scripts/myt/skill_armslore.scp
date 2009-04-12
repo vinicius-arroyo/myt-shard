@@ -290,6 +290,154 @@ else
 endif
 
 //*****************************************************************************
+// tooltip_weapons( [skipTooltipAndReturnText] )
+//*****************************************************************************
+// retorna tooltip. deve sempre retornar POUCAS informacoes, somente para dar
+//uma ideia geral sobre o item. use info_weapons para informacoes mais detalhadas
+//****************
+
+[FUNCTION tooltip_weapons]
+//bug do sistema de vendas
+//if (<type>==t_weapon_arrow)
+//    return 
+//endif
+if (!<maxhits>)
+    serv.log [TOOLTIP]: NO MAXHITS: <name> <type> <uid> <src>
+    maxhits=1
+endif
+
+//gm ve tudo
+if (<src.isgm>) || (<attr>&attr_identified)
+    LOCAL.c=1
+else
+    LOCAL.c=0
+endif
+
+//definir nome de exibição
+LOCAL.name=<name>
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
+  LOCAL.name=<DEF.<baseid>_IDNAME>
+endif
+
+//stats principais, de dano e durabilidade
+
+//mostra dano
+LOCAL.t = "Dano: "
+LOCAL.min=<dam.lo>
+LOCAL.max=<dam.hi>
+LOCAL.d=<eval (<dam.hi>+<dam.lo>)/2>
+if (<LOCAL.d><5)
+    LOCAL.t .= Fraco
+elif (<LOCAL.d><10)
+    LOCAL.t .= Baixo
+elif (<LOCAL.d><25)
+    LOCAL.t .= Medio
+elif (<LOCAL.d><40)
+    LOCAL.t .= Forte
+else
+    LOCAL.t .= Muito forte
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)<DEF.br>"
+endif
+
+//mostra durabilidade
+LOCAL.t .= "Qualidade: "
+LOCAL.min=<hits>
+LOCAL.max=<maxhits>
+LOCAL.d=<eval (<hits>*100)/<maxhits>>
+if (<LOCAL.d><25)
+    LOCAL.t .= Pessimo
+elif (<LOCAL.d><50)
+    LOCAL.t .= Degradado
+elif (<LOCAL.d><75)
+    LOCAL.t .= Bom
+else
+    LOCAL.t .= Perfeito
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+//mostrar atributos
+if !(<LOCAL.c>)
+    //nao identificado
+    LOCAL.t .= <DEF.br><DEF.bfont_yellow>
+
+    LOCAL.t .= (nao identificado)
+else
+
+    //stats de magia
+    LOCAL.tm = <DEF.bfont_lpurple>
+
+    LOCAL.x=0
+    if (<attr>&attr_cursed)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_lpurple>amaldiçoado
+    endif
+    if (<attr>&attr_cursed2)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_lpurple>maldito
+    endif
+    if (<attr>&attr_blessed)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>abençoado
+    endif
+    if (<attr>&attr_blessed2)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>sagrado
+    endif
+
+    if (<morex>==s_poison)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>Envenenado
+    elif (<attr>&attr_magic)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>Mágico
+    endif
+
+    if <LOCAL.x>
+        LOCAL.t .= <LOCAL.tm>
+    endif
+    
+    
+    LOCAL.x=0
+    
+    //stats de danos magicos
+    LOCAL.tm = <DEF.bfont_green>
+       
+    if (<dmgfire>)
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Fogo: +<eval <dmgfire>>"
+    endif
+    if (<dmgcold>)
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Gelo: +<eval <dmgcold>>"
+    endif
+    if (<dmgpoison>)
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Veneno: +<eval <dmgpoison>>"
+    endif
+    if (<dmgenergy>)
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Eletricidade: +<eval <dmgenergy>>"
+    endif
+    
+    if <LOCAL.x>
+        LOCAL.t .= <LOCAL.tm>
+    endif
+endif
+
+//serv.log <LOCAL.t>
+
+if !( 0<argv0> )
+    src.addcliloc 1042971,<LOCAL.name>
+    src.addcliloc 1070722,<LOCAL.t>
+else
+    return <LOCAL.t>
+endif
+
+//*****************************************************************************
 // f_armorTooltip
 //*****************************************************************************
 //mostra tooltip de armaduras de acordo com armslore
@@ -436,6 +584,146 @@ else
 endif
 
 //*****************************************************************************
+// tooltip_armors
+//*****************************************************************************
+// retorna tooltip. deve sempre retornar POUCAS informacoes, somente para dar
+//uma ideia geral sobre o item. use info_ARMORS para informacoes mais detalhadas
+//****************
+[FUNCTION tooltip_armors]
+
+//gm ve tudo
+if (<src.isgm>) || (<attr>&attr_identified)
+    LOCAL.c=1
+else
+    LOCAL.c=0
+endif
+
+//definir nome de exibição
+LOCAL.name=<name>
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
+  LOCAL.name=<DEF.<baseid>_IDNAME>
+endif
+
+
+LOCAL.t = "Protecao: "
+LOCAL.min=<armor.lo>
+LOCAL.max=<armor.hi>
+LOCAL.d=<eval (<armor.hi>+<armor.lo>)/2>
+if (<LOCAL.d><5)
+    LOCAL.t .= Fraca
+elif (<LOCAL.d><10)
+    LOCAL.t .= Pouca
+elif (<LOCAL.d><25)
+    LOCAL.t .= Media
+elif (<LOCAL.d><40)
+    LOCAL.t .= Forte
+else
+    LOCAL.t .= Muito forte
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)<DEF.br>"
+endif
+
+
+LOCAL.t .= "Qualidade: "
+LOCAL.min=<hits>
+LOCAL.max=<maxhits>
+LOCAL.d=<eval (<hits>*100)/<maxhits>>
+if (<LOCAL.d><25)
+    LOCAL.t .= Pessimo
+elif (<LOCAL.d><50)
+    LOCAL.t .= Degradado
+elif (<LOCAL.d><75)
+    LOCAL.t .= Bom
+else
+    LOCAL.t .= Perfeito
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+
+
+//mostrar atributos
+if !(<LOCAL.c>)
+    //nao identificado
+    LOCAL.t .= <DEF.br><DEF.bfont_yellow>
+
+    LOCAL.t .= (nao identificado)
+else
+
+    //stats de magia
+    LOCAL.tm = <DEF.bfont_lpurple>
+
+    LOCAL.x=0
+    if (<attr>&attr_cursed)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_lpurple>amaldiçoado
+    endif
+    if (<attr>&attr_cursed2)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_lpurple>maldito
+    endif
+    if (<attr>&attr_blessed)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>abençoado
+    endif
+    if (<attr>&attr_blessed2)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>sagrado
+    endif
+
+
+    if (<attr>&attr_magic)
+        LOCAL.x=1
+
+//        if (<morex>) && (<morex>!=s_poison)
+//            LOCAL.tm .= <DEF.bfont_dcyan>Magia:<DEF.bfont_white> <serv.spell.<more2>.name><DEF.br>
+//        else
+            LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>Mágico
+//        endif
+    endif
+
+    if <LOCAL.x>
+        LOCAL.t .= <LOCAL.tm>
+    endif
+
+    LOCAL.x=0
+    
+    //stats de protecoes magicas
+    LOCAL.tm = <DEF.bfont_green>
+
+    if <morex>
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Fogo: +<eval <morex>>"
+    endif
+    if <morey>y
+        LOCAL.x=1    
+        LOCAL.tm .= "<DEF.br>Gelo: +<eval <morey>>"
+    endif
+    if <morez>
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Veneno: +<eval <morez>>"
+    endif
+    if <morem>
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Eletricidade: +<eval <morem>>"
+    endif
+    
+    if <LOCAL.x>
+        LOCAL.t .= <LOCAL.tm>
+    endif
+        
+endif
+
+if !( 0<argv0> )
+    src.addcliloc 1042971,<LOCAL.name>
+    src.addcliloc 1070722,<LOCAL.t>
+else
+    return <LOCAL.t>
+endif
+
+//*****************************************************************************
 //*****************************************************************************
 // TYPEDEFs - ARMAS
 //*****************************************************************************
@@ -446,7 +734,7 @@ endif
 //*****************************************************************************
 [TYPEDEF t_weapon_mace_smith]
 ON=@CLIENTTOOLTIP
-f_weaponTooltip
+tooltip_weapons
 return 1
 
 //*****************************************************************************
@@ -457,7 +745,7 @@ ON=@TARGON_ITEM
 return <f_weaponTargetItem>
 
 ON=@CLIENTTOOLTIP
-f_weaponTooltip
+tooltip_weapons
 return 1
 
 //*****************************************************************************
@@ -465,7 +753,7 @@ return 1
 //*****************************************************************************
 [TYPEDEF t_weapon_mace_staff]
 ON=@CLIENTTOOLTIP
-f_weaponTooltip
+tooltip_weapons
 return 1
 
 //*****************************************************************************
@@ -473,7 +761,7 @@ return 1
 //*****************************************************************************
 [TYPEDEF t_weapon_mace_crook]
 ON=@CLIENTTOOLTIP
-f_weaponTooltip
+tooltip_weapons
 return 1
 
 //*****************************************************************************
@@ -481,7 +769,7 @@ return 1
 //*****************************************************************************
 [TYPEDEF t_weapon_mace_pick]
 ON=@CLIENTTOOLTIP
-f_weaponTooltip
+tooltip_weapons
 return 1
 
 //use it for custom sand mining
@@ -543,7 +831,7 @@ ON=@TARGON_ITEM
 return <f_weaponTargetItem>
 
 ON=@CLIENTTOOLTIP
-f_weaponTooltip
+tooltip_weapons
 return 1
 
 ON=@DClick
@@ -560,7 +848,7 @@ ON=@TARGON_ITEM
 return <f_weaponTargetItem>
 
 ON=@CLIENTTOOLTIP
-f_weaponTooltip
+tooltip_weapons
 return 1
 
 ON=@DClick
@@ -574,7 +862,7 @@ ON=@TARGON_ITEM
 return <f_weaponTargetItem>
 
 ON=@CLIENTTOOLTIP
-f_weaponTooltip
+tooltip_weapons
 return 1
 
 ON=@DClick
@@ -595,7 +883,7 @@ return <f_weaponDclick>
 //*****************************************************************************
 [TYPEDEF t_weapon_bow]
 ON=@CLIENTTOOLTIP
-f_weaponTooltip
+tooltip_weapons
 return 1
 
 //*****************************************************************************
@@ -603,7 +891,7 @@ return 1
 //*****************************************************************************
 [TYPEDEF t_weapon_xbow]
 ON=@CLIENTTOOLTIP
-f_weaponTooltip
+tooltip_weapons
 return 1
 
 //*****************************************************************************
@@ -681,5 +969,6 @@ endif
 cont.skill_gain skill_armslore
 remove
 return 1
+
 
 [EOF]
