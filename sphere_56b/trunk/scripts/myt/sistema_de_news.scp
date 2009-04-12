@@ -1,23 +1,24 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE NEWS
+//
+//  Galthar, o Errante
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
 [COMMENT sistema_de_news]
-##################################################################
-##		         Mystical Tales Shard			##
-##		       Sistema de noticias v1.0			##
-##		             10/04/2009				##
-##								##
-##		Por:						##
-##		Galthar, o Errante				##
-##		US_Marine					##
-##################################################################
 
 	-=TAGs utilizadas=-
 	
 cTAG.news_title
 cTAG.news_date
+cTAG.news_ts
 cTAG.news_news
-ctag.news_next
-ctag.news_prev
-tag.lastnewsdate
-
+cTAG.news_next
+cTAG.news_prev
+tag.news_lastseen
 
 	-=Tabelas MySQL=-
 	
@@ -28,7 +29,6 @@ CREATE TABLE `mytserver`.`news` (
   PRIMARY KEY (`NewsDate`)
 )
 ENGINE = MyISAM;
-
 
 	-=Como fas/=-
 .addnews para adicionar nova notícia
@@ -45,85 +45,122 @@ noticias
 [PLEVEL 3]
 addnews
 
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// addnews
+//*****************************************************************************
+//Adiciona uma notícia
+[FUNCTION addnews]
+dialog d_news_add
+
+//*****************************************************************************
+// noticias
+//*****************************************************************************
+[FUNCTION noticias]
+news
+
+//*****************************************************************************
+// news
+//*****************************************************************************
+//Chama o dialog de notícias.
+//Se tem argn, evita chamar o dialog se não há notícias novas.
+[FUNCTION news]
+news_clearCTags
+
+news_load NewsDate > FROM_UNIXTIME(<eval <tag0.news_lastseen>>) ORDER BY NewsDate LIMIT 2"
+
+if !<DB.ROW.NUMROWS>
+// serv.log [NEWS] Nao rolou
+    if !<argn>
+        //nenhuma noticia nova, pega a mais recente
+        news_load 1 ORDER BY NewsDate DESC LIMIT 1"
+    else
+        return 1
+    endif
+endif
+
+//tem proxima?
+ctag.news_next=0
+if <DB.ROW.NUMROWS>==2
+    ctag.news_next=1
+endif
+
+ctag.news_prev=0
+DB.QUERY="SELECT count(NewsDate) FROM news WHERE NewsDate < FROM_UNIXTIME( <eval <cTAG.news_ts>> ) LIMIT 1;"
+if <DB.ROW.NUMROWS>
+    ctag.news_prev=1
+endif
+
+dialog d_news
+
+//*****************************************************************************
+// news_clearCTags
+//*****************************************************************************
 [FUNCTION news_clearCTags]
 cTAG.news_title=
 cTAG.news_date=
+cTAG.news_ts=
 cTAG.news_news=
 ctag.news_next=
 ctag.news_prev=
 
-
-[FUNCTION news]
-//Chama o dialog de notícias.
-//Se tem argn, evita chamar o dialog se não há notícias novas.
-news_clearCTags
-IF (<IsEmpty <tag.lastnewsdate>>)
- DB.QUERY="SELECT CURRENT_TIMESTAMP() as nTime;"
- tag.lastnewsdate=<DB.ESCAPEDATA <DB.ROW.0.nTime>>
- DB.QUERY="SELECT * FROM news WHERE NewsDate > DATE_SUB(CURDATE(),INTERVAL 30 DAY) LIMIT 2;"
- Sysmessageyellow Noticias do ultimo mes!
-else
- DB.QUERY="SELECT * FROM news WHERE NewsDate > '<DB.ESCAPEDATA <tag.lastnewsdate>>' LIMIT 2;"
+//*****************************************************************************
+// news_load
+//*****************************************************************************
+[FUNCTION news_load]
+LOCAL.q="SELECT title, news, DATE_FORMAT(NewsDate,'%d/%m/%Y %h:%i') AS date, unix_timestamp(NewsDate) AS ts FROM news WHERE <args>" 
+//serv.log [NEWS] <LOCAL.q>
+DB.QUERY=<LOCAL.q>
+if <DB.ROW.NUMROWS>
+    cTAG.news_title=<DB.ROW.0.title>
+    cTAG.news_ts=<DB.ROW.0.ts>
+    cTAG.news_date=<DB.ROW.0.date>
+    cTAG.news_news=<DB.ROW.0.news>
 endif
 
-IF (!<DB.ROW.NUMROWS>)
- serv.log Nao rolou
- if (!<argn>)
-  DB.QUERY="SELECT * FROM news WHERE NewsDate < CURRENT_TIMESTAMP() ORDER BY NewsDate DESC LIMIT 1;"
- else
-  return 1
- endif
-ENDIF
-
-cTAG.news_title=<DB.ROW.0.title>
-cTAG.news_date=<DB.ROW.0.NewsDate>
-cTAG.news_news=<DB.ROW.0.news>
-IF (STRLEN(<DB.ROW.1.news>))
- ctag.news_next=1
-endif
-DB.QUERY="SELECT * FROM news WHERE NewsDate < '<cTAG.news_date>' ORDER BY NewsDate ASC LIMIT 1;"
-IF (<DB.ROW.NUMROWS>)
- ctag.news_prev=1
-ENDIF
-DIALOG d_news
-
-
+//*****************************************************************************
+// news_previousNews
+//*****************************************************************************
 [FUNCTION news_previousNews]
 //Chama uma notícia mais velha
-DB.QUERY="SELECT * FROM news WHERE NewsDate < '<DB.ESCAPEDATA <cTAG.news_date>>' ORDER BY NewsDate DESC LIMIT 2;"
-news_clearCTags
-cTAG.news_title=<DB.ROW.0.title>
-cTAG.news_date=<DB.ROW.0.NewsDate>
-cTAG.news_news=<DB.ROW.0.news>
+news_load NewsDate < FROM_UNIXTIME( <eval <cTAG.news_ts>> ) ORDER BY NewsDate DESC LIMIT 2"
 ctag.news_next=1
-DB.QUERY="SELECT * FROM news WHERE NewsDate < '<DB.ESCAPEDATA <cTAG.news_date>>' LIMIT 1;"
-IF (<DB.ROW.NUMROWS>)
- ctag.news_prev=1
-ENDIF
-DIALOG d_news
+ctag.news_prev=0
+if <DB.ROW.NUMROWS>==2
+    ctag.news_prev=1
+endif
+dialog d_news
 
-
+//*****************************************************************************
+// news_nextNews
+//*****************************************************************************
 [FUNCTION news_nextNews]
 //Chama uma notícia mais nova
-DB.QUERY="SELECT * FROM news WHERE NewsDate > '<DB.ESCAPEDATA <cTAG.news_date>>' ORDER BY NewsDate ASC LIMIT 2;"
-news_clearCTags
-cTAG.news_title=<DB.ROW.0.title>
-cTAG.news_date=<DB.ROW.0.NewsDate>
-cTAG.news_news=<DB.ROW.0.news>
-IF (STRLEN(<DB.ROW.1.news>))
- ctag.news_next=1
+news_load NewsDate > FROM_UNIXTIME( <eval <cTAG.news_ts>> ) ORDER BY NewsDate ASC LIMIT 2"
+ctag.news_next=0
+if <DB.ROW.NUMROWS>==2
+    ctag.news_next=1
 endif
 ctag.news_prev=1
-DIALOG d_news
+dialog d_news
 
-[FUNCTION addnews]
-//Adiciona uma notícia
-DIALOG d_news_add
+//*****************************************************************************
+//*****************************************************************************
+// DIALOGs
+//*****************************************************************************
+//*****************************************************************************
 
+//*****************************************************************************
+// d_news
+//*****************************************************************************
 // Created 10/4/2009 14:37:10, with Gump Studio.
 // Exported with with SphereExporter ver 1.1.
 // Script for 0.56/Revisions
-
 [DIALOG d_news]
 0,0
 page 0
@@ -138,15 +175,15 @@ endif
 if (<ctag0.news_next>)
  button 231 326 4005 4006 1 0 2
 endif
-button 269 323 2609 248 1 0 0
+button 269 323 2609 2610 1 0 0
 
 [DIALOG d_news text]
 
 [DIALOG d_news button]
 ON=0
 // Close
-DB.QUERY="SELECT CURRENT_TIMESTAMP() as nTime;"
-tag.lastnewsdate=<DB.ESCAPEDATA <DB.ROW.0.nTime>>
+DB.QUERY="SELECT UNIX_TIMESTAMP() as nTime"
+tag.news_lastseen=<DB.ROW.0.nTime>
 news_clearCTags
 
 ON=1
@@ -158,11 +195,12 @@ ON=2
 // Next
 news_nextNews
 
-
+//*****************************************************************************
+// d_news_add
+//*****************************************************************************
 // Created 10/4/2009 14:43:24, with Gump Studio.
 // Exported with with SphereExporter ver 1.1.
 // Script for 0.56/Revisions
-
 [DIALOG d_news_add]
 0,0
 page 0
