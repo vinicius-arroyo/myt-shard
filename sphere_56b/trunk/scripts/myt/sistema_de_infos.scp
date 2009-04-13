@@ -24,6 +24,8 @@ analisar
 //*****************************************************************************
 
 [DEFNAME INFO_FUNCTIONS]
+INFO_MAX=4
+
 INFO_t_weapon_axe           = info_weapons
 INFO_t_weapon_mace_smith    = info_weapons
 INFO_t_weapon_mace_sharp    = info_weapons
@@ -83,9 +85,30 @@ targetf analisar_
 if !<argo>
     sysmessageyellow Nao eh possivel analisar isto. Selecione outro item.
     targetf analisar_
+    return
 endif
-ctag.iteminfo = <argo>
-dialog d_itemid_analize
+
+for R 1 <DEF.INFO_MAX>
+    if <ctag0.iteminfo_<LOCAL.R>>==<argo>
+        sysmessageyellow Ja esta analisando este item.
+        return
+    elif !<LOCAL.found>
+        if !<ctag0.iteminfo_<LOCAL.R>>
+            LOCAL.found=<LOCAL.R>
+        endif
+    endif
+endfor
+
+if !<LOCAL.found>
+    sysmessageyellow Muitas janelas abertas. Feche alguma.
+    return
+endif
+
+TRY ctag.iteminfo_<LOCAL.found> = <argo>
+analisar__ <LOCAL.found>,0
+
+[FUNCTION analisar__]
+dialog d_itemid_analize 0,<argv1>,<argv0>
 
 //*****************************************************************************
 // info_item
@@ -122,11 +145,13 @@ if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
     LOCAL.name=<DEF.<baseid>_IDNAME>
 endif
 
+LOCAL.t = <DEF.bfont_yellow><LOCAL.name> 
+
 //sneek peak de gm?
 if !(<attr>&attr_identified) && <src.isgm>
-    LOCAL.t = <DEF.bfont_yellow><LOCAL.name> <DEF.bfont_white>[nao identificado]
+    LOCAL.t .= <DEF.BR><DEF.bfont_dcyan>Identificado: <DEF.bfont_white>Sim
 else
-    LOCAL.t = <DEF.bfont_yellow><LOCAL.name> <DEF.bfont_white>[identificado]
+    LOCAL.t .= <DEF.BR><DEF.bfont_dcyan>Identificado: <DEF.bfont_white>Nao
 endif
 
 //mostra dano
@@ -255,12 +280,15 @@ if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
   LOCAL.name=<DEF.<baseid>_IDNAME>
 endif
 
+LOCAL.t = <DEF.bfont_yellow><LOCAL.name> 
+
 //sneek peak de gm?
 if !(<attr>&attr_identified) && <src.isgm>
-    LOCAL.t = <DEF.bfont_yellow><LOCAL.name> <DEF.bfont_white>[nao identificado]
+    LOCAL.t .= <DEF.BR><DEF.bfont_dcyan>Identificado: <DEF.bfont_white>Sim
 else
-    LOCAL.t = <DEF.bfont_yellow><LOCAL.name> <DEF.bfont_white>[identificado]
+    LOCAL.t .= <DEF.BR><DEF.bfont_dcyan>Identificado: <DEF.bfont_white>Nao
 endif
+
 
 //mostra protecao
 LOCAL.t .= "<DEF.BR><DEF.bfont_dcyan>Protecao:<DEF.bfont_white> "
@@ -375,17 +403,57 @@ return <LOCAL.t>
 //*****************************************************************************
 //*****************************************************************************
 
+//*****************************************************************************
+// d_itemid_analize <page>,<slot>
+//*****************************************************************************
 [DIALOG d_itemid_analize]
 250,150
+noclose
 page 0
-resizepic 0 0 2620 360 230
-checkertrans 5 7 348 214
+LOCAL.o = <eval 10+(<argv1>*6)>
+//serv.log [ITEMINFO]-Dialog Slot:<argv1> 
+resizepic 0 0 2620 360 250
+checkertrans 5 7 348 234
+button 10 227 2224 2224 1 0 <eval 1+<LOCAL.o>>
+dtext 34 223 166 Geral
+button 80 227 2224 2224 1 0 <eval 2+<LOCAL.o>>
+dtext 104 223 166 Manufatura
+button 290 227 2224 2224 1 0 <eval 5+<LOCAL.o>>
+dtext 314 223 166 Fechar
 
-obj = <ctag0.iteminfo>
-dhtmlgump 7 8 345 211 0 1 <obj.info_item>
+obj = <ctag0.iteminfo_<argv1>>
+
+if (!<argv0>) || (<argv0>==1)
+    LOCAL.title=Geral:
+    LOCAL.text=<obj.info_item>
+elif <argv0>==2
+    LOCAL.title=Manufatura:
+    LOCAL.text=Sem informacoes de manufatura.
+endif
+
+dtext 7 8 2301 <LOCAL.title>
+dhtmlgump 7 28 345 191 0 1 <LOCAL.text>
 
 [DIALOG d_itemid_analize text]
 
 [DIALOG d_itemid_analize button]
+
+ON=10 1000
+//remove offset de seguranca
+argn -= 10
+
+//calcula slot/pagina a partir do botao
+LOCAL.slot=<eval <argn>/6>
+LOCAL.pg=<eval <argn>-(<LOCAL.slot>*6)>
+
+//serv.log [ITEMINFO]-Click Slot:<dLOCAL.slot> Pagina:<dLOCAL.pg> Botao:<argn>
+//fechar?
+if <LOCAL.pg> == 5
+    TRY ctag.iteminfo_<LOCAL.slot>=
+//trocar pagina    
+else
+    analisar__ <LOCAL.slot>,<LOCAL.pg>
+endif
+
 
 [EOF]
