@@ -154,6 +154,28 @@ dialog d_news
 // DIALOGs
 //*****************************************************************************
 //*****************************************************************************
+//*****************************************************************************
+// m_news_del
+//*****************************************************************************
+
+[MENU m_news_del]
+Deseja mesmo remover a noticia '<cTAG.news_title>'?
+on=0 Sim
+DB.EXECUTE="DELETE FROM news WHERE NewsDate=FROM_UNIXTIME( <dcTAG.news_ts> )";
+news
+return 1
+
+on=0 Nao
+news
+return 1
+
+on=@Cancel
+news
+return 1
+
+// Created 10/4/2009 14:37:10, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
 
 //*****************************************************************************
 // d_news
@@ -162,7 +184,8 @@ dialog d_news
 // Exported with with SphereExporter ver 1.1.
 // Script for 0.56/Revisions
 [DIALOG d_news]
-0,0
+30,30
+noclose
 page 0
 resizepic 0 0 2600 313 367
 dtext 130 17 62 Noticias
@@ -174,26 +197,40 @@ if (<ctag0.news_prev>)
 endif
 if (<ctag0.news_next>)
  button 231 326 4005 4006 1 0 2
+else
+ //Ultima página. Botão de salvar data.
+ button 269 323 2609 2609 1 0 3
 endif
-button 269 323 2609 2610 1 0 0
+if (<IsGM>)
+ button 75 327 2708 2708 1 0 4 //Delete
+ button 100 327 2714 2714 1 0 5 //Edit
+endif
 
 [DIALOG d_news text]
 
 [DIALOG d_news button]
-ON=0
+ON=1
+// Previous
+news_previousNews
+
+ON=2
+// Next
+news_nextNews
+
+ON=3
 // Close
 DB.QUERY="SELECT UNIX_TIMESTAMP() as nTime"
 tag.news_lastseen=<DB.ROW.0.nTime>
 news_clearCTags
 
-ON=1
-// Previous
-news_previousNews
+ON=4
+// GM deleta notícia
+MENU m_news_del
+return 1
 
-
-ON=2
-// Next
-news_nextNews
+ON=5
+// GM edita notícia
+DIALOG d_news_add
 
 //*****************************************************************************
 // d_news_add
@@ -202,16 +239,16 @@ ON=2
 // Exported with with SphereExporter ver 1.1.
 // Script for 0.56/Revisions
 [DIALOG d_news_add]
-0,0
+0,30
 page 0
 resizepic 0 0 2600 493 367
-dtext 172 19 62 Adicionar Noticia
+dtext 45 19 62 <QVAL <IsEmpty <cTAG.news_date>>?Adicionar Noticia:Editar de <cTAG.news_date>>
 dtext 23 48 2100 Titulo
 resizepic 62 45 9350 403 28
-dtextentry 67 49 390 20 0 0
+dtextentry 67 49 390 20 0 0 <QVAL <IsEmpty <cTAG.news_title>>? :<cTAG.news_title>>
 dtext 218 73 2100 Noticia
 resizepic 23 93 9350 446 222
-dtextentry 29 98 432 211 0 1
+dtextentry 29 98 432 211 0 1 <QVAL <IsEmpty <cTAG.news_news>>? :<cTAG.news_news>>
 button 207 321 247 248 1 0 1
 
 [DIALOG d_news_add text]
@@ -221,7 +258,16 @@ ON=0
 // Close
 
 ON=1
-DB.EXECUTE="INSERT INTO news SET NewsDate=CURRENT_TIMESTAMP(), title='<DB.ESCAPEDATA <argtxt[0]>>', news='<DB.ESCAPEDATA <argtxt[1]>>'
+Serv.log Botao 1
+IF !(<IsEmpty <cTAG.news_date>>)//Existe data. Estamos editando
+ DB.EXECUTE="UPDATE news SET title='<DB.ESCAPEDATA <argtxt[0]>>', news='<DB.ESCAPEDATA <argtxt[1]>>' WHERE NewsDate=FROM_UNIXTIME( <dcTAG.news_ts> );"
+ serv.log Update <cTAG.news_date>
+ELSE
+ DB.EXECUTE="INSERT INTO news SET NewsDate=CURRENT_TIMESTAMP(), title='<DB.ESCAPEDATA <argtxt[0]>>', news='<DB.ESCAPEDATA <argtxt[1]>>';"
+ serv.log Adicionar
+ENDIF
+news
+return 1
 
 
 [EOF]
