@@ -1311,34 +1311,7 @@ resizepic 0 0 83 320 260
 OBJ=<SRC.CTAG.vendor_selectedItem>
 
 LOCAL.name=<OBJ.name>
-if ( <f_isWeapon <OBJ> >)
-    LOCAL.desc=<OBJ.f_weaponTooltip 1>
-elif ( <f_isArmor <OBJ> >)
-    LOCAL.desc=<OBJ.f_armorTooltip 1>
-else
-    if ( <OBJ.attr>&attr_identified ) || <SRC.isgm>   
-        LOCAL.desc=<def.<OBJ.baseid>_IDTIP>
-        LOCAL.name=<def.<OBJ.baseid>_IDNAME>
-        
-        if ( <OBJ.type>==t_potion )
-            LOCAL.name=<LOCAL.name> [<OBJ.f_potionStr>]
-        endif
-    else
-        LOCAL.desc= <def.<OBJ.baseid>_NIDTIP>
-    endif
-
-    if ( <eval strlen(x<LOCAL.desc>)> < 3 )
-        LOCAL.desc=Sem descricao disponivel.
-    endif
-endif
-
-//Add do Glath para tabela de preços da Town
-local.guildprice=<merchant_get_value <obj.uid>>
-if (<strpos 0 . <DB.ROW.<dlocal.r>.value>> > 0) //formatDecimal dependendo desta expressao nao aplicavel em QVAL
- local.desc .="<DEF.BR>Preco da guilda para <obj.name> de altissima qualidade: <local.guildprice>mc"
-else if(<local.guildprice> > 0)
- local.desc .="<DEF.BR>Preco da guilda para <obj.name> de altissima qualidade: <strtresure <dlocal.guildprice>>"
-endif
+LOCAL.desc=<OBJ.info_item>
 
 tilepichue 235 41 <OBJ.id> <eval <OBJ.color>>
 dtext 14 12 37 <LOCAL.name>
@@ -1865,19 +1838,21 @@ else
 endif
 
 [FUNCTION merchant_get_value]
-if (!<argn>)
- return -1
+REF1=<argn>
+if !<REF1>
+    return -1
 endif
+
 if <DB.CONNECTED>
- DB.QUERY ="SELECT value FROM merchant_values WHERE itemdef='<uid.<argn>.baseid>' AND region='<region.defname>';"
- if (<DB.ROW.NUMROWS> == 1)
-  return <DB.ROW.0.value>
- else
-  return 0
- endif
-else
- return -1
+    DB.QUERY ="SELECT value FROM merchant_values WHERE itemdef='<REF1.baseid>' AND region='<region.defname>' LIMIT 1"
+    if <DB.ROW.NUMROWS> == 1
+        return  <DB.ROW.0.value>
+    else
+        return 0
+    endif
 endif
+return 0
+
 
 [FUNCTION verpreco]
 if (!<argo>)
