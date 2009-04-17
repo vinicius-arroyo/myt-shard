@@ -48,9 +48,10 @@ INFO_t_armor                = info_armors
 INFO_t_armor_leather        = info_armors
 INFO_t_shield               = info_armors
 
+INFO_t_potion               = info_potions
+
 [COMMENT]
 INFO_t_wand )
-INFO_t_potion )
 INFO_t_potion_empty )
 INFO_t_reagente )
 INFO_t_almofariz )
@@ -116,10 +117,23 @@ dialog d_itemid_analize_<argv0> 0,<argv0>,<argv1>
 //retorna informacoes explicativas sobre o item
 [FUNCTION info_item]
 if !<isempty <DEF.INFO_<type>>>
-  return <<DEF.INFO_<type>>>
+    LOCAL.d=<<DEF.INFO_<type>>>
+//else
+//    LOCAL.d=Nenhuma informacao encontrada para <name>
 endif
 
-return Nenhuma informacao encontrada para <name>
+LOCAL.d .="<DEF.BR><DEF.bfont_dcyan>Preco Base: <DEF.bfont_white>" 
+
+LOCAL.guildprice=<merchant_get_value <uid>>
+if (<strpos 0 . <LOCAL.guildprice>> > 0) //ponto decimal
+    LOCAL.d .=<LOCAL.guildprice>mc
+elif (<LOCAL.guildprice> > 0)
+    LOCAL.d .=<strtresure <DLOCAL.guildprice>>
+else    
+    LOCAL.d .= Nao definido
+endif
+
+return <LOCAL.d>
 
 //*****************************************************************************
 // info_craft
@@ -368,6 +382,45 @@ endif
 //definir TOOLTIP se houver
 if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDTIP>>)
     LOCAL.t .= <DEF.br><DEF.bfont_cyan><DEF.<baseid>_IDTIP>
+endif
+
+return <LOCAL.t>
+
+//*****************************************************************************
+// info_potions
+//*****************************************************************************
+//retorna informacoes explicativas sobre pocoes
+[FUNCTION info_potions]
+
+//gm ve tudo
+if (<src.isgm>) || (<attr>&attr_identified)
+    LOCAL.c=1
+else
+    LOCAL.c=0
+endif
+
+//definir nome de exibição
+LOCAL.name=<name>
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
+    LOCAL.name=<DEF.<baseid>_IDNAME>
+endif
+
+LOCAL.t = <DEF.bfont_yellow><LOCAL.name> 
+
+//sneek peak de gm?
+if !(<attr>&attr_identified) && <src.isgm>
+    LOCAL.t .= <DEF.BR><DEF.bfont_dcyan>Identificado: <DEF.bfont_white>Sim
+    LOCAL.t .= <DEF.BR><DEF.bfont_dcyan>Intensidade: <DEF.bfont_white><f_potionStr>
+    LOCAL.t .= <DEF.BR><DEF.bfont_dcyan>Efeito: <DEF.BR><DEF.bfont_white>
+    if !(<isempty <DEF.<baseid>_IDTIP>>)
+        LOCAL.t .= <DEF.<baseid>_IDTIP>
+    else
+        LOCAL.t .= Desconhecido
+    endif
+
+else
+    LOCAL.t .= <DEF.BR><DEF.bfont_dcyan>Identificado: <DEF.bfont_white>Nao
+    LOCAL.t .= <DEF.BR>Identifique para saber mais sobre esta pocao.
 endif
 
 return <LOCAL.t>
