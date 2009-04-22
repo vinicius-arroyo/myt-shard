@@ -1,7 +1,7 @@
 //*****************************************************************************
 //*****************************************************************************
 //
-// SISTEMA DE LISTAS por UsMarine (vinicius.arroyo at gmail.com)
+// SISTEMA DE LISTAS e GUMPs por UsMarine (vinicius.arroyo at gmail.com)
 //
 //
 // USAGE:
@@ -23,6 +23,11 @@
 //list_newDbCol <x>,<db>,<name> //set column parameters when getting data from mysql
 //list_loadFromDb <query>       //run query and create cache table on CTAGS
 //list_show [<page>]            //shows created gump
+//prompt_new <title>            //creates a new prompt gump
+//prompt_setAction <func>       //specify a function to call when the ok button is pressed
+//prompt_setActionBack <func>   //specify a function to call when the return button is pressed
+//prompt_show                   //shows created gump
+
 
 //TAGS:
 //cTAG.list_page                //current page being viewed
@@ -37,6 +42,9 @@
 //cTAG.list_action              //function to call when an item is selected <function <idItem>>
 //cTAG.list_action_back         //function to call when user click return button
 //cTAG.list_query               //query to run if getting data from MYSQL
+//cTAG.prompt_title             //gump title
+//cTAG.prompt_action            //function to call when ok button is pressed
+//cTAG.prompt_action_back       //function to call when user click return button
 
 //*****************************************************************************
 //*****************************************************************************
@@ -158,6 +166,32 @@ serv.log [LIST] - Selected ID <argn>
 sysmessagegreen [LIST] - Selected ID <argn>
 
 //*****************************************************************************
+// prompt_new <title>
+//*****************************************************************************
+[FUNCTION prompt_new]
+cTAG.prompt_title=<args>
+cTAG.prompt_action=prompt_no_action
+cTAG.prompt_action_back=
+
+//*****************************************************************************
+// prompt_setAction <function>
+//*****************************************************************************
+[FUNCTION prompt_setAction]
+cTAG.prompt_action=<args>
+
+//*****************************************************************************
+// prompt_setActionBack <function>
+//*****************************************************************************
+[FUNCTION prompt_setActionBack]
+cTAG.prompt_action_back=<args>
+
+//*****************************************************************************
+// prompt_show
+//*****************************************************************************
+[FUNCTION prompt_show]
+dialog d_prompt
+
+//*****************************************************************************
 //*****************************************************************************
 // GUMPs
 //*****************************************************************************
@@ -236,3 +270,40 @@ TRY <CTAG.list_action_back>
 
 on=1001,65535 //itens buttons
 TRY <CTAG.list_action> <eval <argn> - 1000>
+
+
+//*****************************************************************************
+// d_prompt - gump que faz uma pergunta
+//*****************************************************************************
+[DIALOG d_prompt]
+0,0
+page 0
+resizepic 4 5 2620 345 180
+dhtmlgump 21 28 315 68 1 1 <cTAG.prompt_title>
+//dtext 21 28 2100 <cTAG.prompt_title>
+resizepic 21 105 3000 315 25
+dtextentry 32 108 290 20 0 1 
+button 102 142 247 248 1 0 1
+button 185 142 241 242 1 0 2
+
+[DIALOG d_prompt text]
+
+[DIALOG d_prompt button]
+//close
+ON=0
+if !<isempty <CTAG.prompt_action_back>>
+    TRY <CTAG.prompt_action_back>
+endif    
+
+//ok
+ON=1
+TRY <CTAG.prompt_action> <argtxt[1]>
+
+//cancel
+ON=2
+if !<isempty <CTAG.prompt_action_back>>
+    TRY <CTAG.prompt_action_back>
+endif    
+
+
+[EOF]
