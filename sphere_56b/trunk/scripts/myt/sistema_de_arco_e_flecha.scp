@@ -1,49 +1,243 @@
-// ################################################################################################
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE ARCO E FLECHA por 
+//
+//    Galthar
+//    Metus
+//    Silver
+//    UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+//-corrigir RESOURCES e SKILLMAKE de todos os ITENS para novo sistema de craft
+//-verificar como ficara as mascaras de uso dos barbantes/engrenagens com 
+//a multiplicacao dos itens ou mesmo itemforge
 
-// ########################
-// Sistema de Arco e Flecha
-//    v2.0 - MYT Shard
-//       by METUS  , 
-//  modificado por silver 
-//  Modificado por Galthar
-//  Recriado por Galthar
-// ########################
+//WEAPON
+//more2                     Magia/Efeito
+//morex                     Cargas de magia/efeito (não pode diminuir)
+//morey                     Hits do barbante/engrenagem
+//morez                     1 se coletável (do corpo). 0 se a flecha some pra sempre quando atirada.
+//TAG.OVERRIDE.AMMOTYPE     Que flecha consome
+//TAG.OVERRIDE.AMMOANIMHUE  Cor da animação da flecha disparada
+//TAG.OVERRIDE.AMMOANIM     Animação da flecha disparada
+
+//AMMO
+//more1                     Magia/Efeito
+//more2                     MODAR
+//morex                     DMGFIRE
+//morey                     DMGCOLD
+//morez                     DMGPOISON
+//morem                     DMGENERGY
+//TAG.anim
+//TAG.sfx
+//TAG.colect
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+
+[DEFNAME arcos]
+arrow_i_arco_curto          001
+arrow_i_arco                001
+arrow_i_arco_long           002
+arrow_i_arco_composto       004
+arrow_i_arco_elfico         008
+arrow_i_besta               010
+arrow_i_besta_pesada        020
+arrow_i_besta_repeticao     020
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_weapon_bolt
+//*****************************************************************************
+[TYPEDEF t_weapon_bolt]
+
+ON=@DCLICK
+correctammo
+return 1
+
+//*****************************************************************************
+// t_weapon_arrow
+//*****************************************************************************
+[TYPEDEF t_weapon_arrow]
+
+ON=@DCLICK
+correctammo
+return 1
+
+//*****************************************************************************
+// t_preitem_bowcraft
+//*****************************************************************************
+[TYPEDEF t_preitem_bowcraft]
+IF <src.restest 1 i_talhadeira>
+    src.skillmenu sm_cr_flechas
+else
+    src.sysmessage Utilize uma talhadeira para montar as pontas de flecha nas varetas.
+endif
+return 1
+
+//*****************************************************************************
+// t_string
+//*****************************************************************************
+[TYPEDEF t_string]
+//hits=hitmin
+//maxhits=hitmax
+//more2=bitmask
+
+ON=@DCLICK
+src.sysmessageyellow Selecione o arco para reparar...
+targetf f_use_string <UID>
+return 1
+
+//*****************************************************************************
+// t_weapon_ammo
+//*****************************************************************************
+[TYPEDEF t_weapon_ammo]
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// correctammo
+//*****************************************************************************
+//Corrige o arco de acordo com a munição
+[FUNCTION correctammo] 
+
+LOCAL.wtype=<src.weapon.type>
+
+//garante que esta com arco/dardo e flecha correspondente
+if <topobj>!=<src>
+    return 1
+elif (<LOCAL.wtype>!=t_weapon_bow) && (<LOCAL.wtype>!=t_weapon_xbow)
+    return 1
+elif  (<LOCAL.wtype>==t_weapon_bow) && (<type>!=T_WEAPON_ARROW)
+    return 1
+elif  (<LOCAL.wtype>==t_weapon_xbow) && (<type>!=T_WEAPON_BOLT)
+    return 1
+endif
+
+src.weapon.TAG.OVERRIDE.AMMOTYPE=<baseid>
+src.weapon.TAG.OVERRIDE.AMMOANIMHUE=<color>
+
+src.weapon.more2=<more1>
+if (<more1>)
+    src.weapon.morex=500
+else
+    src.weapon.morex=0
+endif
+
+if (<tag0.anim>)
+    src.weapon.TAG.OVERRIDE.AMMOANIM=<tag0.anim>
+else
+    src.weapon.TAG.OVERRIDE.AMMOANIM
+endif
+
+src.weapon.tag.sfx=<tag0.sfx>
+src.weapon.tag.colect=<tag0.colect>
+src.weapon.morez=<morez>
+src.weapon.modAR=<more2>
+src.weapon.dmgfire=<morex>
+src.weapon.dmgcold=<morey>
+src.weapon.dmgpoison=<morez>
+src.weapon.dmgenergy=<morem>
+src.sysmessageblue Agora usando <name>!
+
+//*****************************************************************************
+// f_use_string
+//*****************************************************************************
+[FUNCTION f_use_string]
+OBJ=<argv0>
+if !<argo>
+    src.sysmessageyellow Deve selecionar um arco.
+    return 1
+elif (<argo.type>!=t_weapon_bow) && (<argo.type>!=t_weapon_xbow)
+    src.sysmessageyellow Isso nao e um arco.
+    return 1
+elif (<argo.type>==t_weapon_bow) && (<obj.type>!=t_string)
+    src.sysmessageyellow Use barbantes em arcos.
+    return 1
+elif (<argo.type>==t_weapon_xbow) && (<obj.baseid>!=i_gears)
+    src.sysmessageyellow Use engrenagens em bestas.
+    return 1
+//tem barbante/engrenagem antiga?    
+elif <argo.morey>
+    if (<argo.type>==t_weapon_bow)
+        src.sysmessagered Voce removeu o barbante antigo.
+    else
+        src.sysmessagered Voce removeu a engrenagem antiga.
+    endif
+    argo.name=<serv.resources.<argo.baseid>.name>
+endif
+
+//determinar tipo de arco
+LOCAL.arco=<DEF.arrow_<argo.baseid>>
+
+if !(<obj.more2>&<LOCAL.arco>)
+    sysmessageyellow Voce nao pode por <obj.name> no <argo.name>
+    return 1
+endif
+
+if <archery> > <bowcraft>
+    LOCAL.skill=<archery>
+else
+    LOCAL.skill=<bowcraft>
+endif
+
+ARGO.morey=<f_rangeValue <obj.more1l>,<obj.more1h>,<LOCAL.skill>>
+LOCAL.hits=<eval <argo.maxhits>-<argo.hits>>
+LOCAL.hits=<f_rangeValue 0,<LOCAL.hits>,<bowcraft>>
+argo.hits=<eval <argo.hits>+{1 <LOCAL.hits>}>
+
+//Bônus para barbante abençoado
+if (<obj.attr>&0401) //attr_blessed|attr_identified
+    ARGO.morey=<eval (<ARGO.morey>*125)/100>
+    obj.name=<obj.name> abencoado
+    sfx 0f6
+else
+    sfx 04f
+endif
+
+LOCAL.name=<serv.resources.<argo.baseid>.name>
+emoteorange reparando <LOCAL.name>
+sysmessageblue <LOCAL.name> reparado com sucesso!
+argo.name=<LOCAL.name> (<obj.name>)
+obj.decrement
+argo.update
+
+//*****************************************************************************
+// f_fire_arrow_consume
+//*****************************************************************************
+[FUNCTION f_fire_arrow_consume]
+if <topobj.IsPlayer>
+    topobj.sysmessageyellow As flechas de fogo se consumiram.
+endif
+remove
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - DARDOS
+//*****************************************************************************
+//*****************************************************************************
 
 
-
-//## BESTAS E DARDOS ## //
-
-[Defname bestas]
-besta_simples  1
-besta_heavy    2
-
-//####### ARCOS E FLECHAS ###########//
-
-[Defname arcos]
-arco_simples                01
-arco_longo                  02
-arco_composto               04
-arco_elfico                 08
-besta_simples               010
-besta_pesada                020
-
-speed_bow                   28
-speed_bow_long              30
-speed_bow_composite         32
-speed_bow_elven             34
-speed_crossbow              16
-speed_crossbow_heavy        12
-speed_crossbow_repeating    42
-
-
-//###################
-//# Dardos
-//###################
-
+//*****************************************************************************
+// i_xbolt
+//*****************************************************************************
 [ITEMDEF 01bfb]
 NAME=dardo%s%
 DEFNAME=i_xbolt
-DEFNAME2=i_dardo
 TYPE=T_WEAPON_BOLT
 FLIP=1
 REPLICATE=1
@@ -55,11 +249,9 @@ SUBSECTION=Bows
 DESCRIPTION=dardo simples
 DUPELIST=01bfc,01bfd,01bfe
 
-on=@dclick
-correctammo
-return 1 
-
-
+//*****************************************************************************
+// i_xbolt_iron
+//*****************************************************************************
 [ITEMDEF i_xbolt_iron]
 ID=01bfb
 NAME=dardo%s% (ponta de metal)
@@ -74,14 +266,13 @@ SUBSECTION=Bows
 DESCRIPTION=dardo de ferro
 DUPELIST=01bfc,01bfd,01bfe
 
-on=@create
+ON=@CREATE
 color=0482
-more2=3
+more2=3     //MODAR
 
-on=@dclick
-correctammo
-return 1 
-
+//*****************************************************************************
+// i_xbolt_silver
+//*****************************************************************************
 [ITEMDEF i_xbolt_silver]
 ID=01bfb
 NAME=dardo%s% (ponta de prata)
@@ -96,15 +287,14 @@ SUBSECTION=Bows
 DESCRIPTION=dardo de prata
 DUPELIST=01bfc,01bfd,01bfe
 
-on=@create
+ON=@CREATE
 color=038a
-more1=17        //Bless
+more1=s_bless
 tag.colect=1    //coletável
 
-on=@dclick
-correctammo
-return 1 
-
+//*****************************************************************************
+// i_xbolt_steel
+//*****************************************************************************
 [ITEMDEF i_xbolt_steel]
 ID=01bfb
 NAME=dardo%s% (metal tratado)
@@ -119,15 +309,14 @@ SUBSECTION=Bows
 DESCRIPTION=dardo de metal tratado
 DUPELIST=01bfc,01bfd,01bfe
 
-on=@create
+ON=@CREATE
 color=03b0
-more2=6
+more2=6         //MODAR
 tag.colect=1    //coletável
 
-on=@dclick
-correctammo
-return 1 
-
+//*****************************************************************************
+// i_xbolt_stab
+//*****************************************************************************
 [ITEMDEF i_xbolt_stab]
 ID=01bfb
 NAME=dardo%s% de perfuracao
@@ -142,91 +331,21 @@ SUBSECTION=Bows
 DESCRIPTION=dardo de perfuracao
 DUPELIST=01bfc,01bfd,01bfe
 
-on=@create
+ON=@CREATE
 color=03e7
-more2=9
+more2=9         //MODAR
 tag.colect=1    //coletável
 
-on=@dclick
-correctammo
-return 1 
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - FLECHAS
+//*****************************************************************************
+//*****************************************************************************
 
-//###################
-//# Pontas de flecha
-//###################
-
-[TYPEDEF t_preitem_bowcraft]
-IF (<src.restest 1 i_talhadeira>)
- src.skillmenu sm_cr_flechas
-else
- src.sysmessage Utilize uma talhadeira para montar as pontas de flecha nas varetas.
-endif
-return 1
-
-
-[itemdef i_ponta_leve]
-id=0f83
-type=t_preitem_bowcraft
-name=ponta%s% de ferro tratado
-CATEGORY=MyT - Provisions - Weapons
-SUBSECTION=Bows
-DESCRIPTION=ponta de ferro tratado
-
-on=@create
-color=003E0
-
-[itemdef i_ponta_ferro]
-id=0f83
-type=t_preitem_bowcraft
-name=ponta%s% de ferro
-CATEGORY=MyT - Provisions - Weapons
-SUBSECTION=Bows
-DESCRIPTION=ponta de ferro
-
-on=@create
-color=00320
-
-
-[itemdef i_ponta_perfurante]
-id=0f83
-type=t_preitem_bowcraft
-name=ponta%s% de perfuracao
-CATEGORY=MyT - Provisions - Weapons
-SUBSECTION=Bows
-DESCRIPTION=ponta de perfuracao
-
-on=@create
-color=0b11
-
-[itemdef i_ponta_precisao]
-id=0f83
-type=t_preitem_bowcraft
-name=ponta%s% de precisao
-CATEGORY=MyT - Provisions - Weapons
-SUBSECTION=Bows
-DESCRIPTION=ponta de precisao
-
-on=@create
-color=00b0c
-
-[itemdef i_ponta_prata]
-id=0f83
-type=t_preitem_bowcraft
-name=ponta%s% de prata
-CATEGORY=MyT - Provisions - Weapons
-SUBSECTION=Bows
-DESCRIPTION=ponta de prata
-
-on=@create
-color=color_o_silver
-
-
-// ###############################
-// -------- Flechas --------------
-// ###############################
-
+//*****************************************************************************
+// i_arrow
+//*****************************************************************************
 [ITEMDEF 0f3f]
-//Arrow
 DEFNAME=i_arrow
 NAME=flecha%s% de madeira
 TYPE=T_WEAPON_ARROW
@@ -240,68 +359,163 @@ SUBSECTION=Bows
 DESCRIPTION=flecha de madeira
 DUPELIST=0f40,0f41,0f42
 
-on=@create
+ON=@CREATE
 tag.colect=1            //coletável
 
-on=@dclick
-correctammo
-return 1
 
-[itemdef i_arrow_iron]
-id=0f3f
-name=flecha%s% (ponta de metal)
+//*****************************************************************************
+// i_arrow_iron
+//*****************************************************************************
+[ITEMDEF i_arrow_iron]
+ID=0f3f
+NAME=flecha%s% (ponta de metal)
 
-on=@create
+ON=@CREATE
 color=0482
-more2=3
+more2=3                 //MODAR
 tag.colect=1            //coletável
 
-on=@dclick
-correctammo
-return 1
+//*****************************************************************************
+// i_arrow_steel
+//*****************************************************************************
+[ITEMDEF i_arrow_steel]
+ID=0f3f
+NAME=flecha%s%  (metal tratado)
 
-[itemdef i_arrow_steel]
-id=0f3f
-name=flecha%s%  (metal tratado)
-
-on=@create
+ON=@CREATE
 color=03b0
-more2=6
+more2=6                 //MODAR
 tag.colect=1            //coletável
 
-on=@dclick
-correctammo
-return 1
+//*****************************************************************************
+// i_arrow_crane
+//*****************************************************************************
+[ITEMDEF i_arrow_crane]
+ID=0f3f
+NAME=flecha%s%  (pena de Crane)
 
-[itemdef i_arrow_crane]
-id=0f3f
-name=flecha%s%  (pena de Crane)
-
-on=@create
+ON=@CREATE
 color=04
-more2=6
+more2=6                 //MODAR
 tag.colect=1            //coletável
 
-on=@dclick
+//*****************************************************************************
+// i_arrow_fire
+//*****************************************************************************
+[ITEMDEF i_arrow_fire]
+ID=i_arrow
+NAME=flecha%s% de Fogo 
+
+ON=@CREATE
+color=030
+tag.anim=i_fx_fireball_small
+tag.sfx=<def.snd_SPELL_FIREBALL>
+morex=6                 //DMGFIRE
+
+ON=@DCLICK
 correctammo
+src.weapon.TAG.OVERRIDE.AMMOANIMHUE
 return 1
 
-[itemdef i_flecha_fogo_apagada]
-id=0f3f
-name=flecha%s% (com oleo)
-//compatibilidade com sistema de venda. Não pode ser t_preitem_bowcraft
-type=t_weapon_fence 
+//*****************************************************************************
+// i_arrow_stab
+//*****************************************************************************
+[ITEMDEF i_arrow_stab]
+ID=i_arrow
+NAME=flecha%s% de perfuracao
 
-on=@dclick
-if !(<topobj.uid> == <src.uid>)
- src.sysmessagered Voce tem que ter as flechas em seu poder
- return 1
+ON=@CREATE
+more2=9                 //MODAR
+color=03e7
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_silver
+//*****************************************************************************
+[ITEMDEF i_arrow_silver]
+ID=i_arrow
+NAME=flecha%s% de prata
+
+ON=@CREATE
+color=038a
+more1=s_bless
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_poison
+//*****************************************************************************
+[ITEMDEF i_arrow_poison]
+ID=i_arrow
+NAME=flecha%s% (envenenadas)
+
+ON=@CREATE
+more1=s_poison
+//morez=3 Nao precisa. Tem no Combat
+color=0455
+
+//*****************************************************************************
+// i_arrow_ice
+//*****************************************************************************
+[ITEMDEF i_arrow_ice]
+ID=i_arrow
+NAME=flecha%s% de gelo
+
+ON=@CREATE
+more1=s_paralyze    //paralyze Trocar por CHILL quando existir
+morey=8             //DMGCOLD
+color=0480
+attr=04020          //attr_can_decay|attr_magic
+
+//*****************************************************************************
+// i_arrow_stun
+//*****************************************************************************
+[ITEMDEF i_arrow_stun]
+ID=i_arrow
+NAME=flecha%s% de paralizia
+
+ON=@CREATE
+more1=s_paralyze
+color=01a
+attr=04020          //attr_can_decay|attr_magic
+
+//*****************************************************************************
+// i_arrow_energy
+//*****************************************************************************
+[ITEMDEF i_arrow_energy]
+ID=i_arrow
+NAME=flecha%s% de energia
+
+ON=@CREATE
+morem=16                    //DMGENERGY
+color=0d3
+tag.anim=i_fx_firesnake
+tag.sfx=05c3
+attr=04020          //attr_can_decay|attr_magic
+
+//*****************************************************************************
+// i_flecha_fogo_apagada
+//*****************************************************************************
+[ITEMDEF i_flecha_fogo_apagada]
+ID=0f3f
+NAME=flecha%s% (com oleo)
+TYPE=t_weapon_ammo //somente para venda
+
+ON=@CREATE
+maxhits=1
+
+ON=@DCLICK
+if <topobj> != <src>
+    src.sysmessagered Voce tem que ter as flechas em seu poder
+    return 1
 endif
+
 src.emotered acende as flechas
-if (<src.restest i_arrow_fire>)
- LOCAL.amount=<src.findid.i_arrow_fire.amount>)
- src.findid.i_arrow_fire.remove
+
+if <src.restest i_arrow_fire>
+    LOCAL.amount=<src.findid.i_arrow_fire.amount>
+    src.findid.i_arrow_fire.remove
 endif
+
 serv.newitem i_arrow_fire
 new.amount=<amount>+<LOCAL.amount>
 new.timerf 240,f_fire_arrow_consume
@@ -309,306 +523,202 @@ src.bounce <new>
 remove
 return 1
 
-[FUNCTION f_fire_arrow_consume]
-if (<topobj.IsPlayer>)
- topobj.sysmessageyellow As flechas de fogo se consumiram.
-endif
-remove
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - barbantes
+//*****************************************************************************
+//*****************************************************************************
 
+//*****************************************************************************
+// i_barbante
+//*****************************************************************************
+[ITEMDEF 01420]
+DEFNAME=i_barbante
+RESOURCES=i_cloth
+TYPE=t_string
+NAME=barbante de algodao
+WEIGHT=.1
+DYE=0
+VALUE=1000
+SKILLMAKE=tailoring 10.0
 
-[itemdef i_arrow_fire]
-id=i_arrow
-name=flecha%s% de Fogo 
-type=t_weapon_arrow
+ON=@CREATE
+more2=arrow_i_arco|arrow_i_arco_long
+more1l=5
+more1h=15
 
-on=@create
-color=030
-tag.anim=i_fx_fireball_small
-tag.sfx=<def.snd_SPELL_FIREBALL>
-morex=6
+//*****************************************************************************
+// i_barbante_iron
+//*****************************************************************************
+[ITEMDEF i_barbante_iron]
+ID=01420
+TYPE=t_string
+NAME=barbante de ferro
+WEIGHT=0.2
+DYE=0
+VALUE=1000
+SKILLMAKE=tinkering 10.0
+RESOURCES=i_ingot_iron
 
-on=@dclick
-correctammo
-src.weapon.TAG.OVERRIDE.AMMOANIMHUE
-return 1
+ON=@CREATE
+color=color_o_iron
+more2=arrow_i_arco|arrow_i_arco_long|arrow_i_arco_composto
+more1l=10
+more1h=30
 
-[itemdef i_arrow_stab]
-id=i_arrow
-name=flecha%s% de perfuracao
+//*****************************************************************************
+// i_barbante_silver
+//*****************************************************************************
+[ITEMDEF i_barbante_silver]
+ID=01420
+TYPE=t_string
+NAME=Barbante de Prata
+WEIGHT=0.5
+DYE=0
+VALUE=1000
+SKILLMAKE=tinkering 20.0
+RESOURCES=i_ingot_silver
 
-on=@create
-more2=9
-color=03e7
-tag.colect=1            //coletável
+ON=@CREATE
+color=color_o_silver
+more2=arrow_i_arco_long|arrow_i_arco_composto|arrow_i_arco_elfico
+more1l=20
+more1h=40
 
-on=@dclick
-correctammo
-return 1
+//*****************************************************************************
+// i_barbante_gold
+//*****************************************************************************
+[ITEMDEF i_barbante_gold]
+ID=01420
+TYPE=t_string
+NAME=Barbante de Ouro
+WEIGHT=1.0
+DYE=0
+VALUE=1000
+SKILLMAKE=tinkering 30.0
+RESOURCES=i_ingot_gold
 
-[itemdef i_arrow_silver]
-id=i_arrow
-name=flecha%s% de prata
+ON=@CREATE
+color=color_o_gold
+more2=arrow_i_arco_composto|arrow_i_arco_elfico
+more1l=30
+more1h=80
 
-on=@create
-color=038a
-more1=17    //Bless
-tag.colect=1            //coletável
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - engrenagens
+//*****************************************************************************
+//*****************************************************************************
 
-on=@dclick
-correctammo
-return 1
+//*****************************************************************************
+// i_gears
+//*****************************************************************************
+[ITEMDEF 01053]
+DEFNAME=i_gears
+NAME=engrenagens
+RESOURCES=1 i_ingot_iron
+WEIGHT=1
+CATEGORY=Myt - Items by Professions
+SUBSECTION=Tinker
+DESCRIPTION=Gears
+DUPELIST=01054
+SKILLMAKE=TINKERING 14.7,t_tinker_tools
 
+ON=@CREATE
+more1l=50
+more1h=100
+more2=0ffff     //serve em todas bestas
 
-[itemdef i_arrow_poison]
-id=i_arrow
-name=flecha%s% (envenenadas)
-value=10
-SKILLMAKE=bowcraft 70.0
-resources=i_log, i_feather, I_scroll_agility
-
-on=@create
-more1=20    //poisoning
-//morez=3 Nao precisa. Tem no Combat
-color=0455
-
-on=@dclick
-correctammo
-return 1
-
-[itemdef i_arrow_ice]
-id=i_arrow
-name=flecha%s% de gelo
-value=10
-SKILLMAKE=bowcraft 70.0
-resources=i_log, i_feather, I_scroll_agility
-
-on=@create
-morey=8
-more1=38    //paralyze Trocar por CHILL quando existir
-color=0480
-ATTR=04020
-
-on=@dclick
-correctammo
-return 1
-
-[itemdef i_arrow_stun]
-id=i_arrow
-name=flecha%s% de paralizia
-value=10
-SKILLMAKE=bowcraft 70.0
-resources=i_log, i_feather, I_scroll_agility
-
-on=@create
-more1=38    //paralyze
-color=01a
-ATTR=04020
-
-on=@dclick
-correctammo
-return 1
-
-[itemdef i_arrow_energy]
-id=i_arrow
-name=flecha%s% de energia
-value=10
-SKILLMAKE=bowcraft 70.0
-resources=i_log, i_feather, I_scroll_agility
-
-on=@create
-morem=16
-color=0d3
-tag.anim=i_fx_firesnake
-tag.sfx=05c3
-ATTR=04020
-
-on=@dclick
-correctammo
-return 1
-
-
-
-[function correctammo] //Corrige o arco de acordo com a munição
-//TAG.OVERRIDE.AMMOTYPE     Que flecha consome
-//TAG.OVERRIDE.AMMOANIMHUE  Cor da animação da flecha disparada
-//TAG.OVERRIDE.AMMOANIM     Animação da flecha disparada
-//more2             Magia/efeito
-//morex             Cargas de magia/efeito (não pode diminuir)
-//morez             1 se coletável (do corpo). 0 se a flecha some pra sempre quando atirada.
-if (<topobj>!=<src.uid>) || ( (<src.weapon.type>!=t_weapon_bow) && (<src.weapon.type>!=t_weapon_xbow) )
- return 1
-elif  (<src.weapon.type>==t_weapon_bow) && (<type>!=T_WEAPON_ARROW)
- return 1
-elif  (<src.weapon.type>==t_weapon_xbow) && (<type>!=T_WEAPON_BOLT)
- return 1
-endif
-src.weapon.TAG.OVERRIDE.AMMOTYPE=<baseid>
-src.weapon.TAG.OVERRIDE.AMMOANIMHUE=<color>
-src.weapon.more2=<more1>
-if (<more1>)
- src.weapon.morex=500
-else
- src.weapon.morex=0
-endif
-if (<tag0.anim>)
- src.weapon.TAG.OVERRIDE.AMMOANIM=<tag0.anim>
-else
-  src.weapon.TAG.OVERRIDE.AMMOANIM
-endif
-src.weapon.tag.sfx=<tag0.sfx>
-src.weapon.tag.colect=<tag0.colect>
-src.weapon.morez=<morez>
-src.weapon.modAR=<more2>
-src.weapon.dmgfire=<morex>
-src.weapon.dmgcold=<morey>
-src.weapon.dmgpoison=<morez>
-src.weapon.dmgenergy=<morem>
-src.sysmessageblue Agora usando <name>!
-
-// ------------STRINGs------------
-
-[TYPEDEF t_string]
-//hits=hitmin
-//maxhits=hitmax
-//more2=bitmask
-
-on=@dclick
+ON=@DCLICK
 src.sysmessageyellow Selecione o arco para reparar...
 targetf f_use_string <UID>
 return 1
 
-[function f_use_string]
-OBJ=<argv0>
-IF (<argo.type>!=t_weapon_bow) && (<argo.type>!=t_weapon_xbow)
- src.sysmessageyellow Isso nao e um arco.
- return 1
-ELIF (<argo.type>==t_weapon_bow) && (<obj.type>!=t_string)
- src.sysmessageyellow Nao pode fazer isso.
- return 1
-ELIF (<argo.type>==t_weapon_xbow) && (<obj.baseid>!=i_gears)
- src.sysmessageyellow Nao pode fazer isso.
- return 1
-ELIF (<argo.morey>)
- IF (<argo.type>==t_weapon_bow)
-    src.sysmessagered Voce removeu o barbante antigo.
- ELSE
-    src.sysmessagered Voce removeu a engrenagem antiga.
- ENDIF
- argo.name=<argo.tag.name>
-ENDIF
+[ITEMDEF 01054]
+//gears
+DUPEITEM=01053
 
-//determinar tipo de arco
-if (<argo.baseid>==i_bow)
- LOCAL.arco=<DEF.arco_simples>
-ELIF (<argo.baseid>==i_bow_long)
- LOCAL.arco=<DEF.arco_longo>
-ELIF (<argo.baseid>==i_bow_composite)
- LOCAL.arco=<DEF.arco_composto>
-ELIF (<argo.baseid>==i_bow_elven)
- LOCAL.arco=<DEF.arco_elfico>
-ELIF (<argo.baseid>==i_crossbow)
- LOCAL.arco=<DEF.besta_simples>
-ELSE
- LOCAL.arco=<DEF.besta_pesada>
-ENDIF
+//*****************************************************************************
+// i_gears_especial
+//*****************************************************************************
+[ITEMDEF i_gears_especial] //01053
+ID=i_gears
+NAME=Engranagem especial
+WEIGHT=1
+CATEGORY=Myt - Items by professions
+SUBSECTION=Tinker
+DESCRIPTION=Engrenagem Especial
 
-IF !(<obj.more2>&<LOCAL.arco>) && (<obj.type>==t_weapon_bow)
- sysmessageyellow Voce nao pode por <obj.name> no <argo.name>
- return 1
-endif
-IF (<archery> > <bowcraft>)
- LOCAL.skill=<archery>
-ELSE
- LOCAL.skill=<bowcraft>
-ENDIF
-ARGO.morey=<f_rangeValue <obj.more1l>,<obj.more1h>,<LOCAL.skill>>
-LOCAL.hits=<eval <argo.maxhits>-<argo.hits>>
-LOCAL.hits=<f_rangeValue 0,<LOCAL.hits>,<bowcraft>>
-argo.hits=<eval <argo.hits>+{1 <LOCAL.hits>}>
-//Bônus para barbante abençoado
-IF (<obj.attr>&0401)
- ARGO.morey=<eval (<ARGO.morey>*125)/100>
- obj.name=<obj.name> abencoado
- sfx 0f6
-ELSE
- sfx 04f
-ENDIF
-emoteorange reparando <argo.tag.name>
-sysmessageblue <argo.tag.name> reparado com sucesso!
-argo.name=<argo.tag.name> (<obj.name>)
-obj.decrement
-argo.update
+ON=@CREATE
+more1l=50
+more1h=100
+color 003b3
+more2=0ffff     //serve em todas bestas
 
-// Barbante comum  REVISADO POR GALTHAR
+ON=@DCLICK
+src.sysmessageyellow Usado na construcao de bestas...
+return 1
 
-[itemdef 01420]
-DEFNAME=i_barbante
-resources=i_cloth
-type=t_string
-name=barbante de algodao
-weight=.1
-dye=0
-value=1000
-SKILLMAKE=tailoring 10.0
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - PRE-ITENS
+//*****************************************************************************
+//*****************************************************************************
 
-on=@create
-more2=arco_simples|arco_longo
-more1l=5
-more1h=15
+[ITEMDEF i_ponta_leve]
+id=0f83
+TYPE=t_preitem_bowcraft
+NAME=ponta%s% de ferro tratado
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de ferro tratado
 
-// Barbante de Ferro    REVISADO POR GALTHAR
+ON=@CREATE
+color=003E0
 
-[itemdef i_barbante_iron]
-id=01420
-type=t_string
-name=barbante de ferro
-weight=0.2
-dye=0
-value=1000
-SKILLMAKE=tinkering 10.0
-resources=i_ingot_iron
+[ITEMDEF i_ponta_ferro]
+ID=0f83
+TYPE=t_preitem_bowcraft
+NAME=ponta%s% de ferro
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de ferro
 
-on=@create
-color=color_o_iron
-more2=arco_simples|arco_longo|arco_composto
-more1l=10
-more1h=30
+ON=@CREATE
+color=00320
 
 
-// Barbante de Prata
+[ITEMDEF i_ponta_perfurante]
+ID=0f83
+TYPE=t_preitem_bowcraft
+NAME=ponta%s% de perfuracao
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de perfuracao
 
-[itemdef i_barbante_silver]
-id=01420
-type=t_string
-name=Barbante de Prata
-weight=0.5
-dye=0
-value=1000
-SKILLMAKE=tinkering 20.0
-resources=i_ingot_silver
+ON=@CREATE
+color=0b11
 
-on=@create
+[ITEMDEF i_ponta_precisao]
+ID=0f83
+TYPE=t_preitem_bowcraft
+NAME=ponta%s% de precisao
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de precisao
+
+ON=@CREATE
+color=00b0c
+
+[ITEMDEF i_ponta_prata]
+ID=0f83
+TYPE=t_preitem_bowcraft
+NAME=ponta%s% de prata
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de prata
+
+ON=@CREATE
 color=color_o_silver
-more2=arco_longo|arco_composto|arco_elfico
-more1l=20
-more1h=40
 
-
-// Barbante de Ouro
-
-
-[itemdef i_barbante_gold]
-id=01420
-type=t_string
-name=Barbante de Ouro
-weight=1.0
-dye=0
-value=1000
-SKILLMAKE=tinkering 30.0
-resources=i_ingot_gold
-
-on=@create
-color=color_o_gold
-more2=arco_composto|arco_elfico
-more1l=30
-more1h=80
+[EOF]
