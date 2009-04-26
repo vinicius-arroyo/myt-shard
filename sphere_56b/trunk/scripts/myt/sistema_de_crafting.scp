@@ -415,7 +415,7 @@ if (<tag0.wmakefurn>)
  new.events +e_furniture
 endif
 
-if (<tag0.iswpn>)
+if (<new.IsWeapon>) || (<new.type>==t_armor) || (<new.type>==t_armor_leather) || (<new.type>==t_shield) || (<new.type>==t_incomplete_forged)
     generateWpnMaxHits
 endif
 
@@ -446,10 +446,12 @@ else
  LOCAL.skill=<cont.armslore>
  cont.timerf 2,skill_gain,SKILL_ARMSLORE
 ENDIF
-if (<LOCAL.skill> >= 950)
- new.maxhits=1200
+if (<new.TDATA4>)
+ new.maxhits=<BETWEEN 10,<new.tdata4>,0,<local.skill>>
+elif (<LOCAL.skill> >= 1000)
+ new.maxhits=1000
 elif (<LOCAL.skill> >= 800)
- new.maxhits={750 1200}
+ new.maxhits={750 1000}
 elif (<LOCAL.skill> >= 700)
  new.maxhits={450 750}
 elif (<LOCAL.skill> >= 600)
@@ -469,9 +471,9 @@ new.hits=<new.maxhits>
 //objeto padrao deve ser o i_faz_item 
 [FUNCTION generateCltMaxHits]
 if (<cont.tailoring> >= 950)
- new.more1l=1200
+ new.more1l=1000
 elif (<cont.tailoring> >= 800)
- new.more1l={750 1200}
+ new.more1l={750 1000}
 elif (<cont.tailoring> >= 700)
  new.more1l={450 750}
 elif (<cont.tailoring> >= 600)
@@ -509,6 +511,55 @@ obj.tag.wmakefurn=1
 obj.tag.devolute=i_bacia
 src.fazitem
 return 1
+
+//*****************************************************************************
+// craftItem <DEFNAME>
+//*****************************************************************************
+[FUNCTION craftItem]
+if (!<argv>)
+ return 0
+elif (!<serv.resources.<args>>)
+ return 0
+endif
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.delay=<MAXIMUM 3,<eval <serv.resources.<args>.SKILLMAKE.1.val>/33>>
+obj.tag.skill=<serv.skill.<DEF.<serv.resources.<args>.SKILLMAKE.1.key>>.key>
+obj.tag.dif=<eval <serv.resources.<args>.SKILLMAKE.1.val>/10>
+for i 1 4
+ try obj.tag.res<dlocal.i>=<serv.resources.<args>.RESOURCES.<dlocal.i>.key>
+ try obj.tag.nam<dlocal.i>=<serv.resources.<serv.resources.<args>.RESOURCES.<dlocal.i>.key>.name>
+ try obj.tag.amt<dlocal.i>=<serv.resources.<args>.RESOURCES.<dlocal.i>.val>
+end
+// obj.tag.res2=<serv.resources.<args>.RESOURCES.2.key>
+// obj.tag.nam2=<serv.resources.<serv.resources.<args>.RESOURCES.2.key>.name>
+// obj.tag.amt2=<serv.resources.<args>.RESOURCES.2.val>
+// obj.tag.res3=<serv.resources.<args>.RESOURCES.3.key>
+// obj.tag.nam3=<serv.resources.<serv.resources.<args>.RESOURCES.3.key>.name>
+//obj.tag.amt3=<serv.resources.<args>.RESOURCES.3.val>
+//obj.tag.res4=<serv.resources.<args>.RESOURCES.4.key>
+//obj.tag.nam4=<serv.resources.<serv.resources.<args>.RESOURCES.4.key>.name>
+//obj.tag.amt4=<serv.resources.<args>.RESOURCES.4.val>
+obj.tag.item=<args>
+
+//Casos especiais
+if (<obj.tag.skill>==Blacksmithing)
+ obj.tag.anim=9
+ obj.tag.sfx=02a
+ obj.tag.espid=i_alicate
+ obj.tag.espname=alicate
+ obj.tag.neartype=t_forge        
+ obj.tag.nearname=forja acesa
+ IF (<serv.resources.<serv.resources.<args>.TDATA3>>)
+  obj.tag.item=<serv.resources.<args>.TDATA3>
+  obj.tag.f_done=f_setItemTag <args>,
+ ENDIF
+ obj.tag.emote=forjando
+ obj.tag.scrap=i_foligem_bs
+endif
+src.fazitem
+return 1
+
 
 //*****************************************************************************
 //*****************************************************************************
