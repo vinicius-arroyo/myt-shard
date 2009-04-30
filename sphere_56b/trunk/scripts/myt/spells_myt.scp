@@ -7,7 +7,7 @@
 //
 //*****************************************************************************
 //*****************************************************************************
-//TODO:
+//TODO: Tirar o f_Memory_Watchdog e passar esta função para o @DEATH
 //
 //TAGS usadas:
 //TAG.mag       //impactante, suave, neutro
@@ -39,103 +39,6 @@ statf_nomagic=04201A //dead, invis, sleep, insubstatial, stone
 // FUNCTIONs
 //*****************************************************************************
 //*****************************************************************************
-
-//*****************************************************************************
-//trycast <spell>,<domain>
-//*****************************************************************************
-[FUNCTION trycast]
-if <npc>
-    return 1
-endif
-
-LOCAL.mag=<tag0.mag>
-if !(STRMATCH(<argv1>,))
-// serv.log <ACCOUNT.NAME> castando <serv.resources.<argv0>.name> usando dominio <argv1>.
-    //Penalidade por domínio oposto.
-    DOSWITCH (<DEF.<argv1>>-1)
-        LOCAL.mag -= <tag0.spl_morte>
-        LOCAL.mag -= <tag0.spl_fogo>
-        LOCAL.mag -= <tag0.spl_energia>
-        LOCAL.mag -= <tag0.spl_terra>
-        LOCAL.mag -= <tag0.spl_agua>
-        LOCAL.mag -= <tag0.spl_vida>
-        LOCAL.mag -= <tag0.spl_ar>
-        LOCAL.mag -= <tag0.spl_materia>
-    ENDDO
-    //Bônus pelo domínio
-    LOCAL.mags += <tag0.<argv1>>
-    LOCAL.magm -= <tag0.<argv1>> 
-else
-    LOCAL.mags=<LOCAL.mag>
-    LOCAL.magm=<LOCAL.mag>
-endif
-
-LOCAL.magm=<f_manaPerMag <serv.resources.<argv0>.manause>, <LOCAL.magm>>
-LOCAL.mags=<f_skillPerMag <magery>, <LOCAL.mags>>
-
-if <mana> < <LOCAL.magm>
-    sysmessageyellow Voce nao tem mana o suficiente.
-    return 1
-endif
-
-if (<strarg <serv.resources.<argv0>.skillreq>> > <LOCAL.mags>+75)
-    sysmessageyellow Esta alem de sua habilidade.
-    return 1
-endif
-
-ctag.cSkill=<LOCAL.mags>
-ctag.cMana=<LOCAL.magm>
-return 0
-
-//*****************************************************************************
-//f_skillPerMag <skill>,<tag.mag>
-//*****************************************************************************
-//Retorna %skill corrigido pelo tag.mag (ajustado no dialog d_magia)
-[FUNCTION f_skillPerMag]
-LOCAL.percent=<eval ((10*<argv1>)+50)>
-LOCAL.skill=<eval ((<argv0>*<LOCAL.percent>)/100)>
-return <eval <LOCAL.skill>>
-
-//*****************************************************************************
-//f_manaPerMag <mana>,<tag.mag>
-//*****************************************************************************
-//Retorna custo em mana corrigido pelo tag.mag (ajustado no dialog d_magia)
-[FUNCTION f_manaPerMag]
-if <argv1> <= 5
-    LOCAL.percent=<eval ((10*<argv1>)+50)>
-else
-    LOCAL.percent=<eval (20*<argv1>)>
-ENDIF
-LOCAL.mana=<eval ((<argv0>*<LOCAL.percent>)/100)>
-return <eval <LOCAL.mana>>
-
-//*****************************************************************************
-//trycast <spell>,<domain>
-//*****************************************************************************
-//Testa de pode castar ou Previne castar magias por <argn> decimos de segundo
-[FUNCTION spell_delay]
-IF (<ARGN>)
- serv.newitem i_npc_spell_delay
- equip <new>
- new.timerd <argn>
-ELIF (<findid.i_npc_spell_delay>)
- RETURN 1
-else
- RETURN 0
-endif
- 
-
-//Se NPCs podem castar
-[FUNCTION NPC_CanCast]
-if (<findid.i_npc_spell_delay>) || (<tag0.spell_delay>)
- RETURN 0
-else
- RETURN 1
-endif
-
-//Se PCs podem castar
-[FUNCTION CanCast]
-RETURN <NPC_CanCast>
 
 //*************************************************************
 //      FUNCTIONS DE SPELLS GENERICAS
@@ -186,13 +89,13 @@ sfx 0217
 return <ref1>
 
 //*****************************************************************************
-// f_polymorph ([body=c_zombie],[tempo=30],[modstr=0],[moddex=0],[modint=0])
+// f_polymorph <body>,<color>,<time>
 //*****************************************************************************
 //Polymorph genérico
 [FUNCTION f_polymorph]
 
 //carrega tempo padrao se nao for fornecido
-local.timer=0<argv1>
+local.timer=0<argv2>
 if (!<local.timer>)
     local.timer=30
 endif
@@ -203,19 +106,22 @@ if (!<serv.resources.<local.body>>)
     local.body=c_zombie
 endif
 
-// Já estou polymorphado? Se sim, aumente o tempo apenas.
+// Já estou polymorphado? Se sim, reverta.
 if (<restest 1 i_spl_polymorph>)
-    findid.i_spl_polymorph.more2 += <local.timer>
+    findid.i_spl_polymorph.more2 = <local.timer>
+    color=<argv1>
+    body=<local.body>
+    update
 else
     //cria e aplica polymorph
     serv.newitem i_spl_polymorph
-    new.morex=<argv2>
-    new.morey=<argv3>
-    new.morez=<argv4>
-    new.more1=<local.body>
-    new.more2=<local.timer>
+    new.tag.body=<local.body>
+    new.tag.color=<argv1>
+    //new.more2=<local.timer>
     equip <new>
-    new.timer=1
+    //new.timer=1
+    new.timer=<local.timer>
+    new.timerf 3 f_memory_WatchDog
 endif
 
 effect 3 i_fx_curse 0 16 0 017d
@@ -239,15 +145,13 @@ endif
 
 //salva parametros do player
 tag.player=<cont>
-tag.color=<cont.color>
-tag.body=<cont.body>
+tag.ocolor=<cont.color>
+tag.obody=<cont.body>
 
-//set buff and body
-cont.modstr=<cont.modstr>+<morex>
-cont.moddex=<cont.moddex>+<morey>
-cont.modint=<cont.modint>+<morez>
-cont.body <more1>
-cont.flags |= statf_polymorph
+//set body
+cont.body <tag.body>
+cont.color <tag.color>
+cont.flags |= statf_polymorph | statf_incognito
 cont.update
 
 on=@timer
@@ -268,12 +172,10 @@ if (!<obj>)
 endif
 
 //remove buffs e restaura body/cor
-obj.modstr=<eval <obj.modstr>-<morex>>
-obj.moddex=<eval <obj.moddex>-<morey>>
-obj.modint=<eval <obj.modint>-<morez>>
-obj.color=<tag.color>
-obj.body=<tag.body>
+obj.color=<tag.ocolor>
+obj.body=<tag.obody>
 obj.flags &= ~statf_polymorph
+obj.flags &= ~statf_incognito
 obj.update
 obj.effect 3 i_fx_curse 0 16 0 017d
 obj.sfx 01fa
@@ -313,6 +215,70 @@ FOR ammount 1 <LOCAL.amt>
  new.timerf <LOCAL.timer>,remove
  new.update
 ENDFOR
+
+//Cria um FIELD em linha como os default.
+[FUNCTION f_line_field]
+//Argn1=qtd
+//Argn2=timer
+//LOCAL.CREATEOBJECT1 é o objeto l/o
+//LOCAL.CREATEOBJECT2 é o objeto n/s
+local.qtd=<maximum <argn1>,1>
+local.timer=<maximum <argn2>,1>
+local.dir=0
+if (<src.dir>==7) || (<src.dir>==0) || (<src.dir>==3) || (<src.dir>==4)
+ local.obj=<LOCAL.CREATEOBJECT1>
+else
+ local.obj=<LOCAL.CREATEOBJECT2>
+ local.chardir=1
+endif
+for i 1 <dlocal.qtd>
+ newitem <local.obj>
+ new.p=<src.targp>
+ if (<local.dir>)
+  local.direction=<eval <dir>+2>
+  if (<local.direction> > 7)
+   local.direction -= 8
+  elif (<local.direction> < 0 )
+   local.direction += 8
+  endif
+  if (<local.i> != 1)
+   DOSWITCH <local.direction>
+    NEW.MOVE N,<eval (<local.i>/2)>
+    NEW.MOVE NE,<eval (<local.i>/2)>
+    NEW.MOVE E,<eval (<local.i>/2)>
+    NEW.MOVE SE,<eval (<local.i>/2)>
+    NEW.MOVE S,<eval (<local.i>/2)>
+    NEW.MOVE SW,<eval (<local.i>/2)>
+    NEW.MOVE W,<eval (<local.i>/2)>
+    NEW.MOVE NW,<eval (<local.i>/2)>
+   ENDDO
+  endif
+ else
+  local.direction=<eval <dir>+2>
+  if (<local.direction> > 7)
+   local.direction -= 8
+  elif (<local.direction> < 0 )
+   local.direction += 8
+  endif
+  if (<local.i> != 1)
+   DOSWITCH <local.direction>
+    NEW.MOVE N,-<eval (<local.i>/2)>
+    NEW.MOVE NE,-<eval (<local.i>/2)>
+    NEW.MOVE E,-<eval (<local.i>/2)>
+    NEW.MOVE SE,-<eval (<local.i>/2)>
+    NEW.MOVE S,-<eval (<local.i>/2)>
+    NEW.MOVE SW,-<eval (<local.i>/2)>
+    NEW.MOVE W,-<eval (<local.i>/2)>
+    NEW.MOVE NW,-<eval (<local.i>/2)>
+   ENDDO
+  endif
+ endif
+ say <local.direction> <eval <local.i>/2>
+ local.dir = <eval !<local.dir>>
+ new.timer=<local.timer>
+ new.attr 012
+end
+
 
 //Faz uma duplicata pet/summoned do DEFAULT.
 [FUNCTION f_dupeChar]
@@ -383,19 +349,6 @@ sfx 0fb
 return <obj.uid>
 
 
-[FUNCTION f_domains]
-//abre janela de dominio de magias
-ctag.newdomains=<src.tag0.newdomains>
-ctag.spl_materia=<tag0.spl_materia>
-ctag.spl_agua=<tag0.spl_agua>
-ctag.spl_vida=<tag0.spl_vida>
-ctag.spl_terra=<tag0.spl_terra>
-ctag.spl_energia=<tag0.spl_energia>
-ctag.spl_fogo=<tag0.spl_fogo>
-ctag.spl_morte=<tag0.spl_morte>
-ctag.spl_ar=<tag0.spl_ar>
-DIALOG d_mdomains
-
 [EVENTS e_nightsight]
 
 ON=@LOGIN
@@ -427,197 +380,10 @@ ELSE
     f_noElfSight
 ENDIF
 
-//*************************************************************
-//      TYPEDEFS de magia
-//*************************************************************
-//Livro que contem Palavras do poder
-//more1 SPL_* (que tipo de palavras vai conter? Vida? Morte? Materia?)
-//more2 Quantas palavras vão ter? Não passar de 5 é uma boa.
-[TYPEDEF t_book_WoP]
-ON=@DClick
-if (<topobj>!=<src.uid>)
- src.sysmessageyellow Nao da para ler o livro de onde ele esta.
- return 1 
-elif (<src.magery> < 50.0)
- src.sysmessageyellow Voce nao entende nada do que esta escrito.
- return 1
-endif
-//Salvar posição
-src.cTAG.cPX=<src.p.x>
-src.cTAG.cPY=<src.p.y>
-src.cTAG.cWoPB=<UID>
-//Tempo que demora pra ler é de 15 a 90 segundos variando com magery
-src.cTAG.cTimer=<f_rangeValue 90,15,<src.magery>>
-//começa a ler
-src.emoteyellow abre um livro
-src.sfx 03e3
-src.sysmessageblue Voce abre o livro de encantamentos e passa a ler.
-src.timerf 1,f_read_WoPB
-return 1
-
-ON=@CLIENTTOOLTIP
-DOSWITCH <MORE1>
- LOCAL.t=(magia vulgar)
- LOCAL.t=(vida)
- LOCAL.t=(agua)
- LOCAL.t=(materia)
- LOCAL.t=(ar)
- LOCAL.t=(fogo)
- LOCAL.t=(morte)
- LOCAL.t=(terra)
- LOCAL.t=(energia)
-ENDDO
-LOCAL.t .= <DEF.br>Encantamentos: <eval <more2>>
-f_sendTooltipData <local.t>
-
-[FUNCTION f_read_WoPB]
-if (<cTAG.cPX>!=<p.x>) || (<cTAG.cPY>!=<p.y>) || (<FLAGS>&statf_cantcraft)
- sysmessagered Voce parou de ler o livro
- f_clearWoPB
- return 1
-ENDIF
-DORAND 6
- emoteyellow lendo
- sfx 055
-ENDDO
-cTAG.cTimer -= 1
-if (!<cTAG.cTimer>)
- f_revealWoP
- f_clearWoPB
-else
- timerf 1,f_read_WoPB 
-endif
-
-[FUNCTION f_clearWoPB]
-src.cTAG.cPX=
-src.cTAG.cPY=
-src.cTAG.cWoPB=
-src.cTAG.cTimer=
-
-[FUNCTION f_revealWoP]
-obj=<cTAG.cWoPB>
-DOSWITCH <obj.more1>
- LOCAL.wop=<SPELL_WoP_CANTRIP>
- LOCAL.wop=<SPELL_WoP_VIDA>
- LOCAL.wop=<SPELL_WoP_AGUA>
- LOCAL.wop=<SPELL_WoP_MATERIA>
- LOCAL.wop=<SPELL_WoP_AR>
- LOCAL.wop=<SPELL_WoP_FOGO>
- LOCAL.wop=<SPELL_WoP_MORTE>
- LOCAL.wop=<SPELL_WoP_TERRA>
- LOCAL.wop=<SPELL_WoP_ENERGIA>
-ENDDO
-obj.more2 -= 1
-obj.updatex
-if (!<obj.more2>)
- obj.remove
-endif
-message <LOCAL.wop>
-sysmessageblue Voce parou de ler e revelou uma palavra do poder!
-
-[TYPEDEF e_focus]
-on=@equiptest
-if (<src.magery> < 50.0) && (!<src.IsGM>)
- src.sysmessagered Um campo magico evida que voce segure <name>.
- return 1
-endif
-src.dspeech +spk_mago
-
-on=@unequip
-src.dspeech -spk_mago
 
 //*************************************************************
 //      ITEMDEFs de magia
 //*************************************************************
-
-
-//------ WOP BOOKS --------
-
-[ITEMDEF i_book_WoP_vulgar]
-ID=3834
-TYPE=t_book_WoP
-NAME=Encantamentos (vulgar)
-
-CATEGORY=MyT - Provisions - Alchemy & Magic
-SUBSECTION=Magical Items
-DESCRIPTION=Encantamentos (vulgar)
-
-on=@create
-color=036
-more1=spl_vulgar
-more2={2 5}
-
-
-[ITEMDEF i_book_WoP_vida]
-ID=i_spellbook_paladin
-TYPE=t_book_WoP
-NAME=Encantamentos (vida)
-
-CATEGORY=MyT - Provisions - Alchemy & Magic
-SUBSECTION=Magical Items
-DESCRIPTION=Encantamentos (vida)
-
-on=@create
-color=0170
-more1=spl_vida
-more2={2 5}
-
-[ITEMDEF i_book_WoP_morte]
-ID=i_spellbook_necromancy
-TYPE=t_book_WoP
-NAME=Encantamentos (morte)
-
-CATEGORY=MyT - Provisions - Alchemy & Magic
-SUBSECTION=Magical Items
-DESCRIPTION=Encantamentos (morte)
-
-on=@create
-color=0336
-more1=spl_morte
-more2={2 5}
-
-[ITEMDEF i_book_WoP_terra]
-ID=i_spellbook_bushido
-TYPE=t_book_WoP
-NAME=Encantamentos (terra)
-
-CATEGORY=MyT - Provisions - Alchemy & Magic
-SUBSECTION=Magical Items
-DESCRIPTION=Encantamentos (terra)
-
-on=@create
-color=08c
-more1=spl_terra
-more2={2 5}
-
-[ITEMDEF i_book_WoP_fogo]
-ID=i_spellbook_arcanist
-TYPE=t_book_WoP
-NAME=Encantamentos (fogo)
-
-CATEGORY=MyT - Provisions - Alchemy & Magic
-SUBSECTION=Magical Items
-DESCRIPTION=Encantamentos (fogo)
-
-on=@create
-color=026
-more1=spl_fogo
-more2={2 5}
-
-
-
-//------ MEMORY DE MAGIAS --------
-
-//CHARs com esta memory não podem castar.
-[ITEMDEF i_npc_spell_delay]
-ID=01810
-NAME=spell delay
-TYPE=t_eq_script
-LAYER=LAYER_SPECIAL
-
-on=@timer
-remove
-return 1
 
 //*****************************************************************************
 // spl_applyResBuff( RESFIRE,RESCOLD,RESPOISON,RESENERGY,RESPHYSICAL,MANA_USE )
@@ -712,266 +478,234 @@ endif
 timer=1
 return 1
 
-//*************************************************************
-//          GUMPS DE SPELL
-//*************************************************************
+[FUNCTION Buff_Armor]
+//Buff_Armor <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffres
+new.link=<UID>
+new.tag.modar=<argv0>
+new.equip
+new.timer=<argv1>
 
-[DIALOG d_mdomains]
-164,65
-page 0
-gumppic 7 0 30500
-gumppic 196 37 1417 50
-gumppic 308 77 1417 4
-gumppic 348 189 1417 65
-gumppic 308 301 1417 45
-gumppic 196 341 1417 20
-gumppic 88 301 1417 35
-gumppic 46 189 1417 828
-gumppic 88 77 1417 10
-dtext 209 42 0 Materia
-dtext 333 80 0 Agua
-dtext 374 194 0 Vida
-dtext 328 306 0 Terra
-dtext 212 347 0 Energia
-dtext 113 307 0 Fogo
-dtext 65 198 0 Morte
-dtext 120 83 0 Ar
+[FUNCTION Buff_Resfire]
+//Buff_Resfire <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffres
+new.link=<UID>
+new.tag.resfire=<argv0>
+new.equip
+new.timer=<argv1>
 
-//Tenho novos pontos de dominio extra?
-if (<src.ctag0.newdomains>)
- gumppic 220 192 113
- gumppictiled 227 230 16 16 1803
- gumppic 219 230 1802
- gumppic 243 230 1804
- dtext 226 228 48 +<src.dctag.newdomains>
+[FUNCTION Buff_Rescold]
+//Buff_Rescold <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffres
+new.link=<UID>
+new.tag.rescold=<argv0>
+new.equip
+new.timer=<argv1>
 
- //Quais posso escolher?
- if (!<src.ctag0.spl_energia>)
-  button 212 116 4500 4500 1 0 2
- endif
- if (!<src.ctag0.spl_fogo>)
-  button 278 139 4501 4501 1 0 3
- endif
- if (!<src.ctag0.spl_morte>)
-  button 299 206 4502 4502 1 0 4
- endif
- if (!<src.ctag0.spl_ar>)
-  button 278 268 4503 4503 1 0 5
- endif
- if (!<src.ctag0.spl_materia>)
-  button 212 294 4504 4504 1 0 6
- endif
- if (!<src.ctag0.spl_agua>)
-  button 143 268 4505 4505 1 0 7
- endif
- if (!<src.ctag0.spl_vida>)
-  button 125 206 4506 4506 1 0 8
- endif
- if (!<src.ctag0.spl_terra>)
-  button 148 139 4507 4507 1 0 9
- endif
+[FUNCTION Buff_Respoison]
+//Buff_Respoison <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffres
+new.link=<UID>
+new.tag.respoison=<argv0>
+new.equip
+new.timer=<argv1>
+
+[FUNCTION Buff_Resenergy]
+//Buff_Resenergy <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffres
+new.link=<UID>
+new.tag.resenergy=<argv0>
+new.equip
+new.timer=<argv1>
+
+[FUNCTION Buff_STR]
+//Buff_STR <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffstats
+new.link=<UID>
+new.tag.modstr=<argv0>
+new.equip
+new.timer=<argv1>
+
+[FUNCTION Buff_DEX]
+//Buff_DEX <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffstats
+new.link=<UID>
+new.tag.moddex=<argv0>
+new.equip
+new.timer=<argv1>
+
+[FUNCTION Buff_INT]
+//Buff_INT <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffstats
+new.link=<UID>
+new.tag.modint=<argv0>
+new.equip
+new.timer=<argv1>
+
+[TYPEDEF e_BuffRes]
+on=@equip
+if (<eval <tag0.modar>+<link.ar>> > 100) //Não passar de 100
+ tag0.modar = <eval 100-<link.ar>>
+elif (<eval <tag0.modar>+<link.ar>> < 0) //Não passar de 0
+ tag0.modar = -<link.ar>
+endif
+link.modar += <tag0.modar>
+IF (<link.IsPlayer>)
+ link.resfiremod <tag0.resfire>
+ link.rescoldmod <tag0.rescold>
+ link.respoisonmod <tag0.respoison>
+ link.resenergymod <tag0.resenergy>
 else
- button 27 415 4014 4014 1 0 10
+ link.resfire += <tag0.resfire>
+ link.rescold += <tag0.rescold>
+ link.respoison += <tag0.respoison>
+ link.resenergy += <tag0.resenergy>
 endif
 
-//Quais eu já tenho?
-dtext 230 67 32 <src.dctag.spl_materia>
-dtext 343 107 32 <src.dctag.spl_agua>
-dtext 382 220 32 <src.dctag.spl_vida> 
-dtext 343 331 32 <src.dctag.spl_terra>
-dtext 230 374 32 <src.dctag.spl_energia>
-dtext 123 331 32 <src.dctag.spl_fogo>
-dtext 80 220 32 <src.dctag.spl_morte>
-dtext 123 107 32 <src.dctag.spl_ar>
-gumppic 152 0 2440
-dtext 182 1 47 Dominios da magia
-button 88 390 2429 2427 1 0 1
-button 322 392 2420 2418 1 0 0
-
-[DIALOG d_mdomains text]
-Materia
-Agua
-Vida
-Terra
-Energia
-Fogo
-Morte
-Ar
-+3
-3
-3
-3
-3
-3
-3
-3
-3
-Dominios da magia
-
-[DIALOG d_mdomains button]
-ON=0
-// Cancel
-// 
-
-ON=1
-// Okay
-// 
-tag.newdomains=<ctag0.newdomains>
-tag.spl_materia=<tag0.spl_materia>
-tag.spl_agua=<ctag0.spl_agua>
-tag.spl_vida=<ctag0.spl_vida>
-tag.spl_terra=<ctag0.spl_terra>
-tag.spl_energia=<ctag0.spl_energia>
-tag.spl_fogo=<ctag0.spl_fogo>
-tag.spl_morte=<ctag0.spl_morte>
-tag.spl_ar=<ctag0.spl_ar>
-
-ON=2
-// +Materia
-addDomain spl_materia
-DIALOG d_mdomains
-
-ON=3
-// +agua
-// 
-addDomain spl_agua
-DIALOG d_mdomains
-
-ON=4
-// +vida
-// 
-addDomain spl_vida
-DIALOG d_mdomains
-
-ON=5
-// +terra
-// 
-addDomain spl_terra
-DIALOG d_mdomains
-
-ON=6
-// +energia
-// 
-addDomain spl_energia
-DIALOG d_mdomains
-
-ON=7
-// +fogo
-// 
-addDomain spl_fogo
-DIALOG d_mdomains
-
-ON=8
-// +morte
-// 
-addDomain spl_morte
-DIALOG d_mdomains
-
-ON=9
-// +ar
-// 
-addDomain spl_ar
-DIALOG d_mdomains
-
-ON=10
-// para .magia
-// 
-mago
-
-[FUNCTION addDomain]
-try src.ctag.<args> = <eval <src.ctag0.<args>>+1>
-src.ctag.newdomains -= 1
-
-[PLEVEL 1]
-magia
-mago
-
-[FUNCTION magia]
-if !<tag0.mag>
-    tag.mag=5
-endif    
-ctag.roll=<eval ((<tag.mag>-1)*24)+70>
-src.dialog d_magia
-return 1
-
-[FUNCTION mago]
-magia
-
-[DIALOG d_magia]
-200, 150
-noclose
-nomove
-PAGE 0
-gumppic 0 0 1140
-gumppic 61 88 1143
-gumppic 136 41 2445
-text 142 41 1101 0
-text 65 69 455 1
-text 263 69 455 2
-button <eval <ctag0.roll>> 94 2117 2118 0 0 0
-button 45 95 2223 2223 1 0 1
-button 328 95 2224 2224 1 0 2
-button 137 118 2117 2118 1 0 3
-button 137 139 2117 2118 1 0 4
-button 137 161 2117 2118 1 0 5
-text 159 114 1345 3
-text 159 136 1345 4
-text 158 156 1345 5
-button 156 196 249 248 1 0 6
-button 320 216 4005 4006 1 0 7
-
-[DIALOG d_magia TEXT]
-Foco de magia
-Suave
-Impactante
-Impactante
-Suave
-Neutra
-
-[DIALOG d_magia BUTTON]
-on=1
-tag.mag -= 1
-if <tag0.mag> < 1
-    tag.mag=1
-    dialog d_magia
-    return 1
+on=@unequip
+link.modar -= <tag0.modar>
+IF (<link.IsPlayer>)
+ link.resfiremod -<tag0.resfire>
+ link.rescoldmod -<tag0.rescold>
+ link.respoisonmod -<tag0.respoison>
+ link.resenergymod -<tag0.resenergy>
+else
+ link.resfire -= <tag0.resfire>
+ link.rescold -= <tag0.rescold>
+ link.respoison -= <tag0.respoison>
+ link.resenergy -= <tag0.resenergy>
 endif
-ctag.roll=<eval ((<tag0.mag>-1)*24)+70>
-dialog d_magia
-return 1
 
-on=2
-tag.mag += 1
-if <tag0.mag> > 10
-    tag.mag=10
-    dialog d_magia
-    return 1
+[TYPEDEF e_BuffStats]
+on=@equip
+link.modstr += <tag0.modstr>
+link.moddex += <tag0.moddex>
+link.modint += <tag0.modint>
+link.tag0.OVERRIDE_STATSUM += <eval <tag0.modstr>+<tag0.moddex>+<tag0.modint>>
+
+on=@unequip
+link.modstr -= <tag0.modstr>
+link.moddex -= <tag0.moddex>
+link.modint -= <tag0.modint>
+link.tag0.OVERRIDE_STATSUM -= <eval <tag0.modstr>+<tag0.moddex>+<tag0.modint>>
+
+[ITEMDEF i_mry_buffres]
+ID=02086
+NAME=ResBuff
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffRes
+
+on=@equip
+name=<name>(AR<dtag0.modar> F<dtag0.resfire> C<dtag0.rescold> P<dtag0.respoison> E<dtag0.resenergy>)
+timerf 5 f_memory_WatchDog
+
+on=@timer
+remove
+RETURN 1
+
+
+[ITEMDEF i_mry_buffstats]
+ID=0208F
+NAME=BuffStats
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffStats
+
+on=@equip
+name=<name> (STR: <dtag0.modstr> DEX:<dtag0.modint> INT:<dtag0.modint>)
+timerf 5 f_memory_WatchDog
+
+on=@timer
+remove
+RETURN 1
+
+[TYPEDEF e_BuffSkill]
+on=@equip
+if (<link>==04fffffff)
+ link=<cont.uid>
 endif
-ctag.roll=<eval ((<tag0.mag>-1)*24)+70>
-dialog d_magia
-return 1
+if !(<IsEmpty <tag.modskill>>) && !(<IsEmpty <tag.modskillval>>)
+ local.maxincrease=<eval 130.0-<link.<DEF.Skill_<tag.modskill>>>>
+ local.maxdecrease=-<link.<DEF.Skill_<tag.modskill>>>
+ tag.modskillval=<maximum <local.maxdecrease>,<minimum <tag.modskillval>,<local.maxincrease>>>
+ link.<DEF.Skill_<tag.modskill>> += <tag.modskillval>
+endif
 
-on=3
-tag.mag=10
-ctag.roll=<eval ((<tag0.mag>-1)*24)+70>
-dialog d_magia
-return 1
+on=@unequip
+if !(<IsEmpty <tag.modskill>>) && !(<IsEmpty <tag.modskillval>>)
+ link.<DEF.Skill_<tag.modskill>> -= <tag.modskillval>
+endif
 
-on=4
-tag.mag=1
-ctag.roll=<eval ((<tag0.mag>-1)*24)+70>
-dialog d_magia
-return 1
+[ITEMDEF i_mry_buffskill]
+ID=0208F
+NAME=BuffSkill
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffSkill
 
-on=5
-tag.mag=5
-ctag.roll=<eval ((<tag0.mag>-1)*24)+70>
-dialog d_magia
-return 1
+on=@equip
+name=<serv.skill.<tag.modskill>.name> +(<dtag.modskillval>)
+timerf 5 f_memory_WatchDog
 
-on=6
-return 1
+on=@timer
+remove
+RETURN 1
 
-on=7
-f_domains
+[FUNCTION BuffSkill]
+//ARGV0=skill, ARGV1=valor, ARGV3=tempo
+if (!<serv.skill.<argv0>>) || (0<argv1>==0) || (!<argv2>)
+ return 0
+endif
+newitem i_mry_buffskill
+new.tag.modskill=<argv0>
+new.tag.modskillval=<argv1>
+new.link=<UID>
+new.equip
+new.timer=<argv2>
+
+
+[FUNCTION f_memory_WatchDog]
+if (<cont.flags>&02)
+ timerd 1
+ return 1
+endif
+if (<link> != 04fffffff)
+ if (!0<uid.<link>.instances>)
+  timerd 1
+  return 1
+ elif (<link.IsPlayer>)
+  if (<link.flags>&040002) || (!<link.IsOnline>)
+   timerd 1
+   return 1
+  endif
+ endif
+endif
+timerf <R3,5> f_memory_WatchDog
+
+
 [EOF]
