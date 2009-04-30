@@ -20,6 +20,14 @@ SANCTUARY_UNDEAD            01
 SANCTUARY_DEAMON            02
 SANCTUARY_EXTRAPLANAR       04
 
+//Flags para uso da AI de NPCs caster
+[DEFNAME cast_flags]
+flag_cast_healself      01      //Eu me healei
+flag_cast_spawn         02      //Eu castei spawn
+flag_cast_op            03      //Eu usei magias fortes de mais
+flag_cast_poly          04      //Eu usei magias polymorph
+
+
 //*****************************************************************************
 //*****************************************************************************
 // FUNCTIONs
@@ -117,16 +125,6 @@ IF (<region.tag0.faction.color>)
  endif
  equip <new.uid>
 ENDIF
-
-//*****************************************************************************
-// NPC_CASTER_GARGYL
-//*****************************************************************************
-[FUNCTION NPC_CASTER_GARGYL]
-events +e_cast_gargyl
-tag.mag=4
-tag.spl_terra <eval {1 2}>
-tag.spl_fogo <eval {2 3}>
-tag.spl_morte <eval {1 3}>
 
 //*****************************************************************************
 // f_haut_vanish
@@ -775,6 +773,372 @@ return 1
 
 
 //*****************************************************************************
+// e_caster_necro
+//*****************************************************************************
+//Healself se te, 1/4 de vida com cooldown de 8 segundos
+//Mago (menos cast time): Debilitar inteligência e depois atacar
+//Arqueiro: Se puder, polymorphar para esqueleto. Fica imune a flechas
+//Gerreiro forte perto: Infestação, cançar músculos, envenenar e Dom Negro(para ir pra longe)
+//Guerreiro forte longe: Summon, Dom Negro e choque mental
+//Guerreiro com muita AR: Putrefação
+//Guerreiro fraco: Summon, Dom Negro e choque mental
+//Demais: Summon, choque metal, envelhecer, cançar músculos, envenenar e dom negro.
+[EVENTS e_caster_necro]
+
+//***********
+on=@SpellCast
+//***********
+
+//Precisa healar?
+if (<hits> < <eval <maxhits>/4>) && (<mana> > 10) && !(<tag0.cast_flags>&01)
+ tag0.cast_flags |= <DEF.flag_cast_healself>
+ timerf 8 tag0.cast_flags = <tag0.cast_flags>&~<DEF.flag_cast_healself>
+ hits += <R15,<eval <int>/6>>
+ EFFECT 3,i_fx_curse,0,16,0,4,5
+ SFX snd_spell_curse
+ mana -=10
+ anim 17
+
+//O oponente é um possível mago?
+elif (<act.oint> > 80)
+
+ //Diminuir levemente o cast time
+ argn3=<eval (<argn3>*<R7,10>)/10>
+ 
+ //[POSSÍVEL MAGO] Ele já está bem debilitado?
+ if (<act.mana> < 18) || (<act.int> < 40)
+  if (<act.distance> > 1) && (!<R3>)
+   argn1=214    //Choque mental se está longe e 1/4 chance
+  elif !<R3>
+   argn1=206    //Infestação 1/4 chance
+  else
+   argn1=201    //Dom negro
+  endif
+   
+ //[POSSÍVEL MAGO] O oponente está lançando uma magia?
+ elif (<act.action>==25) || (<act.action>==49) || (<act.action>==50) || (<act.action>==54)
+  argn1=211 //Começa com demência. A mais forte
+  DORAND <eval <NECROMANCY>/333>
+   argn1=204   //Envelhecer
+   argn1=208   //Envenenar mente
+   argn1=214   //Choque Mental
+   argn1=211   //Demência
+  ENDDO
+    
+ //[POSSÍVEL MAGO] O oponente tem minions? Eu tenho minions? Posso ter?
+ elif (<act.curfollower>) || (<act.memoryfindtype memory_ipet>)
+  //Eu tenho minions? Posso ter?
+  if !(<tag0.cast_flags>&<DEF.flag_cast_spawn>)
+   if (<necromancy> > <serv.spell.s_summon_undead_hi.SKILLREQ.val>) &&  (<mana> > <serv.spell.s_summon_undead_hi.MANAUSE>)&& (!<R2>)
+    argn1=218 //Summon Undead Hi
+   elif (<necromancy> > <serv.spell.s_summon_undead_re.SKILLREQ.val>) &&  (<mana> > <serv.spell.s_summon_undead_re.MANAUSE>)
+    argn1=212 //Summon Undead
+   elif (<necromancy> > <serv.spell.s_summon_undead_lo.SKILLREQ.val>) &&  (<mana> > <serv.spell.s_summon_undead_lo.MANAUSE>)
+    argn1=209 //Summon Undead Lo
+   else
+    argn1=206 //Infestação
+   endif
+   
+  //Não posso ter minions. Posso apelar?
+  elif !(<tag0.cast_flags>&<DEF.flag_cast_op>)
+   argn1=217    //Pânico
+   
+  //Não posso ter minions nem apelar.
+  elif (<act.distance> > 1) && (<mana> > <eval <serv.spell.s_choque_mental.manause>*2>) && (!<R0,2>)
+   argn1=214    //Choque mental
+  else
+   if !(<act.flags>&statf_poisoned) && (!<R3>)
+    argn1=207    //Envenenar
+   else
+    argn1=201    //Dom Negro
+   endif
+  endif
+ 
+ else
+ //[POSSÍVEL MAGO] Usar magias anti-mago
+  argn1=211 //Começa com demência. A mais forte
+  DORAND <eval <NECROMANCY>/160>
+   argn1=201   //Dom Negro
+   argn1=204   //Envelhecer
+   argn1=207   //Envenenar
+   argn1=208   //Envenenar mente
+   argn1=214   //Choque Mental
+   argn1=214   //Choque Mental
+   argn1=211   //Demência
+  ENDDO
+ endif//[POSSÍVEL MAGO]
+
+//É um possível arqueiro?
+elif (<act.weapon.type>==t_weapon_bow) || (<act.weapon.type>==t_weapon_xbow)
+ 
+ //[ARQUEIRO] Seria bom morphar para esqueleto?
+ if !(<tag0.dam_pierce>&dam_pierce) && (!<restest 1 i_spl_polymorph>) && (<necromancy> > 82.5) && (<mana> > 40)
+  argn1=215 //poly para esqueleto
+  argn3=1  //Rapidin
+ else //[ARQUEIRO] Não posso ser esqueleto
+  if (<act.distance> > 1) && (<mana> > <eval <serv.spell.s_choque_mental.manause>*2>) && (!<R0,3>)
+   argn1=214    //Choque mental
+  elif (!<R0,3>)
+   argn1=204    //Envelhecer
+  elif (<R0,1>)
+   argn1=200    //Cansar músculos
+  else
+   argn1=201    //Dom Negro
+  endif
+ endif
+
+//O oponente é um possível guerreiro?
+elif (<act.ostr> > 85)
+  
+ //[POSSIVEL GUERREIRO] Fortão?
+ if (<act.str> > 50) || (<act.hits> > 50)
+ 
+  //Colado em mim?
+  if (<act.distance> < 2)
+  
+   //Posso soltar um Pacto de Sangue?
+   if !(<act.tag0.pacto_sangue>) && (<necromancy> > 90.0) && (<mana> > 37)
+    argn1=216   //Pacto de sangue
+    argn3=15    //Menos Delay
+   //Já spawnei?
+   elif !(<tag0.cast_flag>&<DEF.flag_cast_spawn>) && (!<R0,2>)
+    agrn1=206   //Infestação, pra descolar o oponente
+   //Senta o rodo então!
+   else
+    if (!<R0,3>)
+     argn1=200    //Cansar músculos
+    else
+     argn1=201    //Dom Negro
+    endif
+   endif
+   
+  //Longe de mim?
+  else
+   //Já spawnei?
+   if !(<tag0.cast_flag>&<DEF.flag_cast_spawn>) && (!<R2>)
+    DORAND <eval <necromancy>/300>
+     argn1=206         //Infestação
+     argn1=209         //Summon undead lo
+     argn1=212         //Summon undead
+     argn1=218         //Summon undear hi
+    ENDDO
+   //Muita armadura?
+   elif (<act.ar> > 50) && !(<tag0.cast_flag>&<DEF.flag_cast_op>) && (!<R3>)
+    argn1=213          //Putrefação
+   //Resiste a veneno?
+   elif (<act.respoison> < 30) && !(<act.flags>&statf_poisoned) && (!<R3>)
+    argn1=207          //Envenenar
+   //Senta o pau!
+   else
+    if (<act.distance> > 1) && (<mana> > <eval <serv.spell.s_choque_mental.manause>*2>) && (!<R0,3>)
+     argn1=214    //Choque mental
+    elif (!<R0,3>)
+     argn1=204    //Envelhecer
+    elif (<R0,1>)
+     argn1=200    //Cansar músculos
+    else
+     argn1=201    //Dom Negro
+    endif
+   endif
+  
+  //[POSSIVEL GUERREIRO] Enfraquecido
+ else
+  if (<act.distance> > 1) && (<mana> > <eval <serv.spell.s_choque_mental.manause>*2>) && (!<R0,3>)
+   argn1=214    //Choque mental
+  elif !(<act.flags>&statf_poisoned) && (!<R2>)
+   argn1=207    //Envenenar
+  elif (<R0,1>)
+   argn1=201    //Dom Negro
+  endif
+ 
+ endif//[POSSIVEL GUERREIRO]
+
+else //Não consigo determinar melhor estratégia
+ if !(<tag0.cast_flag>&<DEF.flag_cast_spawn>) && (!<R3>)
+  argn1=209    //Morto vivo menor
+ elif (<act.distance> > 1) && (<mana> > <eval <serv.spell.s_choque_mental.manause>*2>) && (!<R0,4>)
+  argn1=214    //Choque mental
+ elif (!<R0,3>)
+  argn1=204    //Envelhecer
+ elif !(<tag0.cast_flag>&<DEF.flag_cast_spawn>) && (!<R2>)
+  argn1=106    //Infestação
+ elif (<R0,2>)
+  argn1=200    //Cansar músculos
+ else
+  argn1=201    //Dom Negro
+ endif
+endif
+
+//Spawnar em nome do necromante mesmo. MENOS pra Infestação.
+if ( (<serv.spell.<argn1>.flags>&SPELLFLAG_SUMMON) && (<argn>!=206) ) || (<serv.spell.<argn1>.flags>&SPELLFLAG_GOOD)
+ act=<uid>
+endif
+
+argn2=<strarg <serv.spell.<argn1>.SKILLREQ>>
+argn3=<serv.spell.<argn1>.CAST_TIME>
+ 
+if (!<IsEvent.e_firemade>)
+ say <mage_GetSpellRunes <argn1>>
+endif
+
+//Dizer WoP
+say <mage_GetSpellRunes <argn1>>
+
+//**************
+on=@SkillSuccess
+//**************
+if (<argn>==<DEF.SKILL_NECROMANCY>)
+ local.flags=<serv.spell.<actarg1>.flags>
+ if (<local.flags>&SPELLFLAG_SUMMON)
+  tag0.cast_flags |= <def.flag_cast_spawn>
+  timerf <DURATIONSPELL <actarg1>,<necromancy>,<uid>> tag0.cast_flags &= ~<def.flag_cast_spawn>
+ elif <actarg1>==217 || <actarg1>==213
+  tag0.cast_flags |= <def.flag_cast_op>
+  timerf <DURATIONSPELL <actarg1>,<necromancy>,<uid>> tag0.cast_flags &= ~<def.flag_cast_op>
+ endif
+endif
+
+//*************
+on=@NPCActFight
+//*************
+if (<action>!=<DEF.SKILL_NECROMANCY>) && !<tag0.NPC_CanCast> && (<mana> > 8)
+ action=<DEF.SKILL_NECROMANCY>
+ tag.NPC_CanCast=1
+ nomove 5
+ timerf <eval 7-(<int>/50)> tag.NPC_CanCast=0
+endif
+
+
+//*****************************************************************************
+// e_caster_magery
+//*****************************************************************************
+//Heala se precisar.
+//Oponente longe: 4 de ataque e depois 1 debuff/summon
+//                Raramente esquentar arma
+//                Summon a partir de 80.0 de magery
+//                Chance de Sensibilidade ao fogo baseado em INT
+//                Magias de atque a distância + de área
+//Oponente perto: Chance de esquentar arma baseado em INT
+//                NÃO usa magias de ataque de área
+//                Não usa summon. Só magias de ataque
+
+[EVENTS e_caster_magery]
+//***********
+on=@SpellCast
+//***********
+
+//Precisa healar?
+if (<hits> < <eval <maxhits>/4>) && (<mana> > 10) && !(<tag0.cast_flags>&01)
+ tag0.cast_flags |= <DEF.flag_cast_healself>
+ timerf 8 tag0.cast_flags = <tag0.cast_flags>&~<DEF.flag_cast_healself>
+ hits += <R15,<eval <int>/6>>
+ EFFECT 3,i_fx_curse,0,16,0,4,5
+ SFX snd_spell_curse
+ mana -=10
+ anim 17
+
+//Oponente longe?
+elif (<act.distance> > 3)
+
+ //Vez de atacar
+ if (<tag0.cast_turn> < 3)
+  tag0.cast_turn += 1
+  DORAND <eval <magery>/140>
+   argn1=100     //Dardos de fogo
+   argn1=104     //Fireball
+   argn1=100     //Dardos de fogo
+   argn1=108     //Combustão
+   argn1=104     //Fireball
+   argn1=112     //Flamestrike
+   argn1=116     //Explosão
+   argn1=110     //Cela de fogo
+  ENDDO
+ 
+ //Vez de debuffar/buffar
+ else
+  tag0.cast_turn=0
+  
+  //Summonar? Precisa de muito Magery
+  if !(<tag0.cast_flags>&<DEF.flag_cast_spawn>) && (<magery> > 80.0)
+    argn1=114    //Começa com Horror do abismo
+    DORAND <eval (<magery>-80.0)/100>
+     argn1=114   //Horror do abismo
+     argn1=117   //Homem lagarto
+     argn1=119   //Elemental do fogo
+    ENDDO
+    
+  //Esquentar arma?
+  elif (STRMATCH(*ingot*,<act.weapon.resources>)) && (<R350> < <int>)
+   argn1=113   //Esquentar arma
+    
+  //Sensibilizar ao fogo?
+  elif (!<act.tag0.immune>&dam_fire) && (!<act.tag0.regendam>&dam_fire) && (!<act.tag0.aggravate>&dam_fire) && (<R250> < <int>)
+   argn1=103   //sensibilidade ao fogo
+   
+  //Sem chance. Atacar
+  else
+   argn1=100   //Dardos de fogo
+  endif
+  
+ endif
+   
+//Oponente perto
+else
+        
+ //Ele está armado?
+ if (<act.weapon>)
+  if (STRMATCH(*ingot*,<act.weapon.resources>)) && (<R250> < <int>)
+   argn1=113   //Esquentar arma
+  elif (<R1250> < <EVALUATINGINTEL>) && (<act.distance> < 2) //Roubar no jogo!
+   act.f_pega_fogo <R2,3>
+   argn1=104   //Fireball
+  else
+   argn1={100 2 104 1}  //Dardos de fogo ou Fireball
+  endif
+ else //Não está armado
+  argn1={100 3 104 2 108 1}
+ endif
+ 
+endif
+
+argn2=<strarg <serv.spell.<argn1>.SKILLREQ>>
+argn3=<serv.spell.<argn1>.CAST_TIME>
+
+//Spawnar em nome do mago mesmo.
+if (<serv.spell.<argn1>.flags>&SPELLFLAG_SUMMON) || (<serv.spell.<argn1>.flags>&SPELLFLAG_GOOD)
+ act=<uid>
+endif
+ 
+if (!<IsEvent.e_firemade>)
+ say <mage_GetSpellRunes <argn1>>
+endif
+
+
+//**************
+on=@SkillSuccess
+//**************
+if (<argn>==<DEF.SKILL_MAGERY>)
+ local.flags=<serv.spell.<actarg1>.flags>
+ if (<local.flags>&SPELLFLAG_SUMMON)
+  tag0.cast_flags |= <def.flag_cast_spawn>
+  timerf <DURATIONSPELL <actarg1>,<magery>,<uid>> tag0.cast_flags &= ~<def.flag_cast_spawn>
+ elif <actarg1>==217 || <actarg1>==213
+  tag0.cast_flags |= <def.flag_cast_op>
+  timerf <DURATIONSPELL <actarg1>,<magery>,<uid>> tag0.cast_flags &= ~<def.flag_cast_op>
+ endif
+endif
+
+//*************
+on=@NPCActFight
+//*************
+if (<action>!=<DEF.SKILL_MAGERY>) && !<tag0.NPC_CanCast> && (<mana> > 8)
+ action=<DEF.SKILL_MAGERY>
+ tag.NPC_CanCast=1
+ timerf <MAXIMUM 4,<eval 7-(<int>/50)>> tag.NPC_CanCast=0
+endif
+
+
+//*****************************************************************************
 //*****************************************************************************
 // EVENTs NPCs Específicos
 //*****************************************************************************
@@ -1029,62 +1393,6 @@ if !<src.tag0.npc_ban>
     attack <src>
 endif        
 
-//*****************************************************************************
-// e_cast_gargyl
-//*****************************************************************************
-[EVENTS e_cast_gargyl]
-//Magias de gargula
-on=@SpellCast
-if 1//(<NPC_CanCast>)// && (<argn3>==1)
- //OBJ=<MEMORYFINDTYPE.memory_war_targ.link>
- DORAND <eval <magery>/50>
-  argn1=s_magic_arrow       //Magery 5.0
-  argn1=s_magic_arrow
-  argn1=s_magic_arrow
-  argn1=s_magic_arrow
-  argn1=s_stalagmite
-  argn1=s_stalagmite        //Magery 30.0
-  argn1=s_stalagmite
-  argn1=s_firedarts
-  argn1=s_firedarts
-  argn1=s_firedarts     //Magery 50.0
-  argn1=s_fireball
-  argn1=s_fireball
-  argn1=s_entangle
-  argn1=s_entangle
-  argn1=s_stalagmiteCell    //Magery 75.0
-  argn1=s_stalagmiteCell
-  argn1=s_heatWeapon
-  argn1=s_fear
-  argn1=s_CelaVeneno
-  argn1=s_DeathConfusion    //Magery 100.0
-  argn1=s_magic_arrow
-  argn1=s_stalagmite
-  argn1=s_firedarts
-  argn1=s_fireball
-  argn1=s_entangle      //Magery 125.0
-  argn1=s_stalagmiteCell
-  argn1=s_heatWeapon
-  argn1=s_fear
-  argn1=s_CelaVeneno
-  argn1=s_DeathConfusion    //Magery 150.0
-  argn1=s_fireball
-  argn1=s_fireball
-  argn1=s_fireball
-  argn1=s_entangle
-  argn1=s_entangle      //Magery 175.0
-  argn1=s_stalagmiteCell
-  argn1=s_heatWeapon
-  argn1=s_fear
-  argn1=s_CelaVeneno
-  argn1=s_DeathConfusion    //Magery 200.0
- ENDDO
- serv.log [NPC CASTER] <serv.resources.<argn1>.name>, <argn2>
-endif
-return 0
-
-on=@spellselect
-return 0
 
 //*****************************************************************************
 // e_sucubus

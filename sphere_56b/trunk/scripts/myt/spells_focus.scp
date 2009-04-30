@@ -1,0 +1,1226 @@
+//###################################################################################
+//			   Mystical Tales Shard
+//			MAGIAS DE CAMINHO "Rastauração"
+//			    Galthar, o Errante
+//				  04/2009
+//###################################################################################
+//
+//				RANGE: 150 a 200
+//
+//###################################################################################
+
+[COMMENT spells_focus]
+nº	Ataque
+158	Raio divino
+166	Tempestade divina
+	
+	Buff
+150	Luz
+156	Cura leve
+154	Remover Doença
+157	Força divina
+160	Armadura sagrada
+162	Bênção
+164	Purificação
+168	Luz Divina
+169	Redenção
+	
+	Debuff
+152	Exorcísmo
+161	Julgamento
+	
+	Summon
+159	Conjurar servo etereo
+165	Conjurar nefelibata
+167	Conjurar mensageiro
+	
+	Poly
+153	Forma eterea
+163	Forma de nefelibata
+	
+	RP
+155	Trovão
+151	Amplificar voz
+
+An	Negar ou desjurar
+Bet	Pequeno
+Nox	Veneno
+Corp	Morte
+Des	Menor ou diminuir
+Ex	Libertar
+Flam	Chama
+Grav	Campo
+Hur	Vento
+In	Fazer, criar ou causar
+Jux	Perigo, armadilha ou injúria
+Kal	Conjurar ou invocar
+Lor	Luz
+Mani	Vida ou vitalidade
+Ort	Magico
+Por	Mover ou movimento
+Quas	Ilusão
+Rel	Modificar
+Sanct	Proteger ou proteção
+Tym	Tempo
+Uus	Maior ou aumentar
+Vas	Grande
+Wis	Conhecer ou conhecimento
+Xen	Criatura
+Ylem	Materia
+Zu	Dormir
+
+//////////////////////////////////////////////////
+//	SKILL
+//////////////////
+[SKILL 50]
+DEFNAME=SKILL_Focus
+KEY=Focus
+FLAGS=SKF_SCRIPTED | SKF_MAGIC
+TITLE=Sacerdote
+STAT_STR=20
+STAT_INT=100
+STAT_DEX=40
+BONUS_STR=0
+BONUS_DEX=0
+BONUS_INT=100
+BONUS_STATS=15
+//ADV_RATE=10.0,200.0,800.0
+VALUES=1,20,80
+//DELAY=1.0 // based on skill and difficulty.
+
+on=@Start
+face <act>
+local.flags=<serv.spell.<actarg1>.flags>
+IF (<local.flags>&spellflag_targ_xyz) && (<act>)
+ sysmessageyellow Voce deve selecionar um lugar no mapa com esta magia...
+ return 1
+ELIF (<local.flags>&spellflag_targ_obj) && (!0<act>)
+ sysmessageyellow Voce nao pode selecionar um lugar no mapa com esta magia...
+ return 1
+ELIF !(<local.flags>&spellflag_targ_char) && (0<act.IsChar>) && (<act>!=<uid>)
+ sysmessageyellow Voce nao pode selecionar uma criatura com esta magia...
+ return 1
+ELIF !(<local.flags>&spellflag_targ_item) && (0<act.IsItem>)
+ sysmessageyellow Voce nao pode selecionar um item com esta magia...
+ return 1
+ENDIF
+if (!<IsGM>)
+ timerd=<serv.spell.<actarg1>.CAST_TIME>
+ argn2=<tag.mage.ACTDIFF>
+endif
+local.flags=<serv.spell.<actarg1>.FLAGS>
+if (<local.flags>&spellflag_dir_anim)
+ anim 16
+else
+ anim 17
+endif
+TRIGGER=@spellcast,<DEF.TAT_AS_ARGN>,<actarg1>,<strarg <serv.spell.<actarg1>.skillreq>>,<strarg <serv.spell.<actarg1>.skillreq>>
+
+on=@SUCCESS
+if (!<skillcheck focus <eval <tag.mage.ACTDIFF>/10>>)
+ SRC.SYSMESSAGE The spell fizzles.
+ EFFECT 3 i_fx_smoke_small 0 32 0
+ SFX 05C
+ mage_fail
+ return 1
+endif
+sfx <serv.spell.<actarg1>.SOUND>
+local.flags=<serv.spell.<actarg1>.flags>
+if (<local.flags>&spellflag_targ_item) || (<local.flags>&spellflag_targ_char) || (<local.flags>&spellflag_targ_obj)
+ act.spelleffect <actarg1>,<src.focus>,<uid>
+else
+ targp=<actp>
+ spelleffect <actarg1>,<tag.mage.ACTDIFF>,<uid>
+endif
+mage_success
+
+
+ON=@Fail
+	mage_cleartags
+	SRC.SYSMESSAGE The spell fizzles.
+	EFFECT 3 i_fx_smoke_small 0 32 0
+	SFX 05C
+
+ON=@Abort
+	mage_cleartags
+	SRC.SYSMESSAGE You stop casting the spell.
+	EFFECT 3 i_fx_smoke_small 0 32 0
+	SFX 05C
+
+
+//////////////////////////////////////////////////
+//	SPELLS
+//////////////////
+
+//***********************************************************
+//		SPELL RESTORATION Luz
+//***********************************************************
+
+[ITEMDEF 0227B]
+DEFNAME=i_scroll_luz
+NAME=Pergaminho criar luz
+RESOURCES=i_carta,i_r_ginseng,i_r_cinza_sulfurosa
+SKILLMAKE=INSCRIPTION 20.0, Focus 10.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Luz
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=150
+
+[ITEMDEF i_rune_luz]
+ID=i_light_source
+NAME=Luz
+
+on=@create
+morez=2
+
+on=@timer
+remove
+return 1
+
+
+[SPELL 150]
+DEFNAME=s_luz
+NAME=Luz
+SOUND=snd_SPELL_LIGHT
+RUNES=IL
+CAST_TIME=25
+RESOURCES=i_r_ginseng,i_r_cinza_sulfurosa
+RUNE_ITEM=2245
+SCROLL_ITEM=i_scroll_luz
+FLAGS=spellflag_targ_char | spellflag_scripted
+MANAUSE=12
+DURATION=7,250
+SKILLREQ=FOCUS 10.0
+INTERRUPT=15.0,100.0
+ 
+on=@Effect
+EFFECT 3 i_fx_sparkle 0 16 0
+if (<restest 1 i_rune_luz>)
+ findid.i_rune_luz.timerd 1
+ return 1
+endif
+newitem i_rune_luz
+new.link=<UID>
+trysrc <uid> new.equip
+new.timer=<DURATIONSPELL 150,<argn2>,<src.uid>>
+serv.log <eval <new.timer>>,<eval <argn2>>
+return 1
+
+//***********************************************************
+//		SPELL RESTORATION Amplificar voz
+//***********************************************************
+
+[ITEMDEF i_scroll_ampli_voz]
+ID=0227B
+NAME=Pergaminho amplificar voz
+RESOURCES=i_carta,i_r_ginseng
+SKILLMAKE=INSCRIPTION 20.0, Focus 10.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Amplificar voz
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=151
+
+[ITEMDEF i_rune_ampli_voz]
+ID=01ed2
+name=Amplificar voz
+type=t_eq_script
+layer=layer_special
+
+on=@timer
+remove
+return 1
+
+on=@equip
+cont.dspeech +spk_ampli_voz
+
+on=@unequip
+cont.sysmessageyellow Sua voz voltou ao normal.
+cont.dspeech -spk_ampli_voz
+
+[SPEECH spk_ampli_voz]
+on=*
+obj=<uid>
+forplayers <findid.i_rune_ampli_voz.more1>
+ blindItemMsg <obj>, 026, <args>
+end
+return 1
+
+[SPELL 151]
+DEFNAME=s_ampli_voz
+NAME=Amplificar voz
+SOUND=snd_SPELL_LIGHT
+RUNES=QU
+CAST_TIME=25
+RESOURCES=i_r_ginseng,i_r_cinza_sulfurosa
+RUNE_ITEM=23009
+SCROLL_ITEM=i_scroll_luz
+FLAGS=spellflag_scripted
+MANAUSE=12
+EFFECT=8,18
+DURATION=5,22
+SKILLREQ=FOCUS 10.0
+INTERRUPT=15.0,100.0
+ 
+on=@Effect
+EFFECT 3 i_fx_sparkle 0 16 0
+if (<restest 1 i_rune_ampli_voz>)
+ findid.i_rune_ampli_voz.timerd 1
+ return 1
+endif
+newitem i_rune_ampli_voz
+trysrc <uid> new.equip
+new.timer=<DURATIONSPELL 151,<argn2>,<src.uid>>
+new.more1=<EFFECTSPELL 151,<argn2>,<src.uid>>
+return 1
+
+
+//***********************************************************
+//		SPELL RESTORATION Exorcizar
+//***********************************************************
+
+[ITEMDEF i_scroll_exorcizar]
+ID=0227B
+NAME=Pergaminho exorcizar
+RESOURCES=i_carta,i_r_ginseng,i_r_alho
+SKILLMAKE=INSCRIPTION 30.0, Focus 20.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Exorcizar
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=152
+
+[ITEMDEF i_rune_exorcizar]
+ID=0227B
+name=Exorcismo
+type=t_eq_script
+layer=layer_special
+tevents=e_BuffStats,e_BuffSkill
+
+on=@timer
+remove
+return 1
+
+[SPELL 152]
+DEFNAME=s_exorcizar
+NAME=Exorcizar
+SOUND=0201
+RUNES=ECX
+CAST_TIME=25
+RESOURCES=i_r_ginseng,i_r_alho
+RUNE_ITEM=20496
+SCROLL_ITEM=i_scroll_exorcizar
+FLAGS=spellflag_scripted | spellflag_targ_char// | spellflag_resist
+MANAUSE=16
+EFFECT=0,5000
+DURATION=10,60
+SKILLREQ=FOCUS 20.0
+INTERRUPT=25.0,100.0
+ 
+on=@Effect
+//Só contra undead?
+if (<npc>==brain_undead)
+
+ //Determinar chance de sucesso
+ local.karma=-<karma>
+ local.effect=<EFFECTSPELL 152,<src.focus>,<src.uid>>
+ serv.log [effect] <dlocal.effect>
+ 
+ //Sucesso?
+ if (<local.effect> > <local.karma>)
+  newitem i_fx_smoke_small
+  new.attr=04012
+  new.p=<p>
+  new.timer 3
+  new.effect 2 i_fx_sparkle 0 32 0
+  src.effect 4 2
+  src.sfx 29
+  remove
+  
+ //falha
+ else
+  local.effect = <eval <local.effect>/166>//Tranforma effect em 30% abs
+  local.duration = <DURATIONSPELL 152,<src.focus>,<src.uid>>
+  newitem i_rune_exorcizar
+  new.tag.modstr -<eval (<str>*<local.effect>)/100>,<local.duration>
+  new.tag.moddex -<eval (<dex>*<local.effect>)/100>,<local.duration>
+  new.tag.modint -<eval (<int>*<local.effect>)/100>,<local.duration>
+  new.tag.modskill <serv.skill.<skillbest.0>.key>
+  ref1=<uid>
+  new.tag.modskillval -<eval (<ref1.<skillbest.0>>*<local.effect>)/100>,<local.duration>
+  new.link=<uid>
+  trysrc <uid> equip <new>
+  new.timer=<local.duration>
+  BuffSkill <serv.skill.<skillbest.1>.key>,-<eval (<ref1.<skillbest.1>>*<local.effect>)/100>,<local.duration>
+  effect 3 i_fx_sparkle 0 16 0
+  emotered atordoado
+ endif
+
+//Não é undead
+else
+ src.sysmessagered <name> nao eh um morto-vivo!
+endif
+return 1
+
+
+
+//***********************************************************
+//		SPELL RESTORATION Forma Eterea
+//***********************************************************
+
+[ITEMDEF i_scroll_forma_eterea]
+ID=0227B
+NAME=Pergaminho forma eterea
+RESOURCES=i_carta,i_r_ginseng,i_r_perola_negra
+SKILLMAKE=INSCRIPTION 30.0, Focus 20.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Forma eterea
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=153
+
+[SPELL 153]
+DEFNAME=s_forma_eterea
+NAME=Forma Eterea
+SOUND=snd_SPELL_invisibility 
+RUNES=QX
+CAST_TIME=19
+RESOURCES=i_r_ginseng,i_r_perola_negra
+RUNE_ITEM=2283
+SCROLL_ITEM=i_scroll_forma_eterea
+FLAGS=spellflag_scripted
+MANAUSE=25
+DURATION=1,45
+SKILLREQ=FOCUS 20.0
+INTERRUPT=25.0,100.0
+ 
+on=@Effect
+newitem i_mry_invis
+new.more2=<DURATIONSPELL 153,<src.focus>,<src.uid>>
+new.equip
+new.timer 1
+invis_enter
+return 1
+
+
+//***********************************************************
+//		SPELL RESTORATION Remover doença
+//***********************************************************
+
+[ITEMDEF i_scroll_remover_doenca]
+ID=0227B
+NAME=Pergaminho Remover Doenca
+RESOURCES=i_carta,i_r_ginseng,i_r_alho
+SKILLMAKE=INSCRIPTION 40.0, Focus 30.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Remover doença
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=154
+
+[SPELL 154]
+DEFNAME=s_remover_doenca
+NAME=Remover doenca
+SOUND=snd_SPELL_CURE
+RUNES=AN
+CAST_TIME=19
+RESOURCES=i_r_ginseng,i_r_alho
+RUNE_ITEM=2250
+SCROLL_ITEM=i_scroll_remover_doenca
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good
+MANAUSE=9
+EFFECT=1,50
+SKILLREQ=FOCUS 30.0
+INTERRUPT=35.0,100.0
+ 
+on=@Effect
+if (<restest 1 i_veneno>)
+ findid.i_veneno.more2 -= <EFFECTSPELL 154,<src.focus>,<src.uid>>
+endif
+effect 3 i_fx_heal_effect 0 16 0
+return 1
+
+//***********************************************************
+//		SPELL RESTORATION Trovão
+//***********************************************************
+
+[ITEMDEF i_scroll_trovao]
+ID=0227B
+NAME=Pergaminho trovao
+RESOURCES=i_carta,i_r_ginseng,i_r_cinza_sulfurosa
+SKILLMAKE=INSCRIPTION 40.0, Focus 30.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Trovao
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=155
+
+[SPELL 155]
+DEFNAME=s_trovao
+NAME=Trovao
+SOUND=05CE
+RUNES=KOL
+CAST_TIME=1
+RESOURCES=i_r_ginseng,i_r_cinza_sulfurosa
+RUNE_ITEM=2269
+SCROLL_ITEM=i_scroll_trovao
+FLAGS=spellflag_scripted
+MANAUSE=13
+SKILLREQ=FOCUS 30.0
+INTERRUPT=35.0,100.0
+ 
+on=@Effect
+effect 4 2
+timerf 1,effect,4,2
+return 1
+
+
+//***********************************************************
+//		SPELL RESTORATION Cura leve
+//***********************************************************
+
+[ITEMDEF i_scroll_cura_leve]
+ID=0227B
+NAME=Pergaminho cura leve
+RESOURCES=i_carta,i_r_ginseng
+SKILLMAKE=INSCRIPTION 50.0, Focus 40.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Cura leve
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=156
+
+[SPELL 156]
+DEFNAME=s_cura_leve
+NAME=Cura Leve
+SOUND=snd_SPELL_HEAL
+RUNES=IM
+CAST_TIME=35
+RESOURCES=i_r_ginseng
+RUNE_ITEM=2256
+SCROLL_ITEM=i_scroll_cura_leve
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good | spellflag_dir_anim
+MANAUSE=17
+EFFECT=3,20
+SKILLREQ=FOCUS 40.0
+INTERRUPT=45.0,100.0
+ 
+on=@Effect
+local.effect=<minimumN <EFFECTSPELL 156,<argn2>,<src.uid>>,<eval <maxhits>-<hits>>>
+hits += <local.effect>
+effect 3 i_fx_heal_effect 0 16 0
+return 1
+
+
+
+//***********************************************************
+//		SPELL RESTORATION Força divina
+//***********************************************************
+
+[ITEMDEF i_scroll_forca_divina]
+ID=0227B
+NAME=Pergaminho forca divina
+RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake
+SKILLMAKE=INSCRIPTION 50.0, Focus 40.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Força divina
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=157
+
+[SPELL 157]
+DEFNAME=s_forca_divina
+NAME=Forca Divina
+SOUND=snd_spell_strength
+RUNES=UM
+CAST_TIME=31
+RESOURCES=i_r_ginseng,i_r_raiz_de_mandrake
+RUNE_ITEM=23001
+SCROLL_ITEM=i_scroll_forca_divina
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good | spellflag_dir_anim
+MANAUSE=30
+EFFECT=4,20
+DURATION=10,200
+SKILLREQ=FOCUS 40.0
+INTERRUPT=45.0,100.0
+ 
+on=@Effect
+local.effect=<minimumN <EFFECTSPELL 157,<argn2>,<src.uid>>,<eval 120-<str>>>
+local.time=<durationspell 157,<argn2>,<src.uid>>
+Buff_STR <local.effect>,<local.time>
+effect 3 i_fx_sparkle_2 0 16 0
+return 1
+
+//***********************************************************
+//		SPELL RESTORATION Raio divino
+//***********************************************************
+
+[ITEMDEF i_scroll_raio_divino]
+ID=0227B
+NAME=Pergaminho raio divino
+RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake,i_r_cinza_sulfurosa
+SKILLMAKE=INSCRIPTION 60.0, Focus 50.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Raio divino
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=158
+
+[SPELL 158]
+DEFNAME=s_raio_divino
+NAME=Raio Divino
+SOUND=05C3
+RUNES=IOJ
+CAST_TIME=8
+RESOURCES=i_r_ginseng,i_r_raiz_de_mandrake,i_r_cinza_sulfurosa
+RUNE_ITEM=2281
+SCROLL_ITEM=i_scroll_raio_divino
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_harm | spellflag_dir_anim
+MANAUSE=4
+EFFECT=5,10
+SKILLREQ=FOCUS 50.0
+INTERRUPT=55.0,100.0
+ 
+on=@Effect
+DAMAGESPELL 157,dam_energy,<src.spiritspeak>,<src.uid>
+EFFECT 0 i_fx_energy_ray 6 16 0
+return 1
+
+//***********************************************************
+//		SPELL RESTORATION Conj Servo Etereo
+//***********************************************************
+
+[ITEMDEF i_scroll_servo_etereo]
+ID=0227B
+NAME=Pergaminho conjurar servo etereo
+RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake,i_r_perola_negra
+SKILLMAKE=INSCRIPTION 60.0, Focus 50.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Conj. Servo etereo
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=159
+
+[SPELL 159]
+DEFNAME=s_conj_serv_etereo
+NAME=Conjurar Servo Etereo
+SOUND=01A9
+RUNES=COX
+CAST_TIME=27
+RESOURCES=i_r_ginseng,i_r_raiz_de_mandrake,i_r_perola_negra
+RUNE_ITEM=2280
+SCROLL_ITEM=i_scroll_servo_etereo
+FLAGS=spellflag_scripted | spellflag_good | spellflag_summon
+MANAUSE=35
+EFFECT=12,90
+DURATION=30,60
+SKILLREQ=FOCUS 50.0
+INTERRUPT=55.0,100.0
+ 
+on=@Effect
+LOCAL.timer=<DURATIONSPELL 159,<argn2>,<UID>>
+obj=<src.f_summon_creature c_ethereal_servant,<LOCAL.timer>>
+obj.str=<EFFECTSPELL 159,<argn2>,<uid>>
+obj.dex=<EFFECTSPELL 159,<argn2>,<uid>>
+obj.int=<EFFECTSPELL 159,<argn2>,<uid>>
+aid
+obj.Magery=<eval <EFFECTSPELL 159,<argn2>,<uid>>*10>
+obj.MagicResistance=<eval <EFFECTSPELL 159,<argn2>,<uid>>*10>
+obj.EvaluatingIntel=<eval <EFFECTSPELL 159,<argn2>,<uid>>*10>
+obj.name=Servo
+return 1
+
+
+//***********************************************************
+//		SPELL RESTORATION Armadura sagrada
+//***********************************************************
+
+[ITEMDEF i_scroll_armadura_sagrada]
+ID=0227B
+NAME=Pergaminho armadura sagrada
+RESOURCES=i_carta,i_r_ginseng,i_r_alho
+SKILLMAKE=INSCRIPTION 70.0, Focus 60.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Armadura sagrada
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=160
+
+[ITEMDEF i_rune_arm_sagrada]
+ID=0227B
+name=Armadura sagrada
+type=t_eq_script
+layer=layer_special
+tevents=e_BuffRes
+
+on=@timer
+remove
+return 1
+
+[SPELL 160]
+DEFNAME=s_armadura_sagrada
+NAME=Armadura sagrada
+SOUND=01ED
+RUNES=UOS
+CAST_TIME=14
+RESOURCES=i_r_ginseng,i_r_alho
+RUNE_ITEM=23003
+SCROLL_ITEM=i_scroll_armadura_sagrada
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good
+MANAUSE=22
+EFFECT=0,33
+DURATION=20,120
+SKILLREQ=FOCUS 60.0
+INTERRUPT=65.0,100.0
+ 
+on=@Effect
+local.effect = <EFFECTSPELL 160,<src.spiritspeak>,<src.uid>>
+local.duration = <DURATIONSPELL 160,<src.focus>,<src.uid>>
+newitem i_rune_arm_sagrada
+new.tag.rescold <minimumN <local.effect>,<eval 66-<rescold>>>
+new.tag.respoison <minimumN <local.effect>,<eval 66-<respoison>>>
+if (<restest 1 i_rune_arm_sagrada>)
+ new.tag.modar=<minimumN <eval (<local.effect>*2)/3>,<eval 66-<ar>>>
+endif
+new.link=<UID>
+trysrc <uid> equip <new>
+new.timer=<local.duration>
+effect 3 i_fx_sparkle 0 16 0
+return 1
+
+
+//***********************************************************
+//		SPELL RESTORATION Julgamento
+//***********************************************************
+
+[ITEMDEF i_scroll_julgamento]
+ID=0227B
+NAME=Pergaminho julgamento
+RESOURCES=i_carta,i_r_ginseng,i_r_musgo_sangue,i_r_olho_morto_vivo
+SKILLMAKE=INSCRIPTION 70.0, Focus 60.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Julgamento
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=161
+
+[SPELL 161]
+DEFNAME=s_julgamento
+NAME=Julgamento
+SOUND=051A
+RUNES=ACL
+CAST_TIME=60
+RESOURCES=i_r_ginseng,i_r_musgo_sangue,i_r_olho_morto_vivo
+RUNE_ITEM=23004
+SCROLL_ITEM=i_scroll_julgamento
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_harm
+MANAUSE=79
+SKILLREQ=FOCUS 60.0
+INTERRUPT=65.0,100.0
+ 
+on=@Effect
+effect 3 i_fx_heal_effect 0 16 0
+if (<IsPlayer>) && (<necromancy>)
+ timerf 1 damage,<eval <necromancy>/30>,dam_energy,<src.uid>
+ timerf 1 EFFECT 1 0
+elif (<karma> < 0)
+ timerf 1 damage,<eval (-<karma>/40)+<R25,50>>,dam_energy,<src.uid>
+ timerf 1 EFFECT 1 0
+else
+ src.timerf 1 EFFECT 1 0
+ src.timerf 1 damage,<R25,50>,dam_energy,<src.uid>
+endif
+return 1
+
+
+//***********************************************************
+//		SPELL RESTORATION Bênção
+//***********************************************************
+
+[ITEMDEF i_scroll_bencao]
+ID=0227B
+NAME=Pergaminho bencao
+RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake,i_r_musgo_sangue,i_r_teia_de_aranha
+SKILLMAKE=INSCRIPTION 80.0, Focus 70.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Benção
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=162
+	
+[ITEMDEF i_rune_bencao]
+ID=0227B
+name=Exorcismo
+type=t_eq_script
+layer=layer_special
+tevents=e_BuffStats
+
+on=@timer
+remove
+return 1
+
+[SPELL 162]
+DEFNAME=s_bencao
+NAME=Bencao
+SOUND=01EA
+RUNES=UVM
+CAST_TIME=36
+RESOURCES=i_r_ginseng,i_r_ginseng,i_r_raiz_de_mandrake,i_r_musgo_sangue,i_r_teia_de_aranha
+RUNE_ITEM=23014
+SCROLL_ITEM=i_scroll_bencao
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good
+MANAUSE=23
+EFFECT=1,18
+DURATION=10,200
+SKILLREQ=FOCUS 70.0
+INTERRUPT=75.0,100.0
+ 
+on=@Effect
+if (<restest 1 i_rune_bencao>)
+ findid.i_rune_bencao.timerd 1
+ sysmessagered Sua bencao foi retirada!
+else
+ newitem i_rune_bencao
+ local.bonus=<eval (<src.focus>+<src.spiritspeak>+750)/150>
+ new.tag.modstr=<MINIMUMN <local.bonus>,<eval 125-<str>>>
+ new.tag.moddex=<MINIMUMN <local.bonus>,<eval 125-<dex>>>
+ new.tag.modint=<MINIMUMN <local.bonus>,<eval 125-<int>>>
+ new.link=<UID>
+ trysrc <uid> equip <new>
+ new.timer=<DURATIONSPELL 162,<argn2>,<UID>>
+endif
+return 1
+
+
+//***********************************************************
+//		SPELL RESTORATION Forma de Nefelibata
+//***********************************************************
+
+[ITEMDEF i_scroll_poly_nefelibata]
+ID=0E36
+NAME=Pergaminho forma de nefelibata
+RESOURCES=i_carta,i_r_ginseng,i_r_teia_de_aranha,i_r_raiz_de_mandrake
+SKILLMAKE=INSCRIPTION 80.0, Focus 70.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Forma de nefelibata
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=163
+	
+[Spell 163]
+DEFNAME=s_forma_nefelibata
+NAME=Forma de nefelibata
+SOUND=0
+RUNES=RVOX
+CAST_TIME=32
+RESOURCES=i_r_raiz_de_mandrake,i_r_ginseng,i_r_teia_de_aranha,i_r_raiz_de_mandrake
+RUNE_ITEM=20740
+SCROLL_ITEM=i_scroll_poly_nefelibata
+FLAGS=spellflag_scripted | spellflag_good
+MANAUSE=55
+DURATION=30,90
+EFFECT=20,45
+SKILLREQ=FOCUS 70.0
+INTERRUPT=75.0,100.0
+
+on=@Effect
+LOCAL.str=<EFFECTSPELL s_forma_nefelibata,<argn2>,<src.uid>>
+LOCAL.dex=<eval (<EFFECTSPELL s_forma_nefelibata,<argn2>,<src.uid>>*60)/100>
+local.str=<minimumN <eval 100-<str>>,<local.str>>
+local.dex=<minimumN <eval 120-<dex>>,<local.dex>>
+local.tactics=<eval (<EFFECTSPELL s_forma_nefelibata,<argn2>,<src.uid>>*6)+20.0>
+local.wrestling=<eval (<EFFECTSPELL s_forma_nefelibata,<argn2>,<src.uid>>*5)+10.0>
+local.time=<DURATIONSPELL s_forma_nefelibata,<argn2>,<src.uid>>
+src.f_polymorph c_warrior_ethereal,0,<local.time>
+src.Buff_STR <local.str>,<local.time>
+src.Buff_DEX <local.dex>,<local.time>
+src.BuffSkill Wrestling,<local.wrestling>,<local.time>
+src.BuffSkill Tactics,<local.tactics>,<local.time>
+aid
+return 1
+
+//***********************************************************
+//		SPELL RESTORATION Purificação
+//***********************************************************
+
+[ITEMDEF i_scroll_purificação]
+ID=0227B
+NAME=Pergaminho Purificacao
+RESOURCES=i_carta,i_r_ginseng,i_r_alho,i_r_perola_negra
+SKILLMAKE=INSCRIPTION 90.0, Focus 80.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Purificação
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=164
+
+[SPELL 164]
+DEFNAME=s_purificacao
+NAME=Purificacao
+SOUND=snd_SPELL_CURE
+RUNES=ANG
+CAST_TIME=38
+RESOURCES=i_r_ginseng,i_r_alho,i_r_perola_negra
+RUNE_ITEM=2264
+SCROLL_ITEM=i_scroll_remover_doenca
+FLAGS=spellflag_scripted | spellflag_good
+MANAUSE=51
+EFFECT=1,50
+SKILLREQ=FOCUS 80.0
+INTERRUPT=85.0,100.0
+ 
+on=@Effect
+obj=<uid>
+forchars 5
+ if !(<IsMyEnemy <obj.uid>>)
+  spelleffect s_remover_doenca,<argn2>,<obj.uid>
+ endif
+end
+return 1
+
+
+
+//***********************************************************
+//		SPELL RESTORATION Conj Nefelibata
+//***********************************************************
+
+[ITEMDEF i_scroll_conj_nefelibata]
+ID=0227B
+NAME=Pergaminho conjurar nefelibata
+RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake,i_r_perola_negra,i_r_teia_de_aranha
+SKILLMAKE=INSCRIPTION 90.0, Focus 80.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Conj. nefelibata
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=165
+
+[SPELL 165]
+DEFNAME=s_conj_nefelibata
+NAME=Conjurar Nefelibata
+SOUND=01A9
+RUNES=KOX
+CAST_TIME=40
+RESOURCES=i_r_ginseng,i_r_raiz_de_mandrake,i_r_perola_negra,i_r_teia_de_aranha
+RUNE_ITEM=2254
+SCROLL_ITEM=i_scroll_conj_nefelibata
+FLAGS=spellflag_scripted | spellflag_good | spellflag_summon
+MANAUSE=55
+EFFECT=45,80
+DURATION=12,90
+SKILLREQ=FOCUS 80.0
+INTERRUPT=85.0,100.0
+ 
+on=@Effect
+LOCAL.timer=<DURATIONSPELL 165,<argn2>,<UID>>
+obj=<src.f_summon_creature c_warrior_ethereal,<LOCAL.timer>>
+obj.str=<EFFECTSPELL 165,<argn2>,<uid>>
+obj.dex=<EFFECTSPELL 165,<argn2>,<uid>>
+obj.int=<EFFECTSPELL 165,<argn2>,<uid>>
+aid
+obj.Anatomy=<eval <EFFECTSPELL 165,<argn2>,<uid>>*4>
+obj.MagicResistance=<eval <EFFECTSPELL 165,<argn2>,<uid>>*10>
+obj.Wrestling=<eval <EFFECTSPELL 165,<argn2>,<uid>>*8>
+obj.Tactics=<eval <EFFECTSPELL 165,<argn2>,<uid>>*5>
+obj.name=Nefelibata
+return 1
+
+
+
+//***********************************************************
+//		SPELL RESTORATION Tempestade divina
+//***********************************************************
+
+[ITEMDEF i_scroll_tempestade_divina]
+ID=0227B
+NAME=Pergaminho tempestade divina
+RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake,i_r_cinza_sulfurosa,i_r_perola_negra
+SKILLMAKE=INSCRIPTION 100.0, Focus 90.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Tempestade divina
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=166
+	
+[ITEMDEF i_rune_tempestade_divina]
+ID=i_gold
+type=t_script
+
+on=@timer
+if (<more1>)
+ link.effect 1 0
+ link.sfx 05CE
+ link.damage <more2>,dam_energy
+else
+ obj=<UID>
+ forchars 4
+  newitem <obj.baseid>
+  new.p=<p>
+  new.more2=<R<eval <obj.more2>/2>,<obj.more2>>
+  new.more1=1
+  new.link=<UID>
+  new.timerd=<R3,25>
+ end
+endif
+remove
+return 1
+
+[SPELL 166]
+DEFNAME=s_tempestade_divina
+NAME=Tempestade Divina
+SOUND=05CE
+RUNES=KOJ
+CAST_TIME=27
+RESOURCES=i_r_ginseng,i_r_raiz_de_mandrake,i_r_cinza_sulfurosa,i_r_perola_negra
+RUNE_ITEM=2288
+SCROLL_ITEM=i_scroll_tempestade_divina
+FLAGS=spellflag_scripted | spellflag_targ_xyz | spellflag_harm | spellflag_dir_anim
+MANAUSE=14
+EFFECT=18,33
+SKILLREQ=FOCUS 90.0
+INTERRUPT=95.0,100.0
+ 
+on=@Effect
+if (<src.flags>&statf_indoors) || (<region.flags>&region_flag_underground)
+ src.sysmessageyellow Impossivel em lugares cobertos
+ return 1
+endif
+newitem i_rune_tempestade_divina
+new.attr 092
+new.p=<actp>
+new.more2=<EFFECTSPELL 166,<argn2>,<uid>>
+new.timerd 1
+return 1
+
+
+
+//***********************************************************
+//		SPELL RESTORATION Conj Mensageiro
+//***********************************************************
+
+[ITEMDEF i_scroll_conj_mensageiro]
+ID=0227B
+NAME=Pergaminho conjurar mensageiro
+RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake,i_r_perola_negra,i_r_teia_de_aranha,i_r_asa_morcego
+SKILLMAKE=INSCRIPTION 100.0, Focus 90.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Conj. mensageiro
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=167
+
+[SPELL 167]
+DEFNAME=s_conj_mensageiro
+NAME=Conjurar Mensageiro
+SOUND=01A9
+RUNES=KVOX
+CAST_TIME=60
+RESOURCES=i_r_ginseng,i_r_raiz_de_mandrake,i_r_perola_negra,i_r_teia_de_aranha,i_r_asa_morcego
+RUNE_ITEM=20742
+SCROLL_ITEM=i_scroll_conj_mensageiro
+FLAGS=spellflag_scripted | spellflag_good | spellflag_summon
+MANAUSE=70
+EFFECT=60,120
+DURATION=12,90
+SKILLREQ=FOCUS 90.0
+INTERRUPT=95.0,100.0
+ 
+on=@Effect
+LOCAL.timer=<DURATIONSPELL 167,<argn2>,<UID>>
+obj=<src.f_summon_creature c_ethereal_warrior,<LOCAL.timer>>
+obj.str=<EFFECTSPELL 167,<argn2>,<uid>>
+obj.dex=<EFFECTSPELL 167,<argn2>,<uid>>
+obj.int=<EFFECTSPELL 167,<argn2>,<uid>>
+aid
+obj.Anatomy=<eval <EFFECTSPELL 167,<argn2>,<uid>>*4>
+obj.MagicResistance=<eval <EFFECTSPELL 167,<argn2>,<uid>>*8>
+obj.Wrestling=<eval <EFFECTSPELL 167,<argn2>,<uid>>*8>
+obj.Tactics=<eval <EFFECTSPELL 167,<argn2>,<uid>>*5>
+obj.name=Mensageiro
+return 1
+
+
+
+//***********************************************************
+//		SPELL RESTORATION Luz divina
+//***********************************************************
+
+[ITEMDEF i_scroll_luz_divina]
+ID=0227B
+NAME=Pergaminho Luz Divina
+RESOURCES=i_carta,i_r_ginseng,i_r_alho,i_r_perola_negra,i_r_teia_de_aranha
+SKILLMAKE=INSCRIPTION 100.0, Focus 100.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Luz divina
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=168
+
+[SPELL 168]
+DEFNAME=s_luz_divina
+NAME=Luz Divina
+SOUND=snd_SPELL_HEAL
+RUNES=IGM
+CAST_TIME=70
+RESOURCES=i_r_ginseng,i_r_alho,i_r_perola_negra,i_r_teia_de_aranha
+RUNE_ITEM=2268
+SCROLL_ITEM=i_scroll_luz_divina
+FLAGS=spellflag_scripted | spellflag_good
+MANAUSE=27
+SKILLREQ=FOCUS 100.0
+INTERRUPT=100.0,100.0
+ 
+on=@Effect
+obj=<uid>
+forchars 5
+ if !(<IsMyEnemy <obj.uid>>)
+  spelleffect s_cura_leve,<argn2>,<obj.uid>
+ endif
+end
+return 1
+
+
+
+//***********************************************************
+//		SPELL RESTORATION Redenção
+//***********************************************************
+
+[ITEMDEF i_scroll_redencao]
+ID=0227B
+NAME=Pergaminho Redencao
+RESOURCES=i_carta,i_r_ginseng,i_r_alho,i_r_perola_negra,i_r_teia_de_aranha
+SKILLMAKE=INSCRIPTION 100.0, Focus 100.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Focus
+DESCRIPTION=Redenção
+
+ON=@Create
+	ATTR=ATTR_MAGIC
+	MOREX=169
+
+[SPELL 169]
+DEFNAME=s_redencao
+NAME=Redencao
+SOUND=snd_SPELL_RESURRECTION
+RUNES=AC
+CAST_TIME=130
+RESOURCES=i_r_ginseng,i_r_alho,i_r_perola_negra,i_r_teia_de_aranha
+RUNE_ITEM=2298
+SCROLL_ITEM=i_scroll_redencao
+FLAGS=spellflag_scripted | spellflag_good | spellflag_targ_char
+MANAUSE=51
+SKILLREQ=FOCUS 100.0
+INTERRUPT=100.0,100.0
+ 
+on=@Effect
+if (<flags>&statf_dead)
+ if (<restest 1 i_mry_desmaio>)
+  findid.i_mry_desmaio.more1=2	//Certifica-se de que voltará a vida
+  findid.i_mry_desmaio.timerd=1	//Acorda instantaneamente
+ else
+  f_returnToLife
+  tag.morte_desmaios=<eval 4-(<src.spiritspeak>/500)>
+ endif
+else
+ aid
+endif
+timerf 1 EFFECT,3,i_fx_heal_effect,0,16,0
