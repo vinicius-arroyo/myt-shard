@@ -43,7 +43,6 @@ ev_drow_check_timer=5
 ON=@LOGIN
 src.nightsight 0
 f_elfSight
-setRegenBasePm 3,15,3
 
 ON=@ITEMEQUIP
 //remove visao elfica se carregar fonte de luz
@@ -80,7 +79,6 @@ src.findid.i_drow_check.remove
 serv.newitem=i_drow_check
 new.link <src>
 new.cont <src>
-setRegenBasePm 6,10,5
 
 //mantem o layer light livre para visao noturna
 ON=@ITEMUNEQUIP
@@ -142,12 +140,11 @@ ON=@LOGIN
 src.findlayer(layer_hair).remove
 src.findlayer(layer_beard).remove
 src.findlayer(layer_helm).hitpoints 999
-setRegenBasePm 15,3,3
 src.update
 
 on=@hit
 if (<hits> < 20)
-  say * Em Furia *
+  emotered em furia
   src.damage {5 10}
 endif
 
@@ -173,8 +170,7 @@ attr=attr_static|attr_move_never
 [EVENTS e_anao]
 
 ON=@LOGIN
-src.tag.resitenteaoclima=1
-setRegenBasePm 9,4,8
+src.tag.resitenteaoclima=10
 
 //*****************************************************************************
 // HUMANOS
@@ -182,67 +178,13 @@ setRegenBasePm 9,4,8
 [EVENTS e_humano]
 
 ON=@LOGIN
-setRegenBasePm 7,7,7
-
-//*****************************************************************************
-// ARQUEIRO
-//*****************************************************************************
-[EVENTS e_arqueiro]
-
-//*****************************************************************************
-// GUERREIRO
-//*****************************************************************************
-[EVENTS e_guerreiro]
 
 //*****************************************************************************
 // MAGO
 //*****************************************************************************
 [EVENTS e_mago]
 
-on=@SpellSelect
-//Aumenta a dificuldade da magia em 10.0% por tile andado.
-IF (<argn3>==3)
- ctag.actp=<p>
-ELIF (<argn3>==2)
- LOCAL.penalty=<eval (<distance <ctag.actp>>*100)+<strarg <serv.spell.<argn1>.skillreq>>>
- IF (!<BELLTEST <magery>,<dLOCAL.penalty>>) && (<LOCAL.penalty>!=<actdiff>) //O ultimo teste representa SE o playa andou ou não. Se não andou, ignorar o teste.
-  action=-1
-  return 1
- ENDIF
-endif
 
-on=@spellcast
-if (<flags>&statf_invisible) && (!<IsGM>)
- flags ^= statf_invisible
- sysmessagegreen Voce foi revelado!
- emotered aparece
- update
-endif
-
-//*****************************************************************************
-// BARDO
-//*****************************************************************************
-[EVENTS e_bardo]
-
-//*****************************************************************************
-// LADRAO
-//*****************************************************************************
-[EVENTS e_ladrao]
-
-//*****************************************************************************
-// ARTESAO
-//*****************************************************************************
-[EVENTS e_artesao]
-
-//*****************************************************************************
-// LENHADOR
-//*****************************************************************************
-[EVENTS e_lenhador]
-
-//*****************************************************************************
-// FERREIRO
-//*****************************************************************************
-[EVENTS e_ferreiro]
 
 //*****************************************************************************
 // EVENTO GERAL PARA TODOS CHARS
@@ -293,7 +235,7 @@ ON=@LOGIN
 //        src.warnAndDisconnect
     endif
 
-    src.news 1//Chama notícias ignorado se não há novas
+    src.news 1//Chama notícias ignorado se não há novas  
 
     if (<src.account.plevel> > 1)
         serv.allclients broadstaff GM LOGIN,"<src.account>"
@@ -423,7 +365,7 @@ return 0                    // SKILL_FORENSICS
 return 0                    // SKILL_HERDING
 return <sk_hiding>          // SKILL_HIDING 
 return 0                    // SKILL_PROVOCATION
-return 0                    // SKILL_INSCRIPTION
+return <sk_inscription>     // SKILL_INSCRIPTION
 return 0                    // SKILL_LOCKPICKING
 return 0                    // SKILL_MAGERY
 return 0                    // SKILL_MAGICRESISTANCE
@@ -468,7 +410,7 @@ return 0                    // SKILL_ALCHEMY
 return <sk_anatomy>         // SKILL_ANATOMY
 return <sk_anlore>          // SKILL_ANIMALLORE
 return 0                    // SKILL_ITEMID
-return 0                    // SKILL_ARMSLORE
+return <sk_armslore>        // SKILL_ARMSLORE
 return 0                    // SKILL_PARRYING
 return 1                    // SKILL_BEGGING
 return 0                    // SKILL_BLACKSMITHING
@@ -513,12 +455,12 @@ return 0                    // SKILL_MINING
 return 1                    // SKILL_MEDITATION
 return <sk_hiding>          // SKILL_STEALTH
 return 0                    // SKILL_REMOVETRAP
-return 1                    // SKILL_NECROMANCY
-return 1                    // SKILL_FOCUS
+return 0                    // SKILL_NECROMANCY
+return 0                    // SKILL_FOCUS
 return 1                    // SKILL_CHIVALRY
 return 1                    // SKILL_BUSHIDO
 return 1                    // SKILL_NINJITSU
-return 1                    // SKILL_SPELLWEAVING
+return 0                    // SKILL_SPELLWEAVING
 enddo
 return 0
 
@@ -553,7 +495,7 @@ return 0                    // SKILL_HIDING
 skill_gain <src.action>     // SKILL_PROVOCATION
 skill_gain <src.action>     // SKILL_INSCRIPTION
 return 0                    // SKILL_LOCKPICKING
-return 0                    // SKILL_MAGERY
+mage_success		    // SKILL_MAGERY
 skill_gain <src.action>     // SKILL_MAGICRESISTANCE
 return 0                    // SKILL_TACTICS
 skill_gain <src.action>     // SKILL_SNOOPING
@@ -577,12 +519,12 @@ skill_repeat <argn1>,1      // SKILL_MINING
 return 0                    // SKILL_MEDITATION
 return 0                    // SKILL_STEALTH
 skill_gain <src.action>     // SKILL_REMOVETRAP
-return 0                    // SKILL_NECROMANCY
-return 0                    // SKILL_FOCUS
+mage_success		    // SKILL_NECROMANCY
+mage_success		    // SKILL_FOCUS
 return 0                    // SKILL_CHIVALRY
 return 0                    // SKILL_BUSHIDO
 return 0                    // SKILL_NINJITSU
-return 0                    // SKILL_SPELLWEAVING
+mage_success		    // SKILL_SPELLWEAVING
 enddo
 return 0
 
@@ -617,7 +559,7 @@ return 0                    // SKILL_HIDING
 return 0                    // SKILL_PROVOCATION
 return 0                    // SKILL_INSCRIPTION
 return 0                    // SKILL_LOCKPICKING
-return 0                    // SKILL_MAGERY
+mage_fail                   // SKILL_MAGERY
 return 0                    // SKILL_MAGICRESISTANCE
 return 0                    // SKILL_TACTICS
 return 0                    // SKILL_SNOOPING
@@ -641,12 +583,12 @@ skill_repeat <argn1>,1      // SKILL_MINING
 return 0                    // SKILL_MEDITATION
 return 0                    // SKILL_STEALTH
 return 0                    // SKILL_REMOVETRAP
-return 0                    // SKILL_NECROMANCY
-return 0                    // SKILL_FOCUS
+mage_fail                   // SKILL_NECROMANCY
+mage_fail                   // SKILL_FOCUS
 return 0                    // SKILL_CHIVALRY
 return 0                    // SKILL_BUSHIDO
 return 0                    // SKILL_NINJITSU
-return 0                    // SKILL_SPELLWEAVING
+mage_fail                   // SKILL_SPELLWEAVING
 enddo
 return 0
 
@@ -681,7 +623,7 @@ return 0                    // SKILL_HIDING
 return 0                    // SKILL_PROVOCATION
 return 0                    // SKILL_INSCRIPTION
 return 0                    // SKILL_LOCKPICKING
-return 0                    // SKILL_MAGERY
+mage_clearTags              // SKILL_MAGERY
 return 0                    // SKILL_MAGICRESISTANCE
 return 0                    // SKILL_TACTICS
 return 0                    // SKILL_SNOOPING
@@ -705,12 +647,12 @@ return 0                    // SKILL_MINING
 return 0                    // SKILL_MEDITATION
 return 0                    // SKILL_STEALTH
 return 0                    // SKILL_REMOVETRAP
-return 0                    // SKILL_NECROMANCY
-return 0                    // SKILL_FOCUS
+mage_clearTags              // SKILL_NECROMANCY
+mage_clearTags              // SKILL_FOCUS
 return 0                    // SKILL_CHIVALRY
 return 0                    // SKILL_BUSHIDO
 return 0                    // SKILL_NINJITSU
-return 0                    // SKILL_SPELLWEAVING
+mage_clearTags              // SKILL_SPELLWEAVING
 enddo
 return 0
 
@@ -780,6 +722,37 @@ else
         return 1
     endif
 endif
+
+//*************************************
+on=@SpellSelect
+//*************************************
+
+//Aumenta a dificuldade da magia em 10.0% por tile andado.
+IF (<argn3>==3)
+ ctag.actp=<p>
+ELIF (<argn3>==2)
+ LOCAL.penalty=<eval (<distance <ctag.actp>>*100)+<strarg <serv.spell.<argn1>.skillreq>>>
+ IF (!<BELLTEST <magery>,<dLOCAL.penalty>>) && (<LOCAL.penalty>!=<actdiff>) //O ultimo teste representa SE o playa andou ou não. Se não andou, ignorar o teste.
+  action=-1
+  return 1
+ ENDIF
+endif
+
+//*************************************
+on=@spellcast
+//*************************************
+
+if (<flags>&statf_invisible) && (!<IsGM>)
+ flags ^= statf_invisible
+ sysmessagegreen Voce foi revelado!
+ emotered aparece
+ update
+endif
+
+//*************************************
+//on=@destroy
+//*************************************
+
 
 //*****************************************************************************
 // e_scared
