@@ -897,6 +897,9 @@ OBJ=<src.ctag.placaUID>
 obj.name = <ARGTXT[0]>
 src.sysmessagegreen A placa agora diz '<ARGTXT[0]>'.
 obj.update
+if (<obj.link.type>==t_multi_custom)
+ obj.link.name = <ARGTXT[0]>
+endif
 return 1
 
 ON=2
@@ -1268,9 +1271,15 @@ DIALOG d_aluguel_3 4
 [DIALOG d_sign_gump]
 350,200
 page 0
-gumppic 0 0 100
+IF (<uid.<cTAG0.SignUID>.link.type>==t_multi_custom)
+ BUTTON 115 70 55 55 1 0 2
+ gumppic 0 0 100
+ DTEXT 113 71 36 <def.section>+<def.sectione>
+ELSE
+ gumppic 0 0 100
+ENDIF
 dhtmlgump 20 24 97 53 0 0 <DEF.CENTER><UID.<cTAG.SignUID>.name>
-IF (<CanUseRented <cTAG.SignUID>>) || (<IsGM>)
+IF (<CanUseRented <cTAG.SignUID>>) || (<IsGM>) || ((<uid.<cTAG.SignUID>.link.type>==t_multi_custom) && ((<uid.<cTAG.SignUID>.link.CustomH_IsOwner <UID>>) || (<uid.<cTAG.SignUID>.link.CustomH_FriendCanCustomize <UID>>)))
  button 16 108 2445 2445 1 0 1
  resizepic 0 101 2620 142 37
  dtext 36 109 4 Gerenciar
@@ -1286,23 +1295,15 @@ ON=1
 DIALOG d_sign_gump_2
 return 1
 
+ON=2
+// Estatísticas da casa
+SRC.CustomH_SIGN	//Para o sistema de custom house
+return 1
+
 [DIALOG d_sign_gump_2]
 350,200
 page 0
-OBJ=<cTAG.signUID>
-IF (<OBJ.LINK.TYPE> != t_multi_custom)
- LOCAL.BUILD=0
-ELSEIF (<OBJ.TAG0.owner> != <SRC.UID>) && !(<SRC.ISGM>)
- LOCAL.BUILD=0
-ELSEIF (<SRC.REGION.UID> != <OBJ.REGION.UID>)
- LOCAL.BUILD=0
-ELSE
- LOCAL.BUILD=1
-ENDIF
 gumppic 0 0 100
-IF (<LOCAL.build>)
- button 41 91 247 248 1 0 5
-ENDIF
 resizepic 0 3 2620 142 135
 button 16 16 2117 2178 1 0 2
 dtext 37 13 2100 Mudar arte
@@ -1310,9 +1311,6 @@ button 16 40 2118 248 1 0 3
 dtext 37 37 2100 Mudar posicao
 button 16 65 2117 2118 1 0 4
 dtext 37 62 2100 Mudar dizeres
-IF (<LOCAL.build>)
- tilepic 55 85 8905
-ENDIF
 
 [DIALOG d_sign_gump_2 text]
 Mudar arte
@@ -1336,23 +1334,5 @@ ON=4
 // Mudar dizeres
 src.ctag.placaUID=<cTAG.signUID>
 src.dialog d_placa
-
-ON=5
-// Construir
-OBJ=<src.cTAG.signUID>
-IF (<OBJ.LINK.TYPE> != t_multi_custom)
- RETURN 2
-ELSEIF (<OBJ.TAG.OWNER> != <SRC.UID>) && !(<SRC.ISGM>)
- RETURN 2
-ELSEIF (<SRC.REGION.UID> != <OBJ.REGION.UID>)
- RETURN 2
-ELSEIF (<SRC.HOUSEDESIGN>)
- SRC.SYSMESSAGERED Voce ja esta projetando <QVAL (<SRC.HOUSEDESIGN.UID> == <LINK.UID>)? este:outro> edificio.
- RETURN 1
-ELSEIF !(<SRC.ISEVENT.e_house_customize>)
- SRC.EVENTS +e_house_customize
-ENDIF
-OBJ.LINK.CUSTOMIZE
-RETURN 1
 
 [EOF]
