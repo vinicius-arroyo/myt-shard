@@ -1,1267 +1,449 @@
-[Comment Sobre amadilhas]
+[COMMENT sistema_de_armadilhas]
+                #########################################################
+                #                                                       #
+                #                    Mystical Tales Shard               #
+                #            Sistema de Armadilhas vers√£o ALELUIA       #
+                #                                                       #
+                #               Galthar, o Errante 05/05/2009           #
+                #                                                       #
+                #########################################################
+                
+        -=ToDo=-
+- Armadilha de energia
+- Armadilha de machado
+- Armadilha de serra circular
+- Armadilhas de ch√£o (outro painel)
 
-- Script by Septimus.
+        -=Como fas/=-
+- Adicione i_trap_panel
+- Gerencie com gump via @DCLICK
 
-**TAG USADAS
+[DEFNAME sistema_de_armadilhas]
+TRAP_DELAY      60*30   //meia-hora
 
-tag.armadilha 		- identifica o tipo de armadilha instalada - (fica no ITEM ALVo)
-tag.quem_armou 		- identifica no quem foi o ultimo que armou um armadilha - (fica no ITEM ALVo)
-tag.intensidade 		- Calculada na MEMORY de instalaÁ„o de armadilha e define a intensidade da armadilha - (fica no ITEM ALVo)
-tag.dificuldade		- Guarda Skill REMOVETRAP de quem armou pra futuro teste de remocao da armadilha
-tag.trap_escolhida 	- Tipo de armadilha escolhida no menu - (fica no PLAYER)
-tag.type_velho  		- Guarda o TYPE do item antes de instalar a armadilha pra repor depois (fica no NO ITEM)
-tag.XXX no @CREATE da armadilha identificam as CHARGES restantes, ex: ( tag.explosao_bau_porta_amt 3)- tem 3 cargas ainda
+//********************************************************************************
+//**
+//**            SPELLS (Usadas como Effect)
+//**
+//********************************************************************************
 
-OBS: todas as tag somem apos o processo tanto no item como no player MENOS:
-- tag.quem_armou 
+//*********
+[SPELL 350]
+//*********
+NAME=Explos√£o
+DEFNAME=s_trap_explosion
+RUNES=Uma explos√£o atinge a todos num raio de (forca/20) tiles com dano de (forca x 2) dependendo da for√ßa da armadilha.<BR>O dano diminui com a distancia.<BR><B>CUIDADO!</B> Forca maior que 50.0 eh mortal!
+EFFECT_ID=i_fx_explode
+SOUND=snd_SPELL_EXPLOSION
+FLAGS=SPELLFLAG_HARM
 
-**Armadilhas em baus e portas**
-1 - Explosao 		- Explode ao abrir bau ou tentar instalar algo nele
-2 - Veneno			- Fica envenenado ao abrir bau ou tentar instalar algo nele
-3 - Flecha			- Leva uma flechada ao abrir bau ou tentar instalar algo nele
-
-**Armadilhas instaladas no solo**
-1 - Explosao 		- Explode ao pisar na armadilha
-2 - Veneno 			- Fica envenenado ao pisar
-3 - Flecha 			- Leva uma flecha ao pisar
-
-O tempo para instalacao decorre to tempo fixo (MORE2 a alcancar para cada tipo de armadilha) das memory de instacao + Bonus de acordo com a skill REMOVETRAP
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
-////////////////////////////////	 DEFNAME DAS ARMADILHAS     //////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-[DEFNAME armadilhas]
-EXPLOSAO_BAU_PORTA	1
-VENENO_BAU_PORTA		2
-FLECHA_BAU_PORTA		3
-
-EXPLOSAO_SOLO		4
-VENENO_SOLO			5
-FLECHA_SOLO			6
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  ITEM - KIT DE ARMADILHAS  ///////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-[ITEMDEF i_kit_armadilha]
-ID=0e80
-NAME=Kit de instalacao de armadilha
-Weight=40
-
-ON=@Create 
-  color=00385
-  type=t_script
-  tag.explosao_bau_porta_amt 3
-  tag.veneno_bau_porta_amt 3
-  tag.flecha_bau_porta_amt 3
-
-  tag.explosao_solo_amt 3
-  tag.veneno_solo_amt 3
-  tag.flecha_solo_amt 3
-
-on=@clienttooltip
-f_sendTooltip **Armazena material para instacao de armadilhas**,Armadilhas p/ baus e portas restantes:<DEF.BR>Explosao:<tag.explosao_bau_porta_amt>  Veneno:<tag.veneno_bau_porta_amt>  Flecha:<tag.flecha_bau_porta_amt><DEF.BR>Armadilhas p/ instalacao no solo restantes:<DEF.BR>Explosao:<tag.explosao_solo_amt>  Veneno:<tag.veneno_solo_amt>  Flechas:<tag.flecha_solo_amt>
-
-ON=@dclick
-if (<topobj.uid> != <src.uid>)
-  src.sysmessageyellow O kit precisa estar com voce.
-elif   (<src.ctag0.usando_kit> == 1)
-  src.sysmessageyellow Voce ja esta usando o kit.......
-else
-  src.ctag.kit=<uid>
-  src.skillmenu sm_armadilhas
-endif
-return 1  
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  TYPEDEF P/ ARMADILHAS EM PORTAS E BAUS   //////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-[TYPEDEF t_chest_door_trapped]
-
-on=@clienttooltip
-if (!<src.IsGM>) && (<tag.quem_armou> != <src.uid>)
-  return 0
-else
-  f_sendTooltip Voce instalou uma armadilha neste objeto, Lembra-se ???
-endif
-if <src.IsGM>
-  f_sendTooltip Armadilha: <tag.armadilha>, Intensidade: <tag.intensidade><DEF.BR>Armada por: <UID.<tag0.quem_armou>.tag.name> [<UID.<tag0.quem_armou>.account.name>]<DEF.BR>Skill de quem armou: <tag.dificuldade>
-endif
-
-on=@dclick
-
-obj=<topobj>	
-if (<obj.distance> > 1) && (!<src.IsGM>)
-  src.sysmessage Chegue mais perto.
-elif (<src.IsGM> == 1)
-  src.sysmessagegreen ATENCAO : Item com ARMADILHA. Mas so sera ativada SEM GM MODE.
-  type = <tag.type_velho>
-  use
-  type = t_chest_door_trapped
-return 1
-return 0
-elif (<obj.tag.armadilha> == <DEF.EXPLOSAO_BAU_PORTA>)  				 // explosao
-  sfx 285
-  src.effect 3 i_fx_explode 0 16 0
-  src.emoteyellow Atingido por uma explosao ao abrir a fechadura
-  src.damage <obj.tag.intensidade>,dam_fire
-elif (<obj.tag.armadilha> == <DEF.VENENO_BAU_PORTA>)  				 // veneno
-  sfx 517
-  src.effect 2 i_fx_smoke 0 16 0 65
-  src.emoteyellow Atingido por uma fumaca venenosa ao abrir a fechadura
-  src.damage <R5>,dam_poison
-  src.veneno <obj.tag.intensidade>
-elif (<obj.tag.armadilha> == <DEF.FLECHA_BAU_PORTA>) 					 // Flecha
-  sfx 548
-  src.effect 3 i_fx_energy_ray 0 2 0
-  src.emoteyellow Atingido por uma flecha ao abrir a fechadura
-  src.damage <obj.tag.intensidade>
-endif
-type = <tag.type_velho>
-tag.type_velho=
-tag.intensidade=
-tag.dificuldade=
-tag.armadilha=
-//tag.quem_armou=		// melhor deixar, assim da de saber o ultimo que armou uma armadiha no item
-src.update
-return 1
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MENU GERAL DE SELECAO DE ARMADILHAS ////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-[skillmenu sm_armadilhas]
-Selecione a categoria.
-
-on=i_chest_metal_brass Dispositivos p/ Bau/Porta.
-  src.skillmenu sm_armadilhas_bau_porta
-
-on=0517 Dispositivos p/ enterrar.
-  src.skillmenu sm_armadilhas_solo
-
-////////////////////////////////////// MENU DAS ARMADILHAS EM BAUS E PORTAS ////////////////////////////////////////////////
-[skillmenu sm_armadilhas_bau_porta]/
-Selecione a armadilha.
-
-on=i_rune_explosion Dispositivo p/ Explosao.
-  if (<UID.<ctag.kit>.tag.explosao_bau_porta_amt> <=0)
-    sysmessageyellow O KIT esta sem equipamento para instalar esta armadilha.
-  else
-    src.tag.trap_escolhida=<DEF.EXPLOSAO_BAU_PORTA>
-    f_instalar_armadilha_bau_porta
-  endif
-
-on=i_rune_poison Instalar bolsa de veneno.
-  if (<UID.<ctag.kit>.tag.veneno_bau_porta_amt> <=0)
-    sysmessageyellow O KIT esta sem equipamento para instalar esta armadilha.
-  else
-    src.tag.trap_escolhida=<DEF.VENENO_BAU_PORTA>
-    f_instalar_armadilha_bau_porta
-  endif
-
-on=i_rune_magic_arrow Dispositivo para flecha.
-  if (<UID.<ctag.kit>.tag.flecha_bau_porta_amt> <=0)
-    sysmessageyellow O KIT esta sem equipamento para instalar esta armadilha.
-  else
-    src.tag.trap_escolhida=<DEF.FLECHA_BAU_PORTA>
-    f_instalar_armadilha_bau_porta
-  endif
-
-//////////////////////////////////////// MENU DAS ARMADILHAS NO SOLO  ////////////////////////////////////////////////////
-[skillmenu sm_armadilhas_solo]
-Selecione a armadilha.
-
-on=i_rune_explosion Explosao terrestre.
-  if (<UID.<ctag.kit>.tag.explosao_solo_amt> <=0)
-    sysmessageyellow O KIT esta sem equipamento para instalar esta armadilha.
-  else
-    src.tag.trap_escolhida=<DEF.EXPLOSAO_SOLO>
-    f_instalar_armadilha_solo
-  endif
-
-on=i_rune_poison Bolsa de Veneno.
-  if (<UID.<ctag.kit>.tag.veneno_solo_amt> <=0)
-    sysmessageyellow O KIT esta sem equipamento para instalar esta armadilha.
-  else
-    src.tag.trap_escolhida=<DEF.VENENO_SOLO>
-    f_instalar_armadilha_solo
-  endif
-
-on=i_rune_magic_arrow Dispositivo para flechas.
-  if (<UID.<ctag.kit>.tag.flecha_solo_amt> <=0)
-    sysmessageyellow O KIT esta sem equipamento para instalar esta armadilha.
-  else
-    src.tag.trap_escolhida=<DEF.FLECHA_SOLO>
-    f_instalar_armadilha_solo
-  endif
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  ARMADILHAS EM BAUS E PORTAS  /////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-[FUNCTION  f_instalar_armadilha_bau_porta]
-  sysmessageyellow Selecione o bau ou porta no qual deseja instalar.
-  src.targetf f_instalar_armadilha_bau_porta_
-
-[FUNCTION f_instalar_armadilha_bau_porta_]
-
-obj=<argo>
-if (<obj.distance> > 1) && (!<src.IsGM>)
-  src.sysmessageyellow Chegue mais perto.
-  return 1
-elif (<obj.type>==t_ship) || (<obj.type>==t_multi)
-  src.sysmessageyellow Nao pode colocar armadilha nisso.
-  return 1
-elif (<obj.type> == t_door_locked) || (<obj.type> == t_container_locked)
-  src.sysmessagegreen So pode instalar uma armadilha em portas ou containers ABERTOS.
-return 1
-elif (<obj.type> == t_chest_door_trapped)
-  src.sysmessagered Ativou a armadilha quando tentou mexer na fechadura
-  obj.use
-return 1
-elif (<obj.type> == t_door) || (<obj.type> == t_container)
-  src.emoteyellow Comeca a instalar a armadilha
-  src.anim 020
-  sfx 1449
-  src.face = <obj.uid>
-  src.ctag.usando_kit = 1
-  src.newitem=i_mry_instala_armadilha_bau_porta
-  src.act.more1=<src.tag.trap_escolhida>			// tipo de armadilha (VER DEFNAMES)
-  src.act.more2=(<src.removetrap>/100)			// BONUS no tempo para instalar q vai de 0 a 10 dependendo da skill REMOVETRAP
-  src.act.morep=<src.p>     					// se o cara se mexer cancela e retorna um novo i_kit_armadilha
-  src.act.link=<obj.uid>     					// linka a memory a porta/bau
-  src.act.timer=1
-  src.act.equip
-  src.update
-else
-  src.sysmessagered Nao e possivel instalar uma armadilha neste objeto.
-endif
-return 1
-endif
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////  Memory instalando armadilha (PORTAS E BAUS)  ////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-[ITEMDEF i_mry_instala_armadilha_bau_porta]
-id=i_chest_metal_brass
-NAME=Instalando Armadilha em bau ou porta
-TYPE=T_eq_script
-WEIGHT=0
-
-on=@Create
-    ATTR=attr_newbie
-
-on=@TIMER
-if !(<cont.p.x> == <morex>) || !(<cont.p.y> == <morey>)
-  cont.sysmessagered Voce interrompeu a instalacao.
-  cont.ctag.usando_kit = 
-  cont.tag.trap_escolhida =
-  remove
-  return 1
-elif (<more2>==20) && (<more1>==<DEF.EXPLOSAO_BAU_PORTA>)  					 // explosao
-  link.tag.armadilha=<DEF.EXPLOSAO_BAU_PORTA>
-  link.tag.intensidade=(<eval <eval <cont.removetrap>/100> * <R30,45>/10> + <R10>) 	 //dano baseado na skill + um fixo pequeno pra quem nao tem skill.
-  UID.<cont.ctag.kit>.tag.explosao_bau_porta_amt -= 1  					 // diminui cargas do kit
-elif (<more2>==17) && (<more1>==<DEF.VENENO_BAU_PORTA>) 					 // veneno
-  link.tag.armadilha=<DEF.VENENO_BAU_PORTA>
-  link.tag.intensidade=(<eval <eval <cont.removetrap>/100> * <R750,1500>/10>) 	 // joga pra VENENO de 75 a 150 % da skill (efeito de 750 a 1500)
-  UID.<cont.ctag.kit>.tag.veneno_bau_porta_amt -= 1						 // diminui cargas do kit
-elif (<more2>==15) && (<more1>==<DEF.FLECHA_BAU_PORTA>) 					 // flecha
-  link.tag.armadilha=<DEF.FLECHA_BAU_PORTA>
-  link.tag.intensidade=(<eval <eval <cont.removetrap>/100> * <R10,40>/10> + <R10>) 	 //dano baseado na skill + um fixo pequeno pra quem nao tem skill.
-  UID.<cont.ctag.kit>.tag.flecha_bau_porta_amt -= 1					 	 // diminui cargas do kit
-else
-  dorand 6
-    cont.emoteyellow instalando armadilha
-    cont.anim 020
-    sfx 1449
-  enddo
-  timer=1
-  more2=<more2>+1
-  return 1
-endif
-
-link.tag.type_velho = <link.type>
-link.tag.quem_armou = <cont.uid>
-link.tag.dificuldade= <cont.removetrap>
-link.type t_chest_door_trapped
-cont.emotegreen Terminou de instalar
-cont.Skill_Gain Skill_Removetrap
-cont.ctag.usando_kit = 
-cont.tag.trap_escolhida =
-UID.<cont.ctag.kit>.update
-link.update
-remove
-return 1
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  ARMADILHAS NO SOLO  ////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-[ITEMDEF i_armadilha_solo]
-ID=0e73
-NAME=Armadilha
-Weight=5
-
-ON=@Create 
-Type=t_script
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  TYPEDEF P/ ARMADILHAS DE SOLO /////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-[TYPEDEF t_solo_trapped]
-
-on=@clienttooltip
-if <src.IsGM>
-  f_sendTooltip Armadilha: <tag.armadilha>, Intensidade: <tag.intensidade><DEF.BR>Armada por: <UID.<tag0.quem_armou>.tag.name> [<UID.<tag0.quem_armou>.account.name>]<DEF.BR>Skill de quem armou: <tag.dificuldade>
-endif
-
-on=@dclick
-if (<distance> > 1) && (!<src.IsGm>)
-  src.sysmessageyellow Muito longe....
-else
-  trigger @step
-endif
-return 1
-
-on=@step  
-if (!<argn1>)		// evita trigger INFINITO
-  if (<src.IsGM>)
-    src.sysmessagegreen ATENCAO: Ha uma armadilha sob seus pes ou voce esta tentnado ativa-la via DCLICK. Para aciona-la retire o GM MODE.
-    return 0
-  elif <tag.quem_armou> == <src.uid>
-    src.sysmessagegreen Voce reconhece sua armadilha!!!!
-    return 0
-  elif <src.flags> & statf_dead)
-    return 0
-  elif (<tag.armadilha> == <DEF.EXPLOSAO_SOLO>)  					 // explosao
-    sfx 285
-    src.effect 3 i_fx_explode 0 16 0
-    src.emoteyellow Atingido por uma explosao terrestre
-    src.damage <tag.intensidade>,dam_fire
-  elif (<tag.armadilha> == <DEF.VENENO_SOLO>)  					 // veneno
-    sfx 517
-    src.effect 2 i_trap_gas_3 0 100
-    src.emoteyellow Atingido por uma fumaca venenosa vinda do solo
-    src.damage <R3>,dam_poison
-    src.veneno <tag.intensidade>
-  elif (<tag.armadilha> == <DEF.FLECHA_SOLO>) 					 // Flecha
-    sfx 548
-    src.effect 3 i_fx_energy_ray 0 2 20
-    src.emoteyellow Atingido por flecha vinda de mecanismo subterraneo
-    src.damage <tag.intensidade>
-  endif
-  attr &= ~attr_invis
-  color = <tag.color>
-  emotered a armadilha foi ativada
-  type=t_normal
-  update
-  attr=attr_decay
-  timer 3,remove
-endif
-
-[FUNCTION f_instalar_armadilha_solo]
-  src.emoteyellow Comeca a instalar a armadilha
-  src.anim 020
-  sfx 89
-  src.ctag.usando_kit = 1						// anti-exploit
-  src.newitem=i_mry_instala_armadilha_solo
-  src.act.more1=<src.tag.trap_escolhida>				// tipo de armadilha (VER DEFNAMES)
-  src.act.more2=(<src.removetrap>/100)				// BONUS no tempo para instalar q vai de 0 a 10 dependendo da skill REMOVETRAP
-  src.act.morep=<src.p>     						// se o cara se mexer cancela 
-  src.act.timer=1
-  src.act.equip
-  src.update
-  return 1
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Memory instalando armadilha (SOLO)  /////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-[ITEMDEF i_mry_instala_armadilha_solo]
-id=01d9d
-NAME=Instalando Armadilha no Solo
-TYPE=T_eq_script
-WEIGHT=0
-
-on=@Create
-    ATTR=attr_newbie
-
-on=@TIMER
-if !(<cont.p.x> == <morex>) || !(<cont.p.y> == <morey>)
-  cont.sysmessagered Voce interrompeu a instalacao.
-  cont.ctag.usando_kit = 							// anti-exploit
-  cont.tag.trap_escolhida =
-  remove
-  return 1
-elif (<more2>==15) && (<more1>==<DEF.EXPLOSAO_SOLO>)  					   // explosao
-  cont.ctag.armadilha=<DEF.EXPLOSAO_SOLO>
-  cont.ctag.intensidade=(<eval <eval <cont.removetrap>/100> * <R25,40>/10> + <R8>)     //dano baseado na skill + um fixo pequeno pra quem nao tem skill.
-  cont.ctag.formato=01c18
-  UID.<cont.ctag.kit>.tag.explosao_solo_amt -= 1  						   // diminui cargas do kit
-elif (<more2>==13) && (<more1>==<DEF.VENENO_SOLO>) 						   // veneno
-  cont.ctag.armadilha=<DEF.VENENO_SOLO>
-  cont.ctag.intensidade=(<eval <eval <cont.removetrap>/100> * <R550,1200>/10>) 	   // joga pra VENENO de 55 a 120 % da skill (efeito de 550 a 1200)
-  cont.ctag.formato=02839
-  UID.<cont.ctag.kit>.tag.veneno_solo_amt -= 1							   // diminui cargas do kit
-elif (<more2>==13) && (<more1>==<DEF.FLECHA_SOLO>) 						   // flecha
-  cont.ctag.armadilha=<DEF.FLECHA_SOLO>
-  cont.ctag.intensidade=(<eval <eval <cont.removetrap>/100> * <R10,35>/10> + <R5>) 	   // dano baseado na skill + um fixo pequeno pra quem nao tem skill.
-  cont.ctag.formato=01943
-  UID.<cont.ctag.kit>.tag.flecha_solo_amt -= 1						 	   // diminui cargas do kit
-else
-  dorand 6
-    cont.emoteyellow instalando armadilha
-    cont.anim 020
-    sfx 89
-  enddo
-  timer=1
-  more2=<more2>+1
-  return 1
-endif
-
-serv.newitem = i_armadilha_solo
-new.tag.armadilha = <cont.ctag0.armadilha>
-new.tag.intensidade = <cont.ctag.intensidade>
-new.tag.quem_armou = <cont.uid>
-new.tag.dificuldade= <cont.removetrap>
-new.tag.detectng_hidden= <eval <cont.removetrap>/2>		// usado na skill detect hidden (chance de detect)
-new.tag.color= 0								// usado na skill detect hidden (color q fica apos o detect)
-new.p = <cont.p>
-new.dispid = <cont.ctag.formato>
-new.color = 0b89
-new.attr = 090								//usado na skill detect hidden (attr apos detect fica 010)
-new.type = t_solo_trapped
-cont.emotegreen = Terminou de instalar
-cont.ctag.armadilha =
-cont.ctag.intensidade =
-cont.ctag.formato =
-cont.ctag.usando_kit = 
-cont.tag.trap_escolhida =
-new.update
-UID.<cont.ctag.kit>.update
-remove
+ON=@EFFECT
+obj=<UID>
+local.dist=<eval (<argn2>/250)+1>
+FORCHARS <local.dist>
+ local.dam=<eval ((<argn2>/5)*(<local.dist>-<distance <obj>>))/<local.dist>>
+ DAMAGE <local.dam>,dam_physical|dam_general|dam_fire
+END
+src.effect 2 i_fx_explode 0 32 0
+SFX snd_SPELL_EXPLOSION
 return 1
 
 
+//*********
+[SPELL 351]
+//*********
+NAME=Veneno
+DEFNAME=s_trap_poison
+RUNES=Borrifa uma substancia toxica que envenena a todos em um raio de 2 tiles do objeto.<BR> A for√ßa do veneno √© a for√ßa do efeito, de 0.0 a 100.0
+SOUND=0532
+FLAGS=SPELLFLAG_HARM
 
-
-
-
-
-
-
-
-
-
-
-//----------------------------------------------------------------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------------------------------------------------------------
-
-     /////////////////////////////////////////////////////
-    ///////  sistema de armadilha (MyT)  ////////////////
-   ///////         Jean Gabin           ////////////////
-  ///////       Galthar, o Errante     ////////////////
- ///////      Vers„o beta test 0.5    ////////////////
-/////////////////////////////////////////////////////
-
-
-//|||||||||||||||||||||||||||||||||
-// ---------# DEFNAMES #---------//
-//|||||||||||||||||||||||||||||||||
-
-[DEFNAME traps]
-//AtÈ 100 usar script HC das magias correspondentes
-//ApÛs 100 s„o armadilhas mec‚nicas
-trap_magic_arrow	5
-trap_fire_ball		18
-trap_poison		20
-trap_fire_field		28
-trap_lighting		30
-trap_poison_field	39
-trap_energy_blast	42
-trap_explosion		43
-trap_flame_bolt		51
-trap_saw		100
-trap_spike		101
-trap_mushroom		102
-trap_axe		103
-trap_gas		104
-trap_spike_big		105
-
-
-//|||||||||||||||||||||||||||||||||
-// ---------# TYPEDEFS #---------//
-//|||||||||||||||||||||||||||||||||
-
-
-
-[TYPEDEF t_trap]
-//more1 spell
-//more2 forÁa (%skill magery)
-//morex cargas (morex>04fffffff = infinito, coisa de GM)
-//morey dificuldade de desarmar/detectar (%skill detect hidden e disarm trap)
-//morez typedef original
-//morem tempo de rearme
-//link chave
-//attr_magic Se for armadilha de ch„o, ela pode mudar d elugar quando resetada.
-//color=026 foi detectada
-//tag.color A ultima cor da armadilha.
-
-on=@dclick
-type=<morez>
-if (<morex>==0)
- src.dclick
- return 1
-endif
-if (<morez>==1)				//Se a armadilha era um cantainer
- if (<more1>==5)			//Magic Arrow
-  src.effect 3 i_fx_smoke_small 0 32 0
-  src.sfx 0223
-  src.DAMAGESPELL s_Magic_Arrow,dam_magic|dam_pierce,<more2>,<UID>
- elif (<more1>==18)			//Fireball
-  src.effect 3 i_fx_explode 0 14 0
-  src.sfx 015e
-  src.DAMAGESPELL s_Fireball,dam_magic|dam_fire,<more2>,<UID>
- elif (<more1>==20)			//Poison
-  src.effect 2 i_trap_gas_3 0 32 0
-  src.sfx 022f
-  LOCAL.poison=<eval (<more2>/10)>
-  src.veneno <LOCAL.poison>
-  src.DAMAGESPELL s_Poison,dam_magic|dam_poison,<more2>,<UID>
- elif (<more1>==28)			//Fire Field
-  LOCAL.time=<eval <more2>/10>
-  src.f_cela_fogo <LOCAL.time>
-  more2=0
- elif (<more1>==30)			//Lighting
-  src.effect 1 0 0 24 0
-  src.sfx 028
-  src.DAMAGESPELL s_lightning,dam_magic|dam_energy,<more2>,<UID>
- elif (<more1>==39)			//Poison Field
-  LOCAL.time=<eval <more2>/10>
-  src.f_cela_veneno <LOCAL.time>
-  more2=0
- elif (<more1>==43)			//Explosion
-  effect 3 i_fx_explode 0 14 0
-  src.DAMAGESPELL s_explosion,dam_magic|dam_fire|dam_physical,<more2>,<UID>
-  src.sfx 011b
- elif (<more1>==42)			//Energy Bolt
-  src.effect 3 036cb 0 9 0 0b90 0
-  src.sfx 0213
-  src.DAMAGESPELL s_energy_bolt,dam_magic|dam_energy|dam_physical,<more2>,<UID>
- elif (<more1>==51)			//Flame Bolt
-  src.effect 3 i_fire_column 0 16
-  src.sfx 011b
+ON=@EFFECT
+forplayers 2
+ if (<CanSee <obj>>)
+  sfx 0532
+  serv.newitem i_moscas
+  new.dispid=i_fx_smoke
+  new.more1=<R2,5>
+  new.more2=<argn2>
+  new.color=0110
+  new.type t_veneno
+  new.name gas venenoso
+  new.p=<p>
+  new.timerd <R8,12>
  endif
-
- IF (<more1> < 100)			//Se for armadilha com efeito HC (m·gico)
-//  src.spelleffect <more1> <more2> <uid>	//aplica efeito hardcoded
- ELSE
-  //FUN«‘ES DE ARMADILHAS MEC¬NICAS
- ENDIF
-elif (<morez>==t_door)			//Se a armadilha era uma porta
- IF (<more1> < 100)			//Se for armadilha com efeito HC (m·gico)
-//  src.spelleffect <more1> <more2> <uid>	//aplica efeito hardcoded
- ELSE
-  //FUN«‘ES DE ARMADILHAS MEC¬NICAS
- ENDIF
-ENDIF					//Tipo de objeto
-if (<morex> != 04fffffff)		//Carga infinita=04fffffff
- morex=<morex>-1			//Se n„o tiver carga infinita, decrementa 1.
-endif
-f_resetTrap
-return 1
-
-on=@step
-return 1
-if (<more1> < 100)			//Armadilhas que usam m·gica
- type=<morez>
- if (<morex>==0)
-  src.remove
-  return 1
- endif
- if (<more1>==trap_magic_arrow)			//Magic Arrow
-  src.effect 3 i_fx_smoke_small 0 32 0
-  src.sfx 0223
- elif (<more1>==trap_fire_ball)			//Fireball
-  src.effect 3 i_fx_explode 0 14 0
-  src.sfx 015e
- elif (<more1>==trap_poison)			//Poison
-  src.effect 2 i_trap_gas_3 0 24 0
-  src.sfx 022f
- elif (<more1>==trap_poison_field)		//Fire Field
-  LOCAL.time=<eval <more2>/10>
-  src.f_cela_fogo <LOCAL.time>
-  more2=0
- elif (<more1>==trap_lighting)			//Lighting
-  src.effect 1 0 0 24 0
-  src.sfx 028
- elif (<more1>==trap_poison_field)		//Poison Field
-  LOCAL.time=<eval <more2>/10>
-  src.f_cela_veneno <LOCAL.time>
-  more2=0
- elif (<more1>==trap_explosion)			//Explosion
-  effect 3 i_fx_explode 0 14 0
-  src.sfx 011b
- elif (<more1>==trap_energy_blast)		//Energy Blast
-  src.effect 3 036cb 0 9 0 0b90 0
-  src.sfx 0213
- elif (<more1>==trap_flame_bolt)		//Flame Bolt
-  src.effect 3 i_fire_column 0 16
-  src.sfx 011b
- endif
- if (<morex> == 04fffffff)		//Carga infinita
-  var.blank=
- else					//decrementa carga
-  morex=<morex>-1
- endif
- if (<attr>&080)			//Se estiver invis (testa antes de mudar attr para n„o dar erro no console do Sphere)
-  attr==<attr>&~080			//ApareÁa
-  update
- endif
- f_resetTrap
-// src.spelleffect <more1> <more2> <uid>	//aplica efeito hardcoded
-ELSE
- //POR FUN«‘ES DE ARMADILHAS MEC¬NICAS
-endif
+end
 return 1
 
 
-[TYPEDEF t_trap_active]
-//animaÁ„o das traps
-//morex ID do quadro que termina o loop
-//morey ID do quadro que comeÁa o loop
-//morez contador do loop
-//morem tempo antes de sumir em dÈcimos de segundo
-//more1l dano
-//more1h tipo do dano
-//more2 som do step
+//*********
+[SPELL 352]
+//*********
+NAME=Espinhos
+DEFNAME=s_trap_spikes
+RUNES=Uma s√©rie de espetos emergem do ch√£o causando dano ao alvo.<BR>O dano varia de 15 a 60 com a forca.
+FLAGS=SPELLFLAG_HARM
 
-on=@step
-sfx <more2>
-src.damage <more1l> <more1h>
-timerd 1
-return 1
-
-on=@dclick
-timerd=1
-return 1
-
-on=@timer
-if (<morez> > <morem>)
- remove
- return 1
-endif
-if (<dispiddec> == <morex>) 
- dispiddec=<morey>
-// say maximo
+ON=@EFFECT
+local.dam=<eval (<argn2>/22)+15>
+if (<act.type>==t_door) || (<act.type>==t_door_locked)
+ DOSWITCH <dir>
+  effect 2 0111c 0 64 0                 //0
+  effect 2 i_trap_spike_large 0 32 0    //1
+  effect 2 i_trap_spike_4 0 32 0        //2
+  effect 2 i_trap_spike_large 0 32 0    //3
+  effect 2 i_trap_spike_3 0 32 0        //4
+  effect 2 i_trap_spike_large 0 32 0    //5
+  effect 2 01109 0 64 0                 //6
+  effect 2 i_trap_spike_large 0 32 0    //7
+ ENDDO
 else
- dispiddec=<dispiddec>+1
- if (<dispiddec> == 0<tag.jump>)
-  dispiddec=<dispiddec>+1
- endif
-// say <dispid> / <morex>
+ DOSWITCH <dir>
+  effect 2 i_trap_spike_3 0 32 0        //0
+  effect 2 i_trap_spike_large 0 32 0    //1
+  effect 2 i_trap_spike_4 0 32 0        //2
+  effect 2 i_trap_spike_large 0 32 0    //3
+  effect 2 i_trap_spike_3 0 32 0        //4
+  effect 2 i_trap_spike_large 0 32 0    //5
+  effect 2 i_trap_spike_4 32 0          //6
+  effect 2 i_trap_spike_large 0 32 0    //7
+ ENDDO
 endif
-update
-morez=<morez>+1
-timerd 1
+DAMAGE <dlocal.dam>,dam_slash|dam_physical
+sfx 056
 return 1
 
 
-//|||||||||||||||||||||||||||||||||
-// ---------# ITEMDEFS #---------//
-//|||||||||||||||||||||||||||||||||
+//*********
+[SPELL 353]
+//*********
+NAME=Congelamento
+DEFNAME=s_trap_freeze
+RUNES=Causa (forca/4) de dano tipo gelo em qualquer criatura a menos de 1 tile de dist√¢ncia e congela o alvo por (forca/1,7) segundos.
+FLAGS=SPELLFLAG_HARM
+
+ON=@EFFECT
+FORCHARS 1
+ DAMAGE <eval <argn2>/40>,dam_physical|dam_cold
+END
+src.stonned <eval <argn2>/17>
+src.effect 3 i_fx_explode 0 64 0 2 2
+SFX 05cf
+return 1
 
 
-[ITEMDEF i_trap_active]
-ID=i_gold
-TYPE=t_trap_active
 
-//morex ID do quadro que termina o loop
-//morey ID do quadro que comeÁa o loop
-//morez contador do loop
-//morem tempo antes de sumir em dÈcimos de segundo
-//more1l dano
-//more1h tipo do dano
-//more2 som do step
+//********************************************************************************
+//**
+//**            EVENTS e ITEMDEFs
+//**
+//********************************************************************************
 
-[ITEMDEF i_trap_floor]
-//armadilha de ch„o
-ID=01124
-TYPE=T_TRAP
-NAME=armadilha
+//*********
+[TYPEDEF e_trapped]
+//*********
+ON=@DCLICK
+if (!<tag0.trap_effect>)
+ events -e_trapped
+ return 0
+endif
+src.spelleffect <tag0.trap_effect>,<tag0.trap_power>,<uid>
+src.sysmessageorange Voce ativou uma armadilha de <STRTOLOWER(<serv.spell.<tag0.trap_effect>.name>)>!
+if (<tag0.trap_panel>)//Contador de triggers do painel
+ uid.<tag0.trap_panel>.morez += 1
+ uid.<tag0.trap_panel>.tag.act = -1
+endif
+trap_untrap
+return 1
 
-[ITEMDEF i_reset_trap]
-NAME=reset de armadilha
-ID=i_worldgem_bit
+
+//*********
+[ITEMDEF i_trap_panel]
+//*********
+//more1=For√ßa do efeito
+//more2=Dificuldade de detectar
+//morex=Spell de efeito
+//morey=N√∫mero de itens setados
+//morez=Quantas vezes trigou
+//morem=Quantas vezes desarmaram
+//tag.act=N√∫mero do item que est√° armado no momento
+ID=i_sign_brass
+NAME=Painel de armadilhas
 TYPE=t_script
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=Painel de armadilhas
 
-on=@create
-attr=092
-color=028
+ON=@CREATE
+morex=350       //Explos√£o
+more1=35.0      //For√ßa
+more2=15.0      //Dificuldade de detectar
+color=07AD
+ATTR=090        //inivis|neve_movable
+tag.act=-1      //nenhuma armadilha setada
+timer=<DEF.TRAP_DELAY>
 
-on=@timer
-f_resetTrap 1
-
-on=@dclick
-f_resetTrap 1
-remove
-
-
-[ITEMDEF i_forbiden]
-NAME=forbiden
-ID=i_gold
-TYPE=t_script
-
-on=@create
-color=07fff
-attr=092
-
-on=@step
-if (!<src.isgm>)
- src.f_retreat
-endif
+ON=@DCLICK
+IF (<src.IsGM>)
+ src.cTAG.trap_Panel=<uid>
+ src.DIALOG d_trap_panel 1
+ENDIF
 return 1
-
-
-[ITEMDEF i_mry_pegandofogo]
-id=i_memory
-NAME=pegando fogo
-TYPE=T_eq_script
-WEIGHT=0
-
-ON=@Create
- ATTR=attr_newbie | 080
- timer=1
- more2={12 30}
 
 ON=@TIMER
-cont.effect 3 i_fire 0 64 0
-cont.bark
-if (<cont.tag.pegandofogo>==1)
- dorand 5
-  cont.emotered pegando fogo
-  cont.anim 9
-  cont.anim 10
-  cont.emotered se debate
- enddo
- if (<cont.hits> >= 4)
-  LOCAL.dam={0 6 1 3 2 2 3 1}
-  cont.damage <eval <LOCAL.dam>> 010 <UID>
-  timer=1
+if (!<morey>)
+ SERV.LOG Hey! Hey! Hey! Painel de armadilha sem armadilhas! UID: <UID> - P: (<p>)
+ return 1
+endif
+if (<tag0.act>!=-1)
+ //Tem item armado, desarme
+ obj=<tag0.item_<dtag0.act>>
+ obj.trap_untrap
+endif
+tag.act=<R<morey>>
+obj=<tag0.item_<dtag0.act>>
+if (<obj.IsEvent.e_trapped>)
+ //J√° tem outra armadilha. Outro painel ou magia de player.
+ tag.act= -1
+ timer 20
+ return 1
+endif
+obj.trap_setTrap <uid>,<morex>,<more1>,<more2>
+timer=<DEF.TRAP_DELAY>
+return 1
+
+
+
+//********************************************************************************
+//**
+//**            FUNCTIONS
+//**
+//********************************************************************************
+
+
+//*********
+[FUNCTION trap_untrap]
+//*********
+//Desabilita a armadilha do objeto DEFAULT
+IF (<tag0.trap_panel>)
+ //uid.<tag0.trap_panel>.timerd=1
+ uid.<tag0.trap_panel>.tag0.act= -1
+endif
+tag.trap_panel=
+tag.trap_effect=
+tag.trap_power=
+tag.trap_difficult=
+events -e_trapped
+
+//*********
+[FUNCTION trap_setTrap]
+//*********
+//trap_setTrap <uidPanel>,<effect>,<power>,<difficult>
+events +e_trapped
+tag.trap_panel=<argv0>
+tag.trap_effect=<argv1>
+tag.trap_power=<argv2>
+tag.trap_difficult=<argv4>
+serv.log [TRAPS] <name> (<UID>) em <p> com armadilha: <serv.spell.<argv1>.name> - Pow:<eval <argv2>> - DH:<eval <argv3>>
+
+//*********
+[FUNCTION trap_addItem]
+//*********
+//Adiciona o item <ARGO> √† lista de itens para setar armadilha
+obj=<cTAG.trap_Panel>
+for o 0 7
+ if (<obj.tag0.item_<dlocal.o>>==<argo>)
+  sysmessagered O item ja esta nesta lista!
+  DIALOG d_trap_panel
+  return <local.did>
+ elif (!<obj.tag0.item_<dlocal.o>>) && (!<local.did>)
+  try obj.tag0.item_<dlocal.o>=<argo>
+  local.did=1
+  obj.morey +=1 //Incrementa n√∫mero de itens poss√≠veis
+ endif
+end
+DIALOG d_trap_panel
+return <local.did>
+
+//*********
+[FUNCTION trap_removeItem]
+//*********
+//Remove o item <argn> da lista
+obj=<cTAG.trap_Panel>
+ref1=<obj.item_<eval <argn>>>
+ref1.trap_untrap
+local.i=0
+for o 0 7
+ if (<local.o>!=<argn>)
+  try local.ocache_<dlocal.i>=<obj.tag0.item_<dlocal.o>>
+  local.i += 1
+ endif
+end
+for o 0 <local.i>
+ try obj.tag.item_<dlocal.o>=<local.ocache_<dlocal.o>>
+end
+obj.morey -=1 //Decrementa n√∫mero de itens poss√≠veis
+DIALOG d_trap_panel
+return 0
+
+//*********
+[FUNCTION trap_changePower]
+//*********
+//Muda a forca da armadilha para <argn>
+obj=<cTAG.trap_Panel>
+obj.more1=<minimumN 100.0,<maximum 0.0,<argn>>>
+DIALOG d_trap_panel 2
+
+//*********
+[FUNCTION trap_changeDifficult]
+//*********
+//Muda a dificuldade de detectar da armadilha para <argn>
+obj=<cTAG.trap_Panel>
+obj.more2=<minimumN 100.0,<maximum 0.0,<argn>>>
+DIALOG d_trap_panel 2
+
+
+
+
+//********************************************************************************
+//**
+//**            DIALOGS
+//**
+//********************************************************************************
+
+// Created 4/5/2009 16:15:43, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+[DIALOG d_trap_panel]
+150,100
+page 0
+obj=<cTAG.trap_Panel>
+resizepic 0 0 9200 510 387
+dhtmlgump 6 7 496 53 0 0 <DEF.CENTER><DEF.BFONT_LRED>(MyT) - Pailel de Armadilhas - (MyT)<DEF.BR><DEF.BFONT_DBLUE>Efeito: <serv.spell.<obj.morex>.name> - For√ßa: <fval <obj.more1>> - Dificuldade de detectar: <fval <obj.more2>><DEF.BR>Trigs: <eval <obj.morez>> - Desarmes: <eval <obj.morem>>
+resizepic 8 66 2620 490 277
+button 431 352 247 248 1 0 8//ok
+button 18 352 241 242 1 0 1//cancel
+page 1
+local.o=0
+dorigin 20 58
+WHILE (<obj.tag0.item_<dlocal.o>>)
+ button - *20 1154 1153 1 0 <eval 100+<local.o>>
+ button +32 - 1151 1150 1 0 <eval 200+<local.o>>
+ if (<uid.<obj.tag.item_<dlocal.o>>.IsEvent.e_trapped>)
+  if (<uid.<obj.tag.item_<dlocal.o>>.tag.trap_panel>==<obj>)
+   dtext +67 - 36 <uid.<obj.tag.item_<dlocal.o>>.name> (armada)
+  else
+   dtext +67 - 35 <uid.<obj.tag.item_<dlocal.o>>.name> (armada por outro painel)
+  endif
  else
-  cont.tag.pegandofogo=		//apaga a tag pegando fogo
-  remove			// remove a memory pegando fogo
+  dtext +67 - 54 <uid.<obj.tag.item_<dlocal.o>>.name>
  endif
-else
- remove
+ local.o += 1
+END
+IF (<local.o> < 8)
+ button - *20 1154 1153 1 0 7
+ dtext +67 - 37 Add
+ENDIF
+button 200 352 2445 2445 1 0 2
+dtext 232 353 57 Efeito
+page 2
+button 200 352 2445 2445 1 0 3
+dtext 226 353 57 Objetos
+button 21 82 1209 1210 1 0 4
+dtext 42 78 2100 Efeito: <serv.spell.<obj.morex>.name>
+button 21 106 1209 1210 1 0 5
+dtext 42 102 2100 For√ßa: <fval <obj.more1>>
+button 21 131 1209 1210 1 0 6
+dtext 42 127 2100 Dificuldade para detectar: <fval <obj.more2>>
+dhtmlgump 25 224 453 100 1 1 <serv.spell.<obj.morex>.RUNES>
+page 3
+local.spell=350
+dorigin 21 62
+WHILE (<serv.spell.<dlocal.spell>>)
+ button - *20 1209 1210 1 0 <dlocal.spell>
+ dtext +18 -3 2100 <serv.spell.<dlocal.spell>.name>
+ local.spell += 1
+END
+
+[DIALOG d_trap_panel text]
+
+[DIALOG d_trap_panel button]
+ON=0
+// Close
+sysmessageyellow Suas modificacoes foram guardadas!
+cTAG.trap_Panel=
+
+ON=1
+// Cancel
+sysmessagered Armadilhas desabilitadas por 1 dia.
+obj=<cTAG0.trap_Panel>
+if (<obj.tag0.act>!=1) //se tem armadilha setada
+ ref1=<obj.tag.item_<obj.dtag0.act>>
+ ref1.trap_untrap
+ obj.tag.act=-1
 endif
-more2=<more2>-1
-if (!<more2>)
- cont.tag.pegandofogo=	
- remove
+obj.timer=24*60*60
+cTAG.trap_Panel=
+
+ON=2
+// Efeito
+src.DIALOG d_trap_panel 2
+
+ON=3
+// Objetos
+src.DIALOG d_trap_panel 1
+
+ON=4
+src.DIALOG d_trap_panel 3
+// Mudar efeito
+// 
+
+ON=5
+// Mudar forca
+sysmessageyellow Digite uma forca de 0.0 a 100.0
+promptconsole trap_changePower
+
+
+ON=6
+//Mudar DH
+sysmessageyellow Digite uma dificuldade de Dettect Hidden de 0.0 a 100.0
+promptconsole trap_changeDifficult
+
+ON=7
+//Add item
+sysmessageyellow Que objeto deseja adicionar?
+targetf trap_addItem
+
+ON=8
+// Okay
+obj=<cTAG0.trap_Panel>
+sysmessagegreen Armadilha armada.
+obj.timerd=1
+cTAG.trap_Panel=
+
+ON=100 110
+// Change/view
+local.i=<eval <argn>-100>
+obj=<cTAG0.trap_Panel>
+ref1=<obj.tag0.item_<dlocal.i>>
+if (<src.distance <ref1>> > 6)
+ src.cTAG.op=<p>
+ src.go <ref1.p>
+ src.timerf 3 go <cTAG.op>
 endif
-return 1
+src.hilight <ref1>,026
+src.blindItemMsg <ref1>,04,[EU!]
+src.sysmessage Aguarde a janela abrir novamente.
+src.timerf 3 DIALOG d_trap_panel 1
 
+ON=200 210
+// Remover item
+trap_removeItem <eval <argn>-200>
 
-[ITEMDEF i_fogo_armadilha_lo]
-name=Cela de fogo
-id=0398c
-TYPE=t_fire
-CATEGORY=MyT - Quest Items
-SUBSECTION=Traps
-DESCRIPTION=Cela de fogo LO
-DUPELIST=0398d,0398e,0398f,03990,03991,03992,03993,03994,03995,03e27
+ON=350 400
+// Escolher este efeito
+try uid.<src.cTAG.trap_Panel>.morex=<argn>
+src.DIALOG d_trap_panel 2
 
-ON=@Create
-MOREZ=1
-ATTR=012
 
-on=@step
-src.f_pega_fogo
-return 1
-
-
-[ITEMDEF i_fogo_armadilha_ns]
-name=Cela de fogo
-id=03996
-TYPE=t_fire
-CATEGORY=MyT - Quest Items
-SUBSECTION=Traps
-DESCRIPTION=Cela de fogo NS
-DUPELIST=03997,03998,03999,0399a,0399b,0399c,0399d,0399e,0399f,03e31
-
-ON=@Create
-MOREZ=1
-ATTR=012
-
-on=@step
-src.f_pega_fogo
-return 1
-
-
-[ITEMDEF i_veneno_armadilha_lo]
-name=Cela de veneno
-id=03915
-TYPE=t_script
-CATEGORY=MyT - Quest Items
-SUBSECTION=Traps
-DESCRIPTION=Cela de veneno LO
-
-ON=@Create
-MOREZ=1
-ATTR=012
-
-on=@step
-src.sfx 05b
-src.veneno <eval {750 850}>
-return 1
-
-
-[ITEMDEF i_veneno_armadilha_ns]
-name=Cela de veneno
-id=03921
-CATEGORY=MyT - Quest Items
-SUBSECTION=Traps
-DESCRIPTION=Cela de veneno NS
-
-ON=@Create
-MOREZ=1
-ATTR=012
-
-on=@step
-src.sfx 05b
-src.veneno <eval {750 850}>
-return 1
-
-
-[ITEMDEF i_vegetal_armadilha_lo]
-name=cela vegetal
-id=0CEC
-TYPE=t_script
-CATEGORY=MyT - Quest Items
-SUBSECTION=Traps
-DESCRIPTION=Cela de vegetal LO
-
-ON=@Create
-MOREZ=1
-ATTR=012
-
-on=@step
-if (!<src.isGM>)
- src.f_retreat
-endif
-
-[ITEMDEF i_vegetal_armadilha_ns]
-name=cela vegetal
-id=0CEF
-CATEGORY=MyT - Quest Items
-SUBSECTION=Traps
-DESCRIPTION=Cela de vegetal NS
-
-ON=@Create
-MOREZ=1
-ATTR=012
-
-on=@step
-if (!<src.isGM>)
- src.f_retreat
-endif
-
-//||||||||||||||||||||||||||||||||||
-// ---------# FUNCTIONS #---------//
-//||||||||||||||||||||||||||||||||||
-
-
-
-
-[FUNCTION f_resetTrap]
-if (!<argn>) 			//Trap cria o resetador de trap
- serv.newitem i_reset_trap
- new.link=<UID>
- new.p=<p>
- new.timer=<eval <morem>>
-else				//resetador de trap reseta a trap
- link.type=t_trap
- if (<link.attr>&020)
-  link.movenear <UID> <eval {0 12 1 5 2 2 3 1}>
- endif
- try link.color=0<link.tag.color>
- if (<link.morez>==0)		//Se È uma armadilha de ch„o. Morez=t_normal=0
-  link.REMOVEFROMVIEW		//some pros chars que est„o perto
-  link.attr=<link.attr>|080	//volta a ficar invis
- endif
- link.update
-endif
-
-
-[FUNCTION f_cela_fogo]
-f_cela i_fogo_armadilha_ns, i_fogo_armadilha_lo, <argn>
-sfx 015f
-return 1
-
-
-[FUNCTION f_cela_veneno]
-f_cela i_veneno_armadilha_ns, i_veneno_armadilha_lo, <argn>
-sfx 0117
-return 1
-
-[FUNCTION f_cela_vegetal]
-f_cela i_vegetal_armadilha_ns, i_vegetal_armadilha_lo, <argn>
-sfx 0191
-return 1
-
-[FUNCTION f_cela_imovel]
-f_cela i_forbiden, i_forbiden, <argn>
-sfx 0191
-return 1
-
-[FUNCTION f_cela]
-if (<argv2>==0)
- local.timer=<eval {20 30}>
-else
- local.timer=<argv2>
-endif
-
-serv.newitem=<argv1>
-new.p=<p>
-new.move 0 2 0
-new.timer=<local.timer>
-
-serv.newitem=<argv1>
-new.p=<p>
-new.move 0 -1 0
-new.timer=<local.timer>
-
-serv.newitem=<argv1>
-new.p=<p>
-new.move 1 -1 0
-new.timer=<local.timer>
-
-serv.newitem=<argv1>
-new.p=<p>
-new.move -1 -1 0
-new.timer=<local.timer>
-
-serv.newitem=<argv1>
-new.p=<p>
-new.move -1 2 0
-new.timer=<local.timer>
-
-serv.newitem=<argv1>
-new.p=<p>
-new.move 1 2 0
-new.timer=<local.timer>
-
-serv.newitem=<argv0>
-new.p=<p>
-new.move 2 1 0
-new.timer=<local.timer>
-
-serv.newitem=<argv0>
-new.p=<p>
-new.move 2 0 0
-new.timer=<local.timer>
-
-serv.newitem=<argv0>
-new.p=<p>
-new.move 2 -1 0
-new.timer=<local.timer>
-
-serv.newitem=<argv0>
-new.p=<p>
-new.move -1 -1 0
-new.timer=<local.timer>
-
-serv.newitem=<argv0>
-new.p=<p>
-new.move -1 0 0
-new.timer=<local.timer>
-
-serv.newitem=<argv0>
-new.p=<p>
-new.move -1 1 0
-new.timer=<local.timer>
-
-serv.newitem=i_forbiden
-new.p=<p>
-new.move 2 2 0
-new.timer=<local.timer>
-
-
-[FUNCTION f_pega_fogo]
-if !<src.RESTEST 1 i_mry_pegandofogo> && !<isgm> && !(<flags>&statf_invul)
- src.effect 3 i_fire 0 64 0
- src.tag.pegandofogo=1
- src.newitem=i_mry_pegandofogo
- src.act.equip
- src.update
- src.sfx 015f
- LOCAL.dam=<eval {5 15}>
- src.damage <LOCAL.dam> 010
-endif
-
-////////////////// SERRA
-
-[FUNCTION f_active_trap_saw_0]
-// serra NS
-serv.newitem i_trap_active
-new.dispid=01103
-new.tag.jump=01114
-new.morey=01106
-new.morex=01107
-new.morem=<eval <argv2>*10>
-new.more2=01dc
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-[FUNCTION f_active_trap_saw_1]
-f_active_trap_saw_2 <argv0>, <argv1>, <argv2>
-
-[FUNCTION f_active_trap_saw_2]
-// serra down LO
-serv.newitem i_trap_active
-new.dispid=011b1
-new.tag.jump=011b2
-new.morey=011b4
-new.morex=011b5
-new.morem=<eval <argv2>*10>
-new.more2=01dc
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-[FUNCTION f_active_trap_saw_3]
-f_active_trap_saw_2 <argv0>, <argv1>, <argv2>
-
-[FUNCTION f_active_trap_saw_4]
-// serra down NS
-serv.newitem i_trap_active
-new.dispid=011ac
-new.tag.jump=011ad
-new.morey=011af
-new.morex=011b0
-new.morem=<eval <argv2>*10>
-new.more2=01dc
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-[FUNCTION f_active_trap_saw_5]
-f_active_trap_saw_4 <argv0>, <argv1>, <argv2>
-
-[FUNCTION f_active_trap_saw_6]
-// serra OL
-serv.newitem i_trap_active
-new.dispid=01116
-new.tag.jump=01117
-new.morey=01119
-new.morex=0111a
-new.morem=<eval <argv2>*10>
-new.more2=01dc
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-[FUNCTION f_active_trap_saw_7]
-f_active_trap_saw_4 <argv0>, <argv1>, <argv2>
-
-
-////////////////// SPIKE
-
-[FUNCTION f_active_trap_spike_0]
-// spike NS
-serv.newitem i_trap_active
-new.dispid=0111b
-new.morey=01121
-new.morex=01121
-new.morem=<eval <argv2>*10>
-new.more2=022b
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-[FUNCTION f_active_trap_spike_1]
-f_active_trap_spike_2 <argv0>, <argv1>, <argv2>
-
-[FUNCTION f_active_trap_spike_2]
-// spike down LO
-serv.newitem i_trap_active
-new.dispid=0119a
-new.tag.jump=0119b
-new.morey=0119f
-new.morex=0119f
-new.morem=<eval <argv2>*10>
-new.more2=022b
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-[FUNCTION f_active_trap_spike_3]
-f_active_trap_spike_2 <argv0>, <argv1>, <argv2>
-
-[FUNCTION f_active_trap_spike_4]
-// spike down NS
-serv.newitem i_trap_active
-new.dispid=011a0
-new.tag.jump=011a1
-new.morey=011a5
-new.morex=011a5
-new.morem=<eval <argv2>*10>
-new.more2=022b
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-[FUNCTION f_active_trap_spike_5]
-f_active_trap_spike_4 <argv0>, <argv1>, <argv2>
-
-[FUNCTION f_active_trap_spike_6]
-// spike OL
-serv.newitem i_trap_active
-new.dispid=01108
-new.tag.jump=01109
-new.morey=0110e
-new.morex=0110e
-new.morem=<eval <argv2>*10>
-new.more2=022b
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-[FUNCTION f_active_trap_spike_7]
-f_active_trap_spike_4 <argv0>, <argv1>, <argv2>
-
-///////////// COGUMELO
-
-
-[FUNCTION f_active_trap_mushroom]
-// mushroom explode
-serv.newitem i_trap_active
-new.dispid=01125
-new.morey=01127
-new.morex=0112a
-new.morem=<eval <argv2>*10>
-new.more2=02b
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-///////////// AXE
-
-[FUNCTION f_active_trap_axe_0]
-// axe NS
-serv.newitem i_trap_active
-new.dispid=0114b
-new.morey=0114f
-new.tag.jump=0114c
-new.morex=0114f
-new.morem=<eval <argv2>*10>
-new.more2=0235
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-[FUNCTION f_active_trap_axe_6]
-// axe LO
-serv.newitem i_trap_active
-new.dispid=01141
-new.morey=01144
-new.morex=01144
-new.morem=<eval <argv2>*10>
-new.more2=0235
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-
-////////// GAS
-
-
-[FUNCTION f_active_trap_gas_0]
-// gas NS
-serv.newitem i_trap_active
-new.dispid=0113a
-new.morey=0113a
-new.tag.jump=0113b
-new.morex=0113e
-new.morem=<eval <argv2>*10>
-new.more2=02b
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-[FUNCTION f_active_trap_gas_1]
-// gas down
-serv.newitem i_trap_active
-new.dispid=011a7
-new.morey=011a7
-new.morex=011ab
-new.morem=<eval <argv2>*10>
-new.more2=02b
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-[FUNCTION f_active_trap_gas_3]
-f_active_trap_gas_1 <argv0>, <argv1>, <argv2>
-
-[FUNCTION f_active_trap_gas_4]
-f_active_trap_gas_1 <argv0>, <argv1>, <argv2>
-
-[FUNCTION f_active_trap_gas_5]
-f_active_trap_gas_1 <argv0>, <argv1>, <argv2>
-
-[FUNCTION f_active_trap_gas_6]
-// gas LO
-serv.newitem i_trap_active
-new.dispid=01146
-new.morey=01146
-new.morex=01149
-new.morem=<eval <argv2>*10>
-new.more2=02b
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-[FUNCTION f_active_trap_gas_7]
-f_active_trap_gas_1 <argv0>, <argv1>, <argv2>
-
-
-///////// SPIKE GRANDE
-
-
-[FUNCTION f_active_trap_spike_big]
-// spike big
-serv.newitem i_trap_active
-new.dispid=01d9a
-new.morey=01d9e
-new.morex=01d9e
-new.morem=<eval <argv2>*10>
-new.more2=022b
-new.more1l=<argv0>
-new.more1h=<argv1>
-new.p=<p>
-
-
-[FUNCTION armadilha]
-targetf armadilha_
-
-[FUNCTION armadilha_]
-//more1 spell
-//more2 forÁa (%skill magery)
-//morex cargas (morex>04fffffff = infinito, coisa de GM)
-//morey dificuldade de desarmar/detectar (%skill detect hidden e disarm trap)
-//morez typedef original
-//morem tempo de rearme
-//link chave
-//attr_magic Se for armadilha de ch„o, ela pode mudar d elugar quando resetada.
-//color=026 foi detectada
-//tag.color A ultima cor da armadilha.
-argo.morez=<argo.type>
-argo.more1=<DEF.trap_magic_arrow>
-argo.more2=250
-argo.morex=04fffffff
-argo.morey=250
-argo.morem=7
-argo.type=t_trap
+[EOF]
