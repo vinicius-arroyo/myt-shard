@@ -20,6 +20,8 @@
 
 [DEFNAME sistema_de_armadilhas]
 TRAP_DELAY      60*30   //meia-hora
+TRAP_FOUND      1
+TRAP_MAGIC      2
 
 //********************************************************************************
 //**
@@ -156,6 +158,19 @@ endif
 trap_untrap
 return 1
 
+on=@CLIENTTOOLTIP
+if (<tag0.trap_flags>&<DEF.TRAP_FOUND>)
+ DOSWITCH <eval <tag0.trap_power>/200>
+  local.m=debil
+  local.m=muito fraca
+  local.m=fraca
+  local.m=moderada
+  local.m=forte
+  local.m=muito forte
+ ENDDO
+ src.f_sendTooltipData *Armadilha de <STRTOLOWER(<serv.spell.<tag0.trap_effect>.name>)> <local.m>*
+endif
+
 
 //*********
 [ITEMDEF i_trap_panel]
@@ -228,12 +243,22 @@ return 1
 IF (<tag0.trap_panel>)
  //uid.<tag0.trap_panel>.timerd=1
  uid.<tag0.trap_panel>.tag0.act= -1
+ if (<argn1>)
+  //desarmado por skill. Contar pro painel
+  uid.<tag0.trap_panel>.tag0.morem += 1
+ endif
 endif
 tag.trap_panel=
 tag.trap_effect=
 tag.trap_power=
 tag.trap_difficult=
+tag.trap_flags=
+if (!<IsEmpty <tag.color>>)
+ color=<tag.color>
+ tag.color=
+endif
 events -e_trapped
+update
 
 //*********
 [FUNCTION trap_setTrap]
@@ -243,7 +268,8 @@ events +e_trapped
 tag.trap_panel=<argv0>
 tag.trap_effect=<argv1>
 tag.trap_power=<argv2>
-tag.trap_difficult=<argv4>
+tag.trap_difficult=<argv3>
+tag.trap_flags=0
 serv.log [TRAPS] <name> (<UID>) em <p> com armadilha: <serv.spell.<argv1>.name> - Pow:<eval <argv2>> - DH:<eval <argv3>>
 
 //*********
