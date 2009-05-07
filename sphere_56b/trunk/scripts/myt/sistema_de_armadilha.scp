@@ -14,8 +14,19 @@
 - Armadilha de serra circular
 - Armadilhas de chão (outro painel)
 
+        -=tags=-
+tag.trap_panel
+tag.trap_effect
+tag.trap_power
+tag.trap_difficult
+tag.trap_flags
+tag.act
+tag.try
+tag.Detecting_Hidden
+ctag.trap_panel
+
         -=Como fas/=-
-- Adicione i_trap_panel
+- Adicione i_trap_panel ou i_trap_trigger
 - Gerencie com gump via @DCLICK
 
 [DEFNAME sistema_de_armadilhas]
@@ -32,7 +43,7 @@ TRAP_MAGIC      2
 //*********
 [SPELL 350]
 //*********
-NAME=Explosão
+NAME=Explosao
 DEFNAME=s_trap_explosion
 RUNES=Uma explosão atinge a todos num raio de (forca/20) tiles com dano de (forca x 2) dependendo da força da armadilha.<BR>O dano diminui com a distancia.<BR><B>CUIDADO!</B> Forca maior que 50.0 eh mortal!
 EFFECT_ID=i_fx_explode
@@ -145,18 +156,16 @@ return 1
 [TYPEDEF e_trapped]
 //*********
 ON=@DCLICK
-if (!<tag0.trap_effect>)
- events -e_trapped
+return <trap_activate>
+
+ON=@STEP
+if (<src.isplayer>)
+ trap_activate
+ emoteyellow click
  return 0
 endif
-src.spelleffect <tag0.trap_effect>,<tag0.trap_power>,<uid>
-src.sysmessageorange Voce ativou uma armadilha de <STRTOLOWER(<serv.spell.<tag0.trap_effect>.name>)>!
-if (<tag0.trap_panel>)//Contador de triggers do painel
- uid.<tag0.trap_panel>.morez += 1
- uid.<tag0.trap_panel>.tag.act = -1
-endif
-trap_untrap
-return 1
+
+
 
 on=@CLIENTTOOLTIP
 if (<tag0.trap_flags>&<DEF.TRAP_FOUND>)
@@ -227,6 +236,67 @@ obj.trap_setTrap <uid>,<morex>,<more1>,<more2>
 timer=<DEF.TRAP_DELAY>
 return 1
 
+[ITEMDEF 023B]
+DEFNAME=i_trap_gen
+NAME=gerador de armadilhas
+TYPE=t_script
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=Gerador de armadilhas
+
+ON=@DCLICK
+IF (<src.IsGM>)
+ src.cTAG.trap_Panel=<uid>
+ src.DIALOG d_trap_ground 1
+ENDIF
+return 1
+
+ON=@CREATE
+morex=350       //Explosão
+more1=35.0      //Força
+more2=15.0      //Dificuldade de detectar
+morey=5         //Número de armadilhas
+tag.trap_dist=3 //3 tiles
+color=07AD
+ATTR=090        //inivis|never_movable
+tag.act=0       //nenhuma armadilha setada
+timer=<DEF.TRAP_DELAY>
+
+on=@timer
+if (<tag0.act> < 0)
+ tag0.act=0
+ timer=<DEF.TRAP_DELAY>
+ return 1
+elif (<tag0.act> < <morey>)
+ serv.newitem i_trap_trigger
+ new.tag.trap_panel=<uid>
+ new.link=<uid>
+ new.tag.trap_effect=<morex>
+ new.tag.trap_power=<more1>
+ new.tag.Detecting_Hidden=<more2>
+ new.tag.trap_difficult=<more2>
+ new.timer=<DEF.TRAP_DELAY>
+ new.attr 092
+ new.movenear <UID>,<R<tag0.trap_dist>>
+ tag0.act += 1
+endif
+timer=<eval <DEF.TRAP_DELAY>/<morey>>
+return 1
+
+[ITEMDEF 0FAA]
+DEFNAME=i_trap_trigger
+NAME=gatilho de armadilha
+TYPE=t_script
+
+on=@create
+EVENTS +e_trapped
+color=0482
+tag.trap_flags=<DEF.TRAP_FOUND>
+timerf 1 trap_trySuperposition
+
+on=@destroy
+//decrementa itens
+link.tag0.act -= 1
 
 
 //********************************************************************************
@@ -235,17 +305,44 @@ return 1
 //**
 //********************************************************************************
 
+//*********
+[FUNCTION trap_activate]
+//*********
+//Triga a armadilha
+if (<src.IsGm>) && (<src.flags>&08) //GM invis não.
+ return 0
+elif (!<tag0.trap_effect>)
+ events -e_trapped
+ return 0
+endif
+src.spelleffect <tag0.trap_effect>,<tag0.trap_power>,<uid>
+src.sysmessageorange Voce ativou uma armadilha de <STRTOLOWER(<serv.spell.<tag0.trap_effect>.name>)>!
+if (<tag0.trap_panel>)//Contador de triggers do painel
+ uid.<tag0.trap_panel>.morez += 1
+endif
+if (<attr>&080)
+ attr &= ~080
+ update
+endif
+trap_untrap
+return 1
 
 //*********
 [FUNCTION trap_untrap]
 //*********
 //Desabilita a armadilha do objeto DEFAULT
 IF (<tag0.trap_panel>)
- //uid.<tag0.trap_panel>.timerd=1
- uid.<tag0.trap_panel>.tag0.act= -1
+ obj=<tag0.trap_panel>
+ if (<obj.baseid>==i_trap_panel)
+  //armadilha de item. Unset na lista.
+  obj.tag.act = -1
+ else
+  //armadilha de chão. Decay para decrementar item.
+  timer 5
+ endif
  if (<argn1>)
   //desarmado por skill. Contar pro painel
-  uid.<tag0.trap_panel>.tag0.morem += 1
+  obj.tag0.morem += 1
  endif
 endif
 tag.trap_panel=
@@ -318,7 +415,11 @@ return 0
 //Muda a forca da armadilha para <argn>
 obj=<cTAG.trap_Panel>
 obj.more1=<minimumN 100.0,<maximum 0.0,<argn>>>
-DIALOG d_trap_panel 2
+if (<obj.baseid>==i_trap_panel)
+ DIALOG d_trap_panel 2
+else
+ DIALOG d_trap_ground 1
+endif
 
 //*********
 [FUNCTION trap_changeDifficult]
@@ -326,7 +427,50 @@ DIALOG d_trap_panel 2
 //Muda a dificuldade de detectar da armadilha para <argn>
 obj=<cTAG.trap_Panel>
 obj.more2=<minimumN 100.0,<maximum 0.0,<argn>>>
-DIALOG d_trap_panel 2
+if (<obj.baseid>==i_trap_panel)
+ DIALOG d_trap_panel 2
+else
+ DIALOG d_trap_ground 1
+endif
+
+//*********
+[FUNCTION trap_changeDist]
+//*********
+//Muda a distancia maxima das armadilhas
+obj=<cTAG.trap_Panel>
+obj.tag.trap_dist=<maximum 1,<argn>>
+DIALOG d_trap_ground 1
+
+//*********
+[FUNCTION trap_changeAmount]
+//*********
+//Muda a quantidade de armadilhas
+obj=<cTAG.trap_Panel>
+obj.morey=<maximum 1,<argn>>
+DIALOG d_trap_ground 1
+
+//*********
+[FUNCTION trap_trySuperposition]
+//*********
+//Testa se esta armadilha este em cima de outra
+obj=<uid>
+FORITEMS 1
+ //checa por itens iguais a mim na minha posição que NÃO SOU EU!
+ if (<baseid>==<obj.baseid>) && (<p.x>==<obj.p.x>) && (<p.y>==<obj.p.y>) && (<uid>!=<obj.uid>)
+  //Já tentei mudar de lugar 15x?
+  if (<obj.tag0.try> > 14)
+   //Campo minado muito complexo. Diminuir o trigger. Tchau.
+   serv.log [TRAPS] Hey! Hey! Hey! Campo minado muito complexo! (<p>)
+   obj.link.morey -= 1
+   obj.remove
+  else
+   //Vou mudar de lugar com o mesmo padrão e tentar de novo.
+   obj.movenear <obj.link>,<R<obj.link.tag0.trap_dist>>
+   obj.tag0.try += 1
+   obj.timerf 1 trap_trySuperposition
+  endif
+ endif
+END
 
 
 
@@ -472,4 +616,105 @@ try uid.<src.cTAG.trap_Panel>.morex=<argn>
 src.DIALOG d_trap_panel 2
 
 
+
+
+
+
+
+
+
+
+
+
+
+[DIALOG d_trap_ground]
+150,100
+page 0
+obj=<cTAG.trap_Panel>
+resizepic 0 0 9200 510 387
+dhtmlgump 6 7 496 53 0 0 <DEF.CENTER><DEF.BFONT_LRED>(MyT) - Gerador de Armadilhas - (MyT)<DEF.BR><DEF.BFONT_DBLUE>Efeito: <serv.spell.<obj.morex>.name> - Força: <fval <obj.more1>> - Dificuldade de detectar: <fval <obj.more2>><DEF.BR>Trigs: <eval <obj.morez>> - Desarmes: <eval <obj.morem>>
+resizepic 8 66 2620 490 277
+button 431 352 247 248 1 0 8//ok
+button 18 352 241 242 1 0 1//cancel
+
+page 1
+button 21 82 1209 1210 1 0 4
+dtext 42 78 2100 Efeito: <serv.spell.<obj.morex>.name>
+button 21 102 1209 1210 1 0 5
+dtext 42 98 2100 Forca: <fval <obj.more1>>
+button 21 122 1209 1210 1 0 6
+dtext 42 118 2100 Dificuldade para detectar: <fval <obj.more2>>
+button 21 142 1209 1210 1 0 7
+dtext 42 138 2100 Distancia maxima: <obj.dtag0.trap_dist>
+button 21 162 1209 1210 1 0 9
+dtext 42 158 2100 Armadilhas: <obj.morey>
+dhtmlgump 25 224 453 100 1 1 <serv.spell.<obj.morex>.RUNES>
+
+page 2
+local.spell=350
+dorigin 21 62
+WHILE (<serv.spell.<dlocal.spell>>)
+ button - *20 1209 1210 1 0 <dlocal.spell>
+ dtext +18 -3 2100 <serv.spell.<dlocal.spell>.name>
+ local.spell += 1
+END
+
+[DIALOG d_trap_ground text]
+
+[DIALOG d_trap_ground button]
+ON=0
+// Close
+sysmessageyellow Suas modificacoes foram guardadas!
+cTAG.trap_Panel=
+
+ON=1
+// Cancel
+sysmessagered Armadilhas desabilitadas por 1 dia.
+obj=<cTAG0.trap_Panel>
+if (<obj.tag0.act>!=1) //se tem armadilha setada
+ ref1=<obj.tag.item_<obj.dtag0.act>>
+ ref1.trap_untrap
+ obj.tag.act=-1
+endif
+obj.timer=24*60*60
+cTAG.trap_Panel=
+
+ON=4
+src.DIALOG d_trap_ground 2
+// Mudar efeito
+// 
+
+ON=5
+// Mudar forca
+sysmessageyellow Digite uma forca de 0.0 a 100.0
+promptconsole trap_changePower
+
+
+ON=6
+//Mudar DH
+sysmessageyellow Digite uma dificuldade de Dettect Hidden de 0.0 a 100.0
+promptconsole trap_changeDifficult
+
+ON=7
+//Mudar dist
+sysmessageyellow Digite a distancia maxima para aparecer uma armadilha
+promptconsole trap_changeDist
+
+ON=8
+// Okay
+obj=<cTAG0.trap_Panel>
+sysmessagegreen Armadilha armada.
+obj.timerd=1
+cTAG.trap_Panel=
+
+ON=9
+//Mudar qtd
+sysmessageyellow Digite o numero maximo de armadilhas que aparcerao por vez.
+promptconsole trap_changeAmount
+
+ON=350 400
+// Escolher este efeito
+obj=<src.cTAG.trap_Panel>
+obj.morex=<argn>
+src.DIALOG d_trap_ground 1
 [EOF]
