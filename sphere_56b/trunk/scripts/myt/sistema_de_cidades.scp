@@ -1,4 +1,81 @@
-[DEFNAME TOWN_PERMISSIONS]
+[COMMENT sistema_de_cidades]
+##################################################################
+##                                                              ##
+##       Mystical Tales Shard - Sistema de cidades v2.0         ##
+##              Galthar, o Errante    11/05/2009                ##
+##                                                              ##
+##################################################################
+
+        -=Tabelas na DB=-
+
+DROP TABLE IF EXISTS `mytserver`.`towns`;
+CREATE TABLE  `mytserver`.`towns` (
+  `region` varchar(45) NOT NULL default 'a_world',
+  `capital` varchar(45) NOT NULL default 'a_world',
+  `type` int(10) unsigned NOT NULL default '1',
+  `master` int(10) unsigned NOT NULL default '0',
+  `permissions` int(10) unsigned NOT NULL default '6032',
+  `tresure` int(10) unsigned NOT NULL default '0',
+  `vaultUID` int(10) unsigned NOT NULL default '0',
+  `color1` int(10) unsigned NOT NULL default '4',
+  `color2` int(10) unsigned NOT NULL default '54',
+  `commercialfee` int(10) unsigned NOT NULL default '5',
+  `buildingfee` int(10) unsigned NOT NULL default '15',
+  `tilelandprice` int(10) unsigned NOT NULL default '13',
+  `tilebuildprice` int(10) unsigned NOT NULL default '22',
+  `tilefixtureprice` int(10) unsigned NOT NULL default '70',
+  `FriendRaces` varchar(255) NOT NULL default 'Anao,Elfo,Drow,Humano,Orc',
+  PRIMARY KEY  (`region`)
+) ENGINE=MyISAM;
+
+DROP TABLE IF EXISTS `mytserver`.`towns_privs`;
+CREATE TABLE  `mytserver`.`towns_privs` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `region` varchar(45) NOT NULL,
+  `position` int(10) unsigned NOT NULL default '999',
+  `title` varchar(24) NOT NULL,
+  `description` varchar(1024) NOT NULL,
+  `privs` int(10) unsigned NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM;
+
+DROP TABLE IF EXISTS `mytserver`.`towns_members`;
+CREATE TABLE  `mytserver`.`towns_members` (
+  `UID` int(10) unsigned NOT NULL default '0' COMMENT '''UID do player''',
+  `region` varchar(45) NOT NULL default 'a_world' COMMENT '''Defname da region''',
+  `priv_id` int(10) unsigned NOT NULL default '999' COMMENT '''id em towns_privs. 0 se banido''',
+  `flags` int(10) unsigned NOT NULL default '0' COMMENT '''Criminal, em debito, preso e etc.'''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+
+        -=Tags utilizadas=-
+ctag.town_region
+ctag.town_page
+ctag.town_type
+
+
+        -=API=-
+town [new|delete|<region.defname>]
+        Dialog de interface com a town
+        - new: Nova Town
+        - delete: tira a town da DB
+        - <region.defname>: Abre o dialog para a dada região
+        - DEFAULT:  Abre o dialog para região em que o player está
+        
+town_getPermissions [<region.defname>]
+        Retorna o bitmask de permissividade da town (ILLEGAL_* e TOWN_CAN_*)
+
+town_addCash <argn>
+        Adiciona <argn> ao tesouro da town e retorna o total
+
+town_Check_Privs <argn>
+        Retorna 1 se DEFAULT tem o privilégio <argn1> nessa town
+        
+town_CheckPrivs <argn1>
+        town_Check_Privs
+
+[DEFNAME sistema_de_cidades]
+//Flags de permissions da town
 ILLEGAL_WARMODE         01      //Entrar em warmode pode?
 ILLEGAL_WEAPON          02      //Arma mais pesada que uma adaga ou cajado
 ILLEGAL_HOOD            04      //Andar de capuz pode?
@@ -13,6 +90,7 @@ TOWN_CAN_AZILUM         0400    //Pode-se pedir azilo
 TOWN_AUTO_AZILUM        0800    //Azilo não precisa de permissão
 TOWN_CAN_PETITION       01000   //Petições abertas para membros
 
+//Nome das permissões da town
 TOWN_PERMISSION_0       Andar em posicao de luta
 TOWN_PERMISSION_1       Andar armado
 TOWN_PERMISSION_2       Andar encapuzado
@@ -27,6 +105,7 @@ TOWN_PERMISSION_10      Pedir cidadania
 TOWN_PERMISSION_11      Cidadania automatica
 TOWN_PERMISSION_12      Abrir peticoes
 
+//DEFNAME das páginas do gump de town
 TOWN_PAGE_FOUND         1       //Fundação da Town. Para GMs
 TOWN_PAGE_REPORT        2       //Informações gerais
 TOWN_PAGE_CONFIG        3       //Configura a town (cores, raca, capital, tipo, cofre...)
@@ -48,6 +127,11 @@ TOWN_PAGE_PETITIONS     18      //Lista petições
 TOWN_PAGE_PETITION      19      //Mostra uma petição
 TOWN_PAGE_AZILUM        20      //Pede para percenter a town
 
+//########################################################################
+//########################################################################
+//      Funções de interface com o sistema
+//########################################################################
+//########################################################################
 [FUNCTION town]
 if (STRMATCH(new,<args>))
  if (<region.defname>==a_world) || (<region.defname>==a_dungeons) || (!<region>)
@@ -72,6 +156,44 @@ else
 endif
 DIALOG d_town
 return 1
+
+[FUNCTION town_getPermissions]
+//Pega as leis de permissividade da town com region=<args> ou da region de DEFAULT.
+if (!<IsEmpty <args>>)
+ local.town=<args>
+else
+ local.town=<region.defname>
+endif
+if (<town_IsTown <local.town>>)
+ DB.QUERY="SELECT permissions FROM towns WHERE region='<DB.ESCAPEDATA <local.town>>'";
+ return <hval <DB.ROW.0.permissions>>
+else
+ return 0ff
+endif
+
+[FUNCTION town_addcash]
+//Adiciona <argn> moedas de cobre ao tesouro da town onde DEFAULT está e retorna o valor
+if (<town_IsTown>)
+ DB.QUERY="SELECT tresure FROM towns WHERE region='<region.defname>';"
+ LOCAL.TRESURE=<DB.ROW.0.tresure>+<argn>
+ DB.QUERY="UPDATE towns SET tresure=<dlocal.tresure> WHERE region='<region.defname>';"
+ return <LOCAL.TRESURE>
+else
+ return 0
+endif
+
+[FUNCTION TOWN_CHECK_PRIVS]
+//Checa se o DEFAULT temo privilégio <argn> na town em que ele está
+return 0
+
+[FUNCTION town_CheckPrivs]
+return <TOWN_CHECK_PRIVS <argn>>
+
+//########################################################################
+//########################################################################
+//      Funções internas do sistema
+//########################################################################
+//########################################################################
 
 [FUNCTION town_IsTown]
 //Determina se existe TOWN na region <ARGS>. Se não há ARGS, usa a region em que DEFAULT está.
@@ -98,7 +220,9 @@ endif
 [FUNCTION town_AddTown]
 //Adiciona como town a region <argv0> com tipo <argv1> com <argv2> como como capital
 //Tipo é 1=Estado maior, 2=sub-região ou 3=região sob administração
-DB.EXECUTE="INSERT INTO towns SET region='<DB.ESCAPEDATA <argv0>>', type=<eval <argv1>>, capital='<DB.ESCAPEDATA <argv2>>';"
+DB.EXECUTE="INSERT INTO towns SET region='<DB.ESCAPEDATA <argv0>>', type=<eval <argv1>>, capital='<DB.ESCAPEDATA <argv2>>', tresure=0;"
+DB.EXECUTE="INSERT INTO towns_privs SET region='<DB.ESCAPEDATA <argv0>>', position=1, title='mestre', description='Mestre. Todos os privilegios. Nao pode ser apagado.', privs=<eval 0FF>;"
+DB.EXECUTE="INSERT INTO towns_privs SET region='<DB.ESCAPEDATA <argv0>>', position=999, title='membro', description='Simples membro. Sem privilegios. Nao pode ser apagado', privs=0;"
 
 [FUNCTION townAddSubTown]
 //Adiciona como town a region <ctag.town_region> com tipo <ctag.town_type> com <ctag.town_capital_<argn>> como como capital
@@ -132,19 +256,13 @@ end
 ctag.town_type=<argn1>
 list_show 1
 
-[FUNCTION town_getPermissions]
-//Pega as leis de permissividade da town com region=<args> ou da region de DEFAULT.
-if (!<IsEmpty <args>>)
- local.town=<args>
-else
- local.town=<region.defname>
-endif
-if (<town_IsTown <local.town>>)
- DB.QUERY="SELECT permissions FROM towns WHERE region='<DB.ESCAPEDATA <local.town>>'";
- return <hval <DB.ROW.0.permissions>>
-else
- return 0ff
-endif
+
+
+//########################################################################
+//########################################################################
+//      Funções para os Botões de Okay
+//########################################################################
+//########################################################################
 
 [FUNCTION d_town_okay_found]
 //OKAY da página TOWN_PAGE_FOUND. ARGN é o tipo da town.
@@ -187,6 +305,12 @@ DB.EXECUTE="UPDATE towns SET permissions=<dlocal.flags> WHERE region='<ctag.town
 ctag.town_page=<DEF.TOWN_PAGE_REPORT>
 DIALOG d_town
 
+
+//########################################################################
+//########################################################################
+//      Funções para os contrução dos gumps
+//########################################################################
+//########################################################################
 
 [FUNCTION town_buildReport]
         //CALL para contruir html e valores de TOWN_PAGE_REPORT
@@ -334,7 +458,15 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_LAWS>)
         button 440 384 247 248 1 0 1
 endif
 
+
+//########################################################################
+//########################################################################
+//      DIALOGS
+//########################################################################
+//########################################################################
+
 [DIALOG d_town]
+//Dialog de interface do sistema
 100,75
 page 0
 resizepic 50 31 2620 500 400
@@ -353,17 +485,17 @@ call d_town_solve
 [DIALOG d_town button]
 ON=1
 // Okay geral
-DOSWITCH <ctag.town_page>
- local.null
- d_town_okay_found <eval <ARGCHK[1]>+(<ARGCHK[2]>*2)+(<ARGCHK[3]>*3)>
- d_town_okay_report
- d_town_okay_config
- d_town_okay_permissions
- call d_town_okay_races
- d_town_okay_bans
- d_town_okay_friends
- d_town_okay_taxes
- call d_town_okay_laws
+DOSWITCH <ctag0.town_page>
+ local.null             //Não tem TOWN_PAGE_*
+ d_town_okay_found <eval <ARGCHK[1]>+(<ARGCHK[2]>*2)+(<ARGCHK[3]>*3)> //TOWN_PAGE_FOUND
+ local.null             //TOWN_PAGE_REPORT
+ town                   //TOWN_PAGE_CONFIG
+ town                   //TOWN_PAGE_PERMISSIONS
+ call d_town_okay_races //TOWN_PAGE_RACES
+ town                   //TOWN_PAGE_BANS
+ town                   //TOWN_PAGE_FRIENDS
+ town                   //TOWN_PAGE_TAXES
+ call d_town_okay_laws  //TOWN_PAGE_LAWS
 ENDDO
 SAy Okay <dctag.town_page>
 
@@ -417,6 +549,6 @@ ON=13
 // Azilum
 // 
 
-
+[EOF]
 
 
