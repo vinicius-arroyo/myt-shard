@@ -73,6 +73,7 @@ CREATE TABLE  `mytserver`.`itemforge` (
   `twohands` varchar(1) NOT NULL,
   `color` int(10) unsigned NOT NULL,
   `create` varchar(255) NOT NULL,
+  `valid` tinyint(3) unsigned NOT NULL default '1',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `byItemdef` USING BTREE (`itemdef`,`revision`)
 ) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
@@ -101,7 +102,7 @@ return <strsub 1,1,<local.s>><strsub 1,1,<local.s>>
 //*****************************************************************************
 // itemforge
 //*****************************************************************************
-// .itemforge [ browse | find {string} | new | insert | edit ]
+// .itemforge [ browse | find {string} | new | insert | edit | export ]
 [FUNCTION itemforge]
 
 //Função principal para client
@@ -123,6 +124,8 @@ elif (STRMATCH(insert,<args>)
 elif (STRMATCH(edit,<args>)
  sysmessageyellow Selecione o ITEM a ser editado:
  targetf itemforge_edit
+elif (STRMATCH(export,<args>)
+ src.sysmessageyellow Exportando para itemforge_data.scp: <sysspawn php itemforge_to_scp.php>
 endif
 return 1
 
@@ -413,6 +416,9 @@ LOCAL.q .= revision=<dLOCAL.rev>
 serv.log [ITEMFORGE] Nova revisao: <LOCAL.q>
 
 DB.EXECUTE <LOCAL.q>
+
+//mark others revisions as OLD
+DB.EXECUTE UPDATE itemforge SET valid=0 WHERE itemdef="<cTAG.itemforge_ItemDef>" and revision < <dLOCAL.rev>
 
 DB.QUERY "SELECT id FROM itemforge WHERE itemdef='<cTAG.itemforge_ItemDef>' ORDER BY revision DESC LIMIT 1"
 if (<DB.ROW.NUMROWS> > 0)
