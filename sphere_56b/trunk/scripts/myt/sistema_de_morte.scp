@@ -68,13 +68,13 @@ tag.morte_horario=<time>/(10)
 tag.morte_local=<p>
 
 hits=1
-flags=<flags>|(statf_dead)
+flags |= statf_dead
 
 //aos fade to black
 sendpacket 02C 0
 
 //desmaia e solta espirito
-f_faint
+f_faint 1
 
 //se puder ficar desmaiado
 if (<tag0.morte_desmaios> < <DEF.max_desmaios>)
@@ -219,7 +219,7 @@ else
 endif
 
 //*****************************************************************************
-// f_faint
+// f_faint <debuff>
 //*****************************************************************************
 //faz com que o char desmaie
 [FUNCTION f_faint]
@@ -228,23 +228,26 @@ if (<tag0.corpse>)
     return 1 //ja esta em faint
 endif
 
-//Testa e retira polymorph
-if (<flags>&statf_polymorph)
-    findid.i_spl_polymorph.trigger=@destroy
-    findid.i_spl_polymorph.remove
+if <argn>
+    //Testa e retira polymorph
+    if (<flags>&statf_polymorph)
+        findid.i_spl_polymorph.trigger=@destroy
+        findid.i_spl_polymorph.remove
+    endif
+
+    //Testa e retira stun
+    if (<flags>&statf_freeze)
+        findid.i_stun.remove
+    endif
+
+    if (<flags>&statf_poisoned)
+        spelleffect s_cure,1000
+    endif
+
+    flags &= ~(statf_war|statf_poisoned)
 endif
 
-//Testa e retira stun
-if (<flags>&statf_freeze)
-    findid.i_stun.remove
-endif
-
-if (<flags>&statf_poisoned)
-    spelleffect s_cure,1000
-endif
-
-flags=<flags>|(statf_invisible|statf_invul|statf_insubstantial)
-flags=<flags>&~(statf_war|statf_poisoned)
+flags |= (statf_invisible|statf_invul|statf_insubstantial)
 
 if (<tag0.comcapuz>)
     capuz
@@ -289,6 +292,7 @@ f_faint
 //***************************************************************************** 
 //acorda um char desmaiado/morto
 [FUNCTION f_wakeup]
+
 body=<obody>
 findid.i_deathshroud.remove
 ref2=<uid>
@@ -306,9 +310,9 @@ p=<ref1.p>
 ref1.remove
 tag.corpse=
 
-flags=<flags>&~(statf_invisible|statf_invul|statf_insubstantial)
+flags &= ~(statf_invisible|statf_invul|statf_insubstantial)
 
-if <flags>|statf_dead
+if <flags>&statf_dead
     hits=1
     findid.i_mry_invul.remove
 
@@ -318,7 +322,7 @@ if <flags>|statf_dead
     flags |= statf_invul
 endif
 
-flags=<flags>&~(statf_dead)
+flags &= ~(statf_dead)
 
 f_correctLight <region.flags>
 if strmatch(<tag.raca>,Elfo)) || strmatch(<tag.raca>,Drow))
