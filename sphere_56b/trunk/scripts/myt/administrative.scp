@@ -7,7 +7,7 @@ SM_ORANGE=02c
 SND_GLASS={{03e 041} 1 {038d 0390} 1}
 SND_THUNDER={05CE 1 028 1 029 1 0206 1}
 
-spellflag_eval_boosts 0400000		//Spellflag. Eval int é 50% do EFFECT
+spellflag_eval_boosts 0400000           //Spellflag. Eval int é 50% do EFFECT
 
 [PLEVEL 6]
 f_connectDB
@@ -395,6 +395,47 @@ IF !(<ISEMPTY <ARGS>>)
   sysmessageorange Removidos <eval <LOCAL.wipe>> instancias de <SERV.RESOURCES.<argv[0]>.NAME>
  endif
 endif
+
+//*****************************************************************************
+// subsObject <DEFNAME>,<new.defname> Remove todos os itens <DEFNAME> do world e substitui por <new.defname>.
+//*****************************************************************************
+[FUNCTION subsObject]
+IF !(<ISEMPTY <ARGV0>>)
+ IF !(<SERV.ITEMDEF.<ARGV0>>) && !(<SERV.CHARDEF.<ARGV0>>)
+  SYSMESSAGE <ARGV0> nao eh um item nem criatura.
+  RETURN 0
+ endif
+endif
+IF !(<ISEMPTY <ARGV1>>)
+ IF !(<SERV.ITEMDEF.<ARGV1>>) && !(<SERV.CHARDEF.<ARGV1>>)
+  SYSMESSAGE <ARGV1> nao eh um item nem criatura.
+  RETURN 0
+ endif
+endif
+
+FORINSTANCES <argv[0]>
+ if (<IsItem>)
+  newitem=<argv1>
+  if (<cont>)
+   new.cont=<cont>
+  else
+   new.p=<p>
+  endif
+  LOCAL.wipe=<local.wipe>+1
+  remove
+ elif (<IsChar>)
+  if (<NPC>)
+   newnpc <argv1>
+   new.p=<p>
+   LOCAL.wipe=<local.wipe>+1
+   remove
+  ENDIF
+ ENDIF
+ENDFOR
+if (<IsGM>)
+ sysmessageorange Removidos <eval <LOCAL.wipe>> instancias de <SERV.RESOURCES.<argv[0]>.NAME>
+endif
+
 
 //*****************************************************************************
 //  CRY Faz o char gritar de dor e animar (compatibilidade com 55i)
@@ -1107,6 +1148,52 @@ LOCAL.ret=<STRSUB 2 STRLEN(<LOCAL.ret>) <LOCAL.ret>>
 VAR.ret=<LOCAL.ret>
 
 //*****************************************************************************
+// uid.RealAR [defname]
+//*****************************************************************************
+//Retorna a AR real de uma armadura, como se fosse equipada.
+//Se não há <argv>, determina a AR de DEFAULT.
+//Se há <argv>, determina a AR do item com DEFNAME=<argv>
+[FUNCTION RealAR]
+if <argv>
+ local.ar=<serv.resources.<argv0>.ARMOR.HI>
+ local.layer=<serv.resources.<argv0>.layer>
+elif <IsArmor>
+ local.ar=<ARMOR.HI>
+ local.layer=<layer>
+else
+ RETURN 0
+endif
+DOSWITCH <local.layer>
+ local.factor=0        //Sem layer 
+ local.factor=0        //layer_hand1
+ local.factor=0        //layer_hand2
+ local.factor=5        //layer_shoes
+ local.factor=20       //layer_pants
+ local.factor=40       //layer_shirt
+ local.factor=10       //layer_helm
+ local.factor=10       //layer_gloves
+ local.factor=0        //layer_ring
+ local.factor=0        //layer_talisman
+ local.factor=5        //layer_collar
+ local.factor=0        //layer_hair
+ local.factor=20       //layer_half_apron
+ local.factor=40       //layer_chest
+ local.factor=0        //layer_wrist
+ local.factor=0        //layer_light
+ local.factor=0        //layer_beard
+ local.factor=40       //layer_tunic
+ local.factor=0        //layer_ears
+ local.factor=10       //layer_arms
+ local.factor=20       //layer_cape
+ local.factor=0        //layer_pack
+ local.factor=70       //layer_robe
+ local.factor=20       //layer_skirt
+ local.factor=25       //layer_legs
+END
+RETURN <eval (<local.factor>*<local.AR>)/100>
+ 
+
+//*****************************************************************************
 // formatDecimal( number )
 //*****************************************************************************
 //o sphere se enrosca quando usa FLOAT. com float ele sempre mostra em
@@ -1602,7 +1689,7 @@ if (<serv.account.<src.account>.plevel>) //jogador regular
  dtext 104 128 166 O servidor esta rodando ha <eval <serv.timeup>/86400> dias desde o ultimo reset.
  dtext 104 144 166 O mundo tem <serv.age> dias, <serv.items> itens e <serv.chars> personagens.
  dtext 104 160 166 O servidor esta usando <eval <serv.mem>/1024>MB de memoria.
-else					//jogador novo. Sem formulario.
+else                                    //jogador novo. Sem formulario.
  dtext 104 128 166 Voce ja tentou responder o formulario de admissao <eval <serv.account.<src.account>.tag.form.try>> vezes.
  dtext 104 144 166 Voce pode modificar suas questoes quando quiser
  dtext 104 160 166 atravez desta janela. Use os guias para maiores detalhes.
