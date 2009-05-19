@@ -516,45 +516,47 @@ return 1
 // craftItem <DEFNAME>
 //*****************************************************************************
 [FUNCTION craftItem]
-if !<argv>
+if !<argv[0]>
     return 0
-elif !<serv.resources.<args>>
+elif !<serv.resources.<argv[0]>>
     return 0
 endif
 
 obj=<src.findid.i_faz_item>
 obj.cleartags
-obj.tag.delay=<MAXIMUM 3,<eval <serv.resources.<args>.SKILLMAKE.1.val>/33>>
-obj.tag.skill=<serv.skill.<DEF.<serv.resources.<args>.SKILLMAKE.1.key>>.key>
-obj.tag.dif=<eval <serv.resources.<args>.SKILLMAKE.1.val>/10>
+obj.tag.skill=<serv.skill.<DEF.<serv.resources.<argv[0]>.SKILLMAKE.1.key>>.key>
+obj.tag.dif=<eval <serv.resources.<argv[0]>.SKILLMAKE.1.val>/10>
 
-LOCAL.c=<serv.resources.<args>.resources.count>
+LOCAL.c=<serv.resources.<argv[0]>.resources.count>
 for R 1 <LOCAL.c>
-    try obj.tag.res<dLOCAL.R>=<serv.resources.<args>.RESOURCES.<dLOCAL.R>.key>
-//    try obj.tag.nam<dLOCAL.R>=<serv.resources.<serv.resources.<args>.RESOURCES.<dLOCAL.R>.key>.name>
-    try obj.tag.amt<dLOCAL.R>=<serv.resources.<args>.RESOURCES.<dLOCAL.R>.val>
+    try obj.tag.res<dLOCAL.R>=<serv.resources.<argv[0]>.RESOURCES.<dLOCAL.R>.key>
+    try obj.tag.amt<dLOCAL.R>=<serv.resources.<argv[0]>.RESOURCES.<dLOCAL.R>.val>
 endfor
-obj.tag.item=<args>
+obj.tag.item=<argv[0]>
+obj.tag.amt=<MAXIMUM 1,0<argv[0]>>
 
 //Casos especiais
-if <obj.tag.skill>==Blacksmithing
-    obj.tag.anim=9
-    obj.tag.sfx=02a
-    obj.tag.espid=i_alicate
-    obj.tag.espname=alicate
-    obj.tag.neartype=t_forge        
-    obj.tag.nearname=forja acesa
-    if <serv.resources.<serv.resources.<args>.TDATA3>>
-        obj.tag.item=<serv.resources.<args>.TDATA3>
-        obj.tag.f_done=f_setItemTag <args>,
-    endif
-    obj.tag.emote=forjando
-    obj.tag.scrap=i_foligem_bs
-endif
+call craft_<serv.resources.<argv[0]>.type> <argv[0]>
 
-src.fazitem
+src.fazitem <argv[1]>
 return 1
 
+[FUNCTION craft_t_weapon_fence]
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge        
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.f_done=f_setItemTag <argv[0]>,
+obj.tag.emote=forjando
+obj.tag.scrap=i_foligem_bs
+obj.tag.delay=<eval ((STRLEN(<serv.resources.<argv[0]>.resources>))/2)+<MAXIMUM 3,<eval <serv.resources.<argv[0]>.SKILLMAKE.1.val>/33>>>
+local.craftable=1
+
+[FUNCTION craft_t_weapon_sword]
+call craft_t_weapon_fence
 
 //*****************************************************************************
 //*****************************************************************************
@@ -774,5 +776,117 @@ ON=6                //MAXIMO
     src.dialog=d_fazitem
     src.update
     return
+
+// Created 19/5/2009 01:06:30, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+
+[DEFNAME craft_menu]
+CRAFT_PAGE_LIST         1
+CRAFT_PAGE_INFO         2
+CRAFT_PAGE_CRAFT        3
+
+[FUNCTION craftmenu]
+if (<IsEmpty <args>>)
+ return 0
+elif (<serv.itemdef.<args>>)
+ ctag.craft_item=<args>
+ ctag.craft_page=<DEF.CRAFT_PAGE_CRAFT>
+//elif (<serv.skill.<args>>)
+endif
+DIALOG d_crafting
+
+[FUNCTION craft_info_craft]
+local.t=<DEF.BFONT_DCYAN>DIFICULDADE:<DEF.BFONT_WHITE><DEF.BR>
+local.t .= <fval <serv.itemdef.<args>.skillmake.0.val>>% <serv.skill.<serv.itemdef.<args>.skillmake.0.key>.name><DEF.BR>
+if (<serv.resources.<args>_exp>)
+ LOCAL.SKILL=<fval <src.<DEF.<serv.itemdef.<args>.skillmake.0.key>>>>
+ LOCAL.DIFFIC=<MAXIMUM 1.0, <eval <LOCAL.SKILL>-<serv.itemdef.<args>.skillmake.0.val>>>
+ LOCAL.CHANCE=<eval <MINIMUM 625,<LOCAL.DIFFIC>,<Armslore>>/5>
+ local.t .= <fval <local.chance>>% de chance para Excepcional<DEF.BR>
+endif
+local.t .=<DEF.BR>
+local.t .=<DEF.BFONT_DCYAN>MATERIA PRIMA:<DEF.BFONT_WHITE><DEF.BR>
+local.i=1
+WHILE (<serv.itemdef.<args>.resources.<local.i>.val>)
+ local.t .= -<eval <serv.itemdef.<args>.resources.<local.i>.val>> <serv.itemdef.<serv.itemdef.<args>.resources.<local.i>.key>.name><DEF.br>
+ local.i += 1
+END
+
+return <local.t>
+
+[FUNCTION d_crafting_solve]
+if (<ctag.craft_page>==<DEF.CRAFT_PAGE_CRAFT>) || (<ctag.craft_page>==<DEF.CRAFT_PAGE_INFO>)
+        resizepic 20 40 2620 150 175
+        tilepic 28 50 <eval <serv.itemdef.<ctag.craft_item>.id>>
+        button 25 365 5603 5607 1 0 3
+        resizepic 180 40 2620 300 320
+        dtext 190 50 3 Item:
+        dtext 228 50 86 <serv.itemdef.<ctag.craft_item>.name>
+        dhtmlgump 190 74 284 278 0 1 <craft_info_craft <ctag.craft_item>>
+        resizepic 20 225 2620 150 136
+        button 29 239 2224 248 1 0 4
+        dtext 51 235 66 Geral
+        button 29 256 2224 248 1 0 5
+        dtext 51 252 66 Manofatura
+        dtext 57 286 86 Qtd.:
+        resizepic 93 284 9200 31 26
+        dtextentry 100 287 18 20 0 0 1
+        button 61 319 2443 2444 1 0 6
+        dtext 75 320 33 Fazer
+else
+        resizepic 20 40 2620 460 320
+        dhtmlgump 30 50 440 18 0 0 linha
+        button 30 74 2224 248 1 0 101
+        dtext 50 70 2100 Sub-menu
+        button 32 95 2103 248 1 0 1001
+        dtext 50 90 2100 Item
+        button 25 365 5603 5607 1 0 1
+        button 465 365 5601 5605 1 0 2
+        dtext 232 365 2100 1/12
+endif
+[DIALOG d_crafting]
+100,75
+page 0
+resizepic 0 0 2620 500 400
+checkertrans 5 7 490 385
+gumppic 175 14 2501
+dtext 185 14 26 Mystical Tales Shard
+call d_crafting_solve
+
+[DIALOG d_crafting text]
+
+[DIALOG d_crafting button]
+ON=1
+// -pg
+// 
+
+ON=2
+// +pg
+// 
+
+ON=3
+// Back
+// 
+
+ON=4
+// Info geral
+// 
+
+ON=5
+// info craft
+// 
+
+ON=6
+// Craft item
+craftItem <ctag.craft_item>,<argtxt[0]>
+
+ON=101 1000
+// Categorias
+// 
+
+ON=1001 65535
+// Itens
+// 
 
 [EOF]
