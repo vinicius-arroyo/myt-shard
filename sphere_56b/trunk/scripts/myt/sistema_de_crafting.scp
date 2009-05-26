@@ -416,7 +416,8 @@ if (<tag0.wmakefurn>)
 endif
 
 if (<new.type>==t_incomplete_forged)
-    if (STRMATCH(t_weapon*,<serv.itemdef.<new.tag0.item>.type>)) || (STRMATCH(t_armo*,<serv.itemdef.<new.tag0.item>.type>))
+    local.type=<serv.itemdef.<streat <tag.f_done>>.type>
+    if (STRMATCH(t_weapon*,<local.type>)) || (STRMATCH(t_armo*,<local.type>))
         generateWpnMaxHits
     endif
 elif (<new.IsWeapon>) || (<new.type>==t_armor) || (<new.type>==t_armor_leather) || (<new.type>==t_shield)
@@ -525,8 +526,6 @@ endif
 
 obj=<src.findid.i_faz_item>
 obj.cleartags
-obj.tag.skill=<serv.skill.<DEF.<serv.resources.<argv[0]>.SKILLMAKE.1.key>>.key>
-obj.tag.dif=<eval <serv.resources.<argv[0]>.SKILLMAKE.1.val>/10>
 
 LOCAL.c=<serv.resources.<argv[0]>.resources.count>
 for R 1 <LOCAL.c>
@@ -534,10 +533,23 @@ for R 1 <LOCAL.c>
     try obj.tag.amt<dLOCAL.R>=<serv.resources.<argv[0]>.RESOURCES.<dLOCAL.R>.val>
 endfor
 obj.tag.item=<argv[0]>
-obj.tag.amt=<MAXIMUM 1,0<argv[0]>>
+obj.tag.dif=<eval <serv.resources.<argv[0]>.SKILLMAKE.1.val>/10>
+obj.tag.skill=<serv.skill.<DEF.<serv.resources.<argv[0]>.SKILLMAKE.1.key>>.key>
 
 //Casos especiais
-call craft_<serv.resources.<argv[0]>.type> <argv[0]>
+call craft_<serv.resources.<argv[0]>.baseid>
+if (!<local.craftable>)
+    call craft_<serv.resources.<argv[0]>.type> <argv[0]>
+endif
+if (!<local.craftable>)
+    call craft_<serv.resources.<argv[0]>.skillmake.0.key> <argv[0]>
+endif
+if (!<local.craftable>)
+    obj.tag.dif=<eval <serv.resources.<argv[0]>.SKILLMAKE.1.val>/10>
+    obj.tag.delay=<eval <serv.resources.<argv[0]>.SKILLMAKE.1.val>/22>
+    obj.tag.anim=6
+    obj.tag.emote=trabalhando
+endif
 
 src.fazitem <argv[1]>
 return 1
@@ -704,7 +716,7 @@ else
         endif
 
         if !(strmatch(<tag.f_done>,))
-            TRY cont.<tag.f_done> <LOCAL.u>
+            TRYSRC <cont> cont.<tag.f_done> <LOCAL.u>
         endif
     else
         return 1
