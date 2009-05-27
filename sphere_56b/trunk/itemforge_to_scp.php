@@ -77,8 +77,12 @@ function writeItem($DB){
 	writeln("TDATA2=".$DB->f('tdata2'));
 	writeln("TDATA3=".$DB->f('tdata3'));
 	writeln("TDATA4=".$DB->f('tdata4'));
-	writeln("DAM=".$DB->f('dam'));
-	writeln("ARMOR=".$DB->f('armor'));
+
+	if( strlen($DB->f('dam')) > 0 )
+		writeln("DAM=".$DB->f('dam'));
+	else if( strlen($DB->f('armor')) > 0 )
+		writeln("ARMOR=".$DB->f('armor'));
+
 	writeln("SPEED=".$DB->f('speed'));
 	writeln("SKILL=".$DB->f('skill'));
 	writeln("REQSTR=".$DB->f('reqstr'));
@@ -105,7 +109,7 @@ $fp = 0;
 fileOpen();
 writeFileHeader();
 
-$DB->query("SELECT * FROM itemforge WHERE valid=1 ORDER BY category,subsection,name");
+$DB->query("SELECT *, FORMAT(weight/10,1) AS weight FROM itemforge WHERE valid=1 ORDER BY category,subsection,name");
 while( $DB->next_record() ){
 
 	if( $DB->f('category') != $category  || $DB->f('subsection') != $section ){
