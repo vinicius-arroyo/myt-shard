@@ -159,6 +159,51 @@ ELSE
 ENDIF
 craft_loadLevel <ctag0.craft_level>
 
+[FUNCTION craft_TargItemAdd]
+if (<argo>) && (<argo.IsItem>)
+ ctag.craft_item=<argo.baseid>
+else
+ sysmessagered Item invalido.
+ENDIF
+DIALOG d_crafting
+
+[FUNCTION craft_ItemForgeListCatAdd]
+list_new "ItemForge -  Selecione a categoria"
+list_newDbCol 25,category,Categoria
+list_setAction craft_ItemForgeListSubAdd
+list_setActionBack DIALOG d_crafting
+list_loadFromDb "SELECT DISTINCT category FROM itemforge ORDER BY category"
+list_show 1
+
+[FUNCTION craft_ItemForgeListSubAdd]
+if <argn>
+    LOCAL.category_id=<argn>
+    CTAG.itemforge_category=<cTAG.list_row<LOCAL.category_id>_01>
+endif
+list_new "ItemForge - <CTAG.itemforge_category> -> Selecione a secao"
+list_newDbCol 25,subsection,Secao
+list_setAction craft_ItemForgeListItemAdd
+list_setActionBack itemforge_DBlistCats
+list_loadFromDb "SELECT DISTINCT subsection FROM itemforge WHERE category='<CTAG.itemforge_category>' ORDER BY subsection"
+list_show 1
+
+[FUNCTION  craft_ItemForgeListItemAdd]
+LOCAL.subsection_id=<argn>
+CTAG.itemforge_subsection=<cTAG.list_row<LOCAL.subsection_id>_01>
+//sysmessageyellow [LIST] - Procurando por category='<CTAG.itemforge_category>' and subsection='<CTAG.itemforge_subsection>'
+list_new "ItemForge - <CTAG.itemforge_category> -> <CTAG.itemforge_subsection> -> Selecione o item"
+list_newDbCol 25,itemdef,Itemdef
+list_newDbCol 200,name,Nome
+list_setAction craft_ItemForgeListItemAddItem
+list_setActionBack craft_ItemForgeListSubAdd
+list_loadFromDb "SELECT itemdef,name FROM itemforge WHERE category='<CTAG.itemforge_category>' and subsection='<CTAG.itemforge_subsection>' ORDER BY itemdef"
+list_show 1
+
+[FUNCTION craft_ItemForgeListItemAddItem]
+LOCAL.id=<argn>
+ctag.craft_item=<cTAG.list_row<LOCAL.id>_01>
+DIALOG d_crafting
+
 [FUNCTION craft_addRestrictionSkill]
 ctag.craft_addRestriction=
 list_new Escolha a skill:
@@ -289,7 +334,7 @@ endif
 return 0
 
 [FUNCTION craft_drawRestriction]
-dorigin 30 155
+dorigin 30 195
 for i 2 <argv>  //Começa no 2 pq a função Explode retorna ';xxx;yyy;zzz...'
  button - *20 4017 4017 1 0 <eval 5000+<local.i>>
  dtext +35 +1 2100 <argv[<eval <local.i>-1>]>
@@ -457,7 +502,10 @@ elif (<ctag.craft_task>==<DEF.CRAFT_PAGE_ADD_ITEM>)
         resizepic 37 144 9200 431 26
         dtext 44 146 4 Defname:
         dtextentry 100 147 300 20 0 0 <QVAL <IsEmpty <ctag.craft_item>>?i_:<ctag.craft_item>>
-        button 436 146 9011 9011 1 0 0//Itemforge
+        button 50 175 9011 9011 1 0 15//Itemforge
+        dtext 75 175 152 Procurar no Item Forge
+        button 50 195 9011 9011 1 0 16//Targ no world
+        dtext 75 195 152 Selecionar no world
         if (!<IsEmpty <ctag.craft_Restriction>>)
          call craft_drawRestriction <explode ;, <ctag.craft_Restriction>>
         endif
@@ -553,8 +601,18 @@ sysmessagered Nao implementado. PASSA AMANHA!
 DIALOG d_crafting
 
 ON=14
+//Custom Restriction
 ctag.craft_item=<ARGTXT[0]>
 craft_addRestrictionCustom
+
+ON=15
+//Pegar itemdef pelo Itemforge
+craft_ItemForgeListCatAdd
+
+ON=16
+//Selecionar do world
+sysmessageyellow Selecione o item:
+targetf craft_TargItemAdd
 
 ON=100
 //Botão OKAY
