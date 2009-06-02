@@ -402,30 +402,30 @@ timer=1
 more2={12 30}
 
 ON=@TIMER
-cont.effect 3 i_fire 0 64 0
-cont.bark
-if (<cont.tag.pegandofogo>==1)
-dorand 5
-cont.emotered pegando fogo
-cont.anim 9
-cont.anim 10
-cont.emotered se debate
-enddo
-if (<cont.hits> >= 4)
-LOCAL.dam={0 6 1 3 2 2 3 1}
-cont.damage <eval <LOCAL.dam>> 010 <UID>
-timer=1
+link.effect 3 i_fire 0 64 0
+link.bark
+if (<link.tag.pegandofogo>==1)
+ dorand 5
+  link.emotered pegando fogo
+  link.anim 9
+  link.anim 10
+  link.emotered se debate
+ enddo
+ if (<link.hits> >= 4)
+  LOCAL.dam={0 6 1 3 2 2 3 1}
+  link.damage <eval <LOCAL.dam>> 010 <UID>
+  timer=1
+ else
+  link.tag.pegandofogo= //apaga a tag pegando fogo
+  remove // remove a memory pegando fogo
+ endif
 else
-cont.tag.pegandofogo= //apaga a tag pegando fogo
-remove // remove a memory pegando fogo
-endif
-else
-remove
+ remove
 endif
 more2=<more2>-1
 if (!<more2>)
-cont.tag.pegandofogo=
-remove
+ link.tag.pegandofogo=
+ remove
 endif
 return 1
 
@@ -657,15 +657,16 @@ new.timer=<local.timer>
 
 
 [FUNCTION f_pega_fogo]
-if !<src.RESTEST 1 i_mry_pegandofogo> && !<isgm> && !(<flags>&statf_invul)
-src.effect 3 i_fire 0 64 0
-src.tag.pegandofogo=1
-src.newitem=i_mry_pegandofogo
-src.act.equip
-src.update
-src.sfx 015f
-LOCAL.dam=<eval {5 15}>
-src.damage <LOCAL.dam> 010
+if !<RESTEST 1 i_mry_pegandofogo> && !<isgm> && !(<flags>&statf_invul)
+ effect 3 i_fire 0 64 0
+ tag.pegandofogo=1
+ newitem=i_mry_pegandofogo
+ new.link=<uid>
+ act.equip
+ update
+ sfx 015f
+ LOCAL.dam=<eval {5 15}>
+ damage <LOCAL.dam> 010
 endif
 
 
@@ -941,7 +942,7 @@ if !(<IsEmpty <tag.modskill>>) && !(<IsEmpty <tag.modskillval>>)
  local.maxincrease=<eval 125.0-<link.<DEF.Skill_<tag.modskill>>>>
  local.maxdecrease=-<link.<DEF.Skill_<tag.modskill>>>
  tag.modskilltrue=<maximum <local.maxdecrease>,<minimum <tag.modskillval>,<local.maxincrease>>>
- link.<DEF.Skill_<tag.modskill>> += <tag.tag.modskilltrue>
+ link.<DEF.Skill_<tag.modskill>> += <tag.modskilltrue>
 endif
 
 on=@unequip
@@ -949,6 +950,7 @@ if !(<IsEmpty <tag.modskill>>) && !(<IsEmpty <tag.modskillval>>)
  link.<DEF.Skill_<tag.modskill>> -= <tag0.modskilltrue>
  tag.modskilltrue=
 endif
+link=04fffffff
 
 [ITEMDEF i_mry_buffskill]
 ID=0208F
@@ -967,14 +969,14 @@ RETURN 1
 
 [FUNCTION BuffSkill]
 //ARGV0=skill, ARGV1=valor, ARGV3=tempo
-if (!<serv.skill.<argv0>>) || (0<argv1>==0) || (!<argv2>)
+if (!<serv.skill.<argv0>>) || (0<argv1>==0)
  return 0
 endif
 if (<IsItem>)
  events +e_BuffSkill
  tag.modskill=<argv0>
  tag.modskillval=<fval <argv1>>
-else
+elif (0<argv2>)
  newitem i_mry_buffskill
  new.tag.modskill=<argv0>
  new.tag.modskillval=<argv1>
