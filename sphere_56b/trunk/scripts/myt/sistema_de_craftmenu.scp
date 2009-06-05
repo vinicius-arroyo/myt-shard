@@ -13,25 +13,69 @@ CRAFT_PAGE_ADD_MENU     7
 CRAFT_PAGE_ADD_FUNCTION 8
 CRAFT_PAGE_ADD_ITEM     9
 
+[TYPEDEF t_crafting_tool]
+ON=@DClick
+IF (<topobj>!=<src>)
+ IF (<cont>)
+  src.sysmessageyellow Nao da para usar <name> aonde esta.
+  return 1
+ ELIF (<distance <src>> > 1)
+  src.sysmessageyellow Muito longe...
+  return 1
+ endif
+endif
+src.craftmenu <TDATA1>
+return 1
+
+ON=@ClientToolTip
+IF (<attr>&01)//Identificado
+ local.t=Estado: <DEF.BFONT_LBLUE><HITS>/<MAXHITS>
+ local.t .= <DEF.BR><DEF.BFONT_white>Qualidade: <DEF.BFONT_LBLUE>
+ DOSWITCH <eval (<maxhits>*6)/<TDATA4>>
+  local.t .= Pessima
+  local.t .= Duvidosa
+  local.t .= Media
+  local.t .= Boa
+  local.t .= Excelente
+  local.t .= Excepcional
+ ENDDO
+ELSE
+ local.t="Estado: "
+ DOSWITCH <eval (<hits>*5)/<maxhits>>
+  local.t .= Quebrando-se
+  local.t .= Deteriorado
+  local.t .= Boas condicoes
+  local.t .= Semi-novo
+  local.t .= Novo em folha
+  local.t .= Novo em folha
+ ENDDO
+ local.t .= "<DEF.BR>Qualidade: "
+ DOSWITCH <eval (<maxhits>*3)/<TDATA4>>
+  local.t .= Duvidosa
+  local.t .= Media
+  local.t .= Boa
+  local.t .= Boa
+ ENDDO
+ENDIF
+src.f_sendTooltipData <name>
+src.f_sendTooltip <name>,<local.t>
+return 1
+
 [FUNCTION craftmenu]
 if (<IsEmpty <args>>)
  if (<IsGM>)
-  ctag.craft_level=0
-  ctag.craft_task=<DEF.CRAFT_PAGE_ROOT>
   craft_loadLevel 0
-  return 1
  else
   return 0
  endif
 elif (<IsNum <argv0>>)
-  ctag.craft_level=<argn>
-  ctag.craft_task=<DEF.CRAFT_PAGE_LIST>
+ craft_loadLevel <argn>
 elif (<serv.itemdef.<args>>)
  ctag.craft_item=<args>
  ctag.craft_task=<DEF.CRAFT_PAGE_CRAFT>
-//elif (<serv.skill.<args>>)
+ DIALOG d_crafting
 endif
-DIALOG d_crafting
+return 1
 
 [FUNCTION craft_clear]
 //limpa as tags do sistema, menos tabelas.
