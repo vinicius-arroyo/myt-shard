@@ -36,10 +36,34 @@ src.act=0
 src.ctag.disturb=0
 serv.newitem i_meditation
 new.cont=<src>
-new.morep=<src.p>
-new.more2=<between 6,60,<src.meditation>,1000>
-new.more2=<eval 600/<new.more2>>
+new.morex=<src.p.x>
+new.morey=<src.p.y>
+new.more2=<src.meditation_timer>
 return 1
+
+[FUNCTION meditation_timer]
+//*****************************************************************************
+//meditation_timer
+//*****************************************************************************
+//Tempo de acordo com Medit. 2 minutos a 30 segundos.
+local.dt=<eval ((-9*<meditation>)/10)+1200>
+
+//Penalidade de tempo por INT. f(int)=penalidade => f(50)=10 =>f(100)=0
+local.dt += <eval 200-(2*<INT>)>
+
+//deltaT em função de MAXMANA
+local.dt /= <MAXMANA>
+
+return <local.dt>
+
+[FUNCTION meditation_skillgain]
+//*****************************************************************************
+//meditation_timer
+//*****************************************************************************
+if (<restest 1 i_meditation>)
+ skill_gain SKILL_MEDITATION
+ timerf 1,meditation_skillgain
+endif
 
 //*****************************************************************************
 //*****************************************************************************
@@ -50,8 +74,7 @@ return 1
 //*****************************************************************************
 // i_meditation
 //*****************************************************************************
-//morex: active
-//more1: counter
+//morez: active
 //more2: time between increases
 [ITEMDEF i_meditation]
 ID=i_deed
@@ -62,29 +85,27 @@ LAYER=layer_special
 ON=@CREATE
 //not meditating
 morex=0
-more1=0
 timer=1
 
 ON=@TIMER
-timer=1
+timerd = <more2>
 
 //statf_dead|statf_freeze|statf_sleeping|statf_war|statf_poisoned|statf_polymorph|statf_stone|statf_hallucinating|statf_onhorse|statf_spiritspeak
-if (<cont.flags>&0804414b6) || (<cont.ctag0.disturb>) || (<morex>!=<cont.p.x>) || (<morey>!=<cont.p.y>)
+if (<cont.flags>&0804414b6) || (<cont.ctag0.disturb>) || (<morex>!=<cont.p.x>) || (<morey>!=<cont.p.y>) || (<cont.action> > 0) || (!<cont.isonline>)
     cont.sysmessageyellow Voce perdeu a concentracao!!
     cont.meditation_leave
     remove
     return 1
 endif
 
-if !<morex>
+if !<morez>
     cont.sysmessagegreen Entrou em transe!
     cont.meditation_enter
-    morex=1
-elif <more1> < <serv.time>
-
-    cont.skill_gain SKILL_MEDITATION
-    more1 = <eval <serv.time>+<more2>>
+    cont.meditation_skillgain
+    morez=1
     
+else
+
     if <cont.mana> < <cont.maxmana>
         cont.mana += 1
         LOCAL.d=1
@@ -96,13 +117,16 @@ elif <more1> < <serv.time>
     endif
     
     if !<LOCAL.d>
-        cont.sysmessagegreen Voce se sente recuperado!!
+        cont.sysmessagegreen Voce se sente recuperado!
         cont.meditation_leave
         remove
     else
-        dorand 8
+        dorand 14
             cont.emoteyellow em transe
             cont.anim 17
+            cont.psfx <hval {01f9 1 01fa 1 01fb 1 0511 1}>
+            cont.sysmessagegreen A meditacao esta lhe revigorando
+            cont.emoteyellow em transe
         enddo
     endif
 endif
@@ -113,18 +137,17 @@ return 1
 //*****************************************************************************
 [FUNCTION meditation_enter]
 events +e_no_attack
-//events +e_no_dclick
+events +e_no_dclick
 ctag.disturb=0
-serv.newitem i_speak_disturb
-new.cont=<uid>
+dspeech +spk_disturb
 
 //*****************************************************************************
 // meditation_leave
 //*****************************************************************************
 [FUNCTION meditation_leave]
 events -e_no_attack
-//events -e_no_dclick
-consume 1 i_speak_disturb
+events -e_no_dclick
+dspeech -spk_disturb
 
 //*****************************************************************************
 // setRegenBasePm hp,mana,stam
