@@ -93,12 +93,16 @@ menu m_gm_tranca
 [FUNCTION CHECK_TARG_OWNER_PRESENSE]
 REF1=<targ>
 forplayers 3
-    if (<isonline>)
-        if (<uid>==<REF1.tag0.dono>) || (<uid>==<REF1.tag0.owner>)
-            return 1
-        endif
-    endif
-endfor
+ if (<isonline>)
+  if (<uid>==<REF1.tag0.dono>) || (<uid>==<REF1.tag0.owner>)
+   return 1
+  elif (<ref1.link.type>==t_multi_custom)
+   if (<ref1.link.CustomH_IsOwner <uid>>) || (<ref1.link.CustomH_FriendCanLock <uid>>)
+    return 1
+   endif
+  endif
+ endif
+end
 return 0
 
 //*****************************************************************************
@@ -117,7 +121,7 @@ doswitch (<argv0>)
 enddo
 new.more1=<R01000,0ffff> //codigo
 new.attr |= attr_newbie
-src.bounce <new>
+bounce <new>
 return <new>
 
 //*****************************************************************************
@@ -173,10 +177,10 @@ elif <more1> > 8
     src.sysmessagered Esta quebrado...
     return 1
 //cria chave no primeiro uso    
-elif !<more2>
-    obj=<f_makekey <more1>>
-    more2=<obj.more1>
-    obj.bounce
+//elif !<more2>
+//    obj=<f_makekey <more1>>
+//    more2=<obj.more1>
+//    obj.bounce
 endif
 
 src.sysmessagegreen Selecione a porta ou o container para instalar
@@ -185,34 +189,25 @@ return 1
 
 
 ON=@targon_char
-src.sysmessagered Nao e possivel instalar <def.LOCK_NAME_<more1>> neste local.
+src.sysmessagered Nao eh possivel instalar <def.LOCK_NAME_<more1>> neste local.
 return 1
 
 ON=@targon_item
 if (<src.targ.distance> > 1) && (!<src.IsGM>)
     src.sysmessageyellow Chegue mais perto.
     return 1
-elif (<src.tinkering> < <DEF.LOCK_MIN_SKILL_<more1>>)
-    src.sysmessageyellow Voce nao tem conhecimento suficiente para instalar esta fechadura.
-    return 1
-elif (<src.targ.type>==t_door_locked) || (<src.targ.type>==t_container_locked)
-    src.sysmessageyellow Destranque para poder instalar.
-    return 1
-elif (<src.targ.type>==t_door) || (<src.targ.type>==t_container)
+elif (<src.targ.type>==t_door) || (<src.targ.type>==t_container) || (<src.targ.type>==t_door_locked) || (<src.targ.type>==t_container_locked)
     if (<src.targ.baseid>==i_door_secret_stone_1) || (<src.targ.baseid>==i_door_secret_stone_2) || (<src.targ.baseid>==i_door_secret_stone_3) || (<src.targ.baseid>==i_door_secret_stone_4) || (<src.targ.baseid>==i_door_secret_stone_4_O) || (<src.targ.baseid>==i_door_secret_wood_1) || (<src.targ.baseid>==i_door_secret_wood_2)
         src.sysmessagered Nao se coloca tranca em porta secreta.
         return 1
-    elif (!<src.targ.tag0.dono>) && (!<src.targ.tag0.owner>) && (!<src.IsGM>)
+    elif (!<src.targ.tag0.dono>) && (!<src.targ.tag0.owner>) && (!<src.IsGM>) && (!<src.targ.tag0.fixture>)
         src.sysmessagered Este eh um bem publico. Nao pode ser trancado.
         return 1
     elif (!<src.CHECK_TARG_OWNER_PRESENSE>) && !<src.isgm>
-        src.sysmessagered Voce so deve instalar na presenca do dono.
+        src.sysmessagered Voce so deve instalar na presenca do dono ou responsavel.
         return 1
     else
-        if <more1>==<def.FECHADURA_QUEBRADA> 
-            src.sysmessagered Esta quebrado, nao pode instalar.
-            return 1
-        elif <more1>==<def.FECHADURA_CADEADO> 
+        if <more1>==<def.FECHADURA_CADEADO> 
             if (<src.targ.baseid>==i_basket_bushel) || (<src.targ.baseid>==i_pouch) || (<src.targ.baseid>==i_basket_2) || (<src.targ.baseid>==i_backpack) || (<src.targ.baseid>==i_bag) || (<src.targ.baseid>==i_barrel_open) || (<src.targ.baseid>==i_basket_round) || (<src.targ.baseid>==i_basket_square) || (<src.targ.baseid>==i_tub_empty) || (<src.targ.baseid>==i_keg_small) || (<src.targ.baseid>==i_basin)
                 src.sysmessagered Nao e possivel trancar isto com cadeado.
                 return 1
@@ -316,25 +311,28 @@ endif
 //*****************************************************************************
 
 //*****************************************************************************
-// i_fechadura
+// i_fechadura (MOVIDO PARA O ITEMFORGE)
 //*****************************************************************************
-[ITEMDEF i_fechadura]  
-ID=0E7A//012ab
-NAME=Kit Fechadura
-RESOURCES=i_springs, i_gears,
+[COMMENT i_fechadura]  
+ID=0E7A
+NAME=Fechadura simples
+RESOURCES=1 i_springs, 2 i_gears
+SKILLMAKE=Tinkering 57.5
 TYPE=t_fechadura
+VALUE=75
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Chaveiro
-DESCRIPTION=Fechadura
+DESCRIPTION=Fechadura simples
 
 ON=@CREATE
-color=03cf // AO CRIAR A FECHADURA COM O SISTEMA DE TINKERING PRECISA COLOCAR O MORE1 COM O TIPO DE FECHADURA
-more1=2  // retirar isto quando unir ao sistema de tinker
+color=03cf
+more1=2
+
 
 //*****************************************************************************
-// i_cadeado
+// i_cadeado (MOVIDO PARA O ITEMFORGE)
 //*****************************************************************************
-[ITEMDEF i_cadeado]  
+[COMMENT i_cadeado]  
 ID=0dcf
 NAME=Cadeado
 RESOURCES=i_springs, i_gears,
@@ -546,20 +544,32 @@ ATTR=attr_newbie
 
 ON=@TIMER
 if !(<cont.p.x> == <morex>) || !(<cont.p.y> == <morey>)
-    cont.sysmessagered Voce interrompeu a instalacao
+    cont.sysmessagered Voce falhou ao instalar a fechadura.
     serv.newitem=i_fechadura
     new.more1=<more1>
     cont.bounce <new>
     remove
     return 1
 elif <cont.isgm>
-
+    local.nothing=
 elif (<more2>>=20) && (<more1>==<DEF.FECHADURA_SIMPLES>)   // se é simples
-    
+    if (!<belltest <cont.tinkering>,325>) && (<R0,4>) //1/5 de chance de sempre conseguir
+     morep=0
+     timer=1
+     return 1
+    endif
 elif (<more2>>=30) && (<more1>==<DEF.FECHADURA_NORMAL>)    // se é normal
-
+    if (!<belltest <cont.tinkering>,550>) && (<R0,7>) //1/8 de chance de sempre conseguir
+     morep=0
+     timer=1
+     return 1
+    endif
 elif (<more2>>=40) && (<more1>==<DEF.FECHADURA_COMPLEXA>)  // se é complexa
-
+    if (!<belltest <cont.tinkering>,825>) && (<R0,11>) //1/12 de chance de sempre conseguir
+     morep=0
+     timer=1
+     return 1
+    endif
 else
     dorand 6
       cont.emoteyellow instalando fechadura
@@ -571,7 +581,8 @@ else
     return 1
 endif
 link.tag.fechadura=<more1>
-link.more1=<tag.code>
+obj=<cont.f_makekey <more1>>
+link.more1=<obj.more1>
 cont.emotegreen terminou de instalar
 cont.Skill_Gain Skill_Tinkering
 remove
