@@ -1,0 +1,148 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL MINING por
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//TODO:
+
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_ore
+//*****************************************************************************
+[TYPEDEF t_ore]
+
+ON=@DCLICK
+if <link> && (<link>!=04FFFFFFF)
+    src.sysmessageyellow Esse minerio ja esta sendo usado por outra pessoa.
+    return 1
+elif <amount> < 10
+    src.sysmessageyellow Voce precisa de pelo menos 10 minerios para fazer lingotes.
+    return 1
+endif
+
+link=<src>
+mining_smelt
+
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// mining_canSmelt
+//*****************************************************************************
+[FUNCTION mining_canSmelt]
+
+if <amount> < 10
+    link.sysmessageyellow Junte mais <eval 10-<amount>> minerios para continuar.
+    return 0
+endif
+
+if !<link.isneartype t_forge 2> && !<link.isgm>
+    if <link.isneartype t_apagado 2>
+        link.sysmessageyellow Voce precisa acender a forja.
+    else
+        link.sysmessageyellow Voce precisa estar proximo de uma forja.
+    endif
+    return 0
+elif <link.flags>&statf_war
+    link.sysmessageyellow Acao abortada.
+    return 0
+else
+    //faz player ficar de frente pra forja
+    LOCAL.moved=0
+    foritems 2
+        if (<type>==t_forge) && !<LOCAL.moved>
+            link.face <uid>
+            LOCAL.moved=1
+        endif
+    endfor
+endif
+return 1
+
+//*****************************************************************************
+// mining_smelt
+//*****************************************************************************
+[FUNCTION mining_smelt]
+
+if !<mining_canSmelt>
+    link=0
+    return 1
+endif
+
+//rendimento fixo: 100% para 125% de skill
+LOCAL.n=<BETWEEN 1,1000,<link.mining>,1250>
+LOCAL.dn=<BETWEEN2 0,200,<link.mining>,1250>
+LOCAL.min=<eval <LOCAL.n>-<LOCAL.dn>>
+LOCAL.max=<eval <LOCAL.n>+<LOCAL.dn>>
+
+//minimo 10%
+if <LOCAL.min> < 100
+    LOCAL.min=100
+endif
+
+//maximo 100%
+if <LOCAL.max> > 1000
+    LOCAL.max=1000
+endif
+
+LOCAL.n=<R<local.min>,<local.max>>
+
+LOCAL.amt=<BETWEEN 1,10,<LOCAL.n>,1000>
+
+//faz isso para acertar tirar um pouco do efeito dos arredondamentos
+if <LOCAL.amt> > 1
+    dorand 1
+        LOCAL.amt -= 1
+    enddo
+endif
+
+serv.newitem <tdata1>
+new.amount=<LOCAL.amt>
+link.bounce <new>
+
+//serv.log [SMELT] <dlocal.min> a <dlocal.max> deu <dLOCAL.amt> de 10
+//link.sysmessagegreen Voce teve um rendimento de <eval <LOCAL.n>/10>% obtendo <dLOCAL.amt> <new.name>
+
+//recupera parte do que nao conseguiu derreter
+if <LOCAL.amt> < 10
+
+    //recupera parte do que nao conseguiu derreter
+    LOCAL.lost=<eval 10-<LOCAL.amt>>
+else
+    LOCAL.lost=0
+endif
+
+amount -= 10
+amount += {0 <LOCAL.lost>}
+
+dorand 3
+    link.emotered derretendo <name>
+enddo
+//sfx xxx
+//efeito fumaca/fogo
+
+if <amount> > 0
+    update
+else
+    remove
+endif
+
+link.skillgain SKILL_MINING
+
+timerf 2,mining_smelt
+
+return 1
+[EOF]
