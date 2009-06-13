@@ -1,7 +1,7 @@
 [COMMENT sistema_de_cidades]
 ##################################################################
 ##                                                              ##
-##       Mystical Tales Shard - Sistema de cidades v2.0         ##
+##       Mystical Tales Shard - Sistema de cidades v2.2a        ##
 ##              Galthar, o Errante    11/05/2009                ##
 ##                                                              ##
 ##################################################################
@@ -14,8 +14,9 @@ CREATE TABLE  `mytserver`.`towns` (
   `capital` varchar(45) NOT NULL default 'a_world',
   `type` int(10) unsigned NOT NULL default '1',
   `master` int(10) unsigned NOT NULL default '0',
+  `artefactUID` int(10) unsigned NOT NULL default '0',
   `permissions` int(10) unsigned NOT NULL default '6032',
-  `tresure` int(10) unsigned NOT NULL default '0',
+  `tresure` int(10) unsigned NOT NULL default '1000',
   `vaultUID` int(10) unsigned NOT NULL default '0',
   `color1` int(10) unsigned NOT NULL default '4',
   `color2` int(10) unsigned NOT NULL default '54',
@@ -26,7 +27,7 @@ CREATE TABLE  `mytserver`.`towns` (
   `tilefixtureprice` int(10) unsigned NOT NULL default '70',
   `FriendRaces` varchar(255) NOT NULL default 'Anao,Elfo,Drow,Humano,Orc',
   PRIMARY KEY  (`region`)
-) ENGINE=MyISAM;
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 DROP TABLE IF EXISTS `mytserver`.`towns_privs`;
 CREATE TABLE  `mytserver`.`towns_privs` (
@@ -52,6 +53,8 @@ CREATE TABLE  `mytserver`.`towns_members` (
 ctag.town_region
 ctag.town_page
 ctag.town_type
+ctag.town_coloriq
+ctag.town_privid
 
 
         -=API=-
@@ -61,6 +64,9 @@ town [new|delete|<region.defname>]
         - delete: tira a town da DB
         - <region.defname>: Abre o dialog para a dada região
         - DEFAULT:  Abre o dialog para região em que o player está
+        
+town_TrasferMastership <region.defname>,<playerUID>
+        Transfere o título de mestre da Town <argv0> para o player <argv1>
         
 town_getPermissions [<region.defname>]
         Retorna o bitmask de permissividade da town (ILLEGAL_* e TOWN_CAN_*)
@@ -73,6 +79,9 @@ town_Check_Privs <argn>
         
 town_CheckPrivs <argn1>
         town_Check_Privs
+        
+        -=TODO=-
+- Artefact e funcs
 
 [DEFNAME sistema_de_cidades]
 //Flags de permissions da town
@@ -105,6 +114,58 @@ TOWN_PERMISSION_10      Pedir cidadania
 TOWN_PERMISSION_11      Cidadania automatica
 TOWN_PERMISSION_12      Abrir peticoes
 
+//Privs dos membros da Town
+TOWN_PRIV_WAR           01
+TOWN_PRIV_HOOD          02
+TOWN_PRIV_HARM          04
+TOWN_PRIV_MAGIC         08
+TOWN_PRIV_STEAL         010
+TOWN_PRIV_LOCKPICK      020
+TOWN_PRIV_RESOURCES     040
+TOWN_PRIV_MARKET        080
+TOWN_PRIV_PETITION      0100
+TOWN_PRIV_PRIVS         0200
+TOWN_PRIV_MEMBER        0400
+TOWN_PRIV_BOOKS         0800
+TOWN_PRIV_TAXES         01000
+TOWN_PRIV_CONFISCATE    02000
+TOWN_PRIV_TRESURE       04000
+TOWN_PRIV_LAWS          08000
+TOWN_PRIV_DIPLOMACY     010000
+TOWN_PRIV_BOD           020000
+TOWN_PRIV_HIRE          040000
+TOWN_PRIV_GUARD         080000
+TOWN_PRIV_KEEPER        0100000
+TOWN_PRIV_SENESCHAL     0200000
+TOWN_PRIV_SBOND         0400000
+TOWN_PRIV_BBOND         0800000
+
+//Nomes dos provs da Town
+TOWN_PRIV_1             Lutar na cidade
+TOWN_PRIV_2             Usar capuz
+TOWN_PRIV_3             Causar dano
+TOWN_PRIV_4             Usar magica
+TOWN_PRIV_5             Roubar
+TOWN_PRIV_6             Arrombar
+TOWN_PRIV_7             Extrair recursos
+TOWN_PRIV_8             Participar do mercado
+TOWN_PRIV_9             Criar/votar peticoes
+TOWN_PRIV_10            Alterar cargos
+TOWN_PRIV_11            Adicionar/remover membros
+TOWN_PRIV_12            Gerenciar livros
+TOWN_PRIV_13            Alterar taxas
+TOWN_PRIV_14            Confiscar mercadoria
+TOWN_PRIV_15            Acesso ao tesouro
+TOWN_PRIV_16            Promulgar leis
+TOWN_PRIV_17            Poderes diplomaticos
+TOWN_PRIV_18            Fazer ordens de compra
+TOWN_PRIV_19            Contratar funcionarios
+TOWN_PRIV_20            Comandar guardas
+TOWN_PRIV_21            Comandar porteiros
+TOWN_PRIV_22            Comandar senescal
+TOWN_PRIV_23            Fazer pequeno emprestimo
+TOWN_PRIV_24            Fazer grande emprestimo
+
 //DEFNAME das páginas do gump de town
 TOWN_PAGE_FOUND         1       //Fundação da Town. Para GMs
 TOWN_PAGE_REPORT        2       //Informações gerais
@@ -121,11 +182,12 @@ TOWN_PAGE_MEMBERS       12      //Lista membros da town
 TOWN_PAGE_MEMBER        13      //Mostra um membro
 TOWN_PAGE_HIRES         14      //Mostra lista de NPCs para contratar
 TOWN_PAGE_NPCS          15      //Lista NPCs contatados e custo para manter
-TOWN_PAGE_POLLS         16      //Lista plebicitos
-TOWN_PAGE_POLL          17      //Mostra um plebicito
-TOWN_PAGE_PETITIONS     18      //Lista petições
-TOWN_PAGE_PETITION      19      //Mostra uma petição
-TOWN_PAGE_AZILUM        20      //Pede para percenter a town
+TOWN_PAGE_NPC           16      //Mostra NPC, status, demitir...
+TOWN_PAGE_POLLS         17      //Lista plebicitos
+TOWN_PAGE_POLL          18      //Mostra um plebicito
+TOWN_PAGE_PETITIONS     19      //Lista petições
+TOWN_PAGE_PETITION      20      //Mostra uma petição
+TOWN_PAGE_AZILUM        21      //Pede para percenter a town
 
 //########################################################################
 //########################################################################
@@ -144,6 +206,13 @@ if (STRMATCH(new,<args>))
   sysmessagered Ja ha registro de <region.name> como cidade!
   ctag.town_page=<DEF.TOWN_PAGE_REPORT>
  endif
+elif (STRMATCH(delete,<args>))
+ if !(<town_IsTown>)
+  sysmessagered Nao ha registro de <region.name> como cidade!
+ else
+  town_deleteTown <region.defname>
+ endif
+ return 1
 elif (<serv.resources.<args>.uid>&06000000)
  ctag.town_region=<args>
  ctag.town_page=<DEF.TOWN_PAGE_REPORT>
@@ -155,6 +224,60 @@ else
  return 0
 endif
 DIALOG d_town
+return 1
+
+[FUNCTION town_GetVault]
+//Retorna a UID do cofre da TOWN [<argv0>] || DEFAULT
+if (!<IsEmpty <args>>)
+ local.town=<args>
+else
+ local.town=<region.defname>
+endif
+if (<town_IsTown <local.town>>)
+ DB.QUERY="SELECT vaultUID FROM towns WHERE region='<DB.ESCAPEDATA <local.town>>'";
+ ref1=<DB.ROW.0.vaultUID>
+ if (<ref1.IsItem>)//Ainda existe?
+  return <ref1>
+ endif
+ return 0
+endif
+return 0
+
+
+[FUNCTION town_SetVault]
+//Seta o container <argv1> como cofre da town <argv0>
+//Existe essa town?
+if (!<town_IsTown <argv0>>
+ return 0
+endif
+
+ref1=<argv1>
+//É um item válido?
+if (<ref1.IsItem>)
+ if (<ref1.type>!=t_container) && (<ref1.type>!=t_container_locked)
+  serv.log [TOWNS] <ref1.name> (<ref1>@<ref1.p>) nao eh valido como cofre de <argv0>
+  return 0
+ endif
+else
+ serv.log [TOWNS] <ref1.name> (<ref1>@<ref1.p>) nao eh valido como cofre de <argv0>
+ return 0
+endif
+
+//Já existe um cofre na town?
+local.odlvault=<town_GetVault <argv0>>
+if (<local.oldvault>)
+ obj=<local.oldvault>
+ if (<obj.IsItem>)
+  //Transfere tudo de uma para outra
+  FORCONT <obj> 0
+   cont=<ref1>
+  END
+  ref1.update
+ endif
+endif
+
+//Insere na debê
+DB.QUERY="UPDATE towns SET vaultUID=<eval <ref1>> WHERE region='<argv0>';"
 return 1
 
 [FUNCTION town_getPermissions]
@@ -171,6 +294,34 @@ else
  return 0ff
 endif
 
+[FUNCTION town_getFirstColor]
+//Pega a cor primaria da town com region=<args> ou da region de DEFAULT.
+if (!<IsEmpty <args>>)
+ local.town=<args>
+else
+ local.town=<region.defname>
+endif
+if (<town_IsTown <local.town>>)
+ DB.QUERY="SELECT color1 FROM towns WHERE region='<DB.ESCAPEDATA <local.town>>'";
+ return <hval <DB.ROW.0.color1>>
+else
+ return 0
+endif
+
+[FUNCTION town_getSecondColor]
+//Pega a cor secundaria da town com region=<args> ou da region de DEFAULT.
+if (!<IsEmpty <args>>)
+ local.town=<args>
+else
+ local.town=<region.defname>
+endif
+if (<town_IsTown <local.town>>)
+ DB.QUERY="SELECT color2 FROM towns WHERE region='<DB.ESCAPEDATA <local.town>>'";
+ return <hval <DB.ROW.0.color2>>
+else
+ return 0
+endif
+
 [FUNCTION town_addcash]
 //Adiciona <argn> moedas de cobre ao tesouro da town onde DEFAULT está e retorna o valor
 if (<town_IsTown>)
@@ -184,10 +335,64 @@ endif
 
 [FUNCTION TOWN_CHECK_PRIVS]
 //Checa se o DEFAULT temo privilégio <argn> na town em que ele está
-return 0
+return <IsGm>
 
 [FUNCTION town_CheckPrivs]
 return <TOWN_CHECK_PRIVS <argn>>
+
+[FUNCTION flinktown]
+if (!<argo>)
+ targetf flinktown
+else
+ argo.more1=<region.defname>
+ argo.type=t_town_artefact
+ argo.link=<src>
+endif
+
+//########################################################################
+//########################################################################
+//      TYPEDEFs
+//########################################################################
+//########################################################################
+
+[TYPEDEF t_town_artefact]
+on=@CLIENTTOOLTIP
+local.town=<serv.resources.<more1>.name>
+src.f_sendTooltip <name> de <local.town>,O detentor deste artefato é o mestre de <local.town>.<DEF.br>Guarde muito bem este artefato!
+return 1
+
+on=@dclick
+if (<src>==<topobj>)
+ local.town=<serv.resources.<more1>.defname>
+ DB.QUERY="SELECT master FROM towns WHERE region='<local.town>';"
+ if (<src>==<hval <DB.ROW.0.master>>)
+  src.sysmessageyellow Voce ja eh o mestre de <serv.resources.<more1>.name>.
+ else
+  town_TrasferMastership <local.town>,<src>
+ endif
+ link=<src>
+endif
+
+on=@destroy
+serv.log Destruida!
+local.vault=<town_GetVault <serv.resources.<more1>.defname>>
+if (<local.vault>)
+ obj=<local.vault>
+else
+ serv.newitem i_chest_metal
+ new.p=<serv.resources.<more1>.p>
+ new.attr=010
+ new.timer=-1
+ obj=<new>
+ town_SetVault <serv.resources.<more1>.defname>,<obj>
+endif
+serv.newitem=<baseid>
+new.type=<type>
+new.more1=<more1>
+new.p=<obj.p>
+new.cont=<obj>
+obj.update
+return 1
 
 //########################################################################
 //########################################################################
@@ -256,8 +461,82 @@ end
 ctag.town_type=<argn1>
 list_show 1
 
+[FUNCTION town_TrasferMastership]
+//Transfere o dono da town de DEFNAME=<argv0> para o player de UID=<argv1>
+if (!<town_IsTown <argv0>>)
+ return 0
+endif
+DB.QUERY="SELECT master FROM towns WHERE region='<argv0>';"
+IF (0<DB.ROW.0.master>)
+ f_sendMessage <DB.ROW.0.master>,Voce nao eh mais mestre de <serv.resources.<argv0>.name>!,<DEF.SM_RED>
+ENDIF
+DB.EXECUTE="UPDATE towns SET master=<eval <argv1>> WHERE region='<argv0>';"
+ref1=<argv1>
+f_sendMessage <ref1>,Voce eh o novo mestre de <serv.resources.<argv0>.name>!,<DEF.SM_GREEN>
+if (<ref1.IsOnline>)
+ ref1.psfx 05B4
+endif
 
+[FUNCTION town_deleteTown]
+//deleta a town de DEFNAME=<argv0> da DB
+prompt_new Excluir <serv.resources.<argv0>.name>?<DEF.BR>Isso removera <serv.resources.<argv0>.name> do sistema de cidades permanentemente. (S/N)?
+prompt_setAction town_deleteTown2 <argv0>,
+prompt_show
 
+[FUNCTION town_deleteTown2]
+//Continuação de town_deleteTown
+IF (STRMATCH(S,<argv1>))
+ DB.EXECUTE="DELETE FROM towns_members WHERE region='<argv0>';"
+ DB.EXECUTE="DELETE FROM towns_privs WHERE region='<argv0>';"
+ DB.EXECUTE="DELETE FROM towns WHERE region='<argv0>';"
+ DB.EXECUTE="UPDATE towns SET type=1, capital=region WHERE capital='<argv0>';"
+ sysmessagered <serv.resources.<argv0>.name> excuida do sistema de cidades!
+ return 1
+ENDIF
+return 0
+
+[FUNCTION town_PromptFirstColor]
+prompt_new Escolha a cor primaria de <serv.resources.<ctag.town_region>.name>:<DEF.BR>(numero da cor ou '0' para target)
+prompt_setAction town_setColor 1,
+prompt_setActionBack DIALOG d_town
+prompt_show
+
+[FUNCTION town_PromptSecondColor]
+prompt_new Escolha a cor secundaria de <serv.resources.<ctag.town_region>.name>:<DEF.BR>(numero da cor ou '0' para target)
+prompt_setAction town_setColor 2,
+prompt_setActionBack DIALOG d_town
+prompt_show
+
+[FUNCTION town_setColor]
+IF (!<argv[1]>)
+ sysmessageyellow Selecione um item do mundo para escolher sua cor:
+ ctag.town_coloriq=<argv[0]>
+ targetf town_TargColor
+ELSE
+ DB.QUERY="UPDATE towns SET color<eval <argv[0]>>=<eval <argv[1]>> WHERE region='<ctag.town_region>';"
+ DIALOG d_town
+ENDIF
+
+[FUNCTION town_TargColor]
+if (!<argo>) || (!<argo.IsItem>)
+ sysmessagered Item invalido.
+ DIALOG d_town
+else
+ town_setColor <ctag.town_coloriq>,<argo.color>
+ ctag.town_coloriq=
+endif
+
+[FUNCTION town_listPositions]
+list_new "Lista de cargos de <serv.resources.<ctag.town_region>.name>"
+list_newDbCol 25,title,Titulo
+list_newDbCol 200,position,Posicao
+list_setAction 
+list_loadFromDb "SELECT title,position FROM towns_privs WHERE region='<ctag.town_region>' ORDER BY position"
+//Transformar em decimal as posições deve você, Anakyn.
+FOR t 1 <ctag.list_numitems>
+ ctag.list_row<local.t>_02=<dctag.list_row<local.t>_02> de 1000
+end
+list_show 1
 //########################################################################
 //########################################################################
 //      Funções para os Botões de Okay
@@ -266,11 +545,11 @@ list_show 1
 
 [FUNCTION d_town_okay_found]
 //OKAY da página TOWN_PAGE_FOUND. ARGN é o tipo da town.
-if (<argn>==1)
+if (<ARGCHK[1]>)
  town_AddTown <ctag.town_region>,1,<ctag.town_region>
  town
 else
- town_selectCapital <argn>
+ town_selectCapital <eval <ARGCHK[1]>+(<ARGCHK[2]>*2)+(<ARGCHK[3]>*3)>
 endif
 
 [FUNCTION d_town_okay_races]
@@ -386,7 +665,46 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_REPORT>)
         dtext 337 371 66 Peticoes:
         dtext 425 371 4 (n_petitions)
         dtext 337 387 66 Pedir direito de cidadania
-
+        
+elif (<ctag.town_page>==<DEF.TOWN_PAGE_CONFIG>)
+        resizepic 92 89 2620 416 282
+        dorigin 107 80
+        dtext +18 *20 5 Cor primaria:
+        gumppic +118 +1 1896 <eval <town_getFirstColor <ctag.town_region>>>
+        IF (<src.town_CheckPrivs 1>)
+         button - +3 30008 30009 1 0 31
+        endif
+        dtext +18 *20 5 Cor secundaria:
+        gumppic +118 +1 1896 <eval <town_getSecondColor <ctag.town_region>>>
+        IF (<src.town_CheckPrivs 1>)
+         button - +3 30008 30009 1 0 32
+        endif
+        dtext +18 *20 5 Cargos existentes: (n_cargos)
+        button - +3 30008 30009 1 0 39
+        dtext +18 *20 5 Diplomacia
+        button - +3 30008 30009 1 0 34
+        IF (<src.town_CheckPrivs 1>)
+         dtext +18 *20 45 Transferir titularidade
+         button - +3 30008 30009 1 0 33
+        ENDIF
+        IF (<src.town_CheckPrivs 1>)
+         dtext +18 *20 45 Transferir artefato
+         button - +3 30008 30009 1 0 35
+        ENDIF
+        IF (<src.town_CheckPrivs 1>)
+         dtext +18 *20 45 Transferir cofre
+         button - +3 30008 30009 1 0 36
+        ENDIF
+        IF (<src.town_CheckPrivs 1>)
+         dtext +18 *20 45 Transferir capital
+         button - +3 30008 30009 1 0 37
+        ENDIF
+        IF (<src.town_CheckPrivs 1>)
+         dtext +18 *20 45 Declarar independencia
+         button - +3 30008 30009 1 0 38
+        ENDIF
+        button 92 385 4014 4015 1 0 1
+        
 elif (<ctag.town_page>==<DEF.TOWN_PAGE_RACES>)
         DB.QUERY="SELECT FriendRaces FROM towns WHERE region='<ctag.town_region>';"
         local.anao=<qval STRMATCH(*Anao*,<DB.ROW.0.FriendRaces>)?1:0>
@@ -454,7 +772,7 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_LAWS>)
          dtext +22 +1 2100 <DEF.TOWN_PERMISSION_<dlocal.r>>
          local.r += 1
         END
-        button 96 384 241 242 1 0 0
+        //button 96 384 241 242 1 0 0
         button 440 384 247 248 1 0 1
 endif
 
@@ -487,7 +805,7 @@ ON=1
 // Okay geral
 DOSWITCH <ctag0.town_page>
  local.null             //Não tem TOWN_PAGE_*
- d_town_okay_found <eval <ARGCHK[1]>+(<ARGCHK[2]>*2)+(<ARGCHK[3]>*3)> //TOWN_PAGE_FOUND
+ call d_town_okay_found //TOWN_PAGE_FOUND
  local.null             //TOWN_PAGE_REPORT
  town                   //TOWN_PAGE_CONFIG
  town                   //TOWN_PAGE_PERMISSIONS
@@ -497,7 +815,7 @@ DOSWITCH <ctag0.town_page>
  town                   //TOWN_PAGE_TAXES
  call d_town_okay_laws  //TOWN_PAGE_LAWS
 ENDDO
-SAy Okay <dctag.town_page>
+
 
 ON=2
 // Raças amigas
@@ -518,7 +836,8 @@ ON=5
 
 ON=6
 // Config
-// 
+ctag.town_page=<DEF.TOWN_PAGE_CONFIG>
+DIALOG d_town
 
 ON=7
 // Permissions
@@ -548,6 +867,42 @@ ON=12
 ON=13
 // Azilum
 // 
+
+ON=31
+// Change color 1
+town_PromptFirstColor
+
+ON=32
+// Change color 2
+town_PromptSecondColor
+
+ON=33
+// Transfer mastership
+// 
+
+ON=34
+// Diplomacy
+// 
+
+ON=35
+// Change artifact
+// 
+
+ON=36
+// Tranfer vault
+// 
+
+ON=37
+// Tranfer Capital
+// 
+
+ON=38
+// Independency
+// 
+
+ON=39
+// Show Positions
+town_listPositions
 
 [EOF]
 
