@@ -35,6 +35,14 @@
 // MORE2  - dificuldade de uso da skill healing
 // MOREY  - se a bandagem esta sendo aplicada na propria pessoa
 
+
+[DEFNAME skill_healing]
+heal_mintime=3
+heal_maxtime=12
+
+heal_minhits=2
+heal_maxhits=5
+
 //*****************************************************************************
 //*****************************************************************************
 // TYPEDEFs
@@ -181,12 +189,14 @@ endif
 consume 1 i_bandage
 serv.newitem i_mry_bandagem
 if (<obj.isplayer>)
+    local.timer=<between heal_mintime,heal_maxtime,<healing>,100.0>
+    local.hits=<between heal_minhits,heal_maxhits,<healing>,100.0>
     if (<obj.flags>&statf_dead) 
-        new.more1=<r10,<eval 10+(<healing>/100)>> //10 a 20 segundos
-        new.more2=<eval 1+(<healing>/300)>  //1 a 4 hits de healing
+        new.more1=2*<local.timer>
+        new.more2=<local.hits>
     else
-        new.more1=<r2,<eval 2+(<healing>/100)>> //2 a 12 segundos
-        new.more2=<eval 2+(<healing>/120)>  //2 a 10 hits de healing
+        new.more1=<local.timer>
+        new.more2=<local.hits>
         if ( <uid> == <obj> )
                 new.morey=1
         else
@@ -194,8 +204,8 @@ if (<obj.isplayer>)
         endif
     endif
 else
-    new.more1=<r2,<eval 2+(<veterinary>/100)>> //2 a 12 segundos
-    new.more2=<eval 2+(<veterinary>/200)>  //2 a 7 hits de healing
+    new.more1=<local.timer>
+    new.more2=2+<local.hits>
     new.morey=0
 endif
 
@@ -280,7 +290,7 @@ ON=@TIMER
         else
             link.skill_gain skill_veterinary
         endif
-
+    
         dorand 9
             link.anim 16
             sfx 04f
@@ -292,7 +302,7 @@ ON=@TIMER
             sfx 04f
             link.anim 19
         enddo
-
+    
         cont.hits=<cont.hits>+<r1,<more2>>
         if (<cont.hits>>=<cont.maxhits>)
             cont.hits=<cont.maxhits>
@@ -303,7 +313,7 @@ ON=@TIMER
                 return 1
             endif
         endif
-  endif
+    endif
 
     if (!<more1>)
     
@@ -338,7 +348,8 @@ ON=@TIMER
     cont.tag.bandmem=
     
     //nem sempre devolve bandagem suja
-    if ( <r1,10><5 )
+    local.chance=<eval ((-<healing>*4)/100)+55>
+    if ( <r101> < <local.chance> )
         serv.newitem i_bandage_bloody
         new.name bandagem suja
         new.cont=<link>
