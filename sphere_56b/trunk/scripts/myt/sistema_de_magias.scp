@@ -1244,4 +1244,137 @@ else
  return 1
 endif
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//#################################################################################
+
+//                              ITENS DE TESTE
+
+//#################################################################################
+
+[TYPEDEF t_spell_test_cont]
+//Gera <more1> amt de cada pergaminho das magias nº [<morex>:<morey>]
+//A cada <morez> minutos
+on=@dclick
+if (<eval (<serv.time>-<more2>)/600> > <morez>)
+ more2=<serv.time>
+ empty
+ for s <morex> <morey>
+  if (<serv.spell.<local.s>>)
+   serv.newitem <serv.spell.<local.s>.SCROLL_ITEM>
+   new.cont=<uid>
+   new.amount=<more1>
+  endif
+ end
+ update
+endif
+
+[ITEMDEF i_bau_teste_destruicao]
+NAME=Pergaminhos de destruicao
+ID=i_chest_metal
+TYPE=T_CONTAINER
+FLIP=1
+WEIGHT=20
+TEVENTS=t_spell_test_cont
+
+on=@create
+color=028
+more1=20
+more2=0
+morex=100
+morey=119
+morez=60
+
+[ITEMDEF i_bau_teste_restauracao]
+NAME=Pergaminhos de restauracao
+ID=i_chest_metal
+TYPE=T_CONTAINER
+FLIP=1
+WEIGHT=20
+TEVENTS=t_spell_test_cont
+
+on=@create
+color=0809
+more1=20
+more2=0
+morex=150
+morey=169
+morez=60
+
+
+[ITEMDEF i_stone_skill]
+ID=0eDD
+NAME=Pedra de teste de skill
+TYPE=t_script
+
+on=@dclick
+src.menu m_test_skill
+return 1
+
+[MENU m_test_skill]
+O que deseja fazer agora? (sujeito a apenas uma subida de skill a cada 3 horas)
+
+ON=0 Subir 12.5 em uma skill
+src.test_skill_up
+
+ON=0 Descer 12.5 em uma skill
+src.test_skill_dn
+
+[FUNCTION test_skill_up]
+if (<tag0.skill_test_time>)
+ local.eltime=<hval <serv.time>-<tag0.skill_test_time>>
+ local.extime=<hval <local.eltime>-10*60*60*3>
+ if (<local.extime> < 0)
+  sysmessagered Voce deve esperar mais <f_timestring <eval -<local.extime>/10>> para subir novamente uma skill.
+  return 1
+  endif
+endif
+list_new Escolha uma skill para subir 12.5 pontos:
+list_newCol 20,Skill
+cTAG.list_action=test_skill_apply_up
+cTAG.list_numItems=54
+cTAG.list_numPages=4
+for s 0 54
+ try cTAG.list_row<local.s>_01=<serv.skill.<local.s>.name>
+end
+list_show 1
+
+[FUNCTION test_skill_dn]
+list_new Escolha uma skill para descer 12.5 pontos:
+list_newCol 20,Skill
+cTAG.list_action=test_skill_apply_dn
+cTAG.list_numItems=54
+cTAG.list_numPages=4
+for s 0 54
+ try cTAG.list_row<local.s>_01=<serv.skill.<local.s>.name>
+end
+list_show 1
+
+[FUNCTION test_skill_apply_up]
+src.<argn> += 125
+src.tag.skill_test_time=<serv.time>
+src.sysmessageyellow Voce podera utilizar este comando novamente em 3 horas.
+
+[FUNCTION test_skill_apply_dn]
+src.<argn> -= 125
 [EOF]
