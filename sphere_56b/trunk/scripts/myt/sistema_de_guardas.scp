@@ -1,0 +1,266 @@
+[COMMENT sistema_de_guardas]
+A AI dos guardas é grande de mais pra ficar no arquivo do sistema de towns
+
+
+Ao entrar numa region TOWN, o player ganha um event e_InTown
+Esse event terá trigger que é o @CallGuards, que sejá chamado nas seguintes situações:
+
+on=@CallGuards
+Name    Description
+ARGO    The guard character who is going to attack the criminal (if one exists in the area).
+I       The character calling for guards.
+REF1    The criminal who the gaurds are being called upon.
+SRC     The criminal who the guards are being called upon. 
+
+Argument   In/Out     Description
+ARGN1      IO         The BASEID of the character to spawn as a guard.
+ARGN2      O          If set to 1, a new guard will be spawned regardless of whether a nearby guard is available. 
+
+Return  Value    Description
+1       Prevents the guards from reacting. 
+
+
+* O guarda dá 5 avisos (um no início e a cada 4 segundos) e se não corrigido senta o pau quando:
+- Entrar em Warmode
+- Equipar uma arma que dê mais de X de dano mínimo
+- Vestir capuz
+
+* O guarda senta o pau e bane da town direto quando:
+- Step de lockpicking
+- Snooping
+- Stealing
+- Usar magia ofenciva em NPC da town (vendor, guarda, senescal) ou em player (salvo se for banido)
+- Causar dano em NPC da town (vendor, guarda, senescal) ou em player (salvo se for banido)
+- Setar armadilha
+- Setar poção de explosão terrestre
+- Usar .abordar
+
+[REGIONTYPE r_town]
+on=@enter
+src.sysmessageyellow Voce esta entrando nos dominios de <region.name>
+src.town_enter <region.defname>
+
+on=@exit
+src.sysmessageyellow Voce esta saindo dos dominios de <region.name>
+events -e_InTown
+
+[EVENTS e_InTown]
+on=@login
+town_enter
+
+on=@ItemEquip
+if (<IsGM>) || (<flags>&080200b)
+ return 0
+endif
+if (<act.isweapon>)
+ if (<act.dam.hi> > 10) && !(<region.tag.permissions>&TOWN_CAN_WEAPON) && !(<ctag.town_<region.defname>_privs>&TOWN_PRIV_WAR)
+  sysmessageyellow Eh bom que voce saiba que nao se pode andar com armas pesadas aqui.
+  TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<DEF.TOWN_CAN_WEAPON>
+ endif
+elif (<act.baseid>==i_capuz) && !(<region.tag.permissions>&TOWN_CAN_HOOD) && !(<ctag.town_<region.defname>_privs>&TOWN_PRIV_HOOD)
+ sysmessageyellow Eh bom que voce saiba que nao se pode andar encapuzado aqui.
+ TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<DEF.TOWN_CAN_HOOD>
+endif
+return 0
+
+on=@UserWarmode
+if (<IsGM>) || (<flags>&080200b)
+ return 0
+endif
+if (!<argn1>) && !(<region.tag.permissions>&TOWN_CAN_WARMODE) && !(<ctag.town_<region.defname>_privs>&TOWN_PRIV_WAR)
+ guards_near guard_advice,<uid>,<DEF.TOWN_CAN_WARMODE>
+endif
+return 0
+
+on=@TownSpellSuccess
+if !(<region.tag.permissions>&TOWN_CAN_MAGIC) && !(<ctag.town_<region.defname>_privs>&TOWN_PRIV_MAGIC)
+ guards_near guard_advice,<uid>,<DEF.TOWN_CAN_MAGIC>
+endif
+
+on=@TownHit
+//testar brain_animal para RESOURCES
+//testar vendor/player/guard para HARM
+//se for monstro ou estiver banido, manter
+//Se tem priv pra bater e for criminal/banido, manter
+//say HIT
+return 0
+
+
+on=@CallGuards
+//local.charge=<eval LOGARITHM(<argn1>,2)>
+//doswitch <local.charge>
+// guards_near guard_advice,<uid>,<argn1>
+// guards_near guard_advice,<uid>,<argn1>
+// guards_near guard_advice,<uid>,<argn1>
+ guards_near guard_advice,<uid>,<argn1>
+//end
+return 1
+
+
+[FUNCTION town_enter]
+events +e_InTown
+if (!<NPC>)
+ try cTAG.town_<args>_privs=<town_getPrivs <args>>
+ try cTAG.town_<args>_flags=<src.town_getFlags <args>>
+ if !(STRMATCH(*<tag.raca>*,<town_getRaces <args>>)) && !(<cTAG0.town_<args>_flags>&<def.TOWN_FLAG_FRIEND>)
+  try cTAG0.town_<args>_flags = <cTAG0.town_<args>_flags>|<DEF.TOWN_FLAG_FORBIDDEN>
+ endif
+endif
+
+
+[EVENTS e_town_guard]
+ON=@NPCSeeNewPlayer
+//Somente se ele estiver wandering, goin to, going home, stay ou guard item.
+if ((<action> > 064) && (<action> < 068)) || (<action>==06C) || (<action>==06D)
+ local.perm=<region.tag.permissions>
+ local.flags=<src.ctag.town_<tag.town>_flags>
+ local.privs=<src.ctag.town_<tag.town>_privs>
+ IF (<src.restest i_capuz>) && !(<local.perm>&TOWN_CAN_HOOD) && !(<local.privs>&TOWN_PRIV_HOOD)
+  guard_advice <src>,<DEF.TOWN_CAN_HOOD>
+ ELIF (<src.weapon.dam.hi> > 10) && !(<local.perm>&TOWN_CAN_WEAPON) && !(<local.privs>&TOWN_PRIV_WAR)
+  guard_advice <src>,<DEF.TOWN_CAN_WEAPON>
+ ELIF (<src.flags>&020) && !(<local.perm>&TOWN_CAN_WARMODE) && !(<local.privs>&TOWN_PRIV_WAR)
+  guard_advice <src>,<DEF.TOWN_CAN_WARMODE>
+ ELIF (<local.flags>&023)
+  attack <src>
+  if (<local.flags>&020)
+   say Intrus<src.sex o/a> <src.tag.raca>! Alarme! Alarme!
+  elif (<local.flags>&02)
+   say Criminos<src.sex o/a>!
+  elif (<local.flags>&01)
+   say Hey, <src.tag.name>! Voce esta banid<src.sex o/a> de <region.name>! FORA!
+  endif
+ endif
+endif
+
+[FUNCTION guard_advice]
+obj=<argv0>
+//iniciar
+if (!<tag0.advice_step>)
+ say Hey, voce! Nao pode <STRTOLOWER <DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>> em <region.name>!
+ obj.sysmessagered O guarda esta ralhando com voce (<DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>)
+ act=<obj>
+ action=064
+ tag.advice_step 1
+ timerf 4 guard_advice,<argv0>,<argv1>
+ 
+//Já estou ralhando de antes
+else
+ local.charge=<eval LOGARITHM(<argv1>, 2)>
+ serv.log [ADVICE] - <dlocal.charge> - <argv1> - <DEF.TOWN_PERMISSION_<dlocal.charge>>
+ local.state=1
+ doswitch <local.charge>
+  local.state=<eval <obj.flags>&020>    //WARMODE
+  begin                                 //WEAPON
+   if (<obj.weapon.dam.hi> < 10>)
+    local.state=0
+   endif
+  end
+  local.state=<obj.restest i_capuz>     //HOOD
+ endif
+ 
+ //Ele corrigiu seu comportamento?
+ if (!<local.state>)
+  dorand 3
+   say Obrigad<sex o/a> pela cooperacao.
+   say Muito bem... Circulando!
+   say Passar bem.
+  end
+  flags &= ~020
+  action=06D
+  tag.advice_step=
+ 
+ //Ele ainda está de comportando mau
+ else
+  doswitch <tag0.advice_step>
+   local.null
+   say Vamos la, cidad<obj.sex ao/a>! Voce nao deve <STRTOLOWER <DEF.TOWN_PERMISSION_<dlocal.charge>>> por aqui.
+   say Esta surd<obj.sex o/a>? Eu disse que nao pode <STRTOLOWER <DEF.TOWN_PERMISSION_<dlocal.charge>>>!
+   say Este eh meu ultimo aviso: Pare de <STRTOLOWER <DEF.TOWN_PERMISSION_<dlocal.charge>>> AGORA!
+   say Muito bem. Voce pediu por isso. GUARDAS! UM CRIMINOSO!
+  end
+  
+  //Já posso parecer bravo?
+  if (<tag0.advice_step>==3)
+   flags |= 020
+   update
+   timerf 4 guard_advice,<argv0>,<argv1>
+   
+  //Esgotou a paciência. Pau nele/a
+  elif (<tag0.advice_step>==4)
+   tag.advice_step=
+   attack <obj>
+   obj.town_setFlags TOWN_FLAG_CRIMINAL,<tag.town>
+  else
+   timerf 4 guard_advice,<argv0>,<argv1>
+  endif
+  tag0.advice_step += 1
+ endif
+endif
+
+[FUNCTION guards_near]
+//Executa a função <args> em todos os guardas a 12 tiles de distância que vêem DEFAULT
+obj=<UID>
+FORCHARS 18
+ IF (<canSeeLos <obj>>) && (<IsTEvent.e_town_guard>)
+  try <args>
+ ENDIF
+END
+
+//*****************************************************************************
+// c_guard_swords
+//*****************************************************************************
+[CHARDEF c_guard_swords]
+ID=c_man
+NAME=Guarda
+ICON=i_pet_man
+CAN=mt_equip|mt_walk|mt_usehands|mt_run
+AVERSIONS=t_trap,t_eerie_stuff
+DESIRES=i_gold,e_notoriety
+FOODTYPE=15 t_food, t_fruit
+BLOODCOLOR=0
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2, 3 i_osso
+SOUND=snd_human_moomph01
+TEVENTS=e_town_guard
+TEVENTS=e_pvm
+TEVENTS=e_combat
+
+ARMOR=
+DAM=
+MOVERATE=55
+
+CATEGORY=MyT - NPCs
+SUBSECTION=Guardas
+DESCRIPTION=Humano - Espada
+
+ON=@CREATE
+NPC=brain_human
+MAXHITS={110 140}
+COLOR=colors_skin
+STR=30
+DEX=60
+INT=75
+FAME={2500 4000}
+KARMA=3000
+ARCHERY=65.0
+FENCING=65.0
+MACEFIGHTING=65.0
+MAGICRESISTANCE=65.0
+PARRYING=65.0
+SWORDSMANSHIP=65.0
+WRESTLING=65.0
+f_npc_spawn
+ITEMNEWBIE=i_peito_malha
+ITEMNEWBIE=i_braco_malha
+ITEMNEWBIE=i_perna_malha
+ITEMNEWBIE=i_luva_malha
+ITEMNEWBIE=i_pescoco_malha
+ITEMNEWBIE=i_cabeca_malha
+ITEMNEWBIE={i_escudo_batalham 1 i_escudo_madeira 1 i_broquel 1}
+
+
+ON=@NPCRESTOCK
+ITEM=i_kryss
+ITEM=i_espada_longa
+ITEM=i_coin_copper,{3 10}
+ITEM=i_boots_calf
