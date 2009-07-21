@@ -217,6 +217,7 @@ TOWN_FLAG_CRIMINAL      02
 TOWN_FLAG_JAILED        04
 TOWN_FLAG_DEBT          08
 TOWN_FLAG_FRIEND        010
+TOWN_FLAG_FORBIDDEN     020
 
 //Nomes dos flags dos membros das Towns
 TOWN_FLAG_0             Banido
@@ -258,7 +259,6 @@ TOWN_PAGE_NPC           19      //Mostra NPC, status, demitir...
 TOWN_PAGE_POLLS         20      //Lista plebicitos
 TOWN_PAGE_POLL          21      //Mostra um plebicito
 TOWN_PAGE_AZILUM        22      //Pede para percenter a town
-
 
 //########################################################################
 //########################################################################
@@ -747,7 +747,9 @@ RETURN <hval <DB.ROW.0.type>>
 DB.EXECUTE="INSERT INTO towns SET region='<DB.ESCAPEDATA <argv0>>', type=<eval <argv1>>, capital='<DB.ESCAPEDATA <argv2>>', tresure=0;"
 DB.EXECUTE="INSERT INTO towns_privs SET region='<DB.ESCAPEDATA <argv0>>', position=1, title='mestre', description='Mestre. Todos os privilegios. Nao pode ser apagado.', privs=<eval 0FFFFFF>;"
 DB.EXECUTE="INSERT INTO towns_privs SET region='<DB.ESCAPEDATA <argv0>>', position=999, title='cidadao', description='Simples membro. Sem privilegios. Nao pode ser apagado', privs=0;"
-
+serv.resources.<argv0>.events +r_town
+serv.resources.<argv0>.allclients events +e_InTown
+serv.resources.<argv0>.tag.permissions=<town_getPermissions <argv0>>
 
 [FUNCTION townAddSubTown]
 //Adiciona como town a region <ctag.town_region> com tipo <ctag.town_type> com <ctag.town_capital_<argn>> como como capital
@@ -858,6 +860,9 @@ IF (STRMATCH(S,<argv1>))
  DB.EXECUTE="DELETE FROM towns_privs WHERE region='<argv0>';"
  DB.EXECUTE="DELETE FROM towns WHERE region='<argv0>';"
  DB.EXECUTE="UPDATE towns SET type=1, capital=region WHERE capital='<argv0>';"
+ serv.resources.<argv0>.events -r_town
+ serv.resources.<argv0>.allclients events -e_InTown
+ serv.resources.<argv0>.tag.permissions=
  sysmessagered <serv.resources.<argv0>.name> excuida do sistema de cidades!
  return 1
 ENDIF
@@ -1932,6 +1937,7 @@ WHILE (!<IsEmpty <DEF.TOWN_PERMISSION_<dlocal.r>>>)
 END
 DB.EXECUTE="UPDATE towns SET permissions=<dlocal.flags> WHERE region='<ctag.town_region>';"
 ctag.town_page=<DEF.TOWN_PAGE_REPORT>
+serv.resources.<ctag.town_region>.tag.permissions=<local.flags>
 DIALOG d_town
 
 
