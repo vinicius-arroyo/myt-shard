@@ -389,13 +389,6 @@ local.restrictions = <eval <argv>-1>
 local.t=<DEF.BFONT_DCYAN>DIFICULDADE:<DEF.BFONT_WHITE><DEF.BR>
 local.t .= <fval <serv.itemdef.<args>.skillmake.0.val>>% <serv.skill.<serv.itemdef.<args>.skillmake.0.key>.name><DEF.BR>
 call craft_expChance <args>
-//try local.exp=<DEF.<args>_exp>
-//if (<local.exp>)
-// LOCAL.SKILL=<fval <src.<DEF.<serv.itemdef.<args>.skillmake.0.key>>>>
-// LOCAL.DIFFIC=<MAXIMUM 1.0, <eval <LOCAL.SKILL>-<serv.itemdef.<args>.skillmake.0.val>>>
-// LOCAL.CHANCE=<eval <MINIMUM 625,<LOCAL.DIFFIC>,<Armslore>>/5>
-// local.t .= <fval <local.chance>>% de chance para Excepcional<DEF.BR>
-//endif
 local.t .=<DEF.BR>
 local.t .=<DEF.BFONT_DCYAN>MATERIA PRIMA:<DEF.BFONT_WHITE><DEF.BR>
 local.i=1
@@ -405,6 +398,112 @@ WHILE (<serv.itemdef.<args>.resources.<local.i>.val>)
 END
 
 return <local.t>
+
+[FUNCTION craft_info_general]
+local.t=<DEF.BFONT_DCYAN>MERCADO:<DEF.BFONT_WHITE><DEF.BR>
+local.t .= Negociado por no maximo <STRTRESURE <serv.itemdef.<args>.value>> quando a qualidade for suprema.<DEF.BR>
+if (<serv.resources.<args>_exp>)
+ local.t .= Um item excepcional vale <STRTRESURE <serv.itemdef.<args>_exp.value>><DEF.BR>
+endif
+local.t .= Peso: <fval <serv.itemdef.<args>.weight>><DEF.BR>
+
+if (STRMATCH(*weapon*,<serv.itemdef.<args>.type>)) && !(STRMATCH(*arrow,<serv.itemdef.<args>.type>)) && !(STRMATCH(*bolt,<serv.itemdef.<args>.type>))
+ if (<armslore> > <serv.itemdef.<args>.skillmake.0.val>+15.0>
+  local.c=1
+ endif
+ local.t .=<DEF.BR><DEF.BFONT_DCYAN>ARMA:<DEF.BFONT_WHITE><DEF.BR>
+ local.t .=Skill: <serv.skill.<serv.itemdef.<args>.skill>.key><DEF.BR>
+ LOCAL.dn=<eval (<serv.itemdef.<args>.dam.lo>+<serv.itemdef.<args>.dam.hi>)/2>
+ LOCAL.s = <eval <serv.itemdef.<args>.speed>*(<src.dex>+100)> 
+ FLOAT.sw=<fval 150000/<LOCAL.s>>
+ FLOAT.ss=<eval <LOCAL.dn>*10>
+ local.sw=<fval <float.sw>/100000>
+ local.dps=<fval <FLOAT.ss>/<FLOAT.sw>>
+ local.t .="Dano: "
+ if (<LOCAL.dn><5)
+     LOCAL.t .= Fraco
+ elif (<LOCAL.dn><10)
+     LOCAL.t .= Baixo
+ elif (<LOCAL.dn><25)
+     LOCAL.t .= Medio
+ elif (<LOCAL.dn><40)
+     LOCAL.t .= Forte
+ else
+     LOCAL.t .= Muito forte
+ endif
+ if (<local.c>)
+  LOCAL.t .= " (<serv.itemdef.<args>.dam>)"
+ endif
+ local.t .= <DEF.BR>Velocidade:
+ if (<local.sw> < 10)
+  local.t .= " Nao ha nada mais rapido!"
+ elif (<local.sw> < 16)
+  local.t .= " Muito rapida"
+ elif (<local.sw> < 21)
+  local.t .= " Rapida"
+ elif (<local.sw> < 26)
+  local.t .= " Normal"
+ elif (<local.sw> < 31)
+  local.t .= " Lenta"
+ else
+  local.t .= " Muito lenta"
+ endif
+ if (<local.c>)
+  LOCAL.t .= " (<fval <local.sw>> segundos)"
+ endif
+ local.t .= <DEF.BR>DPS:
+ if (<local.dps> < 41)
+  local.t .= " Mal faz cocegas"
+ elif (<local.dps> < 66)
+  local.t .= " Como uma ferramenta"
+ elif (<local.dps> < 81)
+  local.t .= " Nada letal"
+ elif (<local.dps> < 91)
+  local.t .= " Pouco letal"
+ elif (<local.dps> < 101)
+  local.t .= " Mediano"
+ elif (<local.dps> < 116)
+  local.t .= " Letal"
+ elif (<local.dps> < 126)
+  local.t .= " Muito letal"
+ elif (<local.dps> < 166)
+  local.t .= " Absurdamente letal"
+ else
+  local.t .= " Corta um dragao que nem manteiga!"
+ endif
+ if (<local.c>)
+  local.t .= " (<local.dps> hits/segundo)"
+ endif
+ local.t .= <DEF.BR>Maxima qualidade: <eval <serv.itemdef.<args>.TDATA4>> hits
+ 
+elif (STRMATCH(*armor*,<serv.itemdef.<args>.type>)) || (STRMATCH(*shield,<serv.itemdef.<args>.type>))
+ if (<armslore> > <serv.itemdef.<args>.skillmake.0.val>+15.0>
+  local.c=1
+ endif
+ local.t .=<DEF.BR><DEF.BFONT_DCYAN>ARMADURA:<DEF.BFONT_WHITE><DEF.BR>
+ local.ar=<serv.itemdef.<args>.armor.lo>
+ local.t .= Protecao:
+ doswitch <eval <local.ar>/10>
+  local.t .= " Quase nada"
+  local.t .= " Muito baixa"
+  local.t .= " Baixa"
+  local.t .= " Boa"
+  local.t .= " Muito boa"
+  local.t .= " Alta"
+  local.t .= " Muito alta"
+  local.t .= " Extremamente alta"
+  local.t .= " Nada mais seguro!"
+  local.t .= " Nada mais seguro!"
+  local.t .= " Nem Alkron te acerta, <sex Ze Pequeno/Sra. Smith>!"  
+ end
+ if (<local.c>
+  local.rar = <RealAR <args>>
+  local.t .= <DEF.BR>AR sozinha: <dlocal.rar>%
+  local.t .= <DEF.BR>AR completa: <dlocal.ar>%
+ endif
+ local.t .= <DEF.BR>Maxima qualidade: <eval <serv.itemdef.<args>.TDATA4>> hits
+endif
+RETURN <local.t>
 
 [FUNCTION d_crafting_solve]
 if (<ctag.craft_task>==<DEF.CRAFT_PAGE_EMPTY>)
@@ -423,28 +522,43 @@ if (<ctag.craft_task>==<DEF.CRAFT_PAGE_EMPTY>)
          dtext - *20 66 fazer nada do que consta nela.
         endif
         
-elif (<ctag.craft_task>==<DEF.CRAFT_PAGE_CRAFT>) || (<ctag.craft_task>==<DEF.CRAFT_PAGE_INFO>)
-        //DB.QUERY="SELECT father FROM craftmenu WHERE id=<dctag.craft_level>;"
-        //ctag.craft_father=<DB.ROW.0.father>
-        resizepic 20 40 2620 150 175
-        tilepichue 28 50 <eval <serv.itemdef.<ctag.craft_item>.id>> <itemforge_DBColor <ctag.craft_item>>
-        resizepic 180 40 2620 300 320
-        dtext 190 50 3 Item:
-        dtext 228 50 86 <serv.itemdef.<ctag.craft_item>.name>
-        dhtmlgump 190 74 284 278 0 1 <craft_info_craft <ctag.craft_item>>
-        resizepic 20 225 2620 150 136
-        button 29 239 2224 248 1 0 4
-        dtext 51 235 66 Geral
-        button 29 256 2224 248 1 0 5
-        dtext 51 252 66 Manufatura
-        dtext 57 286 86 Qtd.:
-        resizepic 93 284 9200 31 26
-        dtextentry 100 287 18 20 0 0 1
-        button 61 319 2443 2444 1 0 6
-        dtext 75 320 33 Fazer
-        IF (!<IsEmpty <ctag0.craft_father>>)
-         button 25 365 5603 5607 1 0 3
-        ENDIF
+elif (<ctag.craft_task>==<DEF.CRAFT_PAGE_CRAFT>)
+         resizepic 20 40 2620 150 175
+         tilepichue 28 50 <eval <serv.itemdef.<ctag.craft_item>.id>> <itemforge_DBColor <ctag.craft_item>>
+         resizepic 180 40 2620 300 320
+         dtext 190 50 3 Item:
+         dtext 228 50 86 <serv.itemdef.<ctag.craft_item>.name>
+         dhtmlgump 190 74 284 278 0 1 <craft_info_craft <ctag.craft_item>>
+         resizepic 20 225 2620 150 136
+         button 29 239 2224 2224 1 0 4
+         dtext 51 235 66 Geral
+         button 29 256 2224 2224 1 0 5
+         dtext 51 252 66 Manufatura
+         dtext 57 286 86 Qtd.:
+         resizepic 93 284 9200 31 26
+         dtextentry 100 287 18 20 0 0 1
+         button 61 319 2443 2444 1 0 6
+         dtext 75 320 33 Fazer
+         if (!<IsEmpty <ctag0.craft_father>>)
+          button 25 365 5603 5607 1 0 3
+         endif
+
+elif (<ctag.craft_task>==<DEF.CRAFT_PAGE_INFO>)
+         resizepic 20 40 2620 150 175
+         tilepichue 28 50 <eval <serv.itemdef.<ctag.craft_item>.id>> <itemforge_DBColor <ctag.craft_item>>
+         resizepic 180 40 2620 300 320
+         dtext 190 50 3 Item:
+         dtext 228 50 86 <serv.itemdef.<ctag.craft_item>.name>
+         dhtmlgump 190 74 284 278 0 1 <craft_info_general <ctag.craft_item>>
+         resizepic 20 225 2620 150 136
+         button 29 239 2224 2224 1 0 4
+         dtext 51 235 66 Geral
+         button 29 256 2224 2224 1 0 5
+         dtext 51 252 66 Manufatura
+         if (!<IsEmpty <ctag0.craft_father>>)
+          button 25 365 5603 5607 1 0 3
+         endif        
+
 
 elif (<ctag.craft_task>==<DEF.CRAFT_PAGE_ROOT>) || (<ctag.craft_task>==<DEF.CRAFT_PAGE_LIST>)
         resizepic 20 40 2620 460 320
@@ -598,11 +712,13 @@ craft_loadLevel <ctag.craft_father>
 
 ON=4
 // Info geral
-// 
+ctag.craft_task=<DEF.CRAFT_PAGE_INFO>
+DIALOG d_crafting
 
 ON=5
 // info craft
-// 
+ctag.craft_task=<DEF.CRAFT_PAGE_CRAFT>
+DIALOG d_crafting
 
 ON=6
 // Craft item
