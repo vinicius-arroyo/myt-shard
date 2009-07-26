@@ -35,6 +35,13 @@ Return  Value    Description
 - Setar poção de explosão terrestre
 - Usar .abordar
 
+[DEFNAME guard_taks]
+GUARD_TASK_GO       1
+GUARD_TASK_FOLLOW   2
+GUARD_TASK_GUARD    3
+GUARD_TASK_POST     4
+GUARD_TASK_PATROL   5
+
 [REGIONTYPE r_town]
 on=@enter
 src.sysmessageyellow Voce esta entrando nos dominios de <region.name>
@@ -107,6 +114,118 @@ if (!<NPC>)
  endif
 endif
 
+
+[FUNCTION guard_setPost]
+HOME=<args>
+tag.post=<args>
+HOMEDIST=3
+ACTION=06D
+tag.task=<DEF.GUARD_TASK_POST>
+
+[FUNCTION guard_goPost]
+if (!<IsEmpty <tag.post>>)
+ HOME=<tag.post>
+ ACTION=06D
+ tag.task=<DEF.GUARD_TASK_POST>
+else
+ guard_setPost <p>
+endif
+
+[FUNCTION guard_Follow]
+ACTION=064
+ACT=<argn>
+TAG.TASK=<DEF.GUARD_TASK_FOLLOW>
+ 
+[FUNCTION guard_addWPT]
+if (<argv> < 2)
+ say Huh? Nao entendo
+elif (!<IsEmpty <tag.wpt_10>>)
+ say Ja sao muitos os pontos para patrulhar.
+else
+ local.w=1
+ WHILE (!<IsEmpty <tag.wpt_<dlocal.w>>>)
+  local.w += 1
+ END
+ tag.wpt_<dlocal.w>=<args>
+ DORAND 3
+  say Guardarei este ponto.
+  say Ficarei de olho.
+  say Positivo.
+ END
+endif
+
+[FUNCTION guard_clearWPT]
+for w 1 10
+ try tag.wpt_<dlocal.w>=
+end
+say Nao patrulharei mais a area.
+src.sysmessageyellow Pontos de patrulha apagados!
+
+[FUNCTION guard_reportTask]
+DOSWITCH <tag0.task>
+ local.t=aguardando ordens.
+ local.t=em transito.
+ local.t=a servico de <act.tag.name>.
+ local.t=guardando <act.name>.
+ local.t=em meu posto.
+ local.t=patrulhando a area.
+END
+say No momento estou <local.t>
+
+[FUNCTION gaurd_StartPatrol]
+if (<IsEmpty <tag.wpt_1>>)
+ guard_goPost
+ return 0
+endif
+timerf clear
+TAG.TASK=<DEF.GUARD_TASK_PATROL>
+tag.wpt=1
+HOME=<tag.wpt_1>
+ACTP=<tag.wpt_1>
+timerf 3,guard_timePatrol
+return 1
+
+[FUNCTION guard_timePatrol]
+tag0.try=<tag0.try>+1
+if (<action> > 064) && (<action> < 068) && (<tag0.task>==<DEF.GUARD_TASK_PATROL>)
+ if (<distance <home>> < 3)
+  serv.log [GUARD] WP: <dtag.wpt> -- Try: <dtag.try>
+  tag.wpt += 1
+  tag.try=
+  if (<IsEmpty <tag.wpt_<dtag.wpt>>>)
+   tag.wpt=1
+   HOME=<tag.wpt_1>
+   ACTP=<tag.wpt_1>
+  else
+   HOME=<tag.wpt_<dtag.wpt>>
+   ACTP=<tag.wpt_1>
+  endif
+ endif
+ timerf 4,guard_timePatrol
+
+ //Estou demorando muito?
+ if (<tag0.try> > 35)
+  tag.try=
+  go <home>
+ endif
+ 
+//Estou brigando ou usando skill?
+elif (<tag0.task>==<DEF.GUARD_TASK_PATROL>)
+ timerf 15,guard_timePatrol
+endif
+
+[FUNCTION guard_Atack]
+if (<argo>)
+ if (<argo.IsChar>)
+  ref1=<ctag.guard> 
+  if (<argo.town_GetPosition <ref1.tag.town>> < <town_GetPosition <ref1.tag.town>>)
+   ref1.attack <argo>
+   ref1.SAY Falou a lei!
+  else
+   ref1.SAY Nao posso fazer isso!
+  endif
+ endif
+endif
 
 [EVENTS e_town_guard]
 ON=@NPCSeeNewPlayer
@@ -224,6 +343,7 @@ SOUND=snd_human_moomph01
 TEVENTS=e_town_guard
 TEVENTS=e_pvm
 TEVENTS=e_combat
+TSPEECH=spk_town_guard
 
 ARMOR=
 DAM=
@@ -264,3 +384,65 @@ ITEM=i_kryss
 ITEM=i_espada_longa
 ITEM=i_coin_copper,{3 10}
 ITEM=i_boots_calf
+
+[SPEECH spk_town_guard]
+ON=*qual*tarefa*?
+guard_reportTask
+
+ON=*siga-me
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ SAY Certamente.
+ guard_Follow <src>
+ELSE
+ SAY Nao posso receber ordens suas.
+ENDIF
+
+ON=*este*seu*posto
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ SAY Entendido!
+ guard_setPost <src.p>
+ELSE
+ SAY Nao posso receber ordens suas.
+ENDIF
+
+ON=*va*seu*posto
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ SAY Indo para meu posto
+ guard_goPost
+ ACT=
+ELSE
+ SAY Nao posso receber ordens suas.
+ENDIF
+
+ON=patrulhe*este*ponto
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ guard_addWPT <src.p>
+ SAY Guardarei este ponto durante a patrulha.
+ELSE
+ SAY Voce nao pode me dar ordens.
+ENDIF
+
+ON=nao*patrulhe*mais
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ guard_goPost
+ SAY Nao patrulharei mais. Irei para meu posto.
+ELSE
+ SAY Voce nao pode me dar ordens.
+ENDIF
+
+ON=va*patrulhar
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ SAY <QVAL <gaurd_StartPatrol>?Patrulhando!:Nao tenho aonde patrulhar>
+ELSE
+ SAY Voce nao pode me dar ordens.
+ENDIF
+
+ON=*prenda*est*
+ON=*prenda*ess*
+ON=*prenda o
+ON=*prenda a
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ src.ctag.guard=<UID>
+ src.sysmessageorange Prender quem?
+ src.targetf guard_Atack
+ENDIF 
