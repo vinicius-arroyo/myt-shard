@@ -42,6 +42,8 @@ GUARD_TASK_GUARD    3
 GUARD_TASK_POST     4
 GUARD_TASK_PATROL   5
 
+
+
 [REGIONTYPE r_town]
 on=@enter
 src.sysmessageyellow Voce esta entrando nos dominios de <region.name>
@@ -85,8 +87,37 @@ if !(<region.tag.permissions>&TOWN_CAN_MAGIC) && !(<ctag.town_<region.defname>_p
 endif
 
 on=@TownHit
+if (<NPC>)
+ return 0
+endif
+
 //testar brain_animal para RESOURCES
+if (<act.brain>==brain_animal) && !(<region.tag.permissions>&TOWN_CAN_RESOURCES) && !(<ctag.town_<region.defname>_privs>&TOWN_PRIV_RESOURCES)
+ if !(<act.memoryfindtype.memory_ipet>)
+  sysmessageyellow Eh bom voce saber que nao eh permitido cacar aqui.
+  guards_near guard_advice,<uid>,<DEF.TOWN_CAN_RESOURCES>
+ endif
+
 //testar vendor/player/guard para HARM
+elif (<act.brain>) && ((STRMATCH(*jobvendor*,<act.tspeech>)) || (STRMATCH(*spk_senescal*,<act.tspeech>)) || (STRMATCH(*spk_gatekeeper*,<act.tspeech>)))  && !(<region.tag.permissions>&TOWN_CAN_HARM) && !(<ctag.town_<region.defname>_privs>&TOWN_PRIV_HARM)
+ guards_near guard_advice,<uid>,<DEF.TOWN_PRIV_HARM>
+ if (<brain>)
+  DORAND 3
+   say Guardas! Socorro!
+   say Um assassino! Guardas!
+   say Socorro! Guardas, um assassino!
+  end
+ endif
+ 
+elif (<act.IsEvent.e_town_guard>) && !(<region.tag.permissions>&TOWN_CAN_HARM) && !(<ctag.town_<region.defname>_privs>&TOWN_PRIV_HARM) && !(<tag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
+ DORAND 3
+  SAY Como ousa?
+  SAY Agora foi de mais!
+  SAY Tome isto!
+ END
+ town_setAsCriminal <act.tag.town>
+endif
+
 //se for monstro ou estiver banido, manter
 //Se tem priv pra bater e for criminal/banido, manter
 //say HIT
@@ -102,6 +133,70 @@ on=@CallGuards
  guards_near guard_advice,<uid>,<argn1>
 //end
 return 1
+
+//*************************************
+ON=@SKILLSUCCESS
+//*************************************
+//serv.log [SKILLSUCCESS] <src.account>/<src.action>/<eval <src.action>>
+
+doswitch <src.action>
+return 0                    // SKILL_ALCHEMY
+return 0                    // SKILL_ANATOMY
+return 0                    // SKILL_ANIMALLORE
+return 0                    // SKILL_ITEMID
+return 0                    // SKILL_ARMSLORE
+return 0                    // SKILL_PARRYING
+return 0                    // SKILL_BEGGING
+return 0                    // SKILL_BLACKSMITHING
+return 0                    // SKILL_BOWCRAFT
+return 0                    // SKILL_PEACEMAKING
+TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<DEF.TOWN_CAN_RESOURCES>// SKILL_CAMPING
+return 0                    // SKILL_CARPENTRY
+return 0                    // SKILL_CARTOGRAPHY
+return 0                    // SKILL_COOKING
+return 0                    // SKILL_DETECTHIDDEN
+return 0                    // SKILL_ENTICEMENT
+return 0                    // SKILL_EVALUATINGINTEL
+return 0                    // SKILL_HEALING
+TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<DEF.TOWN_CAN_RESOURCES>// SKILL_FISHING
+return 0                    // SKILL_FORENSICS
+return 0                    // SKILL_HERDING
+return 0                    // SKILL_HIDING 
+return 0                    // SKILL_PROVOCATION
+return 0                    // SKILL_INSCRIPTION
+return 0                    // SKILL_LOCKPICKING
+return 0                    // SKILL_MAGERY
+return 0                    // SKILL_MAGICRESISTANCE
+return 0                    // SKILL_TACTICS
+return 0                    // SKILL_SNOOPING
+return 0                    // SKILL_MUSICIANSHIP
+return 0                    // SKILL_POISONING
+return 0                    // SKILL_ARCHERY
+return 0                    // SKILL_SPIRITSPEAK
+return 0                    // SKILL_STEALING
+return 0                    // SKILL_TAILORING
+return 0                    // SKILL_TAMING
+return 0                    // SKILL_TASTEID
+return 0                    // SKILL_TINKERING
+return 0                    // SKILL_TRACKING
+return 0                    // SKILL_VETERINARY
+return 0                    // SKILL_SWORDSMANSHIP
+return 0                    // SKILL_MACEFIGHTING
+return 0                    // SKILL_FENCING
+return 0                    // SKILL_WRESTLING
+TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<DEF.TOWN_CAN_RESOURCES>// SKILL_LUMBERJACK
+TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<DEF.TOWN_CAN_RESOURCES>// SKILL_MINING
+return 0                    // SKILL_MEDITATION
+return 0                    // SKILL_STEALTH
+return 0                    // SKILL_REMOVETRAP
+return 0                    // SKILL_NECROMANCY
+return 0                    // SKILL_FOCUS
+return 0                    // SKILL_CHIVALRY
+return 0                    // SKILL_BUSHIDO
+return 0                    // SKILL_NINJITSU
+return 0                    // SKILL_SPELLWEAVING
+enddo
+return 0
 
 
 [FUNCTION town_enter]
@@ -189,8 +284,7 @@ return 1
 tag0.try=<tag0.try>+1
 if (<action> > 064) && (<action> < 068) && (<tag0.task>==<DEF.GUARD_TASK_PATROL>)
  if (<distance <home>> < 3)
-  serv.log [GUARD] WP: <dtag.wpt> -- Try: <dtag.try>
-  tag.wpt += 1
+   tag.wpt += 1
   tag.try=
   if (<IsEmpty <tag.wpt_<dtag.wpt>>>)
    tag.wpt=1
@@ -205,8 +299,8 @@ if (<action> > 064) && (<action> < 068) && (<tag0.task>==<DEF.GUARD_TASK_PATROL>
 
  //Estou demorando muito?
  if (<tag0.try> > 35)
-  tag.try=
-  go <home>
+   tag.try=
+  go <actp>
  endif
  
 //Estou brigando ou usando skill?
@@ -320,11 +414,14 @@ endif
 [FUNCTION guards_near]
 //Executa a função <args> em todos os guardas a 12 tiles de distância que vêem DEFAULT
 obj=<UID>
+local.ret=0
 FORCHARS 18
  IF (<canSeeLos <obj>>) && (<IsTEvent.e_town_guard>)
   try <args>
+  local.ret=1
  ENDIF
 END
+return <local.ret>
 
 //*****************************************************************************
 // c_guard_swords
