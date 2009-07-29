@@ -812,7 +812,7 @@ DB.EXECUTE="INSERT INTO towns SET region='<DB.ESCAPEDATA <argv0>>', type=<eval <
 DB.EXECUTE="INSERT INTO towns_privs SET region='<DB.ESCAPEDATA <argv0>>', position=1, title='mestre', description='Mestre. Todos os privilegios. Nao pode ser apagado.', privs=<eval 0FFFFFF>;"
 DB.EXECUTE="INSERT INTO towns_privs SET region='<DB.ESCAPEDATA <argv0>>', position=999, title='cidadao', description='Simples membro. Sem privilegios. Nao pode ser apagado', privs=0;"
 serv.resources.<argv0>.events +r_town
-serv.resources.<argv0>.allclients events +e_InTown
+serv.resources.<argv0>.allclients town_enter <args>
 serv.resources.<argv0>.tag.permissions=<town_getPermissions <argv0>>
 
 [FUNCTION townAddSubTown]
@@ -1938,7 +1938,7 @@ else
  local.town=<region.defname>
 endif
 if (<ctag0.town_tryHire> > 5)
- sysmessagered Nao ha porteiros disponiveis para compra. Tente mais tarde.
+ sysmessagered Nao ha porteiros disponiveis para contratar. Tente mais tarde.
  ctag.town_tryHire=
  return 1
 endif
@@ -1976,7 +1976,7 @@ else
  local.town=<region.defname>
 endif
 if (<ctag0.town_tryHire> > 5)
- sysmessagered Nao ha administradores disponiveis para compra. Tente mais tarde.
+ sysmessagered Nao ha administradores disponiveis para contratar. Tente mais tarde.
  ctag.town_tryHire=
  return 1
 endif
@@ -2007,6 +2007,51 @@ else
  town_hireSeneschal <local.town>
 endif
 
+[FUNCTION town_hireThisGuard]
+if (!<IsEmpty <argv0>>)
+ local.town=<argv0>
+ if (<IsEmpty <argv1>>)
+  local.level=<argv1>
+ else
+  local.level=0
+ endif
+else
+ local.town=<region.defname>
+ local.level=0
+endif
+if (<ctag0.town_tryHire> > 5)
+ sysmessagered Nao ha guardas disponiveis para contratar. Tente mais tarde.
+ ctag.town_tryHire=
+ return 1
+endif
+ctag.town_tryHire=<ctag0.town_tryHire>+1
+local.races=<town_getRaces <local.town>>
+local.racen=<R3>
+DOSWITCH <local.racen>
+ local.race=Humano
+ local.race=Elfo
+ local.race=Anao
+end
+if (strmatch(*<local.race>*,<local.races>))
+ if (<town_getCash> < <DEF.TOWN_GUARD_<dlocal.level>_HIRE>)
+  sysmessageyellow <serv.resources.<local.town>.name> nao tem dinheiro para pagar por este guarda.
+  town_PageNPCs
+  retuen 1
+ endif
+ town_AddCash -<DEF.TOWN_GUARD_<dlocal.level>_HIRE>
+ DOSWITCH <local.racen>
+  local.npc=c_h_guard
+  local.npc=c_e_guard
+  local.npc=c_a_guard
+ end
+ src.newnpc=<local.npc>
+ new.movenear <uid>,2
+ new.town_RegServant <local.town>
+ new.guard_level <argv1>
+ town_PageNPCs
+else
+ town_hireGuard <local.town>,<local.level>
+endif
 
 //*****************************
 // Função town_Can* para privs
@@ -2759,13 +2804,13 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_NPC>)
          button - +3 30008 30009 1 0 92
          dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_GUARD_2_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
          dtext +18 *20 66 Contratar tenente (<STRTRESURE <DEF.TOWN_GUARD_3_HIRE>>)
-         button - +3 30008 30009 1 0 90
+         button - +3 30008 30009 1 0 93
          dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_GUARD_3_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
          dtext +18 *20 66 Contratar capitao (<STRTRESURE <DEF.TOWN_GUARD_4_HIRE>>)
-         button - +3 30008 30009 1 0 90
+         button - +3 30008 30009 1 0 94
          dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_GUARD_4_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
          dtext +18 *20 66 Contratar major (<STRTRESURE <DEF.TOWN_GUARD_5_HIRE>>)
-         button - +3 30008 30009 1 0 90
+         button - +3 30008 30009 1 0 95
          dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_GUARD_5_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
 
         else //Vamos mostrar um
@@ -3147,6 +3192,9 @@ ON=86
 //Contratar senescal
 town_hireSeneschal
 
+ON=90 95
+local.level=<eval <argn>-90>
+town_hireThisGuard <ctag.town_region>,<local.level>
 
 
 
@@ -3204,7 +3252,8 @@ AVERSIONS=t_TRAP,t_eerie_stuff
 BLOODCOLOR=0
 SOUND=snd_human_moomph01
 
-TEVENTS=e_combat 
+TEVENTS=e_combat
+TEVENTS=e_town_Seneschal
 TSPEECH=spk_senescal
 TEVENTS=e_Human_HearUnk
 
@@ -3252,9 +3301,6 @@ ON=@NPCRestock
     ITEM=i_mry_seneschal
     TIMER=<DEF.TOWN_TRIG_TIME>
     
-on=@Destroy
-town_UnRegServant
-serv.log Hey! Hey! Hey! Senescal <name> (<uid>) foi destruido!!!
 
 //*****************************************************************************
 // Senescal Elfo
@@ -3272,6 +3318,7 @@ BLOODCOLOR=0
 SOUND=snd_human_moomph01
 
 TEVENTS=e_combat 
+TEVENTS=e_town_Seneschal
 TSPEECH=spk_senescal
 TEVENTS=e_Human_HearUnk
 
@@ -3314,9 +3361,6 @@ ON=@NPCRestock
     ITEM=i_mry_seneschal
     TIMER=<DEF.TOWN_TRIG_TIME>
 
-on=@Destroy
-town_UnRegServant
-serv.log Hey! Hey! Hey! Senescal <name> (<uid>) foi destruido!!!
 
 //*****************************************************************************
 // Senescal Anão
@@ -3334,6 +3378,7 @@ BLOODCOLOR=0
 SOUND=snd_human_moomph01
 
 TEVENTS=e_combat 
+TEVENTS=e_town_Seneschal
 TSPEECH=spk_senescal
 TEVENTS=e_Human_HearUnk
 
@@ -3377,6 +3422,25 @@ ON=@NPCRestock
     ITEM=RANDOM_BOOTS
     ITEM=i_mry_seneschal
     TIMER=<DEF.TOWN_TRIG_TIME>
+    
+[EVENTS e_town_Seneschal]
+on=@Destroy
+town_UnRegServant
+TOWN_RELEASE_DOORS
+serv.log Hey! Hey! Hey! Senescal <name> (<uid>) foi destruido!!!
+
+on=@Hunger
+IF (<food> < 30)
+ IF (!<town_ServantFood>)
+  IF (<restest 2 i_coin_copper>)
+   consume 2 i_coin_copper
+   serv.newitem i_ribs_cooked,18,<UID>
+  ELIF (!<food>) && (<tag0.nopay> > 2)
+   say Chega disso! Me demito!
+   timerf 15,remove
+  ENDIF
+ ENDIF
+ENDIF
     
 on=@Destroy
 town_UnRegServant
@@ -3852,7 +3916,7 @@ serv.log [TOWNS] Servidor <name> (<dtag.servant>) de <local.town> :: UnRegServan
 //*****************************************************************************
 [FUNCTION town_ServantFood]
 //*****************************************************************************
-//Faz o guarda comer
+//Faz o NPC comer
 LOCAL.food=<findtype t_food>
 if (<LOCAL.food>)
  anim 022
