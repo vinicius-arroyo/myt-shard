@@ -265,23 +265,40 @@ TOWN_SERVANT_GATE       1
 TOWN_SERVANT_GUARD      2
 TOWN_SERVANT_SENESCAL   3
 
+//Nome dos cargos de NPC
+TOWN_SERVANT_1          Porteiros
+TOWN_SERVANT_2          Guardas
+TOWN_SERVANT_3          Senescais
+
 //Tempo que demora para o Senescal rodar a função TOWN_TRIG
 TOWN_TRIG_TIME      22*60*60
 
-//Razão da fama de um guarda pelo custo em MC para compra.
-//Ex.: Um guarda com 5000 de fama com este número a 10 custaria 500 mc
-FAME_COPPER_RATE_BUY    20
+//Preço em mc para contratar um funcionadio com tag.town_servant N
+TOWN_SERVANT_1_HIRE  100
+TOWN_SERVANT_2_HIRE  TOWN_GUARD_0_HIRE
+TOWN_SERVANT_3_HIRE  500
 
-//Razão da fama de um guarda pelo custo em MC para salário.
-//Ex.: Um guarda com 5000 de fama com este número a 50 custaria 50 mc
-FAME_COPPER_RATE_ORD    120
+//Preço em mc para pagar diário a um funcionario com tag.town_servant N
+TOWN_SERVANT_1_ORD   10
+TOWN_SERVANT_2_ORD   TOWN_GUARD_0_ORD
+TOWN_SERVANT_3_ORD   16
 
-//Mínimo que pode custar um funcionário em mc
-SERVANT_MIN_COST    40
 
-//Salário mínimo do funcionário em mc
-SERVANT_MIN_ORD     12
+//Preço em mc para contratar um guarda de nivel N
+TOWN_GUARD_0_HIRE    20
+TOWN_GUARD_1_HIRE    50
+TOWN_GUARD_2_HIRE    100
+TOWN_GUARD_3_HIRE    200
+TOWN_GUARD_4_HIRE    400
+TOWN_GUARD_5_HIRE    800
 
+//Preco em mc para pagar diario um guarda de nivel N
+TOWN_GUARD_0_ORD     5
+TOWN_GUARD_1_ORD     8
+TOWN_GUARD_2_ORD     16
+TOWN_GUARD_3_ORD     24
+TOWN_GUARD_4_ORD     36
+TOWN_GUARD_5_ORD     48
 
 [REGIONTYPE r_town]
 on=@enter
@@ -514,6 +531,15 @@ else
  return 0
 endif
 
+
+[FUNCTION town_getCash]
+if (!<IsEmpty <args>>)
+ local.town=<args>
+else
+ local.town=<region.defname>
+endif
+DB.QUERY="SELECT tresure FROM towns WHERE region='<local.town>';"
+return <DB.ROW.0.tresure>
 
 [FUNCTION TOWN_CHECK_PRIVS]
 //Checa se o DEFAULT temo privilégio <argn> na town em que ele está
@@ -1145,6 +1171,32 @@ DIALOG d_town
 ctag.town_page=<DEF.TOWN_PAGE_POLLS>
 DIALOG d_town
 
+[FUNCTION town_PageNPCs]
+//Abre o menu de NPCs
+ctag.town_page=<DEF.TOWN_PAGE_NPCs>
+DIALOG d_town
+
+[FUNCTION town_hireNPC]
+//Abre o menu de NPCs para contratar
+ctag.town_uid=0
+ctag.town_page=<DEF.TOWN_PAGE_NPC>
+DIALOG d_town
+
+[FUNCTION town_hireGuard]
+//Abre o menu de NPCs guardas para contratar
+ctag.town_uid=-1
+ctag.town_page=<DEF.TOWN_PAGE_NPC>
+DIALOG d_town
+
+[FUNCTION town_NPCs]
+//Retorna quantos NPCs a town tem
+if (!<IsEmpty <args>>)
+ local.town=<args>
+else
+ local.town=<region.defname>
+endif
+DB.QUERY="SELECT COUNT(UID) as cnt FROM towns_servants WHERE region='<local.town>';"
+RETURN <DB.ROW.0.cnt>
 
 [FUNCTION town_showPetition]
 //Abre uma petição para ser apreciada
@@ -1879,6 +1931,83 @@ DB.EXECUTE="UPDATE towns_laws SET sign='<tag.name>', title='<ctag.town_lawTitle>
 SYSMESSAGEGREEN Edicao do decreto promulgada!
 town_Laws
 
+[FUNCTION town_hireKeeper]
+if (!<IsEmpty <argv1>>)
+ local.town=<argv1>
+else
+ local.town=<region.defname>
+endif
+if (<ctag0.town_tryHire> > 5)
+ sysmessagered Nao ha porteiros disponiveis para compra. Tente mais tarde.
+ ctag.town_tryHire=
+ return 1
+endif
+ctag.town_tryHire=<ctag0.town_tryHire>+1
+local.races=<town_getRaces <local.town>>
+local.racen=<R3>
+DOSWITCH <local.racen>
+ local.race=Humano
+ local.race=Elfo
+ local.race=Anao
+end
+if (strmatch(*<local.race>*,<local.races>))
+ if (<town_getCash> < <DEF.TOWN_SERVANT_1_HIRE>)
+  sysmessageyellow <serv.resources.<local.town>.name> nao tem dinheiro para pagar por um porteiro.
+  town_PageNPCs
+  retuen 1
+ endif
+ town_AddCash -<DEF.TOWN_SERVANT_1_HIRE>
+ DOSWITCH <local.racen>
+  local.npc=c_h_gatekeeper
+  local.npc=c_e_gatekeeper
+  local.npc=c_a_gatekeeper
+ end
+ src.newnpc=<local.npc>
+ new.movenear <uid>,2
+ town_PageNPCs
+else
+ town_hireKeeper <local.town>
+endif
+
+[FUNCTION town_hireSeneschal]
+if (!<IsEmpty <argv1>>)
+ local.town=<argv1>
+else
+ local.town=<region.defname>
+endif
+if (<ctag0.town_tryHire> > 5)
+ sysmessagered Nao ha administradores disponiveis para compra. Tente mais tarde.
+ ctag.town_tryHire=
+ return 1
+endif
+ctag.town_tryHire=<ctag0.town_tryHire>+1
+local.races=<town_getRaces <local.town>>
+local.racen=<R3>
+DOSWITCH <local.racen>
+ local.race=Humano
+ local.race=Elfo
+ local.race=Anao
+end
+if (strmatch(*<local.race>*,<local.races>))
+ if (<town_getCash> < <DEF.TOWN_SERVANT_3_HIRE>)
+  sysmessageyellow <serv.resources.<local.town>.name> nao tem dinheiro para pagar por um senescal.
+  town_PageNPCs
+  retuen 1
+ endif
+ town_AddCash -<DEF.TOWN_SERVANT_3_HIRE>
+ DOSWITCH <local.racen>
+  local.npc=c_h_senescal
+  local.npc=c_e_senescal
+  local.npc=c_a_senescal
+ end
+ src.newnpc=<local.npc>
+ new.movenear <uid>,2
+ town_PageNPCs
+else
+ town_hireSeneschal <local.town>
+endif
+
+
 //*****************************
 // Função town_Can* para privs
 //*****************************
@@ -1927,6 +2056,15 @@ endif
 local.priv=<QVAL <town_getPrivs <local.region>>&<DEF.TOWN_PRIV_LAWS>?1:0>
 RETURN <local.priv>
 
+[FUNCTION town_canKeeper]
+//Testa se DEFAULT tem priviléguio para modificar leis
+if (<IsEmpty <ctag.town_region>>)
+ local.region=<region.defname>
+else
+ local.region=<ctag.town_region>
+endif
+local.priv=<QVAL <town_getPrivs <local.region>>&<DEF.TOWN_PRIV_KEEPER>?1:0>
+RETURN <local.priv>
 
 //########################################################################
 //########################################################################
@@ -2104,6 +2242,19 @@ DIALOG d_town
         local.html=<DEF.BFONT_DCYAN>Decreto n. <eval <DB.ROW.0.id>> de <DB.ESCAPEDATA <DB.ROW.0.gtime>> por <DB.ROW.0.sign><DEF.BR><DEF.BFONT_WHITE>
         local.html .=<DB.ROW.0.text>
         
+[FUNCTION d_town_buildNPCHtml]
+        DB.QUERY="SELECT type FROM towns_servants WHERE region='<ctag.town_region>';"
+        FOR n 0 <eval <DB.ROW.NUMROWS>-1>
+         try local.npc_<eval <DB.ROW.<dlocal.n>.type>> = 0<local.npc_<eval <DB.ROW.<dlocal.n>.type>>>+1
+        END
+        local.t = <serv.resources.<ctag.town_region>.name> tem no momento <eval <DB.ROW.NUMROWS>> servidores, gerando um gasto de <strtresure <serv.resources.<ctag.town_region>.tag0.town_cost>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>><DEF.BR>
+        local.s=1
+        WHILE (!<IsEmpty <DEF.TOWN_SERVANT_<dlocal.s>>>)
+         local.t .= " - <DEF.TOWN_SERVANT_<dlocal.s>>: <dlocal.npc_<dlocal.s>><DEF.BR>"
+         local.s += 1
+        END
+        return <local.t>
+        
 [FUNCTION d_town_solve]
 if (<ctag.town_page>==<DEF.TOWN_PAGE_FOUND>)
         resizepic 92 89 2620 416 82
@@ -2165,7 +2316,7 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_REPORT>)
         //button 319 358 30008 30009 1 0 11
         button 319 358 30008 30009 1 0 12
         dtext 337 340 66 Funcionarios:
-        dtext 425 340 4 (n_npcs)
+        dtext 425 340 4 <town_NPCs <ctag.town_region>>
         //dtext 337 356 66 Plebicitos:
         //dtext 425 356 4 (n_polls)
         dtext 337 356 66 Peticoes:
@@ -2553,6 +2704,75 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_POLLS>)
 
         button 92 385 4014 4015 1 0 1
         
+elif (<ctag.town_page>==<DEF.TOWN_PAGE_NPCs>)  
+        local.priv=<town_getPrivs <ctag.town_region>>
+        resizepic 92 87 2620 416 147
+        call d_town_buildNPCHtml
+        dhtmlgump 98 95 403 130 0 1 <local.t>
+        dorigin 101 221
+        IF (<local.priv>&<DEF.TOWN_PRIV_HIRE>)
+         button - *20 30008 30009 1 0 80
+         dtext +19 -1 66 Contratar novo servidor
+        ENDIF
+        button - *20 30008 30009 1 0 81
+        dtext +19 -1 66 Listar servidores
+      
+        button 92 385 4014 4015 1 0 1
+        
+elif (<ctag.town_page>==<DEF.TOWN_PAGE_NPC>)  
+        if (!<ctag.town_UID>)        //vamos comprar
+         local.priv=<town_getPrivs <ctag.town_region>>
+         resizepic 92 89 2620 416 282
+         dorigin 130 65
+         if (<local.priv>&<DEF.TOWN_PRIV_KEEPER>)
+          dtext +18 *60 66 Contratar porteiro (<STRTRESURE <DEF.TOWN_SERVANT_1_HIRE>>)
+          button - +3 30008 30009 1 0 84
+          dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_SERVANT_1_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
+         else
+          dtext +18 *60 32 Contratar porteiro (negado)
+         endif
+         if (<local.priv>&<DEF.TOWN_PRIV_GUARD>)
+          dtext +18 *60 66 Contratar guarda (<STRTRESURE <DEF.TOWN_GUARD_0_HIRE>> ate <STRTRESURE <DEF.TOWN_GUARD_5_HIRE>>)
+          button - +3 30008 30009 1 0 85
+          dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_GUARD_0_ORD>> ate <STRTRESURE <DEF.TOWN_GUARD_5_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
+         else
+          dtext +18 *60 32 Contratar guarda (negado)
+         endif
+         if (<local.priv>&<DEF.TOWN_PRIV_SENESCHAL>)
+          dtext +18 *60 66 Contratar senescal (<STRTRESURE <DEF.TOWN_SERVANT_3_HIRE>>)
+          button - +3 30008 30009 1 0 86
+          dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_SERVANT_3_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
+         else
+          dtext +18 *60 32 Contratar senescal (negado)
+         endif
+
+        elif (<ctag.town_UID>==-1) //Vamos comprar um guarda
+         resizepic 92 89 2620 416 282
+         dorigin 130 65
+         dtext +18 *40 66 Contratar aspirante (<STRTRESURE <DEF.TOWN_GUARD_0_HIRE>>)
+         button - +3 30008 30009 1 0 90
+         dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_GUARD_0_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
+         dtext +18 *20 66 Contratar soldado (<STRTRESURE <DEF.TOWN_GUARD_1_HIRE>>)
+         button - +3 30008 30009 1 0 91
+         dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_GUARD_1_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
+         dtext +18 *20 66 Contratar cabo (<STRTRESURE <DEF.TOWN_GUARD_2_HIRE>>)
+         button - +3 30008 30009 1 0 92
+         dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_GUARD_2_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
+         dtext +18 *20 66 Contratar tenente (<STRTRESURE <DEF.TOWN_GUARD_3_HIRE>>)
+         button - +3 30008 30009 1 0 90
+         dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_GUARD_3_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
+         dtext +18 *20 66 Contratar capitao (<STRTRESURE <DEF.TOWN_GUARD_4_HIRE>>)
+         button - +3 30008 30009 1 0 90
+         dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_GUARD_4_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
+         dtext +18 *20 66 Contratar major (<STRTRESURE <DEF.TOWN_GUARD_5_HIRE>>)
+         button - +3 30008 30009 1 0 90
+         dtext +18 *20 66 Ordenado de <STRTRESURE <DEF.TOWN_GUARD_5_ORD>> a cada <f_timestring <DEF.TOWN_TRIG_TIME>>(reais)
+
+        else //Vamos mostrar um
+        endif      
+        button 92 385 4014 4015 1 0 1        
+        
+        
 elif (<ctag.town_page>==<DEF.TOWN_PAGE_POLL>)
         resizepic 92 117 2620 416 147
         dtext 100 97 45 Peticao:
@@ -2700,7 +2920,7 @@ town_Taxes
 
 ON=10
 // NPCs
-// 
+town_PageNPCs
 
 ON=11
 // Polls
@@ -2900,7 +3120,32 @@ ON=76
 //Modificar o titulo de um decreto em edição
 town_lawChangeTitle
 
+//////////////////  NPCs
 
+ON=80
+//Contratar servidor
+town_hireNPC
+
+ON=81
+//Listar servidores
+
+ON=82
+//GM Help. KD servidor?
+
+ON=83
+//Demitir servidor
+
+ON=84
+//Contratar porteiro
+town_hireKeeper
+
+ON=85
+//Contratar guarda
+town_hireGuard
+
+ON=86
+//Contratar senescal
+town_hireSeneschal
 
 
 
@@ -3146,6 +3391,7 @@ FINDID.i_sash.color=<town_GetSecondColor>
 on=*venha*
 on=*vamos*
 on=ANDE
+on=siga-me
 IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_SENESCHAL>)
  flags=<flags>&~04
  timerf 1,say,Certamente, <src.sex senhor/senhora>.
@@ -3197,7 +3443,391 @@ endif
 timer <DEF.TOWN_TRIG_TIME>
 return 1
 
-[SPEECH spk_gatekeeper]
+//******************************************************************************
+//******************************************************************************
+//############################################################################**
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$**
+//                                        **
+//############################################################################**
+//                                        **
+//              PORTEIROS                     **
+//                                        **
+//#############################################################################*
+//                                        **
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$**
+//############################################################################**
+//******************************************************************************
+//******************************************************************************
+
+
+
+//*****************************************************************************
+// Porteiro Homem
+//*****************************************************************************
+[CHARDEF c_h_gatekeeper]
+ID=0190
+Name=#NAMES_HUMANMALE, o Porteirol
+ICON=i_pet_MAN
+CAN=MT_EQUIP|MT_WALK|MT_RUN|MT_USEHANDS
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2
+FOODTYPE=100 t_food, t_fruit
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+BLOODCOLOR=0
+SOUND=snd_human_moomph01
+
+TEVENTS=e_combat 
+TSPEECH=jobTOWNdoor
+TEVENTS=e_Human_HearUnk
+TEVENTS=e_town_gatekeeper
+
+CATEGORY=MYT - Town
+SUBSECTION=Porteiros
+DESCRIPTION=Porteiro (Humano)
+
+ON=@Create
+NPC=brain_towncrier
+COLOR=colors_skin
+
+FENCING={15.0 38.0}
+PARRYING={15.0 38.0}
+SWORDSMANSHIP={15.0 38.0}
+WRESTLING={15.0 38.0}
+MACEFIGHTING={15.0 38.0}
+MAGICRESISTANCE={15.0 38.0}
+TACTICS={15.0 38.0}
+
+STR={40 60}
+DEX={50 70}
+INT={60 80}
+
+timerf 1,TOWN_START_GATEKEEPER
+
+SPEECHCOLOR=colors_blue
+TAG.RACA=Humano
+tag.servant=<DEF.TOWN_SERVANT_GATE>
+
+ON=@NPCRestock
+    ITEM={ i_hair_ponytail 1 i_hair_short 1 i_hair_pageboy 1}
+    COLOR=colors_hair
+    ITEM { i_beard_vandyke 1 i_beard_goatee 1 i_beard_mustache 1 0 2}
+    COLOR=match_hair
+    ITEM=RANDOM_LIGHT
+    ITEM=i_shirt_fancy
+    COLOR=colors_all
+    ITEM=i_pants_long
+    COLOR=colors_all
+    ITEM=i_SASH
+    ITEM=random_boots
+    ITEM={ i_hat_feather 1 i_cap 1 0 2}
+    COLOR=COLORS_ALL
+    
+
+//*****************************************************************************
+// Porteiro Elfo
+//*****************************************************************************
+[CHARDEF c_e_gatekeeper]
+ID=0190
+Name=#NAMES_HUMANMALE, o Porteiro
+ICON=i_pet_MAN
+CAN=MT_EQUIP|MT_WALK|MT_RUN|MT_USEHANDS
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2
+FOODTYPE=100 t_food, t_fruit
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+BLOODCOLOR=0
+SOUND=snd_human_moomph01
+
+TEVENTS=e_combat 
+TSPEECH=jobTOWNdoor
+TEVENTS=e_Human_HearUnk
+TEVENTS=e_town_gatekeeper
+
+CATEGORY=MYT - Town
+SUBSECTION=Porteiros
+DESCRIPTION=Porteiro (Elfo)
+
+ON=@Create
+NPC=brain_towncrier
+COLOR=083EA
+
+FENCING={15.0 38.0}
+PARRYING={15.0 38.0}
+SWORDSMANSHIP={15.0 38.0}
+WRESTLING={15.0 38.0}
+MACEFIGHTING={15.0 38.0}
+MAGICRESISTANCE={15.0 38.0}
+TACTICS={15.0 38.0}
+
+STR={40 60}
+DEX={50 70}
+INT={60 80}
+
+timerf 1,TOWN_START_GATEKEEPER
+
+SPEECHCOLOR=colors_blue
+TAG.RACA=Elfo
+tag.servant=<DEF.TOWN_SERVANT_GATE>
+
+ON=@NPCRestock
+    ITEM=i_hair_long
+    COLOR=035
+    ITEM=i_shirt_plain
+    COLOR=colors_all
+    ITEM=i_pants_short
+    COLOR=colors_all
+    ITEM=i_SASH
+    ITEM=i_sandals
+    
+
+//*****************************************************************************
+// Porteiro Anão
+//*****************************************************************************
+[CHARDEF c_a_gatekeeper]
+ID=0190
+Name=#NAMES_HUMANMALE, o Porteiro
+ICON=i_pet_MAN
+CAN=MT_EQUIP|MT_WALK|MT_RUN|MT_USEHANDS
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2
+FOODTYPE=100 t_food, t_fruit
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+BLOODCOLOR=0
+SOUND=snd_human_moomph01
+
+TEVENTS=e_combat 
+TSPEECH=jobTOWNdoor
+TEVENTS=e_Human_HearUnk
+TEVENTS=e_town_gatekeeper
+
+CATEGORY=MYT - Town
+SUBSECTION=Porteiros
+DESCRIPTION=Porteiro (Anao)
+
+ON=@Create
+NPC=brain_towncrier
+COLOR=083EA
+
+FENCING={15.0 38.0}
+PARRYING={15.0 38.0}
+SWORDSMANSHIP={15.0 38.0}
+WRESTLING={15.0 38.0}
+MACEFIGHTING={15.0 38.0}
+MAGICRESISTANCE={15.0 38.0}
+TACTICS={15.0 38.0}
+
+STR={40 60}
+DEX={50 70}
+INT={60 80}
+
+timerf 1,TOWN_START_GATEKEEPER
+
+SPEECHCOLOR=colors_blue
+TAG.RACA=Anao
+tag.servant=<DEF.TOWN_SERVANT_GATE>
+
+ON=@NPCRestock
+    ITEM={ i_hair_long 1 i_hair_ponytail 1  i_hair_2_pigtails 1 }
+    COLOR=COLORS_HAIR
+    ITEM={ i_beard_long 1 i_beard_short_med 1 i_beard_long_med 1 }
+    COLOR=match_hair
+    ITEM=i_shirt_fancy
+    COLOR=colors_all
+    ITEM=i_pants_long
+    COLOR=colors_all
+    ITEM=i_SASH
+    ITEM=RANDOM_BOOTS
+    
+[EVENTS e_town_gatekeeper]
+on=@Destroy
+town_UnRegServant
+TOWN_RELEASE_DOORS
+serv.log Hey! Hey! Hey! Porteiro <name> (<uid>) foi destruido!!!
+
+on=@Hunger
+IF (<food> < 30)
+ IF (!<town_ServantFood>)
+  IF (<restest 2 i_coin_copper>)
+   consume 2 i_coin_copper
+   serv.newitem i_ribs_cooked,18,<UID>
+  ELIF (!<food>) && (<tag0.nopay> > 2)
+   say Chega disso! Me demito!
+   timerf 15,remove
+  ENDIF
+ ENDIF
+ENDIF
+
+
+[FUNCTION TOWN_START_GATEKEEPER]
+TOWN_REGSERVANT
+FINDID.i_sash.color=<town_getFirstColor <tag.town>>
+
+[SPEECH jobTOWNdoor]
+on=*venha*
+on=*vamos*
+on=ANDE
+on=siga-me
+IF (<src.town_canKeeper <tag.town>>)
+ flags=<flags>&~04
+ timerf 1,say,Pois nao, <src.sex senhor/senhora>.
+ act=<src.uid>
+ action=064
+ENDIF
+return 1
+
+on=*fique*
+on=*permaneca*
+IF (<src.town_canKeeper <tag.town>>)
+ flags = <flags>|04
+ timerf 1,say,Cuidarei dos portoes aqui entao, <src.sex senhor/senhora>.
+ act=
+ action=065
+ENDIF
+return 1
+
+on=*vigie*porta
+IF (<src.town_canKeeper <tag.town>>)
+ SAY Que porta quer que eu vigie?
+ targetf TOWN_ADD_DOOR <UID>
+ENDIF
+return 1
+
+on=*pare*vigiar*porta
+IF (<src.town_canKeeper <tag.town>>)
+ SAY Que porta quer que eu deixe de vigiar?
+ targetf TOWN_REM_DOOR <UID>
+ENDIF
+return 1
+
+on=*abra*porta*
+on=*abra*portao*
+on=*abra*portal*
+on=*abra*portoes*
+on=*abra*portais*
+//IF (<src.TOWN_CHECK_SPK_PRIVS <UID>,1>)
+ TOWN_OPEN_DOOR
+ timerf 7,TOWN_CLOSE_DOOR
+//ENDIF
+return 1
+
+on=*mantenha*porta*aberta
+on=*mantenha*portao*aberto
+on=*mantenha*portal*aberto
+on=*mantenha*portoes*abertos
+on=*mantenha*portais*abertos
+IF (<src.town_canKeeper <tag.town>>)
+ TOWN_OPEN_DOOR
+ENDIF
+return 1
+
+on=*feche*porta*
+on=*feche*portao*
+on=*feche*portal*
+on=*feche*portoes*
+on=*feche*portais*
+//IF (<SRC.TOWN_CHECK_SPK_PRIVS <UID>,1>)
+ TOWN_CLOSE_DOOR
+//ENDIF
+return 1
+
+//*****************************************************************************
+[FUNCTION TOWN_ADD_DOOR]
+//*****************************************************************************
+//Adiciona a porta TARGER (argo) a lista de portas do NPC
+OBJ=<argv[0]>
+say Esta aqui.
+if (<argo.type> != t_door) && (<argo.type> != t_door_locked) && (<argo.type> != t_portculis)
+ obj.timerf 1,say,Isso nao me parece com uma porta <sex senhor/senhora>.
+ return 1
+endif
+IF (STRMATCH(*<argo.uid>*,<obj.tag.TOWN_DOORS>)
+ Obj.timerf 1,say,Esta porta ja esta sendo vigiada.
+ return 1
+endif
+obj.timerf 1,say,Muito bem <sex senhor/senhora>. Guardarei para que seja segura.
+obj.tag.TOWN_DOORS .=;<argo.uid>
+
+[FUNCTION TOWN_REM_DOOR]
+OBJ=<argv[0]>
+say Esta aqui.
+if (<argo.type> != t_door) && (<argo.type> != t_door_locked) && (<argo.type> != t_portculis)
+ obj.timerf 1,say,Isso nao me parece com uma porta <sex senhor/senhora>.
+ return 1
+endif
+IF !(STRMATCH(*<argo.uid>*,<obj.tag.TOWN_DOORS>)
+ Obj.timerf 1,say,Mas eu nao estou vigiando esta porta...
+ return 1
+endif
+obj.timerf 1,say,Certo <sex senhor/senhora>. Nao guardarei mais esta porta.
+obj.tag.TOWN_DOORS =<f_RemoveList <argo.uid>,<obj.tag.TOWN_DOORS>>
+
+//*****************************************************************************
+[FUNCTION TOWN_OPEN_DOOR]
+//*****************************************************************************
+//Abre as portas da lista de portas do NPC porteiro
+LOCAL.doors=<EXPLODE ;,<tag.TOWN_DOORS>>
+LOCAL.doors=<STRSUB 1 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
+_TOWN_OPEN_DOOR <LOCAL.doors>
+
+[FUNCTION _TOWN_OPEN_DOOR]
+for i 0 <eval <argv>-1>
+ IF (<UID.<argv[<LOCAL.i>]>.type> != t_portculis)
+  if (!<UID.<argv[<LOCAL.i>]>.tag0.open>)
+   UID.<argv[<LOCAL.i>]>.timerd=1
+   UID.<argv[<LOCAL.i>]>.tag.open=1
+   UID.<argv[<LOCAL.i>]>.timerf 1,timer,-1
+  endif
+ ELSE
+  IF (!<UID.<argv[<LOCAL.i>]>.moreX>) && (!<UID.<argv[<LOCAL.i>]>.morey>)
+   //Esta fechada E nao esta em uso
+   UID.<argv[<LOCAL.i>]>.f_portculis
+  ENDIF
+ ENDIF
+endfor
+
+//*****************************************************************************
+[FUNCTION TOWN_RELEASE_DOORS]
+//*****************************************************************************
+//Abre as portas da lista de portas do NPC porteiro para sempre.
+LOCAL.doors=<EXPLODE ;,<tag.TOWN_DOORS>>
+LOCAL.doors=<STRSUB 1 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
+_TOWN_RELEASE_DOOR <LOCAL.doors>
+
+[FUNCTION _TOWN_RELEASE_DOOR]
+for i 0 <eval <argv>-1>
+ IF (<UID.<argv[<LOCAL.i>]>.type> != t_portculis)
+  UID.<argv[<LOCAL.i>]>.type=t_door
+ ELSE
+  IF (!<UID.<argv[<LOCAL.i>]>.moreX>) && (!<UID.<argv[<LOCAL.i>]>.morey>)
+   //Esta fechada E nao esta em uso
+   UID.<argv[<LOCAL.i>]>.f_portculis
+  ENDIF
+  UID.<argv[<LOCAL.i>]>.timerf 10,type,t_quebrado
+ ENDIF
+endfor
+
+//*****************************************************************************
+[FUNCTION TOWN_CLOSE_DOOR]
+//*****************************************************************************
+//Fecha as portas da lista de portas do NPC porteiro
+LOCAL.doors=<EXPLODE ;,<tag.TOWN_DOORS>>
+LOCAL.doors=<STRSUB 1 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
+_TOWN_CLOSE_DOOR <LOCAL.doors>
+
+[FUNCTION _TOWN_CLOSE_DOOR]
+for i 0 <eval <argv>-1>
+ IF (<UID.<argv[<LOCAL.i>]>.type> != t_portculis)
+  if (<UID.<argv[<LOCAL.i>]>.tag0.open>)
+   UID.<argv[<LOCAL.i>]>.timerd=1
+   UID.<argv[<LOCAL.i>]>.tag.open=
+  endif
+ ELSE
+  IF (<UID.<argv[<LOCAL.i>]>.moreX>) && (!<UID.<argv[<LOCAL.i>]>.morey>)
+   //Esta aberta E nao esta em uso
+   UID.<argv[<LOCAL.i>]>.f_portculis
+  ENDIF
+ ENDIF
+endfor
 
 [FUNCTION town_RegServant]
 if (!<IsEmpty <args>>)
@@ -3205,7 +3835,7 @@ if (!<IsEmpty <args>>)
 else
  local.town=<region.defname>
 endif
-DB.EXECUTE="INSERT INTO towns_servants SET uid=<eval <uid>>, type=<tag0.servant>, region='<local.town>';"
+DB.EXECUTE="INSERT INTO towns_servants SET uid=<eval <uid>>, type=<eval <tag0.servant>>, region='<local.town>';"
 DORAND 3
  say Nao ha lugar como o lar. E <serv.resources.<local.town>.name> eh meu novo lar!
  say <serv.resources.<local.town>.name> eh meu novo lar!
@@ -3218,5 +3848,20 @@ tag.town_region=<local.town>
 local.town=<tag.town_region>
 DB.EXECUTE="DELETE FROM towns_servants WHERE UID=<eval <UID>>;"
 serv.log [TOWNS] Servidor <name> (<dtag.servant>) de <local.town> :: UnRegServant
+
+//*****************************************************************************
+[FUNCTION town_ServantFood]
+//*****************************************************************************
+//Faz o guarda comer
+LOCAL.food=<findtype t_food>
+if (<LOCAL.food>)
+ anim 022
+ SFX 03b
+ emotegreen comendo <UID.<LOCAL.FOOD>.name>
+ food += <R50,75>
+ uid.<local.food>.decrement
+ return 1
+endif
+return 0
 
 [EOF]
