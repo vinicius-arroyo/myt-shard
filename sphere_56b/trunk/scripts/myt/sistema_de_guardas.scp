@@ -257,8 +257,128 @@ endif
 
 ON=@Kill
 if (<tag0.task>==<DEF.GUARD_TASK_PATROL>)
- guard_timePatrol
+ guard_StartPatrol
 endif
+tag.kills = <tag0.kills>+1
+serv.log <name> matou <dtag0.kills>/<eval (<tag0.guard_level>+2)@2> (<dtag0.guard_level>)
+if (<tag0.kills> > <eval (<tag0.guard_level>+2)@2>) && (<tag0.guard_level> < 5)
+ guard_level <eval <tag0.guard_level>+1>
+ serv.log [NIUVO] <name> eh agora nivel <dtag0.guard_level>
+endif
+
+
+
+//**************************************************************
+//**************************************************************
+//                      ITENS
+//**************************************************************
+//**************************************************************
+[ITEMDEF i_mry_guard]
+id=i_memory
+type=t_eq_script
+name=Guard AI Assist
+//tag.wpt_[1~9] = waypoint
+//more1h=total de waypoints
+//more1l=waypont atual
+//more2=tentativas de alcançar o WP atual
+//morep=waipoint atual
+
+ON=@timer
+more2 += 1
+if ((<cont.action> > 064) || (<cont.action> < 0)) && (<cont.action> < 113) && (<cont.tag0.task>==<DEF.GUARD_TASK_PATROL>)
+ serv.log [PATROL] <cont.name> tick!!! (<dmore2>)
+ cont.consume 1 i_memory
+ if (<cont.distance <cont.home>> < 3)
+  more1l += 1
+  more2=0
+  if (<IsEmpty <tag.wpt_<dmore1l>>>)
+   more1l=1
+   cont.HOME=<tag.wpt_1>
+   cont.ACTP=<tag.wpt_1>
+  else
+   cont.HOME=<tag.wpt_<dmore1l>>
+   cont.ACTP=<tag.<dmore1l>>
+  endif
+ endif
+ 
+ //Estou demorando muito?
+ if (<more2> > 24)
+  more2=0
+  cont.go <cont.home>
+ endif
+ 
+ timer=5
+ 
+//Estou brigando ou usando skill?
+elif (<cont.tag0.task>==<DEF.GUARD_TASK_PATROL>) && (<cont.action> < 55) && (<cont.action> > 0)
+ serv.log [PATROL] <cont.name> esta ocupado.
+ timer=15
+else
+ serv.log [PATROL] <cont.name> nao esta mais patrulhando. <cont.action> - <cont.daction>
+endif
+return 1
+
+
+
+//**************************************************************
+//**************************************************************
+//                      FUNCTIONS
+//**************************************************************
+//**************************************************************
+
+[FUNCTION guard_getWPTs]
+//Retorna a quantidade de Waypoints
+ref1=<findid.i_mry_guard>
+if (!<ref1>)
+ return 0
+else
+ return <ref1.more1h>
+endif
+
+[FUNCTION guard_addWPT]
+if (<argv> < 2)
+ say Huh? Nao entendo
+elif (<guard_getWPTs> > 9)
+ say Ja sao muitos os pontos para patrulhar.
+else
+ ref1=<findid.i_mry_guard>
+ if (!<ref1>)
+  newitem i_mry_guard
+  trysrc <uid> src.equip <new>
+  ref1=<new>
+ endif
+ local.w=1
+ WHILE (!<IsEmpty <ref1.tag.wpt_<dlocal.w>>>)
+  local.w += 1
+ END
+ ref1.tag.wpt_<dlocal.w>=<args>
+ ref1.more1h += 1
+ DORAND 3
+  say Guardarei este ponto.
+  say Ficarei de olho.
+  say Positivo.
+ END
+endif
+
+[FUNCTION guard_clearWPT]
+ref1=<findid.i_mry_guard>
+if (!<ref1>)
+ say Eu nao tenho o que patrulhar...
+else
+ say Nao patrulharei mais a area.
+ src.sysmessageyellow Pontos de patrulha apagados!
+ consume 1 i_mry_guard
+endif
+
+[FUNCTION guard_StartPatrol]
+if (!<guard_getWPTs>)
+ guard_goPost
+ return 0
+endif
+ref1=<findid.i_mry_guard>
+ref1.timer=1
+TAG.TASK=<DEF.GUARD_TASK_PATROL>
+return 1
 
 
 [FUNCTION town_enter]
@@ -269,7 +389,7 @@ if (!<NPC>)
  if !(STRMATCH(*<tag.raca>*,<town_getRaces <args>>)) && !(<cTAG0.town_<args>_flags>&<def.TOWN_FLAG_FRIEND>)
   try cTAG0.town_<args>_flags = <cTAG0.town_<args>_flags>|<DEF.TOWN_FLAG_FORBIDDEN>
  endif
-else
+elif (<NPC> > 0) && (<NPC> < 10)
  events +e_NPCInTown
 endif
 
@@ -294,30 +414,7 @@ ACTION=064
 ACT=<argn>
 TAG.TASK=<DEF.GUARD_TASK_FOLLOW>
  
-[FUNCTION guard_addWPT]
-if (<argv> < 2)
- say Huh? Nao entendo
-elif (!<IsEmpty <tag.wpt_10>>)
- say Ja sao muitos os pontos para patrulhar.
-else
- local.w=1
- WHILE (!<IsEmpty <tag.wpt_<dlocal.w>>>)
-  local.w += 1
- END
- tag.wpt_<dlocal.w>=<args>
- DORAND 3
-  say Guardarei este ponto.
-  say Ficarei de olho.
-  say Positivo.
- END
-endif
 
-[FUNCTION guard_clearWPT]
-for w 1 10
- try tag.wpt_<dlocal.w>=
-end
-say Nao patrulharei mais a area.
-src.sysmessageyellow Pontos de patrulha apagados!
 
 [FUNCTION guard_reportTask]
 DOSWITCH <tag0.task>
@@ -330,50 +427,7 @@ DOSWITCH <tag0.task>
 END
 say No momento estou <local.t>
 
-[FUNCTION guard_StartPatrol]
-if (<IsEmpty <tag.wpt_1>>)
- guard_goPost
- return 0
-endif
-timerf clear
-TAG.TASK=<DEF.GUARD_TASK_PATROL>
-tag.wpt=1
-HOME=<tag.wpt_1>
-ACTP=<tag.wpt_1>
-timerf 5,guard_timePatrol
-return 1
 
-[FUNCTION guard_timePatrol]
-tag0.try=<tag0.try>+1
-if ((<action> > 064) || (<action> < 0)) && (<action> < 110) && (<tag0.task>==<DEF.GUARD_TASK_PATROL>)
- //serv.log tick <dtag0.try>
- consume 1 i_memory
- if (<distance <home>> < 2)
-  tag.wpt += 1
-  tag.try=
-  timerf clear
-  if (<IsEmpty <tag.wpt_<dtag.wpt>>>)
-   tag.wpt=1
-   HOME=<tag.wpt_1>
-   ACTP=<tag.wpt_1>
-  else
-   HOME=<tag.wpt_<dtag.wpt>>
-   ACTP=<tag.wpt_1>
-  endif
- endif
- 
- //Estou demorando muito?
- if (<tag0.try> > 24)
-  tag.try=
-  go <actp>
- endif
- 
- timerf 5,guard_timePatrol 
- 
-//Estou brigando ou usando skill?
-elif (<tag0.task>==<DEF.GUARD_TASK_PATROL>) && (<action> < 55) && (<action> > 0)
- timerf 15,guard_timePatrol
-endif
 
 [FUNCTION guard_Atack]
 if (<argo>)
@@ -411,12 +465,17 @@ elif (0<argv2>)
  doswitch <local.charge>
   local.state=<eval <obj.flags>&020>    //WARMODE
   begin                                 //WEAPON
-   if (<obj.weapon.dam.hi> < 10>)
+   if (<obj.weapon>)
+    if (<obj.weapon.dam.hi> < 10>)
+     local.state=0
+    endif
+   else
     local.state=0
    endif
   end
   local.state=<obj.restest i_capuz>     //HOOD
- endif
+ end 
+endif
  
  //Ele corrigiu seu comportamento?
  if (!<local.state>)
@@ -543,11 +602,11 @@ END
 return <local.ret>
  
 //*****************************************************************************
-// c_guard_swords
+// c_h_guard
 //*****************************************************************************
-[CHARDEF c_guard_swords]
+[CHARDEF c_h_guard]
 ID=c_man
-NAME=Guarda
+NAME=#NAMES_HUMANMALE
 ICON=i_pet_man
 CAN=mt_equip|mt_walk|mt_usehands|mt_run
 AVERSIONS=t_trap,t_eerie_stuff
@@ -556,9 +615,7 @@ FOODTYPE=15 t_food, t_fruit
 BLOODCOLOR=0
 RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2, 3 i_osso
 SOUND=snd_human_moomph01
-TEVENTS=e_town_guard
-TEVENTS=e_pvm
-TEVENTS=e_combat
+TEVENTS=e_town_guard,e_pvm,e_combat
 TSPEECH=spk_town_guard
 
 ARMOR=
@@ -567,7 +624,7 @@ MOVERATE=55
 
 CATEGORY=MYT - Town
 SUBSECTION=Guardas
-DESCRIPTION=Humano - Espada
+DESCRIPTION=Guarda (Humano)
 
 ON=@CREATE
 NPC=brain_human
@@ -594,7 +651,8 @@ ITEMNEWBIE=i_luva_malha
 ITEMNEWBIE=i_pescoco_malha
 ITEMNEWBIE=i_cabeca_malha
 ITEMNEWBIE={i_escudo_batalham 1 i_escudo_madeira 1 i_broquel 1}
-
+tag.servant=<DEF.TOWN_SERVANT_GUARD>
+timerf 1,town_guard_start
 
 ON=@NPCRESTOCK
 ITEM=i_kryss
@@ -634,12 +692,12 @@ ENDIF
 ON=patrulhe*este*ponto
 IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
  guard_addWPT <src.p>
- SAY Guardarei este ponto durante a patrulha.
 ELSE
  SAY Voce nao pode me dar ordens.
 ENDIF
 return 1
 
+ON=pare de patrulhar
 ON=nao*patrulhe*mais
 IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
  guard_clearWPT
@@ -664,4 +722,148 @@ IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
  src.ctag.guard=<UID>
  src.sysmessageorange Prender quem?
  src.targetf guard_Atack
-ENDIF 
+ENDIF
+
+ON=nao use escudo
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ if (<findlayer.layer_hand2.type>==t_shield)
+  say Guardando escudo, senh<src.sex or/ora>.
+  trysrc <uid> src.findlayer.layer_hand2.bounce
+ else
+  say Nao estou usando escudo, senh<src.sex or/ora>...
+ endif
+else
+ say Sei sim... Vamos! Circulando!
+endif
+return 1
+
+ON=use escudo
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ if (<findlayer.layer_hand2.type>==t_shield)
+  say Ja estou usando, senh<src.sex or/ora>.
+ else
+  if (<restest 1 t_shield>)
+   say Equipando escudo, seeeeeenh<src.sex or/ora>!
+   trysrc <uid> src.findtype.t_shield.equip
+  else
+   say Nao tenho um, senh<src.sex or/ora>.
+  endif
+ endif
+else
+ say Sei sim... Vamos! Circulando!
+endif
+return 1
+
+[FUNCTION guard_level]
+//Força e desteza
+DOSWITCH <argn>
+ local.stats=50
+ local.stats=60
+ local.stats=75
+ local.stats=90
+ local.stats=105
+ local.stats=120
+ENDIF
+STR=<local.stats>
+DEX=<local.stats>
+maxhits=<local.stats>+15
+maxstam=<local.stats>+25
+
+//Inteligência (vê/ouve mais longe)
+DOSWITCH <argn>
+ int=80
+ int=90
+ int=120
+ int=150
+ int=175
+ int=200
+ENDIF
+
+//skills
+DOSWITCH <argn>
+ local.skills=65.0
+ local.skills=75.0
+ local.skills=85.0
+ local.skills=90.0
+ local.skills=100.0
+ local.skills=125.0
+ENDIF
+
+fencing=<local.skills>
+macefighting=<local.skills>
+anatomy=<eval (<local.skills>*3)/5>
+parrying=<local.skills>
+archery=<local.skills>
+swordsmanship=<local.skills>
+tactics=<eval (<local.skills>*3)/4>
+wrestling=<local.skills>
+
+//endumentaria
+if (<argn1>==0)
+ guard_equip {i_peito_couro 1 i_peito_courom 1}
+ guard_equip {i_braco_couro 1 i_braco_courom 1}
+ guard_equip {i_luva_couro 1 i_luva_courom 1}
+ guard_equip {i_perna_couro 1 i_perna_courom 1}
+ guard_equip {i_pescoco_couro 1 i_pescoco_courom 1}
+ guard_equip {i_cabeca_couro 1 i_cabeca_courom 1}
+ guard_equip i_sandals
+else
+ dorand <argn1>
+  local.arm=malha
+  local.arm=anel
+  local.arm=placa
+  local.arm=placa
+  local.arm=segmentada
+ end
+ dorand <argn1>
+  local.arm=<local.arm>_bronze
+  local.nada=
+  local.nada=
+  local.arm=<local.arm>_prata
+  local.arm=<local.arm>_ouro
+  local.arm=<local.arm>_mithril
+ enddo
+ guard_equip i_peito_<local.arm>
+ guard_equip i_braco_<local.arm>
+ guard_equip i_luva_<local.arm>
+ guard_equip i_perna_<local.arm>
+ guard_equip i_pescoco_<local.arm>
+ guard_equip i_cabeca_<local.arm>
+ dorand <argn1>
+  guard_equip i_sandals
+  guard_equip i_shoes_plain
+  guard_equip i_boots_calf
+  guard_equip i_boots_calf
+  guard_equip i_boots_thigh
+  guard_equip i_boots_thigh
+ end
+endif
+
+//De cabo na armadura velha
+FORCONT <FINDLAYER.21.UID> 1
+ if (<type>==t_armor) || (<type>==t_armor_leather) || (<type>==t_shield) || (<type>==t_clothing)
+  remove
+ endif
+end
+
+//Salva ranking
+tag.guard_level=<argn>
+
+//Muda titulo
+doswitch <argn>
+ title=aspirante
+ title=soldado
+ title=cabo
+ title=tenente
+ title=capitao
+ title=major
+end
+
+[FUNCTION guard_equip]
+if !(<serv.resources.<args>>)
+ return 0
+endif
+serv.newitem <eval <args>>
+new.maxhits=<eval <new.tdata4>/2>
+new.hits=<new.maxhits>
+trysrc <uid> src.equip <new>
