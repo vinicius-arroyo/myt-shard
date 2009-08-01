@@ -151,6 +151,12 @@ else
     obj.more2=<argv[0]>
 endif
 
+//acerta a ferramenta. Isso vai consumí-la
+if (!<IsEmpty <src.ctag.craft_tool>>)
+    obj.tag.tool=<src.ctag.craft_tool>
+    src.ctag.craft_tool=
+endif
+
 //faz
 if (!<checkResources>)
     startCraft
@@ -279,10 +285,7 @@ endif
 if (<obj.tag0.amt1>)
     if (<obj.tag0.uid1>)
         REF1=<obj.tag.uid1>
-        REF1.amount=<REF1.amount>-<obj.tag.amt1>
-        if (!<REF1.amount>)
-            REF1.remove
-        endif
+        REF1.decrement
     else
         consume <obj.tag0.amt1> <obj.tag.res1>
     endif
@@ -316,7 +319,11 @@ sysmessagered Voce precisa de:
 if !(strmatch(<obj.tag.espid>,))
     sysmessagered - <obj.tag.espname>
 endif
+if (!<IsEmpty <obj.tag.uid1>>)
+    sysmessagered - <UID.<obj.tag.UID1>.name> ( <eval <obj.tag0.amt1>> )
+else
     sysmessagered - <serv.resources.<obj.tag.res1>.name> ( <eval <obj.tag0.amt1>> )
+endif
 if (<obj.tag0.res2>)
     sysmessagered - <serv.resources.<obj.tag.res2>.name> ( <eval <obj.tag0.amt2>> )
 endif
@@ -635,7 +642,19 @@ if (<more1>) && (!<tag0.falha>)
     return 1
 //fim do loop, gera resultado
 else
-
+    
+    if (!<IsEmpty <tag.tool>>)
+        obj=<tag.tool>
+        obj.hits -= 1
+        if (!<obj.hits>)
+           cont.sysmessageorange <obj.name> se quebrou.
+           tag.abort=1           
+           obj.remove
+        else
+           obj.update
+        endif
+    endif
+    
     if !(strmatch(<tag.f_end>,))
         TRY cont.<tag.f_end> <tag0.selection>,<more1>
     endif

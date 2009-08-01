@@ -15,6 +15,7 @@ CRAFT_PAGE_ADD_ITEM     9
 
 [TYPEDEF t_crafting_tool]
 ON=@DClick
+//Checks de CAN
 IF (<topobj>!=<src>)
  IF (<cont>)
   src.sysmessageyellow Nao da para usar <name> aonde esta.
@@ -24,8 +25,15 @@ IF (<topobj>!=<src>)
   return 1
  endif
 endif
-src.craftmenu <TDATA1>
-return 1
+
+//Carrega o Craftmenu se houver
+if (<TDATA1>)
+ src.craftmenu <TDATA1>
+endif
+
+//Salva a ferramenta para consumir
+src.ctag.craft_tool=<uid>
+return 0
 
 ON=@ClientToolTip
 IF (<attr>&01)//Identificado
@@ -362,6 +370,38 @@ for i 0 <argv>  //Começa no 2 pq a função Explode retorna ';xxx;yyy;zzz...'
  endif
 end
 ctag.b=
+
+
+//*********************************************************************
+[FUNCTION craftmenu_backup]
+//*********************************************************************
+//cria um arquivo scp com uma função craftmenu_loadbackup com todos os
+//dados da tabela 'craftmenu'.
+
+FILE.MODE.CREATE=1
+local.filen=scripts/myt/craftmenu_backup.scp
+LOCAL.file=<FILE.OPEN <local.filen>>
+file.writeline=<DEF.SECTION>FUNCTION craftmenu_loadbackup<DEF.SECTIONE>
+
+//Apagar tudo que existia sobre este item.
+file.writeline=DB.EXECUTE="DELETE FROM craftmenu;"
+ 
+//Carregar conteúdo da DB
+DB.QUERY="SELECT * FROM craftmenu;"
+ 
+FOR r 0 <eval <DB.ROW.NUMROWS>-1> 
+ //Colocar nova entrada
+ LOCAL.q = INSERT INTO craftmenu SET id=<DB.ROW.<local.r>.id>,
+ LOCAL.q .= def = '<DB.ROW.<local.r>.def>',
+ LOCAL.q .= dispid = <eval <cTAG.itemforge_DispID>>,
+ LOCAL.q .= type = '<DB.ROW.<local.r>.type>',
+ LOCAL.q .= father = <DB.ROW.<local.r>.father>,
+ LOCAL.q .= code = '<DB.ROW.<local.r>.code>',
+ LOCAL.q = "<LOCAL.q>;"
+ file.writeline=DB.EXECUTE <LOCAL.q>
+end
+file.writeline=<DEF.SECTION>EOF<DEF.SECTIONE>
+file.close=1
 
 [FUNCTION craft_expChance]
 try local.exp=<DEF.<args>_exp>
