@@ -425,10 +425,16 @@ endif
 if (<new.type>==t_incomplete_forged)
     local.type=<serv.itemdef.<streat <tag.f_done>>.type>
     if (STRMATCH(t_weapon*,<local.type>)) || (STRMATCH(t_armo*,<local.type>))
-        generateWpnMaxHits
+        generateWpnMaxHits <streat <tag.f_done>>
+    elif (<local.type>==t_crafting_tool) || (STRMATCH(*t_crafting_tool*,<serv.itemdef.<streat <tag.f_done>>.tevents>))
+        generateToolMaxHits <streat <tag.f_done>>
     endif
 elif (<new.IsWeapon>) || (<new.type>==t_armor) || (<new.type>==t_armor_leather) || (<new.type>==t_shield)
     generateWpnMaxHits
+endif
+
+if (<new.type>==t_crafting_tool) || (<new.IsEvent.t_crafting_tool>) || (<new.IsTEvent.t_crafting_tool>)
+    generateToolMaxHits
 endif
 
 if (<tag0.isclt>) || (STRMATCH(*clothing*,<new.type>))
@@ -452,27 +458,47 @@ cont.sysmessageorange Terminou <new.name>.
 //NEW deve ser o item gerado
 //objeto padrao deve ser o i_faz_item 
 [FUNCTION generateWpnMaxHits]
-if (<new.type>==t_weapon_bow) || (<new.type>==t_weapon_xbow)
-    LOCAL.skill=<cont.bowcraft>
+if (!<IsEmpty <args>>)//Estamos falando de um item que não seja o NEW?
+    local.item=<argv0>
+    local.type=<serv.itemdef.<argv0>.type>
+    local.tevents=<serv.itemdef.<argv0>.tevents>
+else //Estamos falando do item que é o NEW sim.
+    local.item=<new.defname>
+    local.type=<new.type>
+    local.tevents=<new.tevents>
+endif
+
+if (STRMATCH(*t_crafting_tool*,<local.tevents>))
+    local.skill=<topobj.<def.<serv.itemdef.<local.item>.skillmake.0.key>>>
+elif (<local.type>==t_weapon_bow) || (<local.type>==t_weapon_xbow)
+    LOCAL.skill=<topobj.bowcraft>
 else
-    LOCAL.skill=<cont.armslore>
-    cont.skill_gain SKILL_ARMSLORE
+    LOCAL.skill=<topobj.armslore>
+    topobj.skill_gain SKILL_ARMSLORE
 endif
 
 LOCAL.max=1000
-if <new.TDATA4>
-    LOCAL.max=<new.TDATA4>
+if <serv.itemdef.<local.item>.TDATA4>
+    LOCAL.max=<serv.itemdef.<local.item>.TDATA4>
 endif
+
+if (STRMATCH(*_exp,<local.item>))
+    new.hits=<local.max>
+    new.maxhits=<local.max>
+    serv.log [generateWpnMaxHits] EXCEPCIONAL!!! <dlocal.max> / <new.hits> / <dLOCAL.skill> / <local.type>
+    return 1
+endif
+
 
 //acha durabilidade em funcao da skill
 LOCAL.dur = <BETWEEN 10,<LOCAL.max>,<LOCAL.skill>,1250>
 //da bonus de ateh 10% da skill
 LOCAL.dur += <R<eval <LOCAL.skill>/10>>
 
-new.maxhits=<LOCAL.dur>
+new.maxhits=<MINIMUM <local.max>,<LOCAL.dur>>
 new.hits=<new.maxhits>
 
-serv.log [generateWpnMaxHits] <new.TDATA4> / <new.hits> / <dLOCAL.skill> / <new.type>
+serv.log [generateWpnMaxHits] <dlocal.max> / <new.hits> / <dLOCAL.skill> / <local.type>
 //*****************************************************************************
 // generateCltMaxHits
 //*****************************************************************************
@@ -494,6 +520,43 @@ else
  new.more1l={50 100}
 endif
 new.more1h=<new.more1l>
+
+//*****************************************************************************
+// generateToolMaxHits
+//*****************************************************************************
+//usado pelo i_faz_item quando vai gerar o max hits de uma ferramenta t_crafting_tool
+//NEW deve ser o item gerado
+//objeto padrao deve ser o i_faz_item 
+[FUNCTION generateToolMaxHits]
+if (!<IsEmpty <args>>)//Estamos falando de um item que não seja o NEW?
+    local.item=<argv0>
+else //Estamos falando do item que é o NEW sim.
+    local.item=<new.defname>
+endif
+
+LOCAL.max=1000
+if <serv.itemdef.<local.item>.TDATA4>
+    LOCAL.max=<serv.itemdef.<local.item>.TDATA4>
+endif
+
+local.skill=<topobj.<def.<serv.itemdef.<local.item>.skillmake.0.key>>>
+
+if (STRMATCH(*_exp,<local.item>))
+    new.hits=<local.max>
+    new.maxhits=<local.max>
+    serv.log [generateToolMaxHits] EXCEPCIONAL!!! <dlocal.max> / <new.hits> / <dLOCAL.skill> / <new.type>
+    return 1
+endif
+
+//acha durabilidade em funcao da skill
+LOCAL.dur = <BETWEEN 10,<LOCAL.max>,<LOCAL.skill>,1250>
+//da bonus de ateh 10% da skill
+LOCAL.dur += <R<eval <LOCAL.skill>/10>>
+
+new.maxhits=<MINIMUM <local.max>,<LOCAL.dur>>
+new.hits=<new.maxhits>
+
+serv.log [generateToolMaxHits] <dlocal.max> / <new.hits> / <dLOCAL.skill> / <new.type>
 
 //*****************************************************************************
 // testitem
