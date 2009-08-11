@@ -528,6 +528,7 @@ if (<local.et> > <DEF.TOWN_TRIG_TIME>)
   cont.say Tenho que pagar os servidores agora.
  END
  cont.town_payServants
+ cont.town_pruneCitzens <cont.tag.town_region>
  serv.resources.<cont.tag.town_region>.tag0.lastPaid=<serv.time>
 endif
 timerd <eval <DEF.TOWN_TRIG_TIME>/3>
@@ -3162,6 +3163,24 @@ timerf 3 say <local.emote>
 
 serv.resources.<tag.town_region>.tag.town_cost=<local.total>
 
+[FUNCTION town_pruneCitzens]
+//Remove jogadores inválidos da town <args>
+DB.QUERY="SELECT uid FROM towns_members WHERE region='<args>';
+local.i=0
+FOR p 0 <eval <DB.ROW.NUMROWS>-1>
+ if (!<uid.<db.row.<dlocal.p>.uid>.IsPlayer>)
+  if (<eval STRLEN(<local.q>)> < 3)
+   local.q = " uid=<eval <db.row.<dlocal.p>.uid>>"
+  else
+   local.q .= " OR uid=<eval <db.row.<dlocal.p>.uid>>"
+  endif
+  local.i += 1
+ endif
+END
+if (<local.i>)
+ serv.log [TOWNS] PRUNE :: <dlocal.i> jogadores retirados do sistema por <topobj.name> (<args>).
+ DB.EXECUTE="DELETE FROM towns_members WHERE<local.q>;"
+endif
 
 [FUNCTION TOWN_ADD_DOOR]
 //Adiciona a porta TARGET (argo) a lista de portas do NPC
