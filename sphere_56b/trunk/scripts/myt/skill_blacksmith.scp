@@ -97,34 +97,46 @@ if !(<src.isneartype t_forge 2>)
     return 1
 endif
 
-//Calcula a skill que vai usar
-if (<src.Blacksmithing> > <src.Mining>)
- local.skill=Blacksmithing
- local.min=<eval (<src.Blacksmithing>/100)+1>
-else
- local.skill=Mining
- local.min=<eval (<src.Mining>/100)+1>
-endif
-
-if (<amount> < <local.min>)
+if (<amount> < 10)
     src.sysmessageyellow Voce precisa de pelo menos <dlocal.min> <name> para fazer lingotes.
     return 1
 endif
 
+//Calcula a skill que vai usar
+if (<src.Blacksmithing> > <src.Mining>)
+ local.skill=Blacksmithing
+ local.skillval=<src.blacksmithing>
+else
+ local.skill=Mining
+ local.skillval=<src.mining>
+endif
+
+//calcula o rendimento baseado na dificuldade de fazer o ore. Ter skill igual a diff = 80%
+local.diff=<serv.itemdef.<tdata1>.skillmake.0.val>//Dificuldade de fazer o ingot
+local.amount=<eval <skillchance <local.skillval>,<local.diff>>/62>//Baseado na dificuldade de fazer o ore.
+//Se você tem a skill igual a dificuldade, SKILLCHANCE retorna 500. Divididio por 62 fica 80%
+SERV.LOG s:<local.skill>=<dlocal.skillval> amt:<dlocal.amount>
+
+if (<local.amount> < 1)
+ local.amount=1
+elif (<local.amount> > 10)
+ local.amount=10
+endif
+
 obj=<src.findid.i_mry_fazitem.uid>
 obj.cleartags
-obj.tag.amt=<local.min>
+obj.tag.amt=<local.amount>
 obj.tag.skill=<local.skill>
 obj.tag.uid1=<uid>
 obj.tag.nam1=<name>
-obj.tag.amt1=<local.min>
-obj.tag.dif=<eval <serv.itemdef.<tdata1>.skillmake.0.val>/10>
+obj.tag.amt1=10
+obj.tag.dif=0//<eval <serv.itemdef.<tdata1>.skillmake.0.val>/10>
 obj.tag.anim=19                          
 obj.tag.sfx=02b            
-obj.tag.delay=<local.min>
+obj.tag.delay=5
 obj.tag.item=<tdata1>
 obj.tag.emote=fundindo <name>
-src.fazitem <minimumn <amount>/<local.min>,10>
+src.fazitem <minimumn <amount>/10,10>
 return 1
 
 //*****************************************************************************
