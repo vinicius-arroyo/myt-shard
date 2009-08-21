@@ -1853,6 +1853,7 @@ on=@Create
 ATTR=8080
 COLOR=0b89
 MORE2=900
+tag.create=<serv.time>
 
 on=@timer
 IF (<link> == 04fffffff)
@@ -1865,6 +1866,7 @@ elif !(<link.attr>&attr_invis)
   link.attr |= attr_invis
   link.tag.color=<link.color>
   link.color=0b89
+  link.tag.gen=<uid>
   link.updatex
  endif
 else
@@ -1880,7 +1882,20 @@ return 1
 
 ON=@CLIENTTOOLTIP
 if (<src.isgm>)
-    f_sendTooltip <name>,Tempo: <f_timestring <more2>><DEF.BR>Item: <QVAL <link> != 04fffffff ? <link.name> (<link.p.x>.<link.p.y>.<link.p.z>.<link.p.m>) : Nenhum><DEF.BR>Skill para detectar: <eval <link.tag0.Detecting_Hidden>/10>.0<DEF.BR>DCLick para editar.
+    if (<tag0.create>)
+      local.date=<f_timestring <eval (<serv.time>-<tag.create>)/10>>
+      local.s=Tempo ativo: <local.date>
+      if (<morex>)
+        local.s .= " Descobertas: <morex>"
+        local.days = <eval (<serv.time>-<tag.create>)/(10*60*60*24)>
+        local.s .= "<DEF.BR>Uma a cada <eval <local.days>/<morex>> dias"
+      else
+        local.s .= " Nunca usado"
+      endif
+    else
+      local.s = Sem registro de criacao
+    endif
+    f_sendTooltip <name>,Tempo: <f_timestring <more2>><DEF.BR>Item: <QVAL <link> != 04fffffff ? <link.name> (<link.p.x>.<link.p.y>.<link.p.z>.<link.p.m>) : Nenhum><DEF.BR>Skill para detectar: <eval <link.tag0.Detecting_Hidden>/10>.0<DEF.BR><local.s><DEF.BR>DCLick para editar.
     return 1
 endif
 
@@ -1905,6 +1920,14 @@ on=0 Tempo para voltar a ficar inivivel: <f_timestring <uid.<cTAG0.invis_gen>.mo
 menu m_invisible_object_timer
 return 1
 
+on=0 Resetar contadores
+ref1=<cTAG.invis_gen>
+ref1.morex=0
+ref1.tag.create=<serv.time>
+menu m_invisible_object
+return 1
+
+
 on=@cancel
 uid.<cTAG.invis_gen>.update
 uid.<cTAG.invis_gen>.timer=10
@@ -1918,7 +1941,7 @@ uid.<cTAG.invis_gen>.more2 += 86400
 MENU m_invisible_object_timer
 
 ON=0 -dia
-IF (<uid.<cTAG.invis_gen>.more2>> >= 86400)
+IF (<uid.<cTAG.invis_gen>.more2> >= 86400)
  uid.<cTAG.invis_gen>.more2 -= 86400
 endif
 MENU m_invisible_object_timer
@@ -1928,7 +1951,7 @@ uid.<cTAG.invis_gen>.more2 += 3600
 MENU m_invisible_object_timer
 
 on=0 -hora
-IF (<uid.<cTAG.invis_gen>.more2>> >= 3600)
+IF (<uid.<cTAG.invis_gen>.more2> >= 3600)
  uid.<cTAG.invis_gen>.more2 -= 3600
 ENDIF
 MENU m_invisible_object_timer
@@ -1938,7 +1961,7 @@ uid.<cTAG.invis_gen>.more2 += 60
 MENU m_invisible_object_timer
 
 ON=0 -minuto
-IF (<uid.<cTAG.invis_gen>.more2>> >= 60)
+IF (<uid.<cTAG.invis_gen>.more2> >= 60)
  uid.<cTAG.invis_gen>.more2 -= 60
 ENDIF
 MENU m_invisible_object_timer
@@ -1948,7 +1971,7 @@ uid.<cTAG.invis_gen>.more2 += 1
 MENU m_invisible_object_timer
 
 ON=0 -segundo
-IF (<uid.<cTAG.invis_gen>.more2>> >= 1)
+IF (<uid.<cTAG.invis_gen>.more2> >= 1)
  uid.<cTAG.invis_gen>.more2 -= 1
 ENDIF
 MENU m_invisible_object_timer
