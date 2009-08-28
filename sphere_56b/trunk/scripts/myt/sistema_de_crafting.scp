@@ -371,6 +371,8 @@ endif
 //*****************************************************************************
 //usado pelo i_faz_item quando vai gerar o item final
 //objeto padrao deve ser o i_faz_item
+//Só gera o item. Não põe na bag. Aumenta a escalabilidade do código
+//chamando craft_bounceItem depois de TRY <tag.f_done>
 [FUNCTION generateItem] 
 
 if (<tag.item>==1)
@@ -433,7 +435,7 @@ elif (<new.IsWeapon>) || (<new.type>==t_armor) || (<new.type>==t_armor_leather) 
     generateWpnMaxHits
 endif
 
-if (<new.type>==t_crafting_tool) || (<new.IsEvent.t_crafting_tool>) || (<new.IsTEvent.t_crafting_tool>)
+if (<new.type>==t_crafting_tool) || (<new.IsEvent.t_crafting_tool>) || (STRMATCH(*t_crafting_tool*,<new.TEvents>))
     generateToolMaxHits
 endif
 
@@ -441,7 +443,18 @@ if (<tag0.isclt>) || (STRMATCH(*clothing*,<new.type>))
     generateCltMaxHits
 endif
 
-new.cont=<cont.findlayer(layer_pack).uid>
+
+//*****************************************************************************
+// craft_bounceItem
+//*****************************************************************************
+//usado pelo i_faz_item depois de gerar o item final para colocá-lo no world.
+//Aumenta a escalabilidade do código chamando craft_bounceItem depois de TRY <tag.f_done>
+//objeto padrao deve ser o i_faz_item
+[FUNCTION craft_bounceItem]
+
+//new.cont=<cont.findlayer(layer_pack).uid>
+
+TRYSRC <cont> src.bounce,<new>
 
 if (<tag0.dupe>)
     new.dupe <tag0.dupe>
@@ -743,6 +756,10 @@ else
 
         if !(strmatch(<tag.f_done>,))
             TRYSRC <cont> cont.<tag.f_done> <LOCAL.u>
+        endif
+        //Põe o item na bag se houve sucesso
+        if (STRMATCH(1*,<local.u>))
+            craft_bounceItem
         endif
     else
         return 1
