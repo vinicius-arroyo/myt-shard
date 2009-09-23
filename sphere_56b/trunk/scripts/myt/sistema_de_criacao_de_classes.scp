@@ -1,11 +1,11 @@
 [COMMENT class_forge]
 
 #################################################################################
-#				MyT - Mystical Tales Shard			#
-#										#
-#			     Class Forge, o criador de classes			#
-#				    v1.1 - 03/2009				#
-#				  Galthar, o Errante				#
+#                               MyT - Mystical Tales Shard                      #
+#                                                                               #
+#                            Class Forge, o criador de classes                  #
+#                                   v1.1 - 03/2009                              #
+#                                 Galthar, o Errante                            #
 #################################################################################
 
 Para utilizar:
@@ -14,7 +14,7 @@ Para utilizar:
 
 
 
-	-=TAGs utilizadas=-
+        -=TAGs utilizadas=-
 
 ctag.cforge_page
 ctag.cforge_classID
@@ -33,7 +33,7 @@ ctag.sforge_itemAmt
 
 
 
-	-=CREATE STATEMENTS para tabelas na DB:=-
+        -=CREATE STATEMENTS para tabelas na DB:=-
 
 CREATE TABLE  `mytserver`.`classes` (
   `ID` int(10) unsigned NOT NULL auto_increment,
@@ -114,7 +114,7 @@ CREATE TABLE  `mytserver`.`class_inventory` (
 
 
 
-		-=TODO=-
+                -=TODO=-
 
 
 
@@ -134,10 +134,41 @@ IF (STRMATCH(<args>,new)
  DIALOG d_forge_class 4
 ELIF (STRMATCH(<args>,edit)
  DIALOG d_forge_class 2
+ELIF (STRMATCH(<args>,export)
+ cforge_export
 ELSE
  DIALOG d_forge_class 1
  sysmessageyellow Carregando suas ultimas mudancas.
 ENDIF
+return 1
+
+[FUNCTION cforge_export]
+FILE.MODE.CREATE=1
+local.filen=scripts/myt/classes_export.html
+LOCAL.file=<FILE.OPEN <local.filen>>
+serv.log OpenFile=<dlocal.file> para <local.filen>
+DB.QUERY="SELECT * FROM `classes` WHERE NOT flags&01 ORDER BY superclass, classname;"
+local.superclass=<DB.ROW.0.superclass>
+FILE.WRITELINE &#61;&#61;<local.superclass>&#61;&#61;<DEF.BR>
+FOR r 0 <eval <DB.ROW.NUMROWS>-1>
+ serv.log <DB.ROW.<dlocal.r>.superclass>,<local.superclass>
+ if !(STRMATCH(<DB.ROW.<dlocal.r>.superclass>,<local.superclass>))
+  local.superclass=<DB.ROW.<dlocal.r>.superclass>
+  FILE.WRITELINE <DEF.BR>
+  FILE.WRITELINE &#61;&#61;<local.superclass>&#61;&#61;<DEF.BR>
+ endif
+ FILE.WRITELINE &#61;&#61;&#61;<DB.ESCAPEDATA <DB.ROW.<dlocal.r>.classname>>&#61;&#61;&#61;<DEF.BR>
+ FILE.WRITELINE <DB.ESCAPEDATA <DB.ROW.<dlocal.r>.background>><DEF.BR>
+ for s 0 54
+  local.skill=<DB.ROW.<dlocal.r>.<serv.skill.<dlocal.s>.name>>
+  if (<local.skill> > 0)
+   FILE.WRITELINE &#42;<serv.skill.<dlocal.s>.name>   <fval <DB.ROW.<dlocal.r>.<serv.skill.<dlocal.s>.name>>><DEF.BR>
+  endif
+ end
+ FILE.WRITELINE <DEF.BR>
+END
+FILE.CLOSE
+serv.log Exportadoas <eval <DB.ROW.NUMROWS>> classes emformato texto para <local.filen>.
 return 1
 
 [FUNCTION cforge_clear]
