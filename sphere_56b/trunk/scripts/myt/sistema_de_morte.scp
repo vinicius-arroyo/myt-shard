@@ -114,15 +114,19 @@ ON=@DCLICK
     f_shrine
  else
   src.sysmessageyellow Voce possui <eval <src.tag0.pontosdealma>> pontos de alma...
-  if (<src.tag0.luck> < 0)
-    src.sysmessageyellow Sua interpretacao esta ruim, procure melhorar!!
-  elif (<src.tag0.luck> < 5)
-    src.sysmessageyellow Sua interpretacao nao foi devidamente avaliada.
-  elif (<src.tag0.luck> < 10)
-    src.sysmessageyellow Sua interpretacao esta otima.
-  else
-    src.sysmessageyellow Sua interpretacao esta excelente. Continue assim.
-  endif
+  DOSWITCH <tag0.rp_grade>
+   sysmessagered Sua representacao esta pessima ou não foi avaliada.
+   sysmessagered Sua representacao esta pessima. Procure melhorar.
+   sysmessagered Sua representacao esta pessima. Procure melhorar.
+   sysmessageorange Sua representacao esta ruim. Continue se esforcando.
+   sysmessageorange Sua representacao esta ruim. Continue se esforcando.
+   sysmessageyellow Sua representacao mediana. Pode melhorar muito
+   sysmessageyellow Sua representacao esta satisfatoria, mas pode ser bem melhor.
+   sysmessagegreen Sua representacao esta boa.
+   sysmessagegreen Sua representacao esta muito boa.
+   sysmessageblue Sua representacao esta excelente.
+   sysmessageblue Sua representacao esta impecavel!
+  ENDDO
  endif
  return 1
 
@@ -142,11 +146,7 @@ ON=@DCLICK
  if ( !(<src.flags>&statf_dead) && (<link>!=04fffffff) && (<link>!=<src.uid>)
   src.ctag.morte_corpse=<uid>
   //abre menu para player morto ou desmaiado
-  if (<link.findid.i_mry_desmaio>)
-   src.menu=m_corpse
-  else
-   src.menu=m_corpse_morto
-  endif
+  src.DIALOG d_corpse
   return 1
  endif
  
@@ -597,5 +597,90 @@ perdeu a consciencia.
 (MyT)
 
 [DIALOG d_desmaio BUTTON]
+
+//*****************************************************************************
+// CORPO
+//*****************************************************************************
+[DIALOG d_corpse]
+100,75
+page 0
+obj=<ctag.morte_corpse>
+if (<IsEmpty <tag.uid_<obj.link>_name>>)
+ local.text= Est<obj.link.sex e/a> <obj.link.tag.raca> esta
+else
+ local.text= <tag.uid_<obj.link>_name> esta
+endif
+if (<obj.link.restest i_mry_desmaio>)
+ local.text .= " desmaiado."
+else
+ local.text .= " morto."
+endif
+resizepic 50 31 2620 500 298
+checkertrans 55 38 490 283
+gumppic 0 0 10400
+gumppic 0 200 10402
+gumppic 518 0 10410
+gumppic 518 200 10412
+gumppic 225 45 2501
+dtext 231 45 26 Mystical Tales Shard
+resizepic 92 87 2620 416 200
+dhtmlgump 106 102 387 77 1 1 <local.text>
+dorigin 100 166
+
+button +2 *20 2224 2223 1 0 1
+dtext +26 -4 166 Arrastar o corpo
+
+if (<obj.link.restest i_mry_desmaio>)
+ button +2 *20 2224 2223 1 0 2
+ if (<ctag.rp_grade> > 6)
+  dtext +26 -4 166 Cortar garganta
+ else
+  dtext +26 -4 166 Cortar garganta (custa 1 ponto de alma)
+ endif
+endif
+
+button +2 *20 2224 2223 1 0 3
+if (<ctag.rp_grade> > 7)
+ dtext +26 -4 166 Roubar o corpo
+else
+ dtext +26 -4 166 Roubar o corpo (custa 2 ponto de alma)
+endif
+
+
+if (<Forensics> > 0)
+ button +2 *20 2224 2223 1 0 4
+ dtext +26 -4 166 Fazer analize forence
+endif
+
+[DIALOG d_corpse text]
+
+[DIALOG d_corpse button]
+ON=1
+// Arrastar corpo
+ morte_arrastar <ctag.morte_corpse>
+ return 1
+
+ON=2
+// Cortar garganta
+ if (<ctag.rp_grade> <= 6)
+  morte_decrementaPontos 1
+ endif
+ trysrc <uid> morte_corta <ctag.morte_corpse>
+ return 1
+
+ON=3
+// Roubar corpo
+ if (<ctag.rp_grade> <= 7)
+  morte_decrementaPontos 2
+ endif
+ obj=<ctag.morte_corpse>
+ trysrc <uid> obj.open
+ //uid.<ctag.morte_corpse>.open
+ return 1
+ 
+ON=4
+// Forensics
+sysmessagered Nao implementado.
+return 1
 
 [EOF]
