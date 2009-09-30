@@ -684,34 +684,39 @@ SUBSECTION=Quest
 DESCRIPTION=Carma dos aventureiros
 
 on=@dclick
-if (<src.tag0.LUCK> >= 0) && (<src.tag0.LUCK> < 5)
- src.sysmessageyellow Este item nao tem valor para jogadores medianos. Capriche na sua interpretacao.
+//Ele pode receber pontos de alma?
+if (<src.tag.pontosdealma> >= 5)
+ src.sysmessagorange Hey! Voce esta profanando as leis de Umbra!
+ src.tag.morte_desmaios=<DEF.max_desmaios>
+ src.timerf 2,suicide
  remove
-elif (<src.tag0.LUCK> < 0)
- src.sysmessagered Voce eh um pessimo jogador! Perdera um ponto de alma por isso!
- src.morte_decrementaPontos 1
- remove
-elif (<src.tag0.LUCK> > 5) && (!<R3>)
- src.sysmessageblue Voce eh um bom jogador. Vou lhe dar um ponto de alma...
- src.morte_incrementaPontos 1
- remove
-elif (!<R2>)
- src.sysmessageyellow O item desaparece misteriosamente da sua mao.
- src.sfx 051B
- src.emotered se assusta
- remove
-else
- LOCAL.creature=<eval {c_changeling 1 c_devourer_souls 1 c_gargoyle 1}>
- newnpc <LOCAL.creature>
- new.movenear <uid> 2
- new.effect 3 i_fx_sparkle 26 26 26
- new.sfx 0217
- new.timerf 120,remove
- obj=<new.uid>
- serv.newitem i_coin_silver
- new.amount=5
- new.cont=<obj>
+ return 1
 endif
+
+local.roll=<R1,11>
+if (<local.roll> == <src.ctag0.rp_grade>)
+ src.sysmessageyellow O item desaparece magicamente
+elif (<local.roll> > <src.ctag0.rp_grade>)
+ src.sysmessagered O carma nao esta a seu favor hoje.
+ if (<src.ctag0.rp_grade> < 5)
+  src.morte_decrementaPontos 1
+ else
+  LOCAL.creature=<eval {c_changeling 1 c_devourer_souls 1 c_gargoyle 1}>
+  newnpc <LOCAL.creature>
+  new.movenear <uid> 2
+  new.effect 3 i_fx_sparkle 26 26 26
+  new.sfx 0217
+  new.timerf 120,remove
+  obj=<new.uid>
+  serv.newitem i_coin_silver
+  new.amount=5
+  new.cont=<obj>
+ endif
+else
+ src.sysmessageblue Voce eh um bom jogador. O carma lhe deu 1 ponto de alma
+ src.morte_incrementaPontos 1
+endif
+remove
 return 1
 
 [ITEMDEF i_bola_cristal]
@@ -729,25 +734,19 @@ more1=4
 on=@dclick
 if (<more1>)
  more1=(<more1> +(-1))
- if (0<src.tag.fRP> <= -3 )
+ DORAND <src.ctag0.rp_grade>
   src.message Seu futuro eh um desastre total!!! (<more1> cargas).
- elif (0<src.tag.fRP> == -2 )
+  src.message Seu futuro eh um desastre total!!! (<more1> cargas).
   src.message Seu futuro eh MUITO penoso (<more1> cargas).
- elif (0<src.tag.fRP> == -1 )
+  src.message Seu futuro eh MUITO penoso (<more1> cargas).
   src.message Seu futuro eh um tanto penoso (<more1> cargas).
- elif (0<src.tag.fRP>==0)
   src.message Seu futuro eh incerto (<more1> cargas).
- elif (0<src.tag.fRP>==1)
   src.message Seu futuro eh bom... (<more1> cargas).
- elif (0<src.tag.fRP>==2)
   src.message Seu futuro eh muito bom. (<more1> cargas).
- elif (0<src.tag.fRP>==3)
   src.message Seu futuro eh promissor! (<more1> cargas).
- elif (0<src.tag.fRP>==4)
   src.message Seu futuro eh brilhante! (<more1> cargas).
- elif (0<src.tag.fRP> >= 5)
   src.message Seu futuro eh ABSOLUTAMENTE GENIAL!!! (<more1> cargas).
- endif
+ ENDDO
  return 1
 else
  dorand (10)
