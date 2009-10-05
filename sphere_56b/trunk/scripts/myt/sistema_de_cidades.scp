@@ -259,6 +259,8 @@ TOWN_PAGE_NPC           19      //Mostra NPC, status, demitir...
 TOWN_PAGE_POLLS         20      //Lista plebicitos
 TOWN_PAGE_POLL          21      //Mostra um plebicito
 TOWN_PAGE_AZILUM        22      //Pede para percenter a town
+TOWN_PAGE_PRISION       23      //Página principal da prisão
+TOWN_PAGE_CELLS_LIST    24      //Lista as celas e adiciona.
 
 //tag.town_servant
 TOWN_SERVANT_GATE       1
@@ -850,7 +852,7 @@ else
  local.town=<region.defname>
 endif
 //Seta DEFAULT como criminoso da cidade <args> ou DEFAULT.REGION.
-town_setFlags <DEF.TOWN_FLAG_CRIMINAL>,<local.town>
+town_setFlags <DEF.TOWN_FLAG_BANNED>,<local.town>
 
 
 [FUNCTION town_GetPosition]
@@ -1670,6 +1672,16 @@ endif
 DB.QUERY="SELECT COUNT(uid) as friends FROM towns_members WHERE region='<local.town>' AND flags&16;"
 return <DB.ROW.0.friends>
 
+[FUNCTION town_getPrisioners]
+//Retorna o numero de jogadores presos da town com region <args> ou region do DEFAULT.
+if (!<IsEmpty <argv1>>)
+ local.town=<argv1>
+else
+ local.town=<region.defname>
+endif
+DB.QUERY="SELECT COUNT(uid) as criminals FROM towns_members WHERE region='<local.town>' AND flags&<eval <DEF.TOWN_FLAG_JAILED>>;"
+return <DB.ROW.0.criminals>
+
 
 [FUNCTION town_listEnemies]
 //Lista todos os jogadores com flag de banido ou criminoso ou inadimplente.
@@ -1680,6 +1692,36 @@ list_newDbCol 200,flags,Estado
 list_setAction town_showCriminal
 list_setActionBack town
 list_loadFromDb "SELECT uid, flags FROM towns_members WHERE region='<ctag.town_region>' AND flags&15;"
+//Transformar em decimal as posições deve você, Anakyn.
+FOR t 1 <ctag.list_numitems>
+ ctag.list_id_<local.t>=<DB.ROW.<eval <LOCAL.t>-1>.UID>
+ ctag.list_row<local.t>_02="Registrado como "
+ local.flags=<eval <DB.ROW.<eval <LOCAL.t>-1>.flags>>
+ if (<local.flags>&01)
+  ctag.list_row<local.t>_02 .= " banido"
+ endif
+ if (<local.flags>&02)
+  ctag.list_row<local.t>_02 .= " criminoso"
+ endif
+ if (<local.flags>&04)
+  ctag.list_row<local.t>_02 .= " preso"
+ endif
+ if (<local.flags>&08)
+  ctag.list_row<local.t>_02 .= " devedor"
+ endif
+ try ctag.list_row<local.t>_01=<UID.<DB.ROW.<eval <LOCAL.t>-1>.UID>.tag.name>
+end
+list_show 1
+
+[FUNCTION town_listPrisioners]
+//Lista todos os jogadores com flag de preso.
+town_clearTable
+list_new "Lista de prisioneiros de <serv.resources.<ctag.town_region>.name>"
+list_newDbCol 25,uid,Nome
+list_newDbCol 200,flags,Estado
+list_setAction town_showCriminal
+list_setActionBack town_PrisionMenu
+list_loadFromDb "SELECT uid, flags FROM towns_members WHERE region='<ctag.town_region>' AND flags&<EVAL <DEF.TOWN_FLAG_JAILED>>;"
 //Transformar em decimal as posições deve você, Anakyn.
 FOR t 1 <ctag.list_numitems>
  ctag.list_id_<local.t>=<DB.ROW.<eval <LOCAL.t>-1>.UID>
@@ -1769,6 +1811,13 @@ DB.EXECUTE="UPDATE towns SET type=1, capital='<local.town>' WHERE region='<local
 town_MassMessage Foi declarada a independencia de <serv.resources.<local.town>.name>!!!
 town_Configurations
 
+[FUNCTION town_PrisionMenu]
+ctag.town_page=<DEF.TOWN_PAGE_PRISION>
+DIALOG d_town
+
+[FUNCTION town_PrisionCells]
+ctag.town_page=<DEF.TOWN_PAGE_CELLS_LIST>
+DIALOG d_town
 
 [FUNCTION town_listDemences]
 //Lista as sub=regiões da town ASRG ou DEFAULT.REGION
@@ -2366,6 +2415,94 @@ elif (<IsEmpty <args>>)
 endif
 DIALOG d_town
 
+
+[FUNCTION town_PrisionActivate]
+//Ativa ou desativa o sistema de prisão com <argn> minutos de detenção mínima
+if (<IsEmpty <args>>)
+ prompt_new Quantos minutos de detencao minima?
+ prompt_setAction town_PrisionActivate <args>
+ prompt_setActionBack DIALOG d_town
+ prompt_show
+else
+ serv.resources.<ctag.town_region>.tag.prisionTime=<eval <argn>*60>
+ DIALOG d_town
+endif
+
+
+[FUNCTION town_ChangePrisionFee]
+//Muda a fuança mínima da prisão
+if (<IsEmpty <args>>)
+ prompt_new Digite um valor em cobre para fianca minima:<DEF.BR>(0 = inafiancavel)
+ prompt_setAction town_ChangePrisionFee <args>
+ prompt_setActionBack DIALOG d_town
+ prompt_show
+else
+ serv.resources.<ctag.town_region>.tag.prisionFee=<argn>
+ DIALOG d_town
+endif
+
+
+[FUNCTION town_AddCell]
+//Adiciona uma cela ao sistema de prisão
+sysmessageyellow Selecione um ponto dentro da nova cela:
+targetfg town_AddCell2
+
+[FUNCTION town_AddCell2]
+ local.c=0
+ WHILE (!<IsEmpty <serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>>>)
+  local.c += 1
+ END
+ //local.c += 1
+ serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>=<targp>
+ sysmessage args: <args> targp: <targp>
+ town_PrisionCells
+
+ 
+[FUNCTION town_RemoveCell]
+//Remove da Town a cela número <argn>
+
+//Prepara o Cache e apaga o atual log
+local.t=0
+FOR c 0 5
+ if (<local.c> != <argn>)
+  local.cache_<dlocal.t>=<serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>>
+  local.t += 1
+ endif
+ serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>=
+END
+
+//Repopula a lista
+FOR n 0 5
+ if (!<IsEmpty <local.cache_<dlocal.n>>>) && (<EVAL STRLEN(<local.cache_<dlocal.n>>)> > 2)
+  serv.resources.<ctag.town_region>.tag.cell_<dlocal.n>=<local.cache_<dlocal.n>>
+ endif
+END
+town_PrisionCells
+
+
+[FUNCTION town_ChangeJailTime]
+//Muda o tempo de prisão do player <ctag.town_UID>
+ref1=<ctag.town_UID>
+ref2=<ref1.town_GetJailMemory <ctag.town_region>>
+if (!<argv>)
+ prompt_new Alterar a pena para quantos minutos?<DEF.BR>(Atual: <f_timestring <ref2.timer>>)
+ prompt_setAction town_ChangeJailTime
+ prompt_setActionBack DIALOG d_town
+ prompt_show
+else
+ town_AdjustJailTime <ref1>,<ctag.town_region>,<argn>
+ serv.log town_AdjustJailTime <ref1>,<ctag.town_region>,<argn>
+ DIALOG d_town
+endif
+
+[FUNCTION town_changeReleasePoint]
+//Target no ponto de banimento/soltura da town
+sysmessageyellow Selecione um ponto no mapa 'FORA DOS MUROS' de <serv.resources.<ctag.town_region>.name>
+targetfg town_changeReleasePoint2
+
+[FUNCTION town_changeReleasePoint2]
+serv.resources.<ctag.town_region>.tag.town_releasePoint = <TARGP>
+DIALOG d_town
 
 //*****************************
 // Função town_Can* para privs
@@ -3427,6 +3564,13 @@ DIALOG d_town
           endif
           local.f += 1
          END
+         if (<ctag0.town_member_flags>&<DEF.TOWN_FLAG_JAILED>)
+          ref1=<UID.<ctag.town_uid>.town_GetJailMemory <ctag.town_region>>
+          local.html .= <DEF.BR><DEF.BFONT_WHITE>Tempo para ser solto: <f_timestring <ref1.timer>><DEF.BR>
+          if (<UID.<ctag.town_uid>.distance <ref1.morep>> > 20)
+           local.html .= <DEF.BFONT_GREEN><DEF.BR> - Fugitivo!
+          endif
+         endif
         endif
 
 
@@ -3509,6 +3653,29 @@ DIALOG d_town
         local.html .= Este funcionario esta contratado ha <f_timestring <eval <obj.age>*6>><DEF.BR>
         local.html .= Atualmente ele se encontra em <obj.region.name> e sua posicao atual eh <QVAL <IsGM>?<obj.p>:<obj.sextantp>>.
         return <local.html>
+        
+[FUNCTION d_town_buildPrisionHtml]
+        local.fee=<serv.resources.<ctag.town_region>.tag0.prisionFee>
+        local.time=<f_timestring <serv.resources.<ctag.town_region>.tag0.prisionTime>>
+        local.prisions=<serv.resources.<ctag.town_region>.tag0.prisions>
+        local.cells=0
+        local.prisioners=<town_getPrisioners <ctag.town_region>>
+        for c 0 4
+         if (!<IsEmpty <serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>>>)
+          local.cells += 1
+         endif
+        end
+        if (!<serv.resources.<ctag.town_region>.tag0.prisionTime>)
+         local.html = O sistema de prisao esta desabilitado. Os delinquentes sao atacados e banidos de <serv.resources.<ctag.town_region>.name>.
+        else
+         local.html = "Celas ativas: <dlocal.cells> <DEF.BR>Tempo minimo de cativeiro: <local.time> <DEF.BR>Fianca minima: "
+         if <serv.resources.<ctag.town_region>.tag0.prisionFee>
+          local.html .= "<STRTRESURE <local.fee>> "
+         else
+          local.html .= "Inafiancavel "
+         endif
+         local.html .= "<DEF.BR>Total de prisoes feitas: <dlocal.prisions><DEF.BR>Total de prisioneiros: <dlocal.prisioners>"
+        endif
         
 [FUNCTION d_town_solve]
 if (<ctag.town_page>==<DEF.TOWN_PAGE_FOUND>)
@@ -3669,7 +3836,7 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_TAXES>)
 elif (<ctag.town_page>==<DEF.TOWN_PAGE_BANS>)
         DB.QUERY="SELECT flags FROM towns_members WHERE UID=<dctag.town_UID> AND region='<ctag.town_region>';"
         ctag.town_member_flags=<DB.ROW.0.flags>
-        local.priv=<town_canMember 0>
+        local.priv=<town_canMember <uid.<dctag.town_UID>.town_GetPosition <ctag.town_region>>>
         resizepic 92 87 2620 416 147
         call d_town_buildCriminalHtml
         dhtmlgump 98 95 403 130 0 1 <local.html>
@@ -3681,6 +3848,12 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_BANS>)
          dtext +19 -1 66 <QVAL <ctag.town_member_flags>&<DEF.TOWN_FLAG_BANNED>?Retirar da lista de inimigos publicos banidos:Adicionar a lista de inimigos publicos banidos>
          button - *20 30008 30009 1 0 51
          dtext +19 -1 66 <QVAL <ctag.town_member_flags>&<DEF.TOWN_FLAG_DEBT>?Retirar da lista de inadimplentes:Adicionar a lista de inadimplentes>
+         if (<src.town_CheckPrivs <DEF.TOWN_PRIV_LAWS>>) && (<ctag.town_member_flags>&<DEF.TOWN_FLAG_Jailed>)
+          button - *20 30008 30009 1 0 107
+          dtext +19 -1 66 Libertar da prisao
+          button - *20 30008 30009 1 0 108
+          dtext +19 -1 66 Ajustar pena          
+         endif
         ENDIF
         button 92 385 4014 4015 1 0 1
 
@@ -3720,6 +3893,15 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_CONFIG>)
           button - +3 30008 30009 1 0 37
          endif
         ENDIF
+        dtext +18 *20 5 Prisao
+        button - +3 30008 30009 1 0 100
+        IF (<src.town_CheckPrivs <DEF.TOWN_PRIV_LAWS>>)
+         dtext +18 *20 45 Mudar ponto de soltura/banimento (<QVAL <IsGM>?<serv.resources.<ctag.town_region>.tag0.town_releasePoint>:<SEXTANTP <serv.resources.<ctag.town_region>.tag0.town_releasePoint>>>)
+         button - +3 30008 30009 1 0 109
+        else
+         dtext +18 *20 5 Ponto de soltura/banimento (<SEXTANTP <serv.resources.<ctag.town_region>.tag0.town_releasePoint>>)
+        endif
+        
         button 92 385 4014 4015 1 0 1
         
 elif (<ctag.town_page>==<DEF.TOWN_PAGE_RACES>)
@@ -4049,7 +4231,7 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_POLLS>)
         IF (!<ctag0.town_noFullMenu>)
          button 92 385 4014 4015 1 0 1
         ENDIF
-        
+
 elif (<ctag.town_page>==<DEF.TOWN_PAGE_POLL>)
         resizepic 92 117 2620 416 147
         dtext 100 97 45 Peticao:
@@ -4094,7 +4276,7 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_POLL>)
         IF (!<ctag0.town_noFullMenu>)
          button 92 385 4014 4015 1 0 1
         endif
-        
+
 elif (<ctag.town_page>==<DEF.TOWN_PAGE_LAWS_SHOW>)
         call d_town_buildLaw
         resizepic 92 117 2620 416 147        
@@ -4105,6 +4287,52 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_LAWS_SHOW>)
         if (!<ctag0.town_noFullMenu>)
          button 92 385 4014 4015 1 0 1
         endif
+
+elif (<ctag.town_page>==<DEF.TOWN_PAGE_PRISION>)
+        resizepic 92 87 2620 416 147
+        call d_town_buildPrisionHtml
+        dhtmlgump 98 95 403 130 0 1 <local.html>
+        dorigin 101 220
+        IF (<town_getPrivs <local.town>>&<DEF.TOWN_PRIV_LAWS>)
+         if (<local.time>)
+          dtext +19 *20 66 Desabilitar sistema de prisao
+         else
+          dtext +19 *20 24 Habilitar sistema de prisao
+         endif
+         button - +1 30008 30009 1 0 101
+         if (<local.time>)
+          dtext +19 *20 66 Mudar tempo minimo de prisao
+          button - +1 30008 30009 1 0 102
+          dtext +19 *20 66 Mudar fianca minima
+          button - +1 30008 30009 1 0 103
+          dtext +19 *20 66 Gerenciar celas
+          button - +1 30008 30009 1 0 104
+         endif
+        ENDIF
+        dtext +19 *20 66 Listar prisioneiros
+        button - +1 30008 30009 1 0 105
+
+        button 92 385 4014 4015 1 0 1 
+
+elif (<ctag.town_page>==<DEF.TOWN_PAGE_CELLS_LIST>)
+        dorigin 101 100
+        local.c=0
+        dtext +19 *30 47 Precioneo botao do lado da cela para remove-la.
+        WHILE (!<IsEmpty <serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>>>)
+         if (<IsGM>)
+          dtext +19 *20 56 Cela <eval <dlocal.c>+1> (<serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>>)
+         else
+          dtext +19 *20 56 Cela <eval <dlocal.c>+1> (<sextantp <serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>>>)
+         endif
+         button - +1 30008 30009 1 0 <eval 120+<local.c>>
+         local.c += 1
+        END
+        if (<local.c> < 6)
+         dtext +19 *30 66 Adicionar cela (<dlocal.c>/6)
+         button - +1 30008 30009 1 0 106
+        endif
+        button 92 385 4014 4015 1 0 1
+
 endif
 
 
@@ -4168,9 +4396,10 @@ DOSWITCH <ctag0.town_page>
  town <ctag.town_region>//TOWN_PAGE_NPC
  town <ctag.town_region>//TOWN_PAGE_POLLS
  town_petitionsMenu     //TOWN_PAGE_POLL
- town <ctag.town_region>//TOWN_PAGE_PETITIONS
- town <ctag.town_region>//TOWN_PAGE_PETITION
  town <ctag.town_region>//TOWN_PAGE_AZILUM
+ town_Configurations    //TOWN_PAGE_PRISION
+ town_PrisionMenu       //TOWN_PAGE_CELLS_LIST
+
 ENDDO
 
 
@@ -4453,5 +4682,57 @@ ON=90 95
 //Contratar um guarda em específico
 local.level=<eval <argn>-90>
 town_hireThisGuard <ctag.town_region>,<local.level>
+
+///////////////// Prisão
+ON=100
+//Chamar o quadro de prisão
+town_PrisionMenu
+
+ON=101
+//Ativa/desativar prisão
+if (<serv.resources.<ctag.town_region>.tag0.prisionTime>)
+ town_PrisionActivate 0
+else
+ town_PrisionActivate
+endif
+
+ON=102
+//Mudar tempo de prisão
+town_PrisionActivate
+
+ON=103
+//Mudar fiança
+town_ChangePrisionFee
+
+ON=104
+//Gerenciar celas
+town_PrisionCells
+
+ON=105
+//Listar prisioneiros
+town_listPrisioners
+
+ON=106
+//Adicionar cela
+town_AddCell
+
+ON=107
+//Libertar da prisão
+uid.<ctag.town_uid>.town_forgiveJail <ctag.town_region>
+sysmessagered Prisioneiro libertado!!!
+town_PrisionMenu
+
+ON=108
+//Ajustar pena
+town_ChangeJailTime
+
+ON=109
+//Mudar área de soltura/banimento
+town_changeReleasePoint
+
+ON=120 130
+//Deletar cela
+local.n=<eval <argn>-120>
+town_RemoveCell <local.n>
 
 [EOF]

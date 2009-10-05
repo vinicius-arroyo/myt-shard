@@ -207,6 +207,27 @@ return 1
 [EVENTS e_town_guard]
 ON=@NPCSeeNewPlayer
 //Somente se ele estiver wandering, goin to, going home, stay ou guard item.
+if ((<action> > 064) && (<action> < 069)) || (<action>==06C) || (<action>==06D)
+ local.perm=<region.tag0.permissions>
+ local.flags=<src.ctag0.town_<tag.town_region>_flags>
+ local.privs=<src.ctag0.town_<tag.town_region>_privs>
+ IF (!<src.rec_CanSeeMe>) && !(<local.perm>&TOWN_CAN_HOOD) && !(<local.privs>&TOWN_PRIV_HOOD)
+  guard_advice <src>,<DEF.TOWN_CAN_HOOD>
+ ELIF (<local.flags>&023) && !(<src.restest i_capuz>)
+  attack <src>
+  if (<local.flags>&020)
+   say Intrus<src.sex o/a> <src.tag.raca>! Alarme! Alarme!
+  elif (<local.flags>&02)
+   say Criminos<src.sex o/a>!
+  elif (<local.flags>&01)
+   say Hey, <src.tag.name>! Voce esta banid<src.sex o/a> de <region.name>! FORA!
+  endif
+ ELIF (<src.flags>&020) && !(<local.perm>&TOWN_CAN_WARMODE) && !(<local.privs>&TOWN_PRIV_WAR)
+  guard_advice <src>,<DEF.TOWN_CAN_WARMODE>
+ ELIF (<src.weapon.dam.hi> > 10) && !(<local.perm>&TOWN_CAN_WEAPON) && !(<local.privs>&TOWN_PRIV_WAR)
+  guard_advice <src>,<DEF.TOWN_CAN_WEAPON>
+ endif
+endif
 
 
 ON=@PersonalSpace
@@ -234,6 +255,20 @@ if (<tag0.kills> > <eval (<tag0.guard_level>+2)@2>) && (<tag0.guard_level> < 5)
  //serv.log [NIUVO] <name> eh agora nivel <dtag0.guard_level>
 endif
 
+//serv.log I:<NAME> SRC:<SRC.NAME> ACT:<ACT.NAME> ARGO:<argo.name>
+
+if (<act.IsPlayer>)
+ //Efetuar prisão?
+ if (<serv.resources.<tag.town_region>.tag0.prisionTime>)
+  DORAND 3
+   say Voce esta preso em nome da lei!
+   say Voce tem o direito de desmaiar antes de chegar na sua cela.
+   say Produza um pouco de mofo para as formigas da sua cela.
+  ENDDO
+  act.town_GoJailed <uid>
+ endif
+endif
+
 on=@Hunger
 IF (<food> < 30)
  IF (!<town_ServantFood>)
@@ -244,7 +279,7 @@ IF (<food> < 30)
    trysrc <uid> src.bounce <new>
   ELIF (!<food>) && (<tag0.nopay> > 2)
    say Chega disso! Me demito!
-   timerf 15,remove
+   timerf 15 remove
   ENDIF
  ENDIF
 ENDIF
@@ -261,9 +296,9 @@ try tag0.guard_checkedd_<src.uid>=1
 timerf 4,tag.guard_checkedd_<src.uid>=
 
 if ((<action> > 064) && (<action> < 069)) || (<action>==06C) || (<action>==06D)
- local.perm=<region.tag.permissions>
- local.flags=<src.ctag.town_<tag.town_region>_flags>
- local.privs=<src.ctag.town_<tag.town_region>_privs>
+ local.perm=<region.tag0.permissions>
+ local.flags=<src.ctag0.town_<tag.town_region>_flags>
+ local.privs=<src.ctag0.town_<tag.town_region>_privs>
  IF (!<src.rec_CanSeeMe>) && !(<local.perm>&TOWN_CAN_HOOD) && !(<local.privs>&TOWN_PRIV_HOOD)
   guard_advice <src>,<DEF.TOWN_CAN_HOOD>
  ELIF (<local.flags>&023) && !(<src.restest i_capuz>)
@@ -341,12 +376,275 @@ endif
 return 1
 
 
+[ITEMDEF i_mry_townJail]
+id=i_memory
+type=t_eq_script
+name=Town Jail
+layer=layer_special
+//more1=Quantas vezes foi preso
+//morep=<P> da jail que foi preso
+//link=Documento de jail (sentensa/alvará de soltura)
+//tag.town_region=Defname da town a que esta memory pertence
+
+ON=@timer
+link.name=Alvara de soltura
+link.more1=1
+link.update
+topobj.sysmessagegreen Sua pena terminou. Utilize o Alvara de Soltura.
+return 1
+
+[ITEMDEF i_town_jail_doc]
+//link=memory
+//more1=0:sentensa 1:alvara de soltura
+id=i_deed
+type=t_script
+NAME=sentensa
+
+on=@Create
+more1=0
+
+on=@dropon_ground
+if (<src.distance <link.morep>> < 12)
+ link.topobj.bounce <uid>
+ link.topobj.sysmessageyellow Concerve este documento ate sair da cadeia!
+endif
+return 1
+
+on=@dropon_char
+if (<src.distance <link.morep>> < 12)
+ src.bounce <uid>
+ src.sysmessageyellow Concerve este documento ate sair da cadeia!
+endif
+return 1
+
+
+on=@dropon_item
+if (<src.distance <link.morep>> < 12)
+ src.bounce <uid>
+ src.sysmessageyellow Concerve este documento ate sair da cadeia!
+endif
+return 1
+
+on=@DClick
+if (!<more1>)//Sentença
+ src.ctag.town_jail_doc=<uid>
+ src.DIALOG d_jail_doc
+else //alvará
+
+ //Longe da cela. Fugiu?
+ if (<src.distance <link.morep>> > 3)
+  src.sysmessagegreen Voce ja pode ser solt<src.sex o/a>! Chegue mais perto do ponto iniciar da cela para fazer isso.
+  
+ else
+  //Tira flags de criminoso, teleporta e pans
+  src.town_unsetFlags <eval <DEF.TOWN_FLAG_CRIMINAL>|<DEF.TOWN_FLAG_JAILED>>,<link.tag.town_region>
+  src.town_uncleanPrisioner <link.tag.town_region>
+  src.go <morep>
+  src.town_enter
+  remove
+  
+ endif
+endif
+return 1
+
+on=@Destroy
+link.link=04fffffff
+
 
 //**************************************************************
 //**************************************************************
 //                      FUNCTIONS
 //**************************************************************
 //**************************************************************
+
+[FUNCTION town_GetJailMemory]
+//Procura a memory de Jail para a town <args>
+local.mry=0
+FORCONTID i_mry_townJail 1
+ if (STRMATCH(*<args>*,<tag.town_region>))
+  return <uid>
+ endif
+end
+
+[FUNCTION town_GoJailed]
+//Manda um player preso pelo guarda <argn>
+local.town=<uid.<argn>.tag.town_region>
+//Existe cela?
+if (<IsEmpty <serv.resources.<local.town>.tag.cell_0>>)
+ sysmessageyellow Nao ha celas em <serv.resources.<local.town>.name>.
+ //Existe ponto para soltar detento?
+ if (!<IsEmpty <serv.resources.<local.town>.tag.town_releasePoint>>)
+  sysmessageyellow Eh bom nao aparecer mais por aqui. Voce foi banido.
+  go <serv.resources.<local.town>.tag.town_releasePoint>
+  town_setAsBaned 1,<local.town>
+ else
+  sysmessageyellow Voce esta solto, mas ainda eh um criminoso.
+  return 1
+ endif
+
+//Existe cela sim
+else
+ //determina a cela
+ local.cell=<serv.resources.<local.town>.tag0.nextCell>
+ 
+ //Dá update para a próxima cela a ser utilizada
+ serv.resources.<local.town>.tag.nextCell = <serv.resources.<local.town>.tag0.nextCell> + 1
+ if (<IsEmpty <serv.resources.<local.town>.tag.cell_<serv.resources.<local.town>.tag0.nextCell>>>)
+  serv.resources.<local.town>.tag.nextCell = 0
+ endif
+ 
+ //Seta a cela para a qual ele vai
+ local.cell=<serv.resources.<local.town>.tag.cell_<dlocal.cell>>
+ 
+ //Limpa o playa
+ if (<town_getVault <local.town>>)
+  town_cleanPrisioner <local.town>
+ endif
+
+ //Procura a memory de Jail para a town
+ local.mry=0
+ FORCONTID i_mry_townJail 1
+  if (STRMATCH(*<local.town>*,<tag.town_region>))
+   local.mry=<uid>
+  endif
+ end
+ 
+ //Ainda não existe essa memory?
+ if (!<local.mry>)
+  newitem i_mry_townJail
+  trysrc <uid> src.new.equip
+  new.name=<new.name> (<serv.resources.<local.town>.name>)
+  new.tag.town_region=<local.town>
+  local.mry=<new>
+ endif
+ 
+ //Setup da memory
+ ref1=<local.mry>
+ ref1.more1 += 1
+ ref1.timer = <eval <ref1.more1>*<serv.resources.<local.town>.tag.prisionTime>>
+ ref1.morep = <local.cell>
+ 
+ newitem i_town_jail_doc
+ new.link=<ref1>
+ ref1.link=<new>
+ if (!<IsEmpty <serv.resources.<local.town>.tag.town_releasePoint>>) && (<town_GetFlags <local.town>>&<DEF.TOWN_FLAG_BANNED>)
+  new.morep=<serv.resources.<local.town>.tag.town_releasePoint>
+ else
+  new.morep=<serv.resources.<local.town>.p>
+ endif
+ trysrc <uid> src.new.bounce
+ 
+ //aplicar pena no player
+ town_setFlags <DEF.TOWN_FLAG_JAILED>,<local.town>
+ 
+ go <ref1.morep>
+ fix
+ timerf 5, sysmessagered Voce ficara preso por <f_timestring <ref1.timer>>
+ 
+ //Estatística da town
+ serv.resources.<local.town>.tag.prisions = <serv.resources.<local.town>.tag0.prisions> + 1
+ 
+endif
+
+[FUNCTION town_cleanPrisioner]
+//Guarda os itens do prisioneiro no cofre da town <args>
+ref1=<uid>
+obj=<town_GetVault <args>>
+FORCONT <FINDLAYER.21.UID> 0
+ if (<DEFNAME>==i_gold) || (<DEFNAME>==i_coin_copper) || (<DEFNAME>==i_coin_silver)
+  cont=<ref1.findlayer.layer_bankbox.uid>
+ elif (<TYPE>==t_lockpick) && (<R2>)
+  tag.prisioner=<ref1>
+  cont=<obj>
+ elif (<R10>)
+  tag.prisioner=<ref1>
+  cont=<obj>
+ endif
+END
+if (<weapon>)
+ weapon.tag.prisioner=<uid>
+ weapon.cont=<obj>
+endif
+food=100
+
+[FUNCTION town_uncleanPrisioner]
+//Guarda os itens do prisioneiro no cofre da town <args>
+ref1=<UID>
+ref2=<town_GetVault <args>>
+obj=<FINDLAYER.21.UID>
+FORCONT <ref2> 0
+ if (<tag0.prisioner>==<ref1>)
+  tag.prisioner=
+  cont=<obj>
+ endif
+END
+food=100
+ 
+[FUNCTION town_PrisionPayFee]
+//Player paga fiança para sair da cadeia
+obj=<uid.<ctag.town_jail_doc>.link>
+local.town=<obj.tag.town_region>
+local.fee=<eval <serv.resources.<local.town>.tag0.prisionFee>*<obj.more1>>
+if (<bank_getCash <local.fee>,1>)
+ sysmessagegreen Fianca paga.
+ town_addCash <local.fee>
+ obj.timerd 1
+else
+ sysmessagered Voce nao tem dinheiro para pagar a finaca. Nem aqui, nem no banco.
+endif
+
+[FUNCTION town_forgiveJail]
+//Tira um player da cadeia da town <args>
+local.town=<args>
+
+//Procura a memory de Jail para a town e a sentensa
+local.mry=0
+FORCONTID i_mry_townJail 1
+ if (STRMATCH(*<local.town>*,<tag.town_region>))
+  local.mry=<uid>
+ endif
+end
+
+if (!<local.mry>)
+ return 0
+endif
+
+ref1=<local.mry>
+ref2=<ref1.link>
+
+if (<ref2.defname>!=i_town_jail_doc)
+ return 0
+endif
+
+//Solta o azulão
+ref1.timer = -1
+go <ref2.morep>
+town_unsetFlags <eval <DEF.TOWN_FLAG_CRIMINAL>|<DEF.TOWN_FLAG_JAILED>>,<local.town>
+town_uncleanPrisioner <local.town>
+town_enter
+ref2.remove
+
+
+[FUNCTION town_AdjustJailTime]
+//Ajusta a pena do playa <argv0>, da town <argv1> para <argv2> minutos.
+obj=<argv0>
+local.town=<argv1>
+local.time=<eval <argv2>*60>
+local.time=<MAXIMUM 60,<local.time>>
+ref1=<obj.town_GetJailMemory <local.town>>
+
+//Ainda pode mudar?
+if (<ref1.timer> < 1)
+ sysmessagered A pena ja expirou. Alteracao cancelada.
+ return 0
+endif
+
+//Mudar sentensa
+ref1.timer=<local.time>
+sysmessage Pena alterada para <f_timestring <local.time>>
+f_sendMessage <obj>,Sua pena foi alterada para <f_timestring <local.time>>,<DEF.SM_YELLOW>
+return 1
+
 
 [FUNCTION guard_getWPTs]
 //Retorna a quantidade de Waypoints
@@ -1036,3 +1334,29 @@ serv.newitem <eval <args>>
 new.maxhits=<eval <new.tdata4>/2>
 new.hits=<new.maxhits>
 trysrc <uid> src.equip <new>
+
+[DIALOG d_jail_doc]
+100,75
+page 0
+resizepic 0 0 9380 307 316
+obj=<uid.<ctag.town_jail_doc>.link>
+local.town=<obj.tag.town_region>
+local.text=Voce sera solt<sex o/a> em <f_timestring <obj.timer>>.<DEF.BR>Esta eh a <obj.dmore1>a. vez que voce eh pres<sex o/a> em <serv.resources.<local.town>.name>.<DEF.BR>
+if (<serv.resources.<local.town>.tag0.prisionFee>)
+ local.fee=<eval <serv.resources.<local.town>.tag0.prisionFee>*<obj.more1>>
+ local.text .= "Fianca: <STRTRESURE <local.fee>>"
+ button 39 259 1209 1210 1 0 1
+ dtext 57 256 2100 Pagar a fianca
+else
+ local.text .= "O governo nao aceita fianca."
+endif
+dhtmlgump 32 35 244 214 0 0 <local.text>
+
+[DIALOG d_jail_doc text]
+
+[DIALOG d_jail_doc button]
+ON=1
+// Button 1
+town_PrisionPayFee
+
+[EOF]
