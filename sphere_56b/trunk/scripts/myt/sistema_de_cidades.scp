@@ -326,18 +326,22 @@ events -e_NPCInTown
 //TEVENT do Senescal
 on=@Hunger
 IF (<food> < 30)
- IF (!<town_ServantFood>)
+ local.food=<town_ServantFood>
+ IF (!<local.food>)
   IF (<restest 2 i_coin_copper>)
    consume 2 i_coin_copper
-   serv.newitem i_ribs_cooked
+   serv.newitem i_carne
    new.amount=9
    trysrc <uid> src.bounce <new>
   ELIF (!<food>) && (<tag0.nopay> > 2)
    say Chega disso! Me demito!
-   timerf 15,remove
+   timerf 15 remove 1
   ENDIF
+ ELSE
+  argn1=<local.food>
  ENDIF
 ENDIF
+
     
 on=@Destroy
 town_UnRegServant
@@ -353,18 +357,22 @@ serv.log Hey! Hey! Hey! Porteiro <name> (<uid>) foi destruido!!!
 
 on=@Hunger
 IF (<food> < 30)
- IF (!<town_ServantFood>)
+ local.food=<town_ServantFood>
+ IF (!<local.food>)
   IF (<restest 2 i_coin_copper>)
    consume 2 i_coin_copper
-   serv.newitem i_ribs_cooked
+   serv.newitem i_carne
    new.amount=9
    trysrc <uid> src.bounce <new>
   ELIF (!<food>) && (<tag0.nopay> > 2)
    say Chega disso! Me demito!
-   timerf 15,remove
+   timerf 15 remove 1
   ENDIF
+ ELSE
+  argn1=<local.food>
  ENDIF
 ENDIF
+
 
 
 
@@ -535,6 +543,8 @@ if (<local.et> > <DEF.TOWN_TRIG_TIME>)
 endif
 timerd <eval <DEF.TOWN_TRIG_TIME>/3>
 return 1
+
+
 
 //########################################################################
 //########################################################################
@@ -2721,8 +2731,7 @@ ON=@NPCRestock
     ITEM=random_boots
     ITEM={ i_hat_feather 1 i_cap 1 0 2}
     COLOR=COLORS_ALL
-    ITEM=i_mry_seneschal
-    TIMER=<DEF.TOWN_TRIG_TIME>
+    
     
 
 //*****************************************************************************
@@ -2781,8 +2790,6 @@ ON=@NPCRestock
     ITEM=i_cape
     ITEM=i_SASH
     ITEM=i_sandals
-    ITEM=i_mry_seneschal
-    TIMER=<eval <DEF.TOWN_TRIG_TIME>/3>
 
 
 //*****************************************************************************
@@ -2843,9 +2850,7 @@ ON=@NPCRestock
     ITEM=i_cape
     ITEM=i_SASH
     ITEM=RANDOM_BOOTS
-    ITEM=i_mry_seneschal
-    TIMER=<DEF.TOWN_TRIG_TIME>
-    
+        
 
 //******************************************************************************
 //******************************************************************************
@@ -3196,14 +3201,13 @@ serv.log [TOWNS] Servidor <name> (<dtag.servant>) de <local.town> :: UnRegServan
 
 [FUNCTION town_ServantFood]
 //Faz o NPC comer
-LOCAL.food=<findtype t_food>
-if (<LOCAL.food>)
+ref1=<findtype t_food>
+if (<ref1>)
  anim 022
  SFX 03b
- emotegreen comendo <UID.<LOCAL.FOOD>.name>
- food += <R50,75>
- uid.<local.food>.decrement
- return 1
+ emotegreen comendo <ref1.name>
+ ref1.decrement
+ return <eval <food>+<R50,75>>
 endif
 return 0
 
@@ -3213,6 +3217,9 @@ return 0
 town_RegServant
 FINDID.i_cape.color=<town_GetFirstColor>
 FINDID.i_sash.color=<town_GetSecondColor>
+serv.newitem=i_mry_seneschal
+trysrc <uid> new.equip
+new.timerd=<DEF.TOWN_TRIG_TIME>
 
 
 [FUNCTION TOWN_START_GATEKEEPER]
