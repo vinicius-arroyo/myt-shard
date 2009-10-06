@@ -343,14 +343,14 @@ IF (<food> < 30)
 ENDIF
 
     
-on=@Destroy
+on=@Death
 town_UnRegServant
 serv.log Hey! Hey! Hey! Senescal <name> (<uid>) foi destruido!!!
 
 
 [EVENTS e_town_gatekeeper]
 //TEVENT do Porteiro
-on=@Destroy
+on=@Death
 town_UnRegServant
 TOWN_RELEASE_DOORS
 serv.log Hey! Hey! Hey! Porteiro <name> (<uid>) foi destruido!!!
@@ -529,6 +529,8 @@ NAME=Timer do Senescal
 TYPE=t_eq_script
 
 on=@timer
+cont.town_pruneCitzens <cont.tag.town_region>
+cont.town_pruneServants <cont.tag.town_region>
 local.et=<eval <serv.time>-<serv.resources.<cont.tag.town_region>.tag0.lastPaid>>
 if (<local.et> > <DEF.TOWN_TRIG_TIME>)
  DORAND 4
@@ -538,7 +540,6 @@ if (<local.et> > <DEF.TOWN_TRIG_TIME>)
   cont.say Tenho que pagar os servidores agora.
  END
  cont.town_payServants
- cont.town_pruneCitzens <cont.tag.town_region>
  serv.resources.<cont.tag.town_region>.tag0.lastPaid=<serv.time>
 endif
 timerd <eval <DEF.TOWN_TRIG_TIME>/3>
@@ -1589,7 +1590,7 @@ FOR t 1 <ctag.list_numitems>
  ctag.list_id_<local.t>=<obj>
  ctag.list_row<local.t>_01=<obj.name>
  DOSWITCH <obj.tag0.servant>
-  ctag.list_row<local.t>_02=BUG! Reporte!
+  ctag.list_row<local.t>_02=Demitido. Saira da lista logo.
   ctag.list_row<local.t>_02=Porteiro
   ctag.list_row<local.t>_02=Guarda
   ctag.list_row<local.t>_02=Senescal
@@ -3198,7 +3199,6 @@ local.town=<tag.town_region>
 DB.EXECUTE="DELETE FROM towns_servants WHERE UID=<eval <UID>>;"
 serv.log [TOWNS] Servidor <name> (<dtag.servant>) de <local.town> :: UnRegServant
 
-
 [FUNCTION town_ServantFood]
 //Faz o NPC comer
 ref1=<findtype t_food>
@@ -3245,18 +3245,9 @@ END
 
 FOR s 0 <eval <DB.ROW.NUMROWS>-1>
  obj=<local.servant_<dlocal.s>>
- //Silent prune
- if (!<obj.ischar>)
-  if (<eval strlen(<local.prunes>)> < 2)
-   local.prunes = "UID=<dlocal.servant_<dlocal.s>>"
-   local.pruneN=1
-  else
-   local.prunes .= " OR UID=<dlocal.servant_<dlocal.s>>"
-   local.pruneN += 1
-  endif
-  
+ 
  //Calcular salário
- else
+ if (<obj.ischar>)
   local.servant=<obj.tag0.servant>
   if (<local.servant>!=2)//Não é guarda
    local.ord=<DEF.TOWN_SERVANT_<dlocal.servant>_ORD>
@@ -3289,12 +3280,6 @@ FOR s 0 <eval <DB.ROW.NUMROWS>-1>
  endif
 END
 
-//Prune
-if (<local.pruneN>)
- DB.EXECUTE="DELETE FROM towns_servants WHERE <local.prunes>;"
- serv.log [TOWN] Silent Prune removeu <dlocal.pruneN> NPCs inexistentes de <tag.town_region>.
-endif
-
 //Emote final
 DORAND 4
  local.emote=Pronto. <STRTRESURE <local.total>> de pagamentos. Agora vamos contabilizar o comercio.
@@ -3306,6 +3291,44 @@ END
 timerf 3 say <local.emote>
 
 serv.resources.<tag.town_region>.tag.town_cost=<local.total>
+
+
+[FUNCTION town_pruneServants]
+//Pruna periodicamente os NPCs
+if !(<IsTEvent.e_town_Seneschal>) || (<IsEmpty <tag.town_region>>)
+ serv.log [TOWN] Erro! <uid> tentando efetuar prune. Event? <eval <IsTEvent.e_town_Seneschal>> - Town: <tag.town_region>
+ return 0
+endif
+DB.QUERY="SELECT uid FROM towns_servants WHERE region='<tag.town_region>';"
+local.total=0
+local.i=0
+
+//Salva a lista de NPCs
+FOR s 0 <eval <DB.ROW.NUMROWS>-1>
+ try local.servant_<dlocal.i>=<DB.ROW.<dlocal.s>.uid>
+ local.i +=1
+END
+
+FOR s 0 <eval <DB.ROW.NUMROWS>-1>
+ obj=<local.servant_<dlocal.s>>
+ //Silent prune
+ if (!<obj.ischar>)
+  if (<eval strlen(<local.prunes>)> < 2)
+   local.prunes = "UID=<dlocal.servant_<dlocal.s>>"
+   local.pruneN=1
+  else
+   local.prunes .= " OR UID=<dlocal.servant_<dlocal.s>>"
+   local.pruneN += 1
+  endif
+ endif
+END
+
+//Prune
+if (<local.pruneN>)
+ DB.EXECUTE="DELETE FROM towns_servants WHERE <local.prunes>;"
+ serv.log [TOWN] Silent Prune removeu <dlocal.pruneN> NPCs inexistentes de <tag.town_region>.
+endif
+
 
 [FUNCTION town_pruneCitzens]
 //Remove jogadores inválidos da town <args>
