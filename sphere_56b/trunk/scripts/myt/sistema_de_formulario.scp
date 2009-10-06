@@ -10,10 +10,8 @@
 
 ==ToDo:
 
-- Novo sistema de criação de personagens
 - Transportar a parte de teleport para local segundo a raça para o sistema de criação de char
 - Verificação de validade do e-mail. O sistema pode dar bode por flood de multi-acc bagunceiro
-- Funções para aceitar contas com username que são apenas números
 
 
 == Uso prático:
@@ -635,6 +633,21 @@ dhtmlgump 20 107 598 329 8 1 Obrigado! Voce foi promovido de convidado a jogador
 resizepic 22 55 9250 599 40
 dtext 36 65 18 Sua conta foi aceita!
 button 562 441 247 248 1 0 14
+
+[FUNCTION form_PruneAccounts]
+//Deleta contas e forms de guests não utilizados nos ultimos 45 dias
+DB.QUERY="SELECT username FROM accounts WHERE (status='rejected' OR status='form') AND lastedit < DATE_SUB(CURRENT_TIMESTAMP(),INTERVAL '45' DAY);"
+for a 0 <EVAL <DB.ROW.NUMROWS>-1>
+ local.acc_<dlocal.a>=<DB.ROW.<dlocal.a>.username>
+endfor
+for d 0 <local.a>
+ DB.EXECUTE="DELETE FROM accounts WHERE username='<DB.ESCAPEDATA <local.acc_<dlocal.d>>>';
+ DB.EXECUTE="DELETE FROM form_answers WHERE username='<DB.ESCAPEDATA <local.acc_<dlocal.d>>>';
+ ACCOUNT.<local.acc_<dlocal.d>>.REMOVE 1
+endfor
+if (<local.a> > 0)
+ serv.log [FORM PRUNE] <dlocal.a> contas GUEST inuteis removidas.
+endif
 
 //////////////////////////////////////////GUMPS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 [DIALOG d_formulario]
