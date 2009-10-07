@@ -94,16 +94,24 @@ if (<act.NPC>==brain_animal) && !(<region.tag0.permissions>&TOWN_CAN_RESOURCES) 
 elif (<act.IsTownNPC>) && !(<region.tag0.permissions>&TOWN_CAN_HARM) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_HARM)
  act.TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_PRIV_HARM>
  
-elif (<act.IsEvent.e_town_guard>) && !(<region.tag.permissions>&TOWN_CAN_HARM) && !(<ctag.town_<region.defname>_privs>&TOWN_PRIV_HARM) && !(<tag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
+//Testar se o alvo é guarda
+elif (<act.IsEvent.e_town_guard>) && !(<region.tag.permissions>&TOWN_CAN_HARM) && !(<ctag.town_<region.defname>_privs>&TOWN_PRIV_HARM) && !(<ctag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
  DORAND 3
-  SAY Como ousa?
-  SAY Agora foi de mais!
-  SAY Tome isto!
+  ACT.SAY Como ousa?
+  ACT.SAY Agora foi de mais!
+  ACT.SAY Tome isto!
  END
  town_setAsCriminal <act.tag.town>
-endif
-return 0
 
+//Testar se o alvo é player free
+elif (<act.IsPlayer>) && !(<region.tag.permissions>&TOWN_CAN_HARM) && !(<ctag.town_<region.defname>_privs>&TOWN_PRIV_HARM) && !(<tag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
+ //Testar se o alvo é criminoso ou banido
+ if !(<act.ctag0.town_<region.defname>_flags>&<hval <DEF.TOWN_FLAG_CRIMINAL>|<DEF.TOWN_FLAG_BANNED>>)
+  TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_PRIV_HARM>
+ endif
+endif
+
+return 0
 
 on=@CallGuards
 if !(<guards_near guard_advice,<uid>,<argn1>>)
@@ -774,6 +782,19 @@ obj=<argv0>
 //iniciar
 if (<obj.ctag0.town_<tag.town>_flags>&023)
   attack <obj>
+  return 1
+
+//O delito é grave? Vira criminal na hora!
+elif (<argv1> > 04)
+ DORAND 3
+  say Hey, voce! Nao pode <STRTOLOWER <DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>> em <region.name>!
+  say Que despauterio <STRTOLOWER <DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>> em <region.name>!
+  say O que significa isso?
+ ENDDO
+ obj.town_setFlags TOWN_FLAG_CRIMINAL,<tag.town>
+ tag.advice_step=
+ attack <obj>
+ return 1
 
 elif (!<tag0.advice_step>) && !(<flags>&020)// && (!0<argv2>)
  say Hey, voce! Nao pode <STRTOLOWER <DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>> em <region.name>!
