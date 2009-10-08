@@ -550,8 +550,14 @@ DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>>"
 //salva bag de 'protecao'
 REF1=<OBJ.cont>
 
-//entrega item ao player 
-OBJ.cont=<uid.<argv1>.findlayer.layer_pack>
+//entrega item ao player ou põe no container
+if (<uid.<argv1>.isChar>)
+        OBJ.cont=<uid.<argv1>.findlayer.layer_pack>
+elif (<uid.<argv1>.isCont>
+        OBJ.cont=<argv1>
+else
+        OBJ.p=<uid.<argv1>.p>
+endif
 OBJ.sfx 87
 OBJ.tag.guildItem=
 
@@ -786,6 +792,13 @@ dialogclose d_vendor_list
 dialogclose d_vendor_item_detail
 
 if ( <SRC.CTAG0.vendor_op>==1 ) || ( <SRC.CTAG0.vendor_op>==4 )
+
+    //checa permissões de Town
+    if !(<ref1.region.tag0.permissions>&<DEF.TOWN_CAN_SELL>) && !(<src.ctag0.town_<region.defname>_privs>&<DEF.TOWN_PRIV_MARKET>)
+        REF1.say Desculpe mas, as leis de <ref1.region.name> nao permitem que eu compre de voce.
+        return 0
+    endif
+
     vendor_createPlayerList
     if ( <SRC.CTAG0.vendor_numItems> < 1 )
         REF1.message Voce nao tem nada que eu possa vender.
@@ -794,6 +807,13 @@ if ( <SRC.CTAG0.vendor_op>==1 ) || ( <SRC.CTAG0.vendor_op>==4 )
         vendor_openDialogOnPage d_vendor_list,<src.ctag.vendor_lastListPage>
     endif
 elif ( <SRC.CTAG0.vendor_op>==2 )
+
+    //checa permissões de Town
+    if !(<ref1.region.tag0.permissions>&<DEF.TOWN_CAN_BUY>) && !(<src.ctag0.town_<region.defname>_privs>&<DEF.TOWN_PRIV_MARKET>)
+        REF1.say Desculpe mas, as leis de <ref1.region.name> nao permitem que eu venda para voce.
+        return 0
+    endif
+
     //abre categorias somente no inicio, as proximas vezes continua com a lista que estava aberta
     if !<argn>
         vendor_createVendorSubList <SRC.CTAG.vendor_selectedFilter>
@@ -1043,12 +1063,20 @@ endif
 //botao para remover um item
 [FUNCTION vendor_bt_remove]
 if <src.has_merchant_priv> && (<SRC.CTAG0.vendor_op>==2)
-    vendor_takebackItem <SRC.CTAG.vendor_selectedItem>,<SRC>
-    src.sysmessagegreen Item retirado.
-    f_sendMessage <SRC.CTAG.vendor_selectedOwner>,O seguinte item foi confiscado da venda: <uid.<SRC.CTAG.vendor_selectedItem>.name>,SM_YELLOW
-    if !<src.isgm> //Deleta se não for GM. Isso eh para players da guilda não ficarem com o item confiscado.
-        uid.<CTAG.vendor_selectedItem>.remove
+    if (<src.isgm>)
+        vendor_takebackItem <SRC.CTAG.vendor_selectedItem>,<SRC>
+    else
+        local.vault=<src.town_GetVault>
+        if (<local.vault>)
+                vendor_takebackItem <SRC.CTAG.vendor_selectedItem>,<local.vault>
+                src.sysmessagegreen Item encaminhado para o cofre de <src.region.name>.
+        else
+                vendor_takebackItem <SRC.CTAG.vendor_selectedItem>,<SRC>
+                uid.<CTAG.vendor_selectedItem>.remove
+                src.sysmessagegreen Item removido. Nao ha cofre em <src.region.name>.
+        endif
     endif
+    f_sendMessage <SRC.CTAG.vendor_selectedOwner>,O seguinte item foi confiscado da venda: <uid.<SRC.CTAG.vendor_selectedItem>.name>,SM_YELLOW
 endif
 
 //*****************************************************************************
@@ -1452,8 +1480,8 @@ endif
 if (<src.town_CheckPrivs <DEF.TOWN_PRIV_CONFISCATE>>) && (<SRC.CTAG0.vendor_op>==2)
     button 14 122 2224 2224 1 0 3
     dtext 38 118 166 Devolver
-    button 88 122 2224 2224 1 0 3
-    dtext 112 118 166 Retirar
+    button 88 122 2224 2224 1 0 4
+    dtext 112 118 166 Confiscar
 endif
 
 [DIALOG d_vendor_item_detail button]

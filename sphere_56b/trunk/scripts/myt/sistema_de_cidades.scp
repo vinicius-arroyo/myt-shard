@@ -1577,6 +1577,7 @@ list_show 1
 
 [FUNCTION town_listServants]
 //Lista todos os membros e cidadãos da town com region=<ctag.town_region>
+town_pruneServants <ctag.town_region>//Pruna primeiro
 town_clearTable
 list_new "Lista de funcionarios de <serv.resources.<ctag.town_region>.name>"
 list_newDbCol 25,uid,Nome
@@ -2514,6 +2515,35 @@ targetfg town_changeReleasePoint2
 [FUNCTION town_changeReleasePoint2]
 serv.resources.<ctag.town_region>.tag.town_releasePoint = <TARGP>
 DIALOG d_town
+
+[FUNCTION town_manageBook]
+if (<region.defname> != <ctag.town_region>) || (<region.defname> != <ctag.town_region>)
+ sysmessagered Voce so poderia fazer isso em <serv.resources.<ctag.town_region>.name>.
+ return 1
+elif (!<argo>)
+ sysmessageyellow Selecione um livro dentro de uma estante:
+ targetf town_manageBook
+elif (<argo.type>!= t_book) && (<argo.type>!= t_book_scroll)
+ sysmessagered Apenas livros e cartas.
+elif !(STRMATCH(*bookcase*,<argo.topobj.defname>) )
+ sysmessagered O livro deve estar numa estante no chao.
+elif !(<argo.topobj.attr>&010)
+ sysmessagered Esta estante nao parece muito confiavel... [nao esta presa]
+elif (<argo.attr>&010)
+ sysmessageyellow O livro foi solto.
+ argo.attr &= ~010
+ argo.update
+ DIALOG d_town
+else
+ sysmessageyellow O livro esta preso agora.
+ argo.attr |= 010
+ argo.update
+ DIALOG d_town
+endif
+
+ 
+ 
+ 
 
 //*****************************
 // Função town_Can* para privs
@@ -3931,7 +3961,10 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_CONFIG>)
         else
          dtext +18 *20 5 Ponto de soltura/banimento (<SEXTANTP <serv.resources.<ctag.town_region>.tag0.town_releasePoint>>)
         endif
-        
+        IF (<src.town_CheckPrivs <DEF.TOWN_PRIV_BOOKS>>)
+         dtext +18 *20 45 Prender/soltar um livro
+         button - +3 30008 30009 1 0 58
+        endif
         button 92 385 4014 4015 1 0 1
         
 elif (<ctag.town_page>==<DEF.TOWN_PAGE_RACES>)
@@ -4605,6 +4638,10 @@ ON=57
 //Apply taxes
 call town_saveTaxes
 town <ctag.town_region>
+
+ON=58
+//Prender/soltar livros
+town_manageBook
 
 ////////////////  Petições
 ON=60
