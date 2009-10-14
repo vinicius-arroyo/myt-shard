@@ -747,6 +747,23 @@ endif
 update
 
 //*****************************************************************************
+// dconsume val key [,val key[,val key...]]
+//*****************************************************************************
+[FUNCTION dconsume]
+for i 0 <eval <argv>-1>
+ if (<isNum <strarg <argv[<local.i>]>>>)
+  local.amt=<strarg <argv[<local.i>]>>
+  local.item=<findid.<streat <argv[<local.i>]>>>
+ else
+  local.amt=1
+  local.item=<findid.<argv[<local.i>]>>
+ endif
+ serv.log [DCONSUME] i:<uid.<local.item>.name> a:<local.amt> (<args>)
+ uid.<local.item>.trigger @Consume,<DEF.TAT_AS_ARGN>,<local.amt>
+ consume <local.amt>
+endfor
+
+//*****************************************************************************
 // f_sendTooltip(title,text)
 //*****************************************************************************
 [FUNCTION f_sendTooltip]
@@ -1605,16 +1622,45 @@ ctag.spkv_keys += 1
 [FUNCTION inContainer]
 REF1=<argv0>
 //ignora se chegar em um char/player
-if (<uid> < 040000000)
+if (<IsChar>)//(<uid> < 040000000)
+    //serv.log [inContainer] Alcancou char
     return 0
 //ok, achou    
 elif (<cont>==<ref1>)
+    //serv.log [inContainer] <cont.name> (<cont>) == <ref1.name> (<ref1>) Achou.
     return 1
 //nao eh mas tem mais container pra procurar
 elif (<cont>)
+    //serv.log [inContainer]  <cont.name> (<cont>) != <ref1.name> (<ref1>) (container a cima <cont.name>)
     return <cont.inContainer <ref1>>
 //acabou, nao achou
 else
+    //serv.log [inContainer]  <cont.name> (<cont>) != <ref1.name> (<ref1>) Fim.
+    return 0
+endif
+
+//*****************************************************************************
+// UID.inSpecialLayer
+//*****************************************************************************
+//retorna 1 se UID estiver numa layer que seja container, mas invisível.
+//ie.: bank, special, vendor_*
+[FUNCTION inSpecialLayer]
+REF1=<argv0>
+//ignora se chegar em um char/player
+if (<IsChar>)
+    //serv.log [inSpecialLayer] Alcancou char
+    return 0
+//está equipado e em layer especial
+elif ( <z> == <layer> ) && ( <layer> > 24)
+    //serv.log [inSpecialLayer] <name> (<UID>) Estou na layer <layer>. Achou.
+    return 1
+//nao eh mas tem mais container pra procurar
+elif (<cont>)
+    //serv.log [inSpecialLayer] <name> (<UID>) nao tenho layer especial (container a cima <cont.name>)
+    return <cont.inSpecialLayer>
+//acabou, nao achou
+else
+   // serv.log [inSpecialLayer] <name> (<uid>) Sou topobj. Fim.
     return 0
 endif
 
