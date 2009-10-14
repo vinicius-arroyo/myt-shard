@@ -47,6 +47,7 @@ LIQUID_01_CAN       LIQUID_CAN_DRINK|LIQUID_CAN_EXTINGUISH|LIQUID_CAN_BANDAGE
 LIQUID_01_FORCE     1
 LIQUID_01_POOL      i_pool
 LIQUID_01_COLOR     0
+LIQUID_01_ITEM      i_dose_water
 
 LIQUID_TAR          02
 LIQUID_t_tar        02
@@ -56,6 +57,7 @@ LIQUID_02_FORCE     100
 LIQUID_02_POOL      i_pool_tar
 LIQUID_02_COLOR     035E
 LIQUID_02_BOIL      LIQUID_OIL
+LIQUID_02_ITEM      i_dose_tar
 
 LIQUID_OIL          03
 LIQUID_t_oil        03
@@ -64,6 +66,7 @@ LIQUID_03_CAN       LIQUID_CAN_POISON
 LIQUID_03_FORCE     100
 LIQUID_03_POOL      i_pool_oil
 LIQUID_03_COLOR     02B4
+LIQUID_03_ITEM      i_dose_oil
 
 LIQUID_WAX          04
 LIQUID_t_wax_hard   04
@@ -73,6 +76,7 @@ LIQUID_04_FORCE     0
 LIQUID_04_POOL      i_pool_wax
 LIQUID_04_COLOR     0B92
 LIQUID_04_BOIL      LIQUID_WAX_MELT
+LIQUID_04_ITEM      i_dose_wax
 
 LIQUID_SWAMP        05
 LIQUID_t_swamp      05
@@ -90,6 +94,7 @@ LIQUID_06_CAN       LIQUID_CAN_EXTINGUISH
 LIQUID_06_FORCE     0
 LIQUID_06_POOL      i_pool_blood
 LIQUID_06_COLOR     026
+LIQUID_06_ITEM      i_dose_blood
 
 LIQUID_GLUE         07
 LIQUID_t_GLUE       07
@@ -106,6 +111,7 @@ LIQUID_08_CAN       0
 LIQUID_08_FORCE     0
 LIQUID_08_POOL      i_pool_wax
 LIQUID_08_COLOR     0B92
+LIQUID_08_ITEM      i_dose_wax
 
 LIQUID_WINE         010
 LIQUID_t_wine       010
@@ -122,6 +128,7 @@ LIQUID_011_CAN      LIQUID_CAN_DRINK|LIQUID_CAN_BOOZE|LIQUID_CAN_EXTINGUISH
 LIQUID_011_FORCE    5
 LIQUID_011_POOL     i_pool_cider
 LIQUID_011_COLOR    02C
+LIQUID_011_ITEM     i_dose_cider
 
 LIQUID_RUM          012
 LIQUID_t_rum        012
@@ -130,6 +137,7 @@ LIQUID_012_CAN      LIQUID_CAN_DRINK|LIQUID_CAN_BOOZE
 LIQUID_012_FORCE    27
 LIQUID_012_POOL     i_pool_rum
 LIQUID_012_COLOR    0164
+LIQUID_012_ITEM      i_dose_rum
 
 LIQUID_BEER         013
 LIQUID_t_beer       013
@@ -138,6 +146,7 @@ LIQUID_013_CAN      LIQUID_CAN_DRINK|LIQUID_CAN_BOOZE|LIQUID_CAN_EXTINGUISH
 LIQUID_013_FORCE    12
 LIQUID_013_POOL     i_pool_beer
 LIQUID_013_COLOR    0fe
+LIQUID_013_ITEM     i_dose_beer
 
 LIQUID_MORVOR       014
 LIQUID_t_morvor     014
@@ -146,6 +155,7 @@ LIQUID_014_CAN      LIQUID_CAN_DRINK|LIQUID_CAN_MORVOR|LIQUID_CAN_EXTINGUISH
 LIQUID_014_FORCE    3
 LIQUID_014_POOL     i_pool_morvor
 LIQUID_014_COLOR    0122
+LIQUID_014_ITEM     i_dose_morvor
 
 LIQUID_HONEY        015
 LIQUID_015_NAME     mel
@@ -153,6 +163,7 @@ LIQUID_015_CAN      LIQUID_CAN_DRINK|LIQUID_CAN_EXTINGUISH
 LIQUID_015_FORCE    3
 LIQUID_015_POOL     i_pool_honey
 LIQUID_015_COLOR    032
+LIQUID_015_ITEM     i_dose_honey
 
 LIQUID_MILK         016
 LIQUID_016_NAME     leite
@@ -160,6 +171,7 @@ LIQUID_016_CAN      LIQUID_CAN_DRINK|LIQUID_CAN_EXTINGUISH
 LIQUID_016_FORCE    3
 LIQUID_016_POOL     i_pool_milk
 LIQUID_016_COLOR    007fc
+LIQUID_016_ITEM     i_dose_milk
 
 LIQUID_POISON       020
 LIQUID_t_poison     020
@@ -169,6 +181,7 @@ LIQUID_020_FORCE    1000
 LIQUID_020_POOL     i_pool_poison
 LIQUID_020_COLOR    016A
 LIQUID_020_BOIL     LIQUID_SWAMP
+LIQUID_020_ITEM     i_dose_poison
 
 LIQUID_PRE_WINE     030
 LIQUID_030_NAME     fermetado de uva
@@ -386,10 +399,20 @@ IF (<more2>)
 ELSE
  message=@036 <serv.itemdef.<baseid>.name> vazio(a)
 ENDIF
+if (<link>!=04fffffff)
+ more1=<link.amount>
+endif
 message Doses: <eval <more1>>/<eval <tdata1>>
 RETURN 1
 
 on=@clientToolTip
+if (<link>!=04fffffff)
+ more1=<link.amount>
+endif
+if (<more2>) && (!<more1>)
+ more2=
+ link=04fffffff
+endif
 f_sendToolTip <serv.itemdef.<baseid>.name>,(<DEF.LIQUID_<more2>_NAME>)<DEF.BR>Doses: <eval <more1>>/<eval <tdata1>>
 return 1
 
@@ -399,8 +422,17 @@ if (<obj.TDATA3>) && (<more1>)
  obj.dispid=<obj.TDATA3>
  update
 endif
+//src.sysmessage DropOn_ground SRC:<src.name> ARGN1:<argn1> ARGS:<args>
+if (<link>!=04fffffff)
+ recip_ReleaseContent
+endif
 
 on=@DClick
+if (<more2>) && (!<more1>)
+ more2=
+ link=04fffffff
+ update
+endif
 IF (<topobj>!=<SRC.UID>) && (<DISTANCE <src>> > 1) && (!<SRC.IsGM>)
  src.sysmessageyellow Muito longe...
  return 1
@@ -516,22 +548,26 @@ IF (<ARGV[1]>)
   FillRecipient <argv[0]>,<TDATA1>
   src.sfx 05A4
   src.BOW
+  //recip_UpdateContent
  else
   obj.TransferRecipient <uid>
   src.sfx 0240
+  //recip_UpdateContent
  endif
 ELSE
 //Enchendo de tile static/map
  FillRecipient <argv[0]>,<TDATA1>
+ recip_UpdateContent
  src.sfx 05A4
  src.BOW
 ENDIF
 f_renameRecipient
 src.EMOTEYELLOW enchendo <serv.itemdef.<baseid>.name> com <DEF.LIQUID_<argv[0]>_NAME>
 
+
 on=@EmptyRecipient
 f_renameRecipient
-
+//recip_ReleaseContent
 
 on=@TARGON_ITEM
 IF (<src.targ.uid>==<uid>)
@@ -596,7 +632,7 @@ if (<more2>)
         if (<src.targ.npc>) && (<src.targ.karma> < -2000)
             src.targ.attack <src>
         endif
-        if (<src.targ.tag.pegandofogo>) && (<moreX>&LIQUID_CAN_EXTINGUISH)
+        if (<src.targ.tag0.pegandofogo>) && (<moreX>&LIQUID_CAN_EXTINGUISH)
             src.targ.tag.pegandofogo=
             src.emoteyellow joga <DEF.LIQUID_<more2>_NAME> no fogo
         else
@@ -636,6 +672,45 @@ ELIF (<GetRecipientCan>&RECIPIENT_TARG_DRINK)
  DrinkRecipient
 ENDIF
 
+on=@DropOn_Char
+//src.sysmessage DropOn_Char SRC:<src.name> ACT:<act.name> ARGO:<argo.name>
+recip_UpdateContent
+
+on=@DropOn_Item
+//src.sysmessage DropOn_Item SRC:<src.name> ARGO:<argo.name>
+if (<more2>) && (<argo.topobj.IsChar>)
+ if  (<argo.inSpecialLayer>)
+  recip_ReleaseContent
+ else
+  if (<cont.topobj> != <argo.topobj>) || (<link>==04fffffff)
+   recip_UpdateContent
+  endif
+ endif
+else
+ recip_ReleaseContent
+endif
+
+ON=@Sell
+serv.log Sell 
+recip_ReleaseContent
+
+ON=@Buy
+serv.log Buy
+recip_UpdateContent
+
+on=@DropOn_Self
+recip_UpdateContent
+
+[TYPEDEF t_liquid]
+on=@Consume
+//serv.log AT.Consume <argn> <name>/<link.name>
+topobj.timerf 1,recip_UpdatePack
+
+[FUNCTION recip_UpdatePack]
+FORCONTTYPE t_recipient
+        update
+ENDFOR
+
 [FUNCTION recip_targ]
 //Bypass de target pq @TARGON_GROUND não triga se for num tile sem static (direto no mapa)
 
@@ -648,12 +723,12 @@ obj=<argv[0]>
 if (<argo>)
  src.TARG=<argo.uid>
  IF (<ARGO.IsItem>)
-  obj.trigger @TARGON_ITEM,<DEF.TAT_AR_ARGN>,<argo.UID>
+  obj.trigger @TARGON_ITEM,<DEF.TAT_AS_ARGN>,<argo.UID>
  ELIF (<argo.IsChar>)
   IF (<argo.UID>==<src.UID>)
-   obj.trigger @TARGON_SELF,<DEF.TAT_AR_ARGS>,<argo.UID>
+   obj.trigger @TARGON_SELF,<DEF.TAT_AS_ARGS>,<argo.UID>
   ELSE
-   obj.trigger @TARGON_CHAR,<DEF.TAT_AR_ARGS>,<argo.UID>
+   obj.trigger @TARGON_CHAR,<DEF.TAT_AS_ARGS>,<argo.UID>
   ENDIF
  ENDIF
 else
@@ -671,8 +746,16 @@ IF (<argn> >= <more1>)
 ELSE
  LOCAL.ret=<argn>
  more1 -= <argn>
- update
 ENDIF
+if (<link.uid>)
+ if (<more1>)
+  link.amount=<more1>
+ else
+  link.remove
+  link=04fffffff
+ endif
+endif
+update
 RETURN <LOCAL.ret>
 
 [FUNCTION EmptyRecipient]
@@ -683,6 +766,9 @@ trigger @TryEmptyRecipient
 if (<tag0.return>==1)
  tag.return=
  return 1
+endif
+if (<link>!=04fffffff)
+ recip_ReleaseContent
 endif
 more1=
 more2=
@@ -716,6 +802,8 @@ ELSE
  LOCAL.doses=<eval <argv[1]>+<more1>>
 ENDIF
 more1=<LOCAL.doses>
+
+recip_UpdateContent
 
 morex=<DEF.LIQUID_<more2>_CAN>
 morey=<DEF.LIQUID_<more2>_FORCE>
@@ -764,10 +852,15 @@ if (<tag0.return>==1)
 endif
 
 LOCAL.remain=<obj.FillRecipient <more2>,<more1>>
+
 if (!<Local.Remain>)
  EmptyRecipient
+ if (<link>!=04fffffff)
+  recip_ReleaseContent 
+ endif
 ELSE
  more1=<LOCAL.remain>
+ recip_UpdateContent
  update
 endif
 
@@ -833,6 +926,56 @@ else
  name=<serv.itemdef.<baseid>.name> vazio(a)
 endif
 
+[FUNCTION recip_UpdateContent]
+//Faz correções na memory que contem o conteúdo
+if (!<topobj.IsChar>)
+ return 0
+endif
+//Tem conteúdo?
+if (<more2>)
+ if (<link>!=04fffffff)  //já existe memory
+ //em char
+  if (<topobj.IsChar>)
+  //banco?
+   if (<inSpecialLayer>)
+    recip_ReleaseContent
+   elif (<topobj>!=<link.topobj>)
+    link.cont=<topobj>
+   endif
+   link.amount=<more1>
+  else
+   recip_ReleaseContent
+  endif
+ else //Não existe memory
+  if (<topobj.IsChar>)
+  //banco?
+   if (<argo>)
+    if (<inSpecialLayer>)
+     src.newitem <DEF.LIQUID_<more2>_ITEM>
+     src.equip <new>
+     new.amount <more1>
+     link=<new>
+    endif
+   else
+    src.newitem <DEF.LIQUID_<more2>_ITEM>
+    src.equip <new>
+    new.amount <more1>
+    link=<new>
+    new.link=<uid>
+   endif
+  endif
+ endif
+else //vazio
+ if (<link>!=04fffffff)
+  recip_ReleaseContent
+ endif
+endif
+
+[FUNCTION recip_ReleaseContent]
+//Tira do player a memory que contém o conteúdo
+link.remove
+link=04fffffff
+
 //**************************************************************************************************
 //**************************************************************************************************
 //
@@ -853,6 +996,21 @@ TDATA1=60
 on=@create
 color=05f
 pool_init
+
+//**************************************************************************************************
+// i_dose_water
+//**************************************************************************************************
+[ITEMDEF i_dose_water]
+ID=0e24
+NAME=Dose%s% de agua
+TYPE=t_eq_script
+LAYER=layer_special
+WEIGHT=1.0
+TEVENTS=t_liquid
+
+on=@create
+color=04f2
+
 
 //**************************************************************************************************
 // i_pool_chuva
@@ -882,6 +1040,20 @@ color=0
 pool_init
 
 //**************************************************************************************************
+// i_dose_blood
+//**************************************************************************************************
+[ITEMDEF i_dose_blood]
+ID=0e24
+NAME=Dose%s% de sangue
+TYPE=t_eq_script
+LAYER=layer_special
+WEIGHT=1.6
+TEVENTS=t_liquid
+
+ON=@Create
+color=026
+
+//**************************************************************************************************
 // i_pool_glue
 //**************************************************************************************************
 [ITEMDEF i_pool_glue]
@@ -894,6 +1066,20 @@ on=@create
 MORE1=POOL_STICKY
 color=0b92
 pool_init
+
+//**************************************************************************************************
+// i_dose_glue
+//**************************************************************************************************
+[ITEMDEF i_dose_glue]
+ID=0e24
+NAME=Dose%s% de cola
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=2.1
+
+ON=@Create
+color=0B92
 
 //**************************************************************************************************
 // i_pool_tar
@@ -910,6 +1096,20 @@ color=035e
 pool_init
 
 //**************************************************************************************************
+// i_dose_tar
+//**************************************************************************************************
+[ITEMDEF i_dose_tar]
+ID=0e24
+NAME=Dose%s% de pixe
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=5.0
+
+ON=@Create
+color=035E
+
+//**************************************************************************************************
 // i_pool_oil
 //**************************************************************************************************
 [ITEMDEF i_pool_oil]
@@ -922,6 +1122,20 @@ on=@create
 MORE1=POOL_SLIPPERY|POOL_FLAMABLE|POOL_INCINERATE
 color=02b4
 pool_init
+
+//**************************************************************************************************
+// i_dose_tar
+//**************************************************************************************************
+[ITEMDEF i_dose_oil]
+ID=0e24
+NAME=Dose%s% de oleo
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=0.8
+
+ON=@Create
+color=02B4
 
 //**************************************************************************************************
 // i_pool_swamp
@@ -938,6 +1152,20 @@ color=08A2
 pool_init
 
 //**************************************************************************************************
+// i_dose_swamp
+//**************************************************************************************************
+[ITEMDEF i_dose_swamp]
+ID=0e24
+NAME=Dose%s% de agua de pantano
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=1.0
+
+ON=@Create
+color=08A2
+
+//**************************************************************************************************
 // i_pool_wax
 //**************************************************************************************************
 [ITEMDEF i_pool_wax]
@@ -950,6 +1178,20 @@ on=@create
 MORE1=0
 color=0B92
 pool_init
+
+//**************************************************************************************************
+// i_dose_wax
+//**************************************************************************************************
+[ITEMDEF i_dose_wax]
+ID=0e24
+NAME=Dose%s% de cera
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=4.2
+
+ON=@Create
+color=0B92
 
 //**************************************************************************************************
 // i_pool_wine
@@ -966,6 +1208,20 @@ color=013A
 pool_init
 
 //**************************************************************************************************
+// i_dose_wine
+//**************************************************************************************************
+[ITEMDEF i_dose_wine]
+ID=0e24
+NAME=Dose%s% de vinho
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=0.9
+
+ON=@Create
+color=026
+
+//**************************************************************************************************
 // i_pool_cider
 //**************************************************************************************************
 [ITEMDEF i_pool_cider]
@@ -978,6 +1234,20 @@ on=@create
 MORE1=0
 color=092
 pool_init
+
+//**************************************************************************************************
+// i_dose_cider
+//**************************************************************************************************
+[ITEMDEF i_dose_cider]
+ID=0e24
+NAME=Dose%s% de cidra
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=0.9
+
+ON=@Create
+color=02C
 
 //**************************************************************************************************
 // i_pool_rum
@@ -994,6 +1264,20 @@ color=0164
 pool_init
 
 //**************************************************************************************************
+// i_dose_rum
+//**************************************************************************************************
+[ITEMDEF i_dose_rum]
+ID=0e24
+NAME=Dose%s% de rum
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=0.9
+
+ON=@Create
+color=0164
+
+//**************************************************************************************************
 // i_pool_beer
 //**************************************************************************************************
 [ITEMDEF i_pool_beer]
@@ -1006,6 +1290,20 @@ on=@create
 MORE1=0
 color=0fe
 pool_init
+
+//**************************************************************************************************
+// i_dose_beer
+//**************************************************************************************************
+[ITEMDEF i_dose_beer]
+ID=0e24
+NAME=Dose%s% de cerveja
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=0.9
+
+ON=@Create
+color=0FE
 
 //**************************************************************************************************
 // i_pool_morvor
@@ -1022,6 +1320,20 @@ color=0122
 pool_init
 
 //**************************************************************************************************
+// i_dose_morvor
+//**************************************************************************************************
+[ITEMDEF i_dose_morvor]
+ID=0e24
+NAME=Dose%s% de morvor
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=0.6
+
+ON=@Create
+color=0122
+
+//**************************************************************************************************
 // i_pool_poison
 //**************************************************************************************************
 [ITEMDEF i_pool_poison]
@@ -1034,6 +1346,20 @@ on=@create
 MORE1=0
 color=016A
 pool_init
+
+//**************************************************************************************************
+// i_dose_poison
+//**************************************************************************************************
+[ITEMDEF i_dose_poison]
+ID=0e24
+NAME=Dose%s% de veneno
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=3.0
+
+ON=@Create
+color=016A
 
 //**************************************************************************************************
 // i_pool_honey
@@ -1050,6 +1376,20 @@ color=032
 pool_init
 
 //**************************************************************************************************
+// i_dose_honey
+//**************************************************************************************************
+[ITEMDEF i_dose_honey]
+ID=0e24
+NAME=Dose%s% de mel
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=2.2
+
+ON=@Create
+color=032
+
+//**************************************************************************************************
 // i_pool_milk
 //**************************************************************************************************
 [ITEMDEF i_pool_milk]
@@ -1064,6 +1404,20 @@ color=007fc
 pool_init
 
 //**************************************************************************************************
+// i_dose_milk
+//**************************************************************************************************
+[ITEMDEF i_dose_milk]
+ID=0e24
+NAME=Dose%s% de leite
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=t_liquid
+WEIGHT=1.8
+
+ON=@Create
+color=07FC
+
+//**************************************************************************************************
 // i_balde
 //**************************************************************************************************
 [ITEMDEF i_balde]
@@ -1073,7 +1427,7 @@ TYPE=t_recipient
 SKILLMAKE=35.0 Carpentry
 RESOURCES=1 i_madeiraenvergada, 12 i_pregos
 VALUE=12
-WEIGHT=10
+WEIGHT=5.0
 TDATA1=10
 TDATA2=RECIPIENT_TARG_FULL|RECIPIENT_TARG_EMPTY|RECIPIENT_WET_CHAR|RECIPIENT_WASH_BANDAGE
 TDATA3=0FFA
@@ -1094,10 +1448,13 @@ NAME=garrafa
 SKILLMAKE=35.0 Tinkering
 RESOURCES=2 i_areia
 VALUE=8
+FLIP=0
+PILE=1
 TYPE=t_recipient
-WEIGHT=1
+WEIGHT=0.8
 TDATA1=8
 TDATA2=RECIPIENT_TARG_FULL|RECIPIENT_DYE|RECIPIENT_TARG_DRINK|RECIPIENT_TARG_EMPTY
+TDATA3=099b
 
 CATEGORY=MyT - Sistemas
 SUBSECTION=Recipientes
@@ -1105,6 +1462,11 @@ DESCRIPTION=Garrafa
 
 on=@create
 f_renameRecipient
+
+on=@Dropon_ground
+//Manter dispid de garrafa
+dispid=<TDATA3>
+update
 
 //**************************************************************************************************
 // i_cantil
@@ -1116,7 +1478,7 @@ SKILLMAKE=12.3 Tailoring
 RESOURCES=1 i_couro_curtido, 1 i_tread
 VALUE=7
 TYPE=t_recipient
-WEIGHT=1
+WEIGHT=0.6
 TDATA1=5
 TDATA2=RECIPIENT_DRINK|RECIPIENT_TARG_EMPTY|RECIPIENT_TARG_DRINK|RECIPIENT_TARG_FULL
 
@@ -1137,7 +1499,7 @@ SKILLMAKE=22.8 Tinkering
 RESOURCES=3 i_areia
 VALUE=12
 TYPE=t_recipient
-WEIGHT=3
+WEIGHT=2.0
 TDATA1=5
 TDATA2=RECIPIENT_TARG_FULL|RECIPIENT_TARG_EMPTY|RECIPIENT_WET_CHAR|RECIPIENT_WASH_BANDAGE
 TDATA3=01008
@@ -1177,7 +1539,7 @@ SKILLMAKE=58.6 Tinkering
 RESOURCES=1 i_areia
 VALUE=7
 TYPE=t_recipient
-WEIGHT=1
+WEIGHT=0.1
 TDATA1=3
 TDATA2=RECIPIENT_TARG_EMPTY|RECIPIENT_DYE|RECIPIENT_TARG_DRINK|RECIPIENT_TARG_FULL
 
@@ -1198,7 +1560,7 @@ SKILLMAKE=7.5 Tinkering
 VALUE=1
 RESOURCES=1 i_areia
 TYPE=t_recipient
-WEIGHT=1
+WEIGHT=0.2
 TDATA1=3
 TDATA2=RECIPIENT_TARG_EMPTY|RECIPIENT_TARG_DRINK|RECIPIENT_TARG_FULL
 
@@ -1219,7 +1581,7 @@ SKILLMAKE=64.1 Blacksmithing
 RESOURCES=1 i_ingot_silver
 VALUE=50
 TYPE=t_recipient
-WEIGHT=1
+WEIGHT=1.0
 TDATA1=3
 TDATA2=RECIPIENT_TARG_EMPTY|RECIPIENT_TARG_DRINK|RECIPIENT_TARG_FULL
 
@@ -1240,7 +1602,7 @@ SKILLMAKE=81.3 Blacksmithing
 RESOURCES=1 i_ingot_gold
 VALUE=85
 TYPE=t_recipient
-WEIGHT=1
+WEIGHT=3.0
 TDATA1=3
 TDATA2=RECIPIENT_TARG_EMPTY|RECIPIENT_TARG_DRINK|RECIPIENT_TARG_FULL
 
@@ -1261,7 +1623,7 @@ SKILLMAKE=22.2 Tinkering
 RESOURCES=3 i_areia
 VALUE=10
 TYPE=t_recipient
-WEIGHT=7
+WEIGHT=2.0
 TDATA1=15
 TDATA2=RECIPIENT_TARG_FULL|RECIPIENT_TARG_EMPTY|RECIPIENT_TARG_DRINK
 
@@ -1282,7 +1644,7 @@ SKILLMAKE=64.7 Tinkering
 RESOURCES=4 i_areia
 VALUE=10
 TYPE=t_recipient
-WEIGHT=7
+WEIGHT=2.0
 TDATA1=15
 TDATA2=RECIPIENT_TARG_FULL|RECIPIENT_TARG_EMPTY|RECIPIENT_DYE|RECIPIENT_WET_CHAR
 
@@ -1301,7 +1663,7 @@ ID=i_keg_wood
 NAME=barrilete
 SKILLMAKE=62.7 Tinkering
 RESOURCES=1 i_torneira, 1 i_madeiraenvergada, 10 i_pregos
-VALUE=52
+VALUE=3.2
 TYPE=t_recipient
 WEIGHT=50
 TDATA1=30
@@ -1328,7 +1690,7 @@ TDATA1=100
 TDATA2=03E
 TDATA3=0154D
 FLIP=1
-WEIGHT=200
+WEIGHT=97.5
 
 CATEGORY=MyT - Sistemas
 SUBSECTION=Recipientes
@@ -1357,7 +1719,7 @@ VALUE=23
 TYPE=T_CONTAINER
 TDATA2=03E
 FLIP=1
-WEIGHT=50
+WEIGHT=1.3
 TDATA1=30
 TDATA3=0FAB
 
@@ -1404,7 +1766,7 @@ ID=0b46
 NAME=Vaso de metal
 SKILLMAKE=13.6 Blacksmithing
 RESOURCES=1 i_plate_iron
-VALUE=35
+VALUE=2.7
 TYPE=T_RECIPIENT
 WEIGHT=38
 TDATA1=18
