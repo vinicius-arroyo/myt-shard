@@ -44,7 +44,12 @@ endif
 
 on=@dclick
 if (<amount> > 1)
- src.sysmessageyellow Tire um da pilha para comer.
+ decrement 1
+ src.newdupe <uid>
+ new.amount = 1
+ new.update
+ src.bounce <new>
+ src.new.use
 else
  f_consumeFood
 endif
@@ -148,6 +153,15 @@ ELSE
   SRC.sysmessagegreen Voce se sente mais satisfeito.
  endif
 
+ if (<morey>) && (!<src.tag0.food_cooldown>)
+  src.spelleffect <morey>,<eval <morez>*10>//,<src.uid>
+  src.tag0.food_cooldown=1
+  src.timerf 60,tag0.food_cooldown=
+ elif (<morey>)
+  src.sysmessageyellow Espere 60 segundos antes de receber novamente o efeito especial de <name>
+  src.timerf 60,tag0.food_cooldown
+ endif
+
  if ( <morex> > 1 )
   morex -= 1
   update
@@ -170,18 +184,14 @@ return 1
 
 [FUNCTION f_consumeFruit]
 IF ( <SRC.food> >= 75 )
- SRC.sysmessagered Voce esta Nao se satisfara mais com frutas.
+ SRC.sysmessagered Voce esta nao se satisfara mais com frutas.
 ELSE
  SRC.anim 022
  SFX 03b
  SRC.emotegreen comendo <name>
  SRC.food += <R3,8>
-
  SRC.sysmessagegreen Voce se sente mais satisfeito.
-
-
  decrement
-
 ENDIF
 return 1
 
@@ -265,20 +275,6 @@ endif
 //*****************************************************************************
 
 //*****************************************************************************
-// i_mry_hungry
-//*****************************************************************************
-//Quem tem fome ganha isso. Diminui stats se estiver com fome.
-[ITEMDEF i_mry_hungy]
-ID=i_deed
-NAME=fome
-TYPE=t_eq_script
-LAYER=layer_special
-
-on=@timer
-if (<cont.food>==0)
- cont.int
-
-//*****************************************************************************
 // COSTELA
 //*****************************************************************************
 
@@ -286,7 +282,7 @@ if (<cont.food>==0)
 DEFNAME=i_ribs_raw
 NAME=Costela crua
 TYPE=t_meat_raw
-SKILLMAKE=COOKING 32.0
+SKILLMAKE=ANATOMY 32.0
 WEIGHT=1
 
 CATEGORY=MyT - Items by Professions
@@ -296,10 +292,11 @@ DESCRIPTION=Carne Crua
 
 [ITEMDEF 09f2]
 DEFNAME=i_ribs_cooked
-NAME=costela assada
+NAME=costela frita
+SKILLMAKE=15.0 Cooking
 RESOURCES=1 i_ribs_raw
 TYPE=t_food
-TDATA1=4
+TDATA1=5
 WEIGHT=1
 
 CATEGORY=MyT - Items by Professions
@@ -327,9 +324,10 @@ DESCRIPTION=Frango cru
 DEFNAME=i_bird_cooked
 NAME=frango assado
 RESOURCES=1 I_BIRD_RAW
+SKILLMAKE=35.0 Cooking
 TYPE=t_food
 WEIGHT=2
-TDATA1=12
+TDATA1=15
 DUPELIST=09b8
 
 CATEGORY=MyT - Items by Professions
@@ -357,9 +355,11 @@ DESCRIPTION=Coelho cru
 id=01e92
 NAME=Coelho assado
 RESOURCES=1 I_rabbit_RAW
+SKILLMAKE=40.0 cooking
 TYPE=t_food
 WEIGHT=1
 DUPELIST=01e93
+TDATA1=18
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
@@ -373,6 +373,7 @@ DESCRIPTION=Coelho assado
 [ITEMDEF i_ham_raw]
 id=09c9
 NAME=presunto cru
+SKILLMAKE=27.5 Anatomy
 TYPE=t_meat_raw
 TDATA1=i_ham_cooked
 WEIGHT=2
@@ -389,8 +390,10 @@ color=08d
 DEFNAME=i_ham_cooked
 NAME=presunto cosido
 RESOURCES=1 I_ham_RAW
+SKILLMAKE=37.5 Anatomy
 TYPE=t_food
 WEIGHT=2
+TDATA1=17
 //DUPEITEM=09d3
 
 CATEGORY=MyT - Items by Professions
@@ -399,10 +402,13 @@ DESCRIPTION=Presunto assado
 
 [ITEMDEF 01e1f]
 DEFNAME=i_ham_slices
-NAME=presunto cosido fatiado
-RESOURCES=1 i_ham_cooked
+NAME=presunto frito
+SKILLMAKE=6.8 Cooking
+RESOURCES=1 I_ham_RAW
 TYPE=t_food
 WEIGHT=1
+TDATA1=2
+TDATA3=4
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
@@ -418,6 +424,42 @@ CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Leitão pelado
 
+[ITEMDEF 09bb]
+// DEFNAME2=ROAST_PIG
+NAME=leitao assado
+DEFNAME=i_pig_roast
+SKILLMAKE=85.3 cooking
+RESOURCES=1 i_pig_raw, 3 i_fruit_apple, 2 i_fruit_lettuce
+VALUE=75
+TYPE=T_FOOD
+WEIGHT=45
+TDATA1=41
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=@
+DUPELIST=09bc
+
+[ITEMDEF i_leitao_lumenor]
+// DEFNAME2=ROAST_PIG
+NAME=leitao a Lumenor
+ID=09bb
+SKILLMAKE=88.8 cooking, 1 i_assadeira
+RESOURCES=1 i_pig_raw, 3 i_fruit_apple, 6 i_dose_honey, 10 i_r_raiz_de_mandrake
+VALUE=75
+TYPE=T_FOOD
+WEIGHT=45
+TDATA1=41
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=@
+DUPELIST=09bc
+
+on=@create
+morey=157//Força divina
+morez=75
+
 //*****************************************************************************
 // BACON
 //*****************************************************************************
@@ -427,7 +469,7 @@ id=0976
 NAME=toucinho cru
 TYPE=t_meat_raw
 TDATA1=i_bacon_slab
-SKILLMAKE=ANATOMY 35.0
+SKILLMAKE=ANATOMY 22.5
 WEIGHT=2
 DUPELIST=0977
 
@@ -443,8 +485,10 @@ color=08d
 DEFNAME=i_bacon_slab
 NAME=toucinho assado
 RESOURCES=1 I_bacon_slab_raw
+SKILLMAKE=32.5 Cooking
 TYPE=t_food
 WEIGHT=2
+TDATA1=14
 DUPELIST=0977
 
 CATEGORY=MyT - Items by Professions
@@ -453,11 +497,14 @@ DESCRIPTION=Toucinho assado
 
 [ITEMDEF 0978]
 DEFNAME=i_bacon_slice
-NAME=fatia de toucinho assado
-RESOURCES=1 I_bacon_slab
+NAME=fatia de toucinho frito
+SKILLMAKE=4.6 Cooking
+RESOURCES=1 i_bacon_slab_raw
 TYPE=t_food
 WEIGHT=0.2
 DUPELIST=0979
+TDATA1=1
+TDATA3=6
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
@@ -472,6 +519,7 @@ DESCRIPTION=Toucinho assado fatiado
 DEFNAME=I_CHICKEN_LEG_RAW
 NAME=Coxa de frango crua
 TYPE=t_meat_raw
+SKILLMAKE=19.6 ANATOMY
 TDATA1=i_chicken_leg
 WEIGHT=1
 
@@ -481,11 +529,12 @@ DESCRIPTION=Coxa frango crua
 
 [ITEMDEF 01608]
 DEFNAME=i_chicken_leg
-NAME=Coxa de frango assado
+NAME=Coxa de frango
+SKILLMAKE=29.6 COOKING
 RESOURCES=I_CHICKEN_LEG_RAW
 WEIGHT=1
 TYPE=t_food
-TDATA1=4
+TDATA1=13
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
@@ -511,11 +560,12 @@ DESCRIPTION=Coxa ovelha crua
 
 [ITEMDEF 0160a]
 DEFNAME=i_lamb_leg
-NAME=Coxa de ovelha assada
+NAME=Coxa de ovelha cozida
+SKILLMAKE=62.5 Cooking 
 RESOURCES=i_lamb_leg_raw
 WEIGHT=2
 TYPE=t_food
-TDATA1=12
+TDATA1=29
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
@@ -551,7 +601,7 @@ SUBSECTION=Cook
 DESCRIPTION=Salmão
 
 on=@create
-tag.fish=18 i_fish_cut_raw,1 i_fish_head
+tag.fish=9 i_fish_cut_raw,1 i_fish_head
 
 [ITEMDEF 09ce]
 defNAME=i_fish_big_3
@@ -626,10 +676,12 @@ color=08d
 
 [ITEMDEF 01e1e]
 DEFNAME=i_fish_cooked_small
-NAME=Sardinha assada
+NAME=Sardinha
+SKILLMAKE=12.3 Cooking
 RESOURCES=1 i_fish_raw_small
 TYPE=T_FOOD
 WEIGHT=1
+TDATA1=4
 DUPELIST=01e1d
 
 CATEGORY=MyT - Items by Professions
@@ -658,9 +710,11 @@ DESCRIPTION=Peixe cru
 [ITEMDEF 01e1c]
 DEFNAME=i_fish_cooked
 NAME=Peixe assado
+SKILLMAKE=37.5 Cooking
 RESOURCES=1 i_fish_raw
 TYPE=t_food
 WEIGHT=1
+TDATA1=16
 DUPELIST=01e1d
 
 CATEGORY=MyT - Items by Professions
@@ -676,7 +730,7 @@ DEFNAME=i_fish_cut_raw
 NAME=Peixe cru fatiado
 TYPE=T_FOOD_RAW
 TDATA1=i_fish_cut_cooked
-SKILLMAKE=FISHING 0.1
+SKILLMAKE=0.1 FISHING
 WEIGHT=0.1
 
 CATEGORY=MyT - Items by Professions
@@ -685,11 +739,12 @@ DESCRIPTION=Peixe cru fatiado
 
 [ITEMDEF 097b]
 DEFNAME=i_fish_cut_cooked
-NAME=Peixe assado fatiado
+NAME=Peixe frito fatiado
 RESOURCES=1 i_fish_cut_raw
+SKILLMAKE=16.8 Cooking
 TYPE=t_food
 WEIGHT=0.1
-TDATA1=2
+TDATA1=6
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
@@ -755,6 +810,8 @@ DESCRIPTION=Coracao
 id=01ced
 NAME=Coracao assado
 RESOURCES=1 i_flesh_heart
+SKILLMAKE=43.5 Cooking
+TDATA1=5
 TYPE=t_food
 WEIGHT=1
 
@@ -784,8 +841,10 @@ DESCRIPTION=Figado
 
 [ITEMDEF i_liver_cooked]
 id=01cee
-NAME=Figado assado
+NAME=Figado frito
 RESOURCES=1 i_flesh_liver
+SKILLMAKE=48.2 Cooking
+TDATA1=5
 TYPE=t_food
 WEIGHT=1
 
@@ -816,11 +875,12 @@ DESCRIPTION=Cerebro
 
 [ITEMDEF i_brain_cooked]
 id=01cf0
-NAME=Cerebro assado
+NAME=Miolo cozido
 RESOURCES=1 i_flesh_brain
+SKILLMAKE=35.6 Cooking
 TYPE=t_food
 WEIGHT=1
-
+TDATA1=5
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Cerebro assado
@@ -844,34 +904,37 @@ SUBSECTION=Cook
 DESCRIPTION=Entranhas
 
 ON=@DCLICK
-target Selecione a carne de porco crua para fazer linguica.
+src.craftmenu i_sausages_raw
+//target Selecione a carne de porco crua para fazer linguica.
 return 1
-
-on=@TARGON_ITEM
-if (<src.targ.distance> > 1)&&(<topobj.uid> != <src.uid>)
-    SRC.sysmessage Chegue mais perto.
-elif (<src.targ.baseid>==i_ham_raw)
-    if (<src.cooking> < 30)
-     src.newitem=i_sausages_raw
-     src.act.amount=1
-     src.act.bounce
-     src.consume 1 i_ham_raw
-     remove
-    elif (<src.cooking> >= 30)
-     src.newitem=i_sausages_raw
-     src.act.amount=4
-     src.act.bounce
-     src.consume 1 i_ham_raw
-     remove
-    endif
-endif
-return 1
+//
+//on=@TARGON_ITEM
+//if (<src.targ.distance> > 1)&&(<topobj.uid> != <src.uid>)
+//    SRC.sysmessage Chegue mais perto.
+//elif (<src.targ.baseid>==i_ham_raw)
+//    if (<src.cooking> < 30)
+//     src.newitem=i_sausages_raw
+//     src.act.amount=1
+//     src.act.bounce
+//     src.consume 1 i_ham_raw
+//     remove
+//    elif (<src.cooking> >= 30)
+//     src.newitem=i_sausages_raw
+//     src.act.amount=4
+//     src.act.bounce
+//     src.consume 1 i_ham_raw
+//     remove
+//    endif
+//endif
+//return 1
 
 
 [ITEMDEF i_sausages_raw]
 id=09c0
 NAME=Linguica crua
 TYPE=t_meat_raw
+RESOURCES=1 i_entranhas, 1 i_flesh_liver, 1 i_ham_raw
+SKILLMAKE=53.7 Cooking
 TDATA1=i_sausages
 WEIGHT=1
 DUPELIST=09c1
@@ -885,12 +948,13 @@ color=08d
 
 [ITEMDEF 09c0]
 DEFNAME=i_sausages
-NAME=Linguica assada
-RESOURCES=1 I_HAM_raw
+NAME=Linguica frita
+RESOURCES=1 i_sausages_raw
+SKILLMAKE=0.5 Cooking
 TYPE=t_food
 WEIGHT=0.3
 DUPELIST=09c1
-
+TDATA1=25
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Linguica assada
@@ -900,6 +964,7 @@ DESCRIPTION=Linguica assada
 DEFNAME=i_eggs_fried
 NAME=ovo%s% frito%s%
 RESOURCES=1 i_EGGS_FRESH
+SKILLMAKE=1.5 Cooking
 TYPE=T_FOOD
 VALUE={5 9}
 WEIGHT=0.1
@@ -915,20 +980,24 @@ NAME=ensopado de batatas
 VALUE=8
 WEIGHT=1
 TYPE=T_FOOD
+SKILLMAKE=30.0 cooking
+RESOURCES=4 i_batata, 5 i_dose_water, 1 i_bacia
+TDATA1=13
+TDATA2=i_bacia
+
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Ensopado de batatas
-TDATA1=16
-TDATA2=i_bacia
 
 [ITEMDEF 015f9]
 //DEFNAME=i_BOWL_CARROTS
 NAME=ensopado de cenouras
 DEFNAME=i_bowl_wood_carrots
-RESOURCES=1 i_bowl_wood, 3 i_fruit_carrot
+SKILLMAKE=40.0 cooking
+RESOURCES=5 i_fruit_carrot, 5 i_dose_water, 1 i_bacia
 WEIGHT=1
 TYPE=T_FOOD
-TDATA1=16
+TDATA1=18
 TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
@@ -939,10 +1008,11 @@ DESCRIPTION=Ensopado de cenouras
 //DEFNAME=i_BOWL_CORN
 NAME=ensopado de milho
 DEFNAME=i_bowl_wood_corn
-RESOURCES=1 i_bowl_wood, 1 i_fruit_corn
+SKILLMAKE=50.0 cooking
+RESOURCES=6 i_fruit_corn, 5 i_dose_water, 1 i_bacia
 WEIGHT=1
 TYPE=T_FOOD
-TDATA1=16
+TDATA1=23
 TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
@@ -953,10 +1023,11 @@ DESCRIPTION=Ensopado de milho
 //DEFNAME=i_BOWL_LETTUCE
 NAME=ensopado de legumes
 DEFNAME=i_bowl_wood_lettuce
-RESOURCES=1 i_bowl_wood, 1 i_fruit_lettuce
+SKILLMAKE=60.0 cooking
+RESOURCES=2 i_fruit_lettuce, 4 i_batata, 5 i_dose_water, 1 i_bacia
 WEIGHT=1
 type=t_food
-TDATA1=20
+TDATA1=28
 TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
@@ -968,8 +1039,10 @@ DEFNAME=i_bowl_wood_peas
 NAME=caldo verde
 VALUE=8
 WEIGHT=1
+SKILLMAKE=70.0 cooking
+RESOURCES=5 i_dose_water, 3 i_ribs_raw, 8 i_ervilha, 1 i_bacia
 TYPE=T_FOOD
-TDATA1=20
+TDATA1=33
 TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
@@ -980,7 +1053,8 @@ DESCRIPTION=Caldo verde
 DEFNAME=i_cookie_mix
 NAME=massa para biscoitos
 TYPE=T_FOOD_RAW
-RESOURCES=1 i_bowl_dough, 1 i_POT
+SKILLMAKE=55.8 Cooking
+RESOURCES=1 i_dose_honey, 1 i_massa, 1 i_bacia
 WEIGHT=1
 TDATA1=0
 TDATA2=i_bacia
@@ -993,7 +1067,8 @@ DESCRIPTION=Massa para biscoitos
 ID=0103f
 NAME=recheio para torta de maca
 TYPE=T_FOOD_RAW
-RESOURCES=1 i_bowl_dough, 1 i_POT
+SKILLMAKE=55.0 Cooking
+RESOURCES=1 i_dose_honey, 1 i_massa, 3 i_fruit_apple, 1 i_bacia
 WEIGHT=1
 TDATA1=0
 TDATA2=i_bacia
@@ -1009,7 +1084,8 @@ color=08c
 ID=0103f
 NAME=recheio para torta de uva
 TYPE=T_FOOD_RAW
-RESOURCES=1 i_bowl_dough, 1 i_POT
+SKILLMAKE=65.0 Cooking
+RESOURCES=1 i_dose_honey, 1 i_massa, 3 i_fruit_grapes, 1 i_bacia
 WEIGHT=1
 TDATA1=0
 TDATA2=i_bacia
@@ -1025,9 +1101,9 @@ color=0e
 ID=0103f
 NAME=recheio para torta de banana
 TYPE=T_FOOD_RAW
-RESOURCES=1 i_bowl_dough, 1 i_POT
+SKILLMAKE=75.0 Cooking
+RESOURCES=1 i_dose_honey, 1 i_massa, 3 i_fruit_banana, 1 i_bacia
 WEIGHT=1
-TDATA1=0
 TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
@@ -1041,6 +1117,8 @@ color=032
 DEFNAME=i_plate_cookies
 NAME=biscoitos
 TYPE=t_food
+SKILLMAKE=58.8 Cooking
+RESOURCES=3 i_dose_honey, 1 i_massa
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Baker
 DESCRIPTION=Plate of Cookies
@@ -1051,8 +1129,8 @@ TDATA1=15
 DEFNAME=i_bread_loaf
 NAME=broa%s% de pao
 TYPE=T_FOOD
-SKILLMAKE=1 COOKING
-RESOURCES=1 i_FLOUR_SACK
+SKILLMAKE=23.4 COOKING
+RESOURCES=1 i_massa, 1 i_porcao_farinha
 WEIGHT=1
 TDATA1=6
 
@@ -1063,6 +1141,8 @@ DESCRIPTION=Broa de pão
 [ITEMDEF 098c]
 DEFNAME=i_bread_french
 name=paes de viagem
+SKILLMAKE=7.8 Cooking
+RESOURCES=1 i_massa
 TYPE=T_FOOD
 VALUE={4 8}
 WEIGHT=0.5
@@ -1077,7 +1157,8 @@ DESCRIPTION=Pão de viagem
 NAME=massa para torta
 DEFNAME=i_pie_unbaked
 TYPE=T_FOOD_RAW
-RESOURCES=1 i_bowl_dough, 1 T_FRUIT, 1 i_POT, i_lard
+SKILLMAKE=25.8 Cooking
+RESOURCES=1 i_massa, 1 i_dose_honey
 WEIGHT=1
 
 CATEGORY=MyT - Items by Professions
@@ -1087,10 +1168,11 @@ DESCRIPTION=Massa para torta
 [ITEMDEF 01041]
 NAME=torta de banana
 DEFNAME=i_pie_baked
-RESOURCES=3 i_FLOUR_SACK
+SKILLMAKE=70.8 Cooking
+RESOURCES=1 i_pie_unbaked, 1 i_banana_pie_mix
 WEIGHT=1
 TYPE=T_FOOD
-TDATA1=12
+TDATA1=20
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Baker
@@ -1099,7 +1181,8 @@ DESCRIPTION=Torta de banana
 [ITEMDEF i_aplle_pie_baked]
 NAME=torta de maca
 ID=01041
-RESOURCES=3 i_FLOUR_SACK
+SKILLMAKE=60.7 Cooking
+RESOURCES=1 i_pie_unbaked, 1 i_apple_pie_mix
 WEIGHT=1
 TYPE=T_FOOD
 TDATA1=15
@@ -1111,10 +1194,11 @@ DESCRIPTION=Torta de maçã
 [ITEMDEF i_grape_pie_baked]
 NAME=torta de uva
 ID=01041
-RESOURCES=3 i_FLOUR_SACK
+SKILLMAKE=50.6 Cooking
+RESOURCES=1 i_pie_unbaked, 1 i_grape_pie_mix
 WEIGHT=1
 TYPE=T_FOOD
-TDATA1=18
+TDATA1=13
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Baker
@@ -1126,8 +1210,8 @@ NAME=bolo
 TYPE=T_FOOD
 WEIGHT=1
 TDATA1=20
-SKILLMAKE=COOKING 30.0
-RESOURCES=3 i_FLOUR_SACK
+SKILLMAKE=COOKING 80.0
+RESOURCES=1 i_pie_unbaked, 2 i_massa, 2 i_eggs_fresh, 4 i_dose_honey
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Baker
