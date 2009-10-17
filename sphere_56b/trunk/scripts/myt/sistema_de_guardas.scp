@@ -54,12 +54,12 @@ endif
 if (<act.isweapon>)
  if (<act.dam.hi> > 10) && !(<region.tag0.permissions>&TOWN_CAN_WEAPON) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_WAR)
   sysmessageyellow Eh bom que voce saiba que nao se pode andar com armas pesadas aqui.
-  TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<DEF.TOWN_CAN_WEAPON>
+  TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_WEAPON>
  endif
 elif ( (<act.baseid>==i_capuz) || (<act.layer>==layer_helm) ) && !(<region.tag0.permissions>&TOWN_CAN_HOOD) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_HOOD)
  if !(<rec_CanSeeMe>)
   sysmessageyellow Eh bom que voce saiba que nao se pode andar encapuzado aqui.
-  TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<DEF.TOWN_CAN_HOOD>
+  TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_HOOD>
  endif
 endif
 return 0
@@ -69,7 +69,7 @@ if (<IsGM>) || (<flags>&080200b)
  return 0
 endif
 if (!<argn1>) && !(<region.tag0.permissions>&TOWN_CAN_WARMODE) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_WAR)
- TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<DEF.TOWN_CAN_WARMODE>//guards_near guard_advice,<uid>,<DEF.TOWN_CAN_WARMODE>
+ TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_WARMODE>//guards_near guard_advice,<uid>,<DEF.TOWN_CAN_WARMODE>
 endif
 return 0
 
@@ -85,37 +85,38 @@ endif
 
 //testar brain_animal para RESOURCES
 if (<act.NPC>==brain_animal) && !(<region.tag0.permissions>&TOWN_CAN_RESOURCES) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_RESOURCES)
+ serv.log brain_animal <src.brain>
  if !(<act.memoryfindtype.memory_ipet>)
   sysmessageyellow Eh bom voce saber que nao eh permitido cacar aqui.
   guards_near guard_advice,<uid>,<DEF.TOWN_CAN_RESOURCES>
  endif
 
-//testar vendor/player/guard para HARM
-elif (<act.IsTownNPC>) && !(<region.tag0.permissions>&TOWN_CAN_HARM) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_HARM)
- act.TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_PRIV_HARM>
- 
 //Testar se o alvo é guarda
-elif (<act.IsEvent.e_town_guard>) && !(<region.tag.permissions>&TOWN_CAN_HARM) && !(<ctag.town_<region.defname>_privs>&TOWN_PRIV_HARM) && !(<ctag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
+elif (<act.IsTEvent.e_town_guard>) && !(<region.tag0.permissions>&TOWN_CAN_HARM) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_HARM) && !(<ctag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
  DORAND 3
   ACT.SAY Como ousa?
   ACT.SAY Agora foi de mais!
   ACT.SAY Tome isto!
  END
  town_setAsCriminal <act.tag.town>
+ act.attack <uid>
+
+//testar vendor/player/guard para HARM
+elif (<act.IsTownNPC>) && !(<region.tag0.permissions>&TOWN_CAN_HARM) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_HARM)
+ TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_HARM>
 
 //Testar se o alvo é player free
-elif (<act.IsPlayer>) && !(<region.tag.permissions>&TOWN_CAN_HARM) && !(<ctag.town_<region.defname>_privs>&TOWN_PRIV_HARM) && !(<tag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
+elif (<act.IsPlayer>) && !(<region.tag0.permissions>&TOWN_CAN_HARM) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_HARM) && !(<tag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
  //Testar se o alvo é criminoso ou banido
  if !(<act.ctag0.town_<region.defname>_flags>&<hval <DEF.TOWN_FLAG_CRIMINAL>|<DEF.TOWN_FLAG_BANNED>>)
-  TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_PRIV_HARM>
+  TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_HARM>
  endif
 endif
-
 return 0
 
 on=@CallGuards
-if !(<guards_near guard_advice,<uid>,<argn1>>)
- town_NpcNear town_npc_call_help,<uid>,<argn1>
+if !(<guards_near guard_advice,<uid>,<argn2>>)
+ town_NpcNear town_npc_call_help,<uid>,<argn2>
 endif
 return 1
 
@@ -204,6 +205,9 @@ if (<tag0.call_guards>==<DEF.TOWN_CAN_HARM>)
 endif
 
 on=@CallGuards
+if (<karma> < 0) || (<NPC>==brain_animal) || (<NPC>==brain_thief) || (<NPC>==brain_monster) || (<NPC>==brain_dragon) || (<NPC>==brain_berserk) || (<NPC>==brain_undead)
+ return 0
+endif
 if !(<guards_near guard_advice,<argn1>,<argn2>>)
  say Guardas! Um assassino!
  if !(<town_NpcNear town_npc_call_help,<argn1>,<argn2>>)
@@ -781,15 +785,16 @@ endif
 
 [FUNCTION guard_advice]
 obj=<argv0>
+
 //iniciar
 if (<obj.ctag0.town_<tag.town>_flags>&023)
   attack <obj>
   return 1
 
 //O delito é grave? Vira criminal na hora!
-elif (<argv1> > 04)
+elif (<argv1> == 08) ||  (<argv1> == 020) ||  (<argv1> == 040)
  DORAND 3
-  say Hey, voce! Nao pode <STRTOLOWER <DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>> em <region.name>!
+  say Assasin<obj.sex o/a>! Ninguem pode <STRTOLOWER <DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>> em <region.name>!
   say Que despauterio <STRTOLOWER <DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>> em <region.name>!
   say O que significa isso?
  ENDDO
@@ -826,8 +831,15 @@ elif (0<argv2>)
  end 
 //endif
  
+ //Ainda posso vê-lo?
+ if (!<CanSee <obj>> ) && (<tag0.advice_step> > 2)
+  say Hey! Volte aqui!
+  flags &= ~020
+  action=06D
+  tag.advice_step=
+
  //Ele corrigiu seu comportamento?
- if (!<local.state>)
+ elif (!<local.state>)
   dorand 3
    say Obrigad<sex o/a> pela cooperacao.
    say Muito bem... Circulando!
@@ -891,7 +903,7 @@ return <local.ret>
 //Executa a função <args> em todos os NPCs da Town a 12 tile de distância que vêem DEFAULT
 obj=<UID>
 local.ret=0
-FORCHARS 18
+FORCHARS 12
  IF (<canSeeLos <obj>>) && (<IsTownNPC>) && (<obj>!=<UID>) && (<obj.act>!=<UID>)
   try <args>
   local.ret=1
@@ -913,7 +925,7 @@ DORAND 4
  local.t="Hei! "
 END
 obj=<argv0>
-local.charge= <eval LOGARITHM(<argv1>,2)>
+local.charge=<eval LOGARITHM(<argv1>,2)>
 DOSWITCH <local.charge>
  local.t .= Tem gente brigando aqui!            //Entrar em warmode pode?
  local.t .= Ha alguem armado aqui!              //Arma mais pesada que uma adaga ou cajado
@@ -926,17 +938,19 @@ DOSWITCH <local.charge>
  return 1                                       //Pode vender itens para NPCs
  return 1                                       //Pode comprar itens de NPCs
 END
-timerf <R3> SAY <local.t>
-if (<local.charge> > 2) && !(<obj.ctag.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
+local.timer=<R1,2>
+timerf <local.timer> SAY <local.t>
+if ( (<local.charge> == 08) || (<local.charge> == 020) || (<local.charge> == 040) ) && !(<obj.ctag.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
  obj.town_setAsCriminal <region.defname>
 endif
 tag.call_guards=<argv1>
 timerf 7,tag.call_guards=
+timerf <eval <local.timer>+1> npc_call_guards <argv0>,<argv1>
 return 1
 
 [FUNCTION npc_call_guards]
 ref1=<UID>
-obj=<argn1>
+obj=<argv0>
 local.ret=0
 FORCHARS 32
  IF (<IsTEvent.e_town_guard>) && ( (<action> < 0) || (<action> > 54)
@@ -945,9 +959,11 @@ FORCHARS 32
    SAY <ref1.name>! Estou indo!
    SAY Hei! Eh a voz de <ref1.name>!
   END
-  attack <obj>
+  act=<obj>
+  action=064
+  tag.advice_step=1
+  timerf 6 guard_advice,<argv0>,<argv1>,1
   local.ret=1
-  obj.town_setAsCriminal <tag.town>
  ENDIF
 END
 return <local.ret>
