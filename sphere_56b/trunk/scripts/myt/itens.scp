@@ -224,7 +224,11 @@ return 1
 //TDATA1=Skill que vai usar (teste e gump do livro)
 //TDATA2=Se for uma pedra lapidada, que gema vai virar
 on=@dclick
-src.sysmessageyellow Esta pedra precisa ser encantada para se tornar uma gema
+if (<more2>)
+    src.sysmessageyellow Utilizada para criar itens magicos
+else
+    src.sysmessageyellow Esta pedra precisa ser encantada para se tornar uma gema
+endif
 return 1
 
 on=@CLIENTTOOLTIP
@@ -246,7 +250,7 @@ ENDIF
 on=@CLIENTTOOLTIP
 IF (<attr>&020) && (<attr>&01 || <src.IsGM>)
  if (<morex>)
-  src.f_sendTooltip <name>,Magia: <serv.spell.<morex>.name><DEF.BR> Cargas: <eval <more2>>
+  src.f_sendTooltip <name>,Magia: <serv.spell.<morex>.name><DEF.BR><qval <more2>?<dmore2>:Sem> cargas
  else
   src.f_sendTooltip <name>,Sem cargas
  endif
@@ -256,10 +260,86 @@ ENDIF
 return 1
 
 on=@dclick
+
+if (!<cont.isplayer>) && (<topobj>==<src>)
+ src.equip <uid>
+elif (<src.distance> > 2) || (<topobj>!=<src>)
+ src.sysmessageyellow Muito longe...
+ return 1
+endif
+
 IF !(<attr>&01 || <src.IsGM>)
  src.sysmessagered Voce nao faz ideia do que isso faz
  return 1
 endif
+
+//tem magia? Pode castar? 
+if (!<morex>) || (!<more2>) || (<more1> > <serv.time>)
+ return 1
+endif
+
+src.act=0
+local.flags=<serv.spell.<morex>.flags>
+//Só targself?
+if !(<local.flags> & <eval spellflag_targ_item | spellflag_targ_char | spellflag_targ_obj | spellflag_targ_xyz>)
+    src.spelleffect <morex>,100.0,<UID>
+    wand_wasteCharge
+else
+    if (<local.flags>&spellflag_targ_xyz)
+     return 0
+    else
+     src.sysmessageyellow Selecione seu alvo...
+     TARGET
+    endif
+endif
+return 1
+
+ON=@Targon_Char
+local.flags=<serv.spell.<morex>.flags>
+if (<local.flags>&spellflag_dir_anim)
+ src.anim 16
+else
+ src.anim 17
+endif
+if (<local.flags> & <eval spellflag_targ_char | spellflag_targ_obj>)
+    src.targ.spelleffect <morex>,<R30.0,<R75.0,100.0>>,<src>
+    wand_wasteCharge
+else
+    src.sysmessagered Seu alvo nao pode ser vivo...
+endif
+return 1
+
+ON=@Targon_Item
+local.flags=<serv.spell.<morex>.flags>
+if (<local.flags>&spellflag_dir_anim)
+ src.anim 16
+else
+ src.anim 17
+endif
+if (<local.flags> & <eval spellflag_targ_item | spellflag_targ_obj>)
+    src.targ.spelleffect <morex>,<R30.0,<R75.0,100.0>>,<src>
+    wand_wasteCharge
+else
+    src.sysmessagered Seu alvo nao pode ser um item inanimado...
+endif
+return 1
+
+[FUNCTION wand_wasteCharge]
+more1=<serv.time>+<serv.spell.<morex>.cast_time>
+more2 -= 1
+update
+if <more2> < 1
+ if <layer>        //É wand, não gem
+  src.sysmessagered O poder de <name> se esvaiu.
+  if !<IsEmpty <tag.name>>
+   name=<tag.name>
+  endif
+ else                  //É gem
+  src.sysmessagered <name> some sem deixar vestigios.
+  timerf 1,decrement
+ endif
+endif
+
 
 
 /////////////////////////
@@ -364,6 +444,7 @@ WEIGHT=5
 CATEGORY=MyT - Provisions - Alchemy & Magic
 SUBSECTION=Varinhas
 DESCRIPTION=Varinha de turmalina
+TDATA1=skill_necromancy
 
 ON=@Create
         HITPOINTS={50 60}
@@ -385,6 +466,7 @@ WEIGHT=5
 CATEGORY=MyT - Provisions - Alchemy & Magic
 SUBSECTION=Varinhas
 DESCRIPTION=Varinha de safira
+TDATA1=skill_spellweaving
 
 ON=@Create
         HITPOINTS={50 60}
@@ -406,6 +488,7 @@ WEIGHT=5
 CATEGORY=MyT - Provisions - Alchemy & Magic
 SUBSECTION=Varinhas
 DESCRIPTION=Varinha de esmeralda
+TDATA1=skill_necromancy
 
 ON=@Create
         HITPOINTS={50 60}
@@ -427,6 +510,7 @@ WEIGHT=5
 CATEGORY=MyT - Provisions - Alchemy & Magic
 SUBSECTION=Varinhas
 DESCRIPTION=Varinha de citrino
+TDATA1=skill_magery
 
 ON=@Create
         HITPOINTS={50 60}
@@ -448,6 +532,7 @@ WEIGHT=5
 CATEGORY=MyT - Provisions - Alchemy & Magic
 SUBSECTION=Varinhas
 DESCRIPTION=Varinha de ametista
+TDATA1=skill_spellweaving
 
 ON=@Create
         HITPOINTS={50 60}
@@ -469,6 +554,7 @@ WEIGHT=5
 CATEGORY=MyT - Provisions - Alchemy & Magic
 SUBSECTION=Varinhas
 DESCRIPTION=Varinha de rubi
+TDATA1=skill_magery
 
 ON=@Create
         HITPOINTS={50 60}
@@ -490,6 +576,7 @@ WEIGHT=5
 CATEGORY=MyT - Provisions - Alchemy & Magic
 SUBSECTION=Varinhas
 DESCRIPTION=Varinha de diamante
+TDATA1=skill_focus
 
 ON=@Create
         HITPOINTS={50 60}
@@ -510,6 +597,7 @@ WEIGHT=5
 CATEGORY=MyT - Provisions - Alchemy & Magic
 SUBSECTION=Varinhas
 DESCRIPTION=Varinha de ambar
+TDATA1=skill_focus
 
 ON=@Create
         HITPOINTS={50 60}

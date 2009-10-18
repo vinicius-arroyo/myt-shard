@@ -259,25 +259,39 @@ return <strtrim <local.wop>>
 //Abre dialogo para encantar uma gema com pontos ou magia
 [FUNCTION mage_enchant_gem]
 if (!<argo>)
- sysmessageyellow Selecione a pedra lapidada
+ sysmessageyellow Selecione a pedra lapidada ou varinha
  targetf mage_enchant_gem
  return 1
 elif (!<argo.isitem>)
  sysmessagered Polimorfismo com gemas? Nao...
  return 1
-elif (<argo.type>!=t_gem_stoned) || (<argo.topobj>!=<src>)
+elif (<argo.topobj>!=<src>) || ( ( (<argo.type>!=t_wand) && (!<argo.layer>) ) && (<argo.type>!=t_gem_stoned) )
  sysmessagered Impossivel encantar isso.
  return 1
 elif (<argo.amount> > 1)
  sysmessagered Impossivel mais de uma por vez.
  return 1
-elif (<argo.more2>)
+elif (<argo.more2>) && (!<argo.layer>)
  sysmessagered Esta gema ja foi encantada.
  return 1
+elif (<argo.layer>) && !(<argo.attr>&01)
+ sysmessagered Voce nao faz ideia do que este objeto eh capaz de fazer.
+ return 1
+elif (<argo.more2> > 11) && (<argo.layer>)
+ sysmessagered Esta varinha alcancou sua carga maxima.
+ return 1
+elif (<argo.morex>)
+ if (!<mage_KnowSpell <argo.morex>>)
+  sysmessagered Voce nao conhece a magia <serv.spell.<argo.morex>.name> para recarregar a varinha
+  return 1
+ endif
 endif
 //Limpa o cachê e salva a pedra.
 mage_cleartags
 src.ctag.mage.gem=<argo>
+if (<argo.morex>)
+ src.ctag.mage.enchant_spell=<argo.morex>
+endif
 src.ctag.mage_skill=Skill_<serv.skill.<eval <argo.tdata1>>.key>
 dialog d_spellbook 3
 return 1
@@ -601,6 +615,18 @@ ENDDO
 IF (<ctag0.mage.enchant_spell>)
  local.dif += <eval <strarg <serv.spell.<ctag.mage.enchant_spell>.skillreq>>/30>
  local.mana += <eval <serv.spell.<ctag.mage.enchant_spell>.MANAUSE>/3>
+ELSE
+ if (<ctag0.mage_skill>==skill_magery)
+  ctag.mage_elem=Fogo
+ elif (<ctag0.mage_skill>==skill_necromancy)
+  ctag.mage_elem=Veneno
+ elif (<ctag0.mage_skill>==skill_focus)
+  ctag.mage_elem=Energia
+ elif (<ctag0.mage_skill>==skill_spellweaving)
+  ctag.mage_elem=Gelo
+ else
+  ctag.mage_elem=Fisico
+ endif
 ENDIF
 
 //Formata texto para gump
@@ -624,6 +650,12 @@ IF (<ctag0.mage.enchant_spell>)
   end
  endif
  local.text .= Reagentes: <local.res>
+elif (!<uid.<ctag0.mage.gem>.layer>)
+ local.text .= Somente para encantar itens. +<dctag0.mage.power> de dano em armas ou +<dctag0.mage.power> de resistencia em <ctag.mage_elem>.
+else
+ local.text .= Selecione magia para sua varinha.
+ local.cando=0
+ return 0
 endif
 
 //Decide se o char pode fazer ou não
@@ -913,8 +945,15 @@ dhtmlgump 57 13 125 29 0 0 <DEF.CENTER><DEF.BFONT_SIZE1><uid.<ctag0.mage.gem>.na
 tilepic 95 49 <uid.<ctag0.mage.gem>.dispiddec>
 button 56 110 250 251 1 0 1004          //Mais poder
 button 56 130 252 253 1 0 1005          //Menos poder
-dtext 79 120 43 +<dctag0.mage.power> <QVAL <ctag0.mage.enchant_spell>?cargas:<serv.skill.<ctag0.mage_skill>.name>>
-button 54 167 2224 2224 1 0 1006        //Adicionar/remover magia
+//Selecionou magia?
+IF (<ctag0.mage.enchant_spell>)
+ dtext 79 120 43 <dctag0.mage.power> cargas
+else
+ dtext 79 120 43 + <dctag0.mage.power> <ctag.mage_elem>
+endif
+IF (!<uid.<ctag0.mage.gem>.layer>) || (!<uid.<ctag0.mage.gem>.morex>)
+ button 54 167 2224 2224 1 0 1006        //Adicionar/remover magia
+endif
 dhtmlgump 74 164 114 20 0 0 <QVAL <ctag0.mage.enchant_spell>?<serv.spell.<ctag0.mage.enchant_spell>.name>:Adicionar magia>
 CALL mage_CalcEnchant           //Calcula o custo
 dhtmlgump 218 12 130 157 0 0 <local.text>
@@ -1001,6 +1040,14 @@ sysmessageyellow Voce comeca o encantamento.
 call mage_CalcEnchant
 obj=<findid.i_faz_item>
 obj.cleartags
+if (<ctag0.mage.enchant_spell>)
+ local.i=0
+ while <serv.spell.<ctag0.mage.enchant_spell>.resources.<dlocal.i>.val>
+  obj.tag.res<dlocal.i>=<serv.spell.<ctag0.mage.enchant_spell>.resources.<local.i>.key>
+  obj.tag.amt<dlocal.i>=<eval <serv.spell.<ctag0.mage.enchant_spell>.resources.<local.i>.val>*<ctag0.mage.power>>
+  local.i += 1
+ end
+endif
 obj.tag.delay=<local.time>
 obj.tag.skill=<serv.skill.<ctag0.mage_skill>.name>
 obj.tag.skill2=<local.skill>
@@ -1067,7 +1114,8 @@ endif
 
 [FUNCTION make_chanted_gem]
 obj=<ctag.mage.gem>
-//A gema ainda existe?
+
+//O item ainda existe?
 if (<obj.amount> > 1) || (<obj.topobj>!=<UID>) || (!<obj.uid>)
  damage 30,<DEF.dam_god>,<UID>
  sysmessagered Voce tentou perturbar o Eter!
@@ -1075,21 +1123,33 @@ if (<obj.amount> > 1) || (<obj.topobj>!=<UID>) || (!<obj.uid>)
  SFX <hval <DEF.SND_THUNDER>>
  return 1
 endif
-//Pedra lapidada virando gema?
-if (<obj.tdata2>)
- newitem <obj.tdata2>
- new.bounce
- obj.decrement
- obj=<new>
-else
- //Gema sendo encantada?
- obj.name=Gema de <strarg <obj.name>>
-endif
-obj.more2=<ctag0.mage.power>            //Adiciona cargas ou bônus
-obj.attr=021                            //identifyed and magic
-//Vai colocar uma magia nela?
-if (<ctag0.mage.enchant_spell>)
- obj.type=t_wand                        //Troca o type para trigar magia 
+
+
+//Eh uma gema?
+if (<obj.type>==t_gem_stoned)
+ //Pedra lapidada virando gema?
+ if (<obj.tdata2>)
+  newitem <obj.tdata2>
+  new.bounce
+  obj.decrement
+  obj=<new>
+ else
+  //Gema sendo encantada?
+  obj.name=Gema de <strarg <obj.name>>
+ endif
+ obj.more2=<ctag0.mage.power>            //Adiciona cargas ou bônus
+ obj.attr=021                            //identifyed and magic
+ //Vai colocar uma magia nela?
+ if (<ctag0.mage.enchant_spell>)
+  obj.type=t_wand                        //Troca o type para trigar magia 
+  obj.morex=<ctag0.mage.enchant_spell>   //Guarda a magia
+ endif
+elif (<obj.layer>)
+ obj.more2 += <ctag0.mage.power>        //Adiciona cargas ou bônus
+ if (<obj.more2> > 12)
+  obj.more2=12
+ endif
+ obj.attr=021                           //identifyed and magic
  obj.morex=<ctag0.mage.enchant_spell>   //Guarda a magia
 endif
 obj.updatex                             //Troca ToolTip
