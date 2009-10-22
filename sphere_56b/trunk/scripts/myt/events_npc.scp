@@ -26,6 +26,7 @@ flag_cast_healself      01      //Eu me healei
 flag_cast_spawn         02      //Eu castei spawn
 flag_cast_op            03      //Eu usei magias fortes de mais
 flag_cast_poly          04      //Eu usei magias polymorph
+flag_cast_buffself      08      //Eu me buffei
 
 
 //*****************************************************************************
@@ -948,7 +949,7 @@ elif (<act.ostr> > 85)
 else //Não consigo determinar melhor estratégia
  if !(<tag0.cast_flag>&<DEF.flag_cast_spawn>) && (!<R3>)
   argn1=209    //Morto vivo menor
- elif (<act.distance> > 1) && (<mana> > <eval <serv.spell.s_choque_mental.manause>*2>) && (!<R0,4>)
+ elif (<act.distance> > 1) && (<mana> > <eval <serv.spell.s_choque_mental.manause>*2>) && (!<R5>)
   argn1=214    //Choque mental
  elif (!<R0,3>)
   argn1=204    //Envelhecer
@@ -967,7 +968,7 @@ if ( (<serv.spell.<argn1>.flags>&SPELLFLAG_SUMMON) && (<argn>!=206) ) || (<serv.
 endif
 
 argn2=<strarg <serv.spell.<argn1>.SKILLREQ>>/10
-argn3=<serv.spell.<argn1>.CAST_TIME>
+//argn3=<serv.spell.<argn1>.CAST_TIME>
  
 //Dizer WoP
 say <mage_GetSpellRunes <argn1>>
@@ -1137,17 +1138,367 @@ endif
 
 
 [EVENTS e_caster_restoration]
+//Heal ou Cure
+//Turno de ataque
+// Ao ar livre? <DORAND <FOCUS>/89.5>
+//  Raio Divino
+//  tempestade divina
+// Lugar fechado
+//  Raio Divino
+//Turno de buff/debuff (1:3)
+// Inimigo perto
+//  Tô apanhando? <DORAND <FOCUS>/50.0>
+//   Forma etera + flee
+//   Armadura sagrada
+//  Morto-vivo? <DORAND <FOCUS>/70.0>
+//   Exorcisar
+//   Julgamento
+//  Não morto-Vivo?  <DORAND <FOCUS>/65.0>
+//   Raio divino
+//   Julgamento
+// Inimigo longe
+//  Não morfei !<R3>
+//   <DORAND <FOCUS>/70.0>
+//    Armadura sagrada
+//    Forma de nefelibata
+//  Não tenho minion <!R3>
+//   <DORAND <FOCUS>/79.5>
+//    Servo etereo
+//    Conj Nefelibata
+//  NDA <DORAND <FOCUS>/70.0>
+//   Armadura sagrada
+//   Bencao
 
+
+//*************
+on=@NPCActFight
+//*************
+if (<action>!=<DEF.SKILL_FOCUS>) && !<tag0.NPC_CanCast> && (<mana> > 8) && (<body>==<obody>)
+ action=<DEF.SKILL_FOCUS>
+ tag.NPC_CanCast=1
+ timerf <eval 7-(<int>/50)> tag.NPC_CanCast=0
+endif
+
+//*************
 on=@SpellCast
-return 0
+//*************
+
+//Tá com tóchicos?
+if (<restest i_veneno> && (<mana> > 5)
+ spelleffect 154,<focus>,<uid>
+ mana -= 5
+ anim 17
+
+//Precisa healar?
+elif (<hits> < <eval <maxhits>/4>) && (<mana> > 10) && !(<tag0.cast_flags>&01)
+ tag0.cast_flags |= <DEF.flag_cast_healself>
+ timerf 8 tag0.cast_flags = <tag0.cast_flags>&~<DEF.flag_cast_healself>
+ spelleffect 156,<focus>,<uid>
+ hits += 30 //Ajudinha. Tá muito fraco.
+ mana -=10
+ anim 17
+ 
+//turno de buff
+elif (!<tag0.turn>)
+ //[BUFF/DEBUFF] Inimigo perto
+ if (<act.distance> < 3)
+  
+  //[BUFF/DEBUFF - perto] Tô apanhando
+  if (<hits> < <eval <maxhits>/3>)
+   argn1=160   //armor
+   DORAND <eval <focus>/50.0>
+    argn1=153   //Invis
+    argn1=160   //armor
+   END
+  
+  //[BUFF/DEBUFF - perto] Eh undead?
+  elif (<act.npc>==brain_undead)
+   argn1=161    //Julgamento
+   DORAND <eval <focus>/69.0>
+    argn1=152   //Exorcisar
+    argn1=161   //Julgamento
+   END
+   
+  //[BUFF/DEBUFF - perto] Não tô apanhando & mão é undead 
+  else
+   argn1=161    //Julgamento
+   DORAND <eval <focus>/69.0>
+    argn1=158   //Raio divino
+    argn1=161   //Julgamento
+   END
+  endif
+
+ //[BUFF/DEBUFF] Inimigo longe
+ else
+  
+  //[BUFF/DEBUFF - longe] Morfar?
+  if (<body>==<obody>) && !(<R3>)
+   argn1=163    //Forma de nefelibata
+   DORAND <eval <focus>/68.0>
+    argn1=160   //Aradura sagrada
+    argn1=163   //Forma de nefelibata
+   END
+  
+  //[BUFF/DEBUFF - longe] Chama minion?
+  elif !(<tag0.cast_flags>&<DEF.flag_cast_spawn>) && (!<R3>)
+   argn1=165    //Conjurar nefelibata
+   DORAND <eval <focus>/77.5>)
+    argn1=159   //Servo etereo
+    argn1=165   //Conjurar nefelibata
+   END
+   
+  //[BUFF/DEBUFF - longe] Não pode minion e ben poly?
+  else
+   argn1=162    //Benção
+   DORAND <eval <focus>/68.0>
+    argn1=160   //Armadura sagrada
+    argn1=162   //Benção
+   END
+  endif
+ endif
+
+//Turno de atacar
+else
+ 
+ //[ATTACK] Ao ar livre?
+ if !(<flags>&statf_indoors) && !(<region.flags>&region_flag_underground)
+  argn1=166     //Tempestade divina
+  DORAND <eval <focus>/68.0>
+   argn1=158    //Raio divino
+   argn1=166    //Tempestade divina
+  END
+ //[ATTACK] Lugar fechado
+ else
+  argn1=158     //Raio divino
+ endif
+endif
+
+tag.turn = <eval <tag0.turn>+1>
+if (<tag0.turn> > 2)
+ tag.turn=0
+endif
+   
+
+ACTDIFF=<strarg <serv.spell.<argn1>.SKILLREQ>>/10
+argn2=<ACTDIFF>
+argn3=<serv.spell.<argn1>.CAST_TIME>
+
+//Spawnar em nome do necromante mesmo. MENOS pra Infestação.
+if (<serv.spell.<argn1>.flags>&SPELLFLAG_SUMMON) || (<serv.spell.<argn1>.flags>&SPELLFLAG_GOOD)
+ act=<uid>
+endif
+
+//Dizer WoP
+say <mage_GetSpellRunes <argn1>>
+
+serv.log castando <serv.spell.<argn1>.name> d:<dargn2> t:<dargn3> ad:<dACTDIFF> t:<dtag0.turn>
+
+//**************
+on=@SkillSuccess
+//**************
+if (<argn>==<DEF.SKILL_FOCUS>)
+ local.flags=<serv.spell.<actarg1>.flags>
+ if (<local.flags>&SPELLFLAG_SUMMON)
+  tag0.cast_flags |= <def.flag_cast_spawn>
+  timerf <DURATIONSPELL <actarg1>,<FOCUS>,<uid>> tag0.cast_flags &= ~<def.flag_cast_spawn>
+ elif (<local.flags>&SPELLFLAG_GOOD)
+  tag0.cast_flags |= <def.flag_cast_buffself>
+  timerf <DURATIONSPELL <actarg1>,<FOCUS>,<uid>> tag0.cast_flags &= ~<def.flag_cast_buffself>
+ endif
+endif
+
+
 
 [EVENTS e_caster_alteration]
+//Heal
+//Turno de ataque
+// Inimigo pertinho && !<R2> && <SPELLWEAVING> > 87.5?
+//  Cone de gelo
+// NDA?
+//  Dardos gelidos
+//Turno de buff/debuff (1:3)
+// Inimigo perto
+//  Tô apanhando? <DORAND <SPELLWEAVING>/57.5>
+//   Rapidês do tigre
+//   Inteligência da coruja
+//  Tomei dano de gelo?
+//   Resistencia ao frio (marcar com tag)
+//  Inimigo não imuni ou sem sensibilidade ao frio && !<R3>
+//   Sensibilidade ao frio
+// Inimigo longe
+//  Não morfei !<R3>
+//   <DORAND <SPELLWEAVING>/20.0>
+//    Poly macaco
+//    Poly macaco
+//    Poly Corso
+//    Poly Usinho
+//    Poly Ursão
+//  Não tenho minion <!R3>
+//   <DORAND <SPELLWEAVING>/20.0>
+//    Pardal
+//    Leão marinho
+//    Animais da floresta
+//    Ursinho
+//    Ursão
+//  NDA <DORAND <SPELLWEAVING>/33.3>
+//   Rapidês do tigre
+//   Inteligência da coruja
+//   Congelar arma
 
+
+//*************
+on=@NPCActFight
+//*************
+if (<action>!=<DEF.SKILL_SPELLWEAVING>)
+ if (<tag0.NPC_CanCast> < <serv.time>) && (<mana> > 8)
+  action=<DEF.SKILL_SPELLWEAVING>
+ elif (<action>==<DEF.SKILL_Magery>)
+  if (<wrestling>)
+   action=<def.Skill_wrestling>
+  else
+   flee <act>,6
+   return 1
+  endif
+ endif
+endif
+
+//*************
 on=@SpellCast
-return 0
+//*************
+if (<tag0.NPC_CanCast> > <serv.time>) || (<mana> < 8) || (<body>!=<obody>)
+ return 1
+endif
 
+//Precisa healar?
+if (<hits> < <eval <maxhits>/4>) && (<mana> > 10) && (!(<tag0.cast_flags>&01))
+ tag0.cast_flags |= <DEF.flag_cast_healself>
+ timerf 8 tag0.cast_flags = <tag0.cast_flags>&~<DEF.flag_cast_healself>
+ spelleffect 156,<SPELLWEAVING>,<uid>
+ hits += 30 //Ajudinha. Tá muito fraco.
+ mana -=10
+ anim 17
+ 
+//turno de buff
+elif (!<tag0.turn>)
+ //[BUFF/DEBUFF] Inimigo perto
+ if (<act.distance> < 3)
+  
+  //[BUFF/DEBUFF - perto] Tô apanhando
+  if (<hits> < <eval <maxhits>/3>)
+   argn1=260   //Inteligência
+   DORAND <eval <SPELLWEAVING>/57.5>
+    argn1=254   //Dex
+    argn1=260   //Int
+   END
+  
+  //[BUFF/DEBUFF - perto] Tomei dano de gelo?
+  elif (<tag0.damcold>==1) && (<rescold> < 60)
+   argn1=251    //Resistencia ao frio
+   
+  //[BUFF/DEBUFF - perto] Posso fazer ele ficar com mais frio?
+  elif (!<act.tag0.immune>&dam_cold) && (!<act.tag0.regendam>&dam_cold) && (!<act.tag0.aggravate>&dam_cold) && (!<R3>)
+   argn1=252    //Sensibilidade ao frio
+  else
+   argn1=260    //Int
+  endif
 
+ //[BUFF/DEBUFF] Inimigo longe
+ else
+  
+  //[BUFF/DEBUFF - longe] Morfar?
+  if (<body>==<obody>) && (!<R4>)
+   argn1=269    //Ursão
+   DORAND <eval <SPELLWEAVING>/20.0>
+    argn1=257   //Macaco
+    argn1=263   //Corso
+    argn1=263   //Corso
+    argn1=267   //Ursinho
+    argn1=269   //Ursão
+   END
+  
+  //[BUFF/DEBUFF - longe] Chama minion?
+  elif !(<tag0.cast_flags>&<DEF.flag_cast_spawn>) && (!<R3>)
+   argn1=265    //Ursinho
+   DORAND <eval <SPELLWEAVING>/20.0>)
+    argn1=253   //Pardal
+    argn1=259   //Leao marinho
+    argn1=262   //Animais da floresta
+    argn1=262   //Animais da floresta
+    argn1=265   //Ursinho
+   END
+   
+  //[BUFF/DEBUFF - longe] Não pode minion e ben poly?
+  else
+   argn1=258    //Congelar arma
+   DORAND <eval <SPELLWEAVING>/33.3>
+    argn1=254   //Rapidez do tigre
+    argn1=260   //Inteligencia da coruja
+    argn1=258   //Congelar arma
+   END
+  endif
+ endif
 
+//Turno de atacar
+else
+
+ //[ATTACK] Inimigo perto?
+ if (<act.distance> < 4) && (<Spellweaving> > 87.5) && (!<R3>)
+  argn1=266     //Cone de gelo
+ else
+  argn1=256     //Dardos gélidos
+ endif
+endif
+
+tag.turn = <eval <tag0.turn>+1>
+if (<tag0.turn> > 2)
+ tag.turn=0
+endif
+   
+
+ACTDIFF=<strarg <serv.spell.<argn1>.SKILLREQ>>/10
+argn2=<ACTDIFF>
+argn3=<serv.spell.<argn1>.CAST_TIME>
+
+//Spawnar em nome do necromante mesmo. MENOS pra Infestação.
+if (<serv.spell.<argn1>.flags>&SPELLFLAG_SUMMON) || (<serv.spell.<argn1>.flags>&SPELLFLAG_GOOD)
+ act=<uid>
+endif
+
+//Dizer WoP
+say <mage_GetSpellRunes <argn1>>
+serv.log castando <serv.spell.<argn1>.name> d:<dargn2> t:<dargn3> ad:<dACTDIFF> t:<dtag0.turn>
+tag.NPC_CanCast=<eval <serv.time>+<argn3>>
+
+//**************
+on=@SkillSuccess
+//**************
+tag.NPC_CanCast=<eval <serv.time>+70-(<int>/5)>
+if (<argn>==<DEF.SKILL_SPELLWEAVING>)
+ local.flags=<serv.spell.<actarg1>.flags>
+ if (<local.flags>&SPELLFLAG_SUMMON)
+  tag0.cast_flags |= <def.flag_cast_spawn>
+  timerf <DURATIONSPELL <actarg1>,<spellweaving>,<uid>> tag0.cast_flags &= ~<def.flag_cast_spawn>
+ elif (<local.flags>&SPELLFLAG_GOOD)
+  tag0.cast_flags |= <def.flag_cast_buffself>
+  timerf <DURATIONSPELL <actarg1>,<SPELLWEAVING>,<uid>> tag0.cast_flags &= ~<def.flag_cast_buffself>
+ endif
+ if (<actarg1>==s_resistencia_frio) && (<rescold> > 60)
+  tag.damcold=
+ endif
+endif
+
+on=@SkillFail
+  tag.NPC_CanCast=<eval <serv.time>+70-(<int>/5)>
+  
+on=@SkillA
+  tag.NPC_CanCast=<eval <serv.time>+70-(<int>/5)>
+
+//**************
+on=@GetHit
+//**************
+if (<argn2>==dmg_fire) && (!<tag0.damcold>)
+ tag.damcold=1
+endif
 //*****************************************************************************
 //*****************************************************************************
 // EVENTs NPCs Específicos
@@ -2472,7 +2823,7 @@ ON=@NPCSEENEWPLAYER
  enddo
 
 //------------------------------
-[EVENTS e_Anao_Undead]
+[EVENTS e_Anão_Undead]
 
 ON=@HIT
  DORAND 20
