@@ -1979,7 +1979,7 @@ if (!<IsNum <argv0>>)
  list_newDbCol 20,title,Titulo
  list_newDbCol 300,UID,requisitado por
  list_setAction town_listOpenPetitions
- list_loadFromDb "SELECT title, UID, id FROM towns_petitions WHERE region='<local.town>' AND flags=0 ORDER BY time;"
+ list_loadFromDb "SELECT title, UID, id FROM towns_petitions WHERE region='<local.town>' AND flags=0 ORDER BY time DESC;"
  
  //Apurar os itens para melhor identificação
  for i <ctag.list_numitems>
@@ -2005,7 +2005,7 @@ if (!<IsNum <argv0>>)
  list_newDbCol 20,title,Titulo
  list_newDbCol 300,UID,requisitado por
  list_setAction town_listOpenPetitions
- list_loadFromDb "SELECT title, UID, id FROM towns_petitions WHERE region='<local.town>' AND flags>0 ORDER BY time;"
+ list_loadFromDb "SELECT title, UID, id FROM towns_petitions WHERE region='<local.town>' AND flags>0 ORDER BY time DESC;"
  
  //Apurar os itens para melhor identificação
  for i <ctag.list_numitems>
@@ -2039,6 +2039,22 @@ else
 endif
 DB.EXECUTE="INSERT INTO towns_petitions SET UID=<eval <uid>>, type=1, father=<dctag.town_petitionID>, flags=<dlocal.flags>, time=CURRENT_TIMESTAMP();"
 SDIALOG d_town
+
+
+[FUNCTION town_petitionDelete]
+//Remove a petição <dctag.town_petitionID> e todas as votações.
+if (<IsEmpty <args>>)
+ prompt_new Deseja realmente remmover a peticao '<ctag.town_petitionTitle>'?<DEF.BR>(s/n)
+ prompt_setAction town_petitionDelete
+ prompt_setActionBack SDIALOG d_town
+ prompt_show
+elif (STRMATCH(s,<args>))
+ DB.EXECUTE="DELETE FROM towns_petitions WHERE id=<dctag.town_petitionID> OR father=<dctag.town_petitionID>"
+ sysmessagered Peticao excuida.
+ town_listOpenPetitions
+else
+ SDIALOG d_town
+endif
 
 
 [FUNCTION town_petitionJudge]
@@ -4345,10 +4361,16 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_POLL>)
            dtext +175 - 26 Rejeitada
           endif
          endif
+         if (<IsGM>)
+          dtext - *20 38 [GM] Remover peticao e votos
+          button -20 +3 30008 30009 1 0 68
+         endif
          
         endif
         IF (!<ctag0.town_noFullMenu>)
          button 92 385 4014 4015 1 0 1
+        else
+         button 92 385 4014 4015 1 0 12
         endif
 
 elif (<ctag.town_page>==<DEF.TOWN_PAGE_LAWS_SHOW>)
@@ -4687,6 +4709,13 @@ ON=67
 //Negate petition
 town_petitionJudge 0
 
+ON=68
+//Delete petition
+if (<IsGm>)
+ town_petitionDelete
+else
+ SDIALOG d_town
+endif
 
 //////////////////  Decretos
 

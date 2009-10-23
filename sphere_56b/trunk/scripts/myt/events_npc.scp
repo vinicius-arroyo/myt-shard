@@ -484,6 +484,13 @@ if (<CAN>&MT_USEHANDS) && (<NPC>!=brain_undead) && (<R<INT>> > 25)
     endif
 endif
 
+ON=@NPCLostTeleport
+//Evita teleports de NPCs que estão paralizados
+if (<flags>&statf_freeze|statf_stone)
+ return 1
+endif
+
+
 //[COMMENT comentario]
 on=@NPCLookAtChar
 if (<src.npc>)
@@ -1363,11 +1370,18 @@ if (<action>!=<DEF.SKILL_SPELLWEAVING>)
 endif
 
 //*************
+on=@SpellSelect
+//*************
+if (<argn3>==3)
+ if (<tag0.NPC_CanCast> > <serv.time>) || (<mana> < 8) || (<body>!=<obody>)
+  return 1
+ endif
+endif
+
+
+//*************
 on=@SpellCast
 //*************
-if (<tag0.NPC_CanCast> > <serv.time>) || (<mana> < 8) || (<body>!=<obody>)
- return 1
-endif
 
 //Precisa healar?
 if (<hits> < <eval <maxhits>/4>) && (<mana> > 10) && (!(<tag0.cast_flags>&01))
@@ -1455,8 +1469,8 @@ if (<tag0.turn> > 2)
 endif
    
 
-ACTDIFF=<strarg <serv.spell.<argn1>.SKILLREQ>>/10
-argn2=<ACTDIFF>
+argn2=<strarg <serv.spell.<argn1>.SKILLREQ>>/10
+//ACTDIFF=<argn2>
 argn3=<serv.spell.<argn1>.CAST_TIME>
 
 //Spawnar em nome do necromante mesmo. MENOS pra Infestação.
@@ -1466,8 +1480,9 @@ endif
 
 //Dizer WoP
 say <mage_GetSpellRunes <argn1>>
-//serv.log castando <serv.spell.<argn1>.name> d:<dargn2> t:<dargn3> ad:<dACTDIFF> t:<dtag0.turn>
-tag.NPC_CanCast=<eval <serv.time>+<argn3>>
+serv.log castando <serv.spell.<argn1>.name> d:<dargn2> t:<dargn3> ad:<dACTDIFF> t:<dtag0.turn>
+tag.NPC_CanCast=<eval <serv.time>+<argn3>+5>
+//serv.log  <serv.dtime> to <eval <serv.time>+<argn3>+5> :: <eval <eval <serv.time>+<argn3>+5> - <serv.time>>
 
 //**************
 on=@SkillSuccess
@@ -1496,7 +1511,7 @@ on=@SkillA
 //**************
 on=@GetHit
 //**************
-if (<argn2>==dmg_fire) && (!<tag0.damcold>)
+if (<argn2>==<DEF.dam_fire>) && (!<tag0.damcold>)
  tag.damcold=1
 endif
 //*****************************************************************************
