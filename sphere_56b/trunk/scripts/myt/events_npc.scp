@@ -902,10 +902,10 @@ elif (<act.ostr> > 85)
     argn3=15    //Menos Delay
    //Já spawnei?
    elif !(<tag0.cast_flag>&<DEF.flag_cast_spawn>) && (!<R0,2>)
-    agrn1=206   //Infestação, pra descolar o oponente
+    argn1=206   //Infestação, pra descolar o oponente
    //Senta o rodo então!
    else
-    if (!<R0,3>)
+    if (!<R2>)
      argn1=200    //Cansar músculos
     else
      argn1=201    //Dom Negro
@@ -997,11 +997,11 @@ endif
 //*************
 on=@NPCActFight
 //*************
-if (<action>!=<DEF.SKILL_NECROMANCY>) && !<tag0.NPC_CanCast> && (<mana> > 8)
- action=<DEF.SKILL_NECROMANCY>
- tag.NPC_CanCast=1
- timerf <eval 7-(<int>/50)> tag.NPC_CanCast=0
-endif
+//if (<action>!=<DEF.SKILL_NECROMANCY>) && !<tag0.NPC_CanCast> && (<mana> > 8)
+// action=<DEF.SKILL_NECROMANCY>
+// tag.NPC_CanCast=1
+// timerf <eval 7-(<int>/50)> tag.NPC_CanCast=0
+//endif
 
 
 //*****************************************************************************
@@ -1039,6 +1039,8 @@ if (<hits> < <eval <maxhits>/4>) && (<mana> > 10) && !(<tag0.cast_flags>&01)
  SFX snd_spell_curse
  mana -=10
  anim 17
+ say <mage_GetSpellRunes 106> 
+ return 1
 
 //Oponente longe?
 elif (<act.distance> > 3)
@@ -1090,7 +1092,7 @@ else
         
  //Ele está armado?
  if (<act.weapon>)
-  if (STRMATCH(*ingot*,<act.weapon.resources>)) && (<R250> < <int>)
+  if (STRMATCH(*ingot*,<act.weapon.resources>)) && (<Magery> > 68.5) && (!<R3>)
    argn1=113   //Esquentar arma
   elif (<R1250> < <EVALUATINGINTEL>) && (<act.distance> < 2) //Roubar no jogo!
    act.f_pega_fogo <R2,3>
@@ -1135,13 +1137,13 @@ endif
 
 
 //*************
-on=@NPCActFight
+//on=@NPCActFight
 //*************
-if (<action>!=<DEF.SKILL_MAGERY>) && !<tag0.NPC_CanCast> && (<mana> > 8)
- action=<DEF.SKILL_MAGERY>
- tag.NPC_CanCast=1
- timerf <MAXIMUM 4,<eval 7-(<int>/50)>> tag.NPC_CanCast=0
-endif
+//if (<action>!=<DEF.SKILL_MAGERY>) && !<tag0.NPC_CanCast> && (<mana> > 8)
+// action=<DEF.SKILL_MAGERY>
+// tag.NPC_CanCast=1
+// timerf <MAXIMUM 4,<eval 7-(<int>/50)>> tag.NPC_CanCast=0
+//endif
 
 
 [EVENTS e_caster_restoration]
@@ -1314,6 +1316,17 @@ if (<argn>==<DEF.SKILL_FOCUS>)
  endif
 endif
 
+on=@Polymorph
+//1=in;0=out
+if (<argn1>)
+ tag.magery=<MAXIMUM <magery>,<Focus>>
+ magery=0
+ Focus=0
+elif (<tag0.magery>)
+ magery=<tag0.magery>
+ focus=<tag0.magery>
+ tag.magery=
+endif
 
 
 [EVENTS e_caster_alteration]
@@ -1351,32 +1364,6 @@ endif
 //   Rapidês do tigre
 //   Inteligência da coruja
 //   Congelar arma
-
-
-//*************
-on=@NPCActFight
-//*************
-if (<action>!=<DEF.SKILL_SPELLWEAVING>)
- if (<tag0.NPC_CanCast> < <serv.time>) && (<mana> > 8)
-  action=<DEF.SKILL_SPELLWEAVING>
- elif (<action>==<DEF.SKILL_Magery>)
-  if (<wrestling>)
-   action=<def.Skill_wrestling>
-  else
-   flee <act>,6
-   return 1
-  endif
- endif
-endif
-
-//*************
-on=@SpellSelect
-//*************
-if (<argn3>==3)
- if (<tag0.NPC_CanCast> > <serv.time>) || (<mana> < 8) || (<body>!=<obody>)
-  return 1
- endif
-endif
 
 
 //*************
@@ -1420,7 +1407,7 @@ elif (!<tag0.turn>)
  else
   
   //[BUFF/DEBUFF - longe] Morfar?
-  if (<body>==<obody>) && (!<R4>)
+  if (<body>==<obody>) && (!<R5>)
    argn1=269    //Ursão
    DORAND <eval <SPELLWEAVING>/20.0>
     argn1=257   //Macaco
@@ -1431,7 +1418,7 @@ elif (!<tag0.turn>)
    END
   
   //[BUFF/DEBUFF - longe] Chama minion?
-  elif !(<tag0.cast_flags>&<DEF.flag_cast_spawn>) && (!<R3>)
+  elif !(<tag0.cast_flags>&<DEF.flag_cast_spawn>) && (!<R2>)
    argn1=265    //Ursinho
    DORAND <eval <SPELLWEAVING>/20.0>)
     argn1=253   //Pardal
@@ -1456,7 +1443,7 @@ elif (!<tag0.turn>)
 else
 
  //[ATTACK] Inimigo perto?
- if (<act.distance> < 4) && (<Spellweaving> > 87.5) && (!<R3>)
+ if (<act.distance> < 5) && (<Spellweaving> > 87.5) && (!<R2>)
   argn1=266     //Cone de gelo
  else
   argn1=256     //Dardos gélidos
@@ -1464,14 +1451,14 @@ else
 endif
 
 tag.turn = <eval <tag0.turn>+1>
-if (<tag0.turn> > 2)
+if (<tag0.turn> > 3)
  tag.turn=0
 endif
    
 
 argn2=<strarg <serv.spell.<argn1>.SKILLREQ>>/10
 //ACTDIFF=<argn2>
-argn3=<serv.spell.<argn1>.CAST_TIME>
+argn3=<eval <serv.spell.<argn1>.CAST_TIME>/2>
 
 //Spawnar em nome do necromante mesmo. MENOS pra Infestação.
 if (<serv.spell.<argn1>.flags>&SPELLFLAG_SUMMON) || (<serv.spell.<argn1>.flags>&SPELLFLAG_GOOD)
@@ -1480,14 +1467,14 @@ endif
 
 //Dizer WoP
 say <mage_GetSpellRunes <argn1>>
-serv.log castando <serv.spell.<argn1>.name> d:<dargn2> t:<dargn3> ad:<dACTDIFF> t:<dtag0.turn>
-tag.NPC_CanCast=<eval <serv.time>+<argn3>+5>
+//serv.log castando <serv.spell.<argn1>.name> d:<dargn2> t:<dargn3> ad:<dACTDIFF> t:<dtag0.turn>
+//tag.NPC_CanCast=<eval <serv.time>+<argn3>+5>
 //serv.log  <serv.dtime> to <eval <serv.time>+<argn3>+5> :: <eval <eval <serv.time>+<argn3>+5> - <serv.time>>
 
 //**************
 on=@SkillSuccess
 //**************
-tag.NPC_CanCast=<eval <serv.time>+70-(<int>/5)>
+//tag.NPC_CanCast=<eval <serv.time>+70-(<int>/5)>
 if (<argn>==<DEF.SKILL_SPELLWEAVING>)
  local.flags=<serv.spell.<actarg1>.flags>
  if (<local.flags>&SPELLFLAG_SUMMON)
@@ -1502,11 +1489,18 @@ if (<argn>==<DEF.SKILL_SPELLWEAVING>)
  endif
 endif
 
-on=@SkillFail
-  tag.NPC_CanCast=<eval <serv.time>+70-(<int>/5)>
-  
-on=@SkillA
-  tag.NPC_CanCast=<eval <serv.time>+70-(<int>/5)>
+on=@Polymorph
+//1=in;0=out
+if (<argn1>)
+ tag.magery=<MAXIMUM <magery>,<spellweaving>>
+ magery=0
+ spellweaving=0
+elif (<tag0.magery>)
+ magery=<tag0.magery>
+ spellweaving=<tag0.magery>
+ tag.magery=
+endif
+
 
 //**************
 on=@GetHit
