@@ -3354,11 +3354,15 @@ serv.resources.<tag.town_region>.tag.town_cost=<local.total>
 
 [FUNCTION town_pruneServants]
 //Pruna periodicamente os NPCs
-if !(<IsTEvent.e_town_Seneschal>) || (<IsEmpty <tag.town_region>>)
- serv.log [TOWN] Erro! <uid> tentando efetuar prune. Event? <eval <IsTEvent.e_town_Seneschal>> - Town: <tag.town_region>
- return 0
+if (!<argn>)
+ if !(<IsTEvent.e_town_Seneschal>) || (<IsEmpty <tag.town_region>>)
+  serv.log [TOWN] Erro! <uid> tentando efetuar prune. Event? <eval <IsTEvent.e_town_Seneschal>> - Town: <tag.town_region>
+  return 0
+ endif
+ DB.QUERY="SELECT uid FROM towns_servants WHERE region='<tag.town_region>';"
+else
+ DB.QUERY="SELECT uid FROM towns_servants;"
 endif
-DB.QUERY="SELECT uid FROM towns_servants WHERE region='<tag.town_region>';"
 local.total=0
 local.i=0
 
@@ -3385,13 +3389,61 @@ END
 //Prune
 if (<local.pruneN>)
  DB.EXECUTE="DELETE FROM towns_servants WHERE <local.prunes>;"
- serv.log [TOWN] Silent Prune removeu <dlocal.pruneN> NPCs inexistentes de <tag.town_region>.
+ if (<argn>)
+  return <local.pruneN>
+ else
+  serv.log [TOWN] Silent Prune removeu <dlocal.pruneN> NPCs inexistentes de <tag.town_region>.
+ endif
 endif
 
 
+[FUNCTION town_prunePetitions]
+//Remove petições de player não mais existentes
+DB.QUERY="SELECT ID, UID, father FROM towns_petitions;"
+local.n = 0
+for p 0 <eval <DB.ROW.NUMROWS>-1>
+
+ //Char existe?
+ obj=<DB.ROW.<local.p>.uid>
+ if (!<obj.IsChar>)
+  serv.log <obj.name>
+  //É uma petição ou voto?
+  if (<DB.ROW.<dlocal.p>.father>==0)
+  
+   //É uma petição. Remover os votos também.
+   if (<eval STRLEN(<local.q>)> < 3)
+    local.q = "WHERE (id = <eval <DB.ROW.<dlocal.p>.id>> OR father=<eval <DB.ROW.<dlocal.p>.id>>)"
+   else
+    local.q .= " OR (id = <eval <DB.ROW.<dlocal.p>.id>> OR father=<eval <DB.ROW.<dlocal.p>.id>>)"
+   endif
+  else
+   //É um voto. Remover só o voto.
+   if (<eval STRLEN(<local.q>)> < 3)
+    local.q = "WHERE id = <eval <DB.ROW.<dlocal.p>.id>>"
+   else
+    local.q .= " OR id = <eval <DB.ROW.<dlocal.p>.id>>"
+   endif
+  endif
+  local.n += 1
+ endif
+end
+
+if (!<local.n>)
+ return 0
+endif
+
+DB.EXECUTE="DELETE FROM towns_petitions <local.q>;"
+
+return <local.n>
+
+
 [FUNCTION town_pruneCitzens]
-//Remove jogadores inválidos da town <args>
-DB.QUERY="SELECT uid FROM towns_members WHERE region='<args>';
+//Remove jogadores inválidos da town <args>. Se ARGS for vazia, remove geral.
+if (<IsEmpty <args>>)
+ DB.QUERY="SELECT DISTICT uid FROM towns_members;
+else
+ DB.QUERY="SELECT DISTINCT uid FROM towns_members WHERE region='<args>';
+endif
 local.i=0
 FOR p 0 <eval <DB.ROW.NUMROWS>-1>
  if (!<uid.<db.row.<dlocal.p>.uid>.IsPlayer>)
@@ -3404,8 +3456,12 @@ FOR p 0 <eval <DB.ROW.NUMROWS>-1>
  endif
 END
 if (<local.i>)
- serv.log [TOWNS] PRUNE :: <dlocal.i> jogadores retirados do sistema por <topobj.name> (<args>).
  DB.EXECUTE="DELETE FROM towns_members WHERE<local.q>;"
+ if (<IsEmpty <args>>)
+  serv.log [TOWNS] PRUNE :: <dlocal.i> jogadores retirados do sistema por <topobj.name> (<args>).
+ else
+  return <local.i>
+ endif
 endif
 
 [FUNCTION TOWN_ADD_DOOR]

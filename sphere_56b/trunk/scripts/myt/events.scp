@@ -478,9 +478,9 @@ return 0
 //*************************************
 ON=@SKILLSUCCESS
 //*************************************
-//serv.log [SKILLSUCCESS] <src.account>/<src.action>/<eval <src.action>>
+//serv.log [SKILLSUCCESS] <src.account>/<src.action>/<src.action>/<argn1> <serv.skill.<argn1>.name>
 
-doswitch <src.action>
+doswitch <argn1>
 return 0                    // SKILL_ALCHEMY
 return 0                    // SKILL_ANATOMY
 return 0                    // SKILL_ANIMALLORE
@@ -506,7 +506,7 @@ return 0                    // SKILL_HIDING
 skill_gain <src.action>     // SKILL_PROVOCATION
 skill_gain <src.action>     // SKILL_INSCRIPTION
 return 0                    // SKILL_LOCKPICKING
-mage_success                // SKILL_MAGERY
+return <mage_success>       // SKILL_MAGERY
 skill_gain <src.action>     // SKILL_MAGICRESISTANCE
 return 0                    // SKILL_TACTICS
 skill_gain <src.action>     // SKILL_SNOOPING
@@ -530,12 +530,12 @@ skill_repeat <argn1>,1      // SKILL_MINING
 return 0                    // SKILL_MEDITATION
 return 0                    // SKILL_STEALTH
 skill_gain <src.action>     // SKILL_REMOVETRAP
-mage_success                // SKILL_NECROMANCY
-mage_success                // SKILL_FOCUS
+return <mage_success>       // SKILL_NECROMANCY
+return <mage_success>       // SKILL_FOCUS
 return 0                    // SKILL_CHIVALRY
 return 0                    // SKILL_BUSHIDO
 return 0                    // SKILL_NINJITSU
-mage_success                // SKILL_SPELLWEAVING
+return <mage_success>       // SKILL_SPELLWEAVING
 enddo
 return 0
 
@@ -753,48 +753,48 @@ on=@SpellSelect
 IF (<IsGM>)
  return 6//Proceder como o de normal
 ENDIF
-IF (<tag0.mage_spellid>) && (<argn3>==2)//Foi cancelada e começada outra magia posteriormente?
- serv.log SPELLSELECT 2. Aborta.
+IF (<tag0.mage_spellid>) && (<argn3>==3)//Foi cancelada e começada outra magia posteriormente?
+ serv.log SPELLSELECT 3. Aborta.
  mage_cleartags
- argn3=3        //Começar a castar de novo
- return 6
-ENDIF
-IF (<argn3>==2)         //sucesso. Passar para @skillsuccess
+ argn3=2        //Começar a castar de novo
  return 6
 ENDIF
 
-//Guarda se o char sabe a spell e quam é a spell
-tag.mage_know=<mage_knowSpell <argn1>>
-tag.mage_spellid=<argn1>
+IF (<argn3>==3)           //Iniciar
 
-//Define bônus/penalidade por modalidade de cast (WoP, wand/orb, scroll)
-if (<argo>==<uid>)      //Mago castando sozinho
- tag.mage_source=<DEF.MAGE_SELF>
- if !(<tag0.mage_know>)
-  argn2=(<argn2>*125)/100       //consimir 25% mais de mana
- endif
-else
- tag.mage_uid=<argo>            //Salva item
- argn2=0                        //Castando por item. Não usar mana.
- if (<argo.type>==t_wand)//Mago castando por varinha ou gema
-  tag.mage_source=<DEF.MAGE_WAND>
+ //Guarda se o char sabe a spell e quam é a spell
+ tag.mage_know=<mage_knowSpell <argn1>>
+ tag.mage_spellid=<argn1>
+ 
+ //Define bônus/penalidade por modalidade de cast (WoP, wand/orb, scroll)
+ if (<argo>==<uid>)      //Mago castando sozinho
+  tag.mage_source=<DEF.MAGE_SELF>
+  if !(<tag0.mage_know>)
+   argn2=(<argn2>*125)/100       //consimir 25% mais de mana
+  endif
  else
-  if (<argo.type>==t_SCROLL)//Mago castando por pergaminho
-   tag.mage_source=<DEF.MAGE_SCROLL>
-   if (!<tag0.mage_know>)//Se mago não sabe magia do pergaminho, gasta mana.
-    argn2=<serv.spell.<argn1>.manause>
+  tag.mage_uid=<argo>            //Salva item
+  argn2=0                        //Castando por item. Não usar mana.
+  if (<argo.type>==t_wand)//Mago castando por varinha ou gema
+   tag.mage_source=<DEF.MAGE_WAND>
+  else
+   if (<argo.type>==t_SCROLL)//Mago castando por pergaminho
+    tag.mage_source=<DEF.MAGE_SCROLL>
+    if (!<tag0.mage_know>)//Se mago não sabe magia do pergaminho, gasta mana.
+     argn2=<serv.spell.<argn1>.manause>
+    endif
    endif
   endif
  endif
-endif
-IF (<Mana> < <argn2>)
- sysmessageyellow Falta-lhe mana suficiente para esta magia...
- return 1
-endif
-tag.mage_mana=<argn2>
-serv.log SPELLSELECT <argn1> (<serv.spell.<argn1>.name>) - <argn2> - <argo.name>
+ IF (<Mana> < <argn2>)
+  sysmessageyellow Falta-lhe mana suficiente para esta magia...
+  return 1
+ endif
+ tag.mage_mana=<argn2>
+ tag.mage_p=<p>
+ENDIF
+serv.log SPELLSELECT <argn1> (<serv.spell.<argn1>.name>) - <argn2> - <argo.name> - Fase: <argn3>
 return 6
-
 
 //*************************************
 on=@spellcast
@@ -834,6 +834,8 @@ ELIF (<tag0.mage_source>==<DEF.MAGE_GEM>) || (<tag0.mage_source>==<DEF.MAGE_WAND
  argn2=0//Não tem chance de falha
  serv.log Gema/varinha
 ENDIF
+//Define chance de falha por andar
+
 tag.mage_actdiff=<argn2>
 serv.log SPELLCAST s: <argn1> (<serv.spell.<argn1>.name>) - d: <argn2> - ad: <argn3> - tag.actdiff: <dtag.mage_actdiff> - <argo.name>
 return 6

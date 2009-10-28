@@ -151,6 +151,7 @@ tag.mage_mana=
 tag.mage_actdiff=
 tag.mage_skill=
 tag.mage_uid=
+tag.mage_p=
 if (<IsPlayer>)
  ctag.mage.gem=
  ctag.mage.power=
@@ -178,7 +179,7 @@ if (<local.my> < <local.act>)
   necromancy -= 1
  endif
  //Trigar ganho de skill
- skill_gain SKILL_<streat <serv.spell.<tag0.mage_spellid>.skillreq>>
+ serv.log skill_gain SKILL_<streat <serv.spell.<tag0.mage_spellid>.skillreq>>
 endif
 
 //***********************************************************
@@ -189,6 +190,24 @@ endif
 IF !<tag0.mage_spellid>
  return 1
 endif
+
+if (!<IsEmpty <tag.mage_p>>)
+ local.penalty=<eval 4.5*<distance <tag.mage_p>>>
+ if (<local.penalty>)
+  local.penalty += <eval (<tag0.mage_actdiff>*10)-2.6>//Ajuste liear de -2.6 por causa de aflhas automáticas. Estamos testando 2x a magia desse jeito. Então o segundo teste (de penalidade por correr) deve ser mais brando pra não foder uma magia que já foi dada como sucesso.
+  local.skill=<streat <serv.spell.<tag0.mage_spellid>.skillreq>>
+  TRY local.skill = <src.<eval <DEF.<local.skill>>^0c0000000>>
+  //serv.log SPELLSUCCESS: Penalidade por andar: <dlocal.penalty> (<dlocal.skill>)
+  if (!<BELLTEST <local.skill>,<local.penalty>>)
+   sysmessagered Voce andou de mais!
+   mage_consumeMana <tag.mage_mana>
+   mage_cleartags
+   action -1
+   return 0
+  endif
+ endif 
+endif
+
 if <tag0.mage_source>==<DEF.MAGE_SELF> && !<tag0.mage_know>
  serv.log [mage_success] S: <tag0.mage_spellid> <serv.spell.<tag0.mage_spellid>.name>
  mage_learnSpell <tag0.mage_spellid>
@@ -217,8 +236,8 @@ endif
 mage_consumeMana <tag.mage_mana>
 mage_skillgain
 serv.log mage_success <serv.spell.<tag0.mage_spellid>.name>
-mage_cleartags
 TRIGGER @TownSpellSuccess,<DEF.TAT_AS_ARGN>,<tag0.mage_spellid>
+mage_cleartags
 return 6
 
 //***********************************************************
@@ -314,6 +333,28 @@ return 1
 /////////////////////////////Manejar magias e DB/////////////////////////////////
 //
 //*******************************************************************************
+//***********************************************************
+// mage_pruneDB
+//***********************************************************
+//Limpa todas as magias dos players não existentes
+[FUNCTION mage_pruneDB]
+DB.QUERY="SELECT DISTINCT player FROM spellbooks;"
+local.prune=0
+for p 0 <eval <DB.ROW.NUMROWS>-1>
+ if (!<UID.<DB.ROW.<dlocal.p>.player>.IsChar>)
+  if (<eval STRLEN(<local.case>)> < 2)
+   local.case = "WHERE player='<DB.ROW.<dlocal.p>.player>'"
+  else
+   local.case .= " OR player='<DB.ROW.<dlocal.p>.player>'"
+  endif
+  local.prune += 1
+ endif
+end
+if (!<local.prune>)
+ return 0
+endif
+DB.EXECUTE="DELETE FROM spellbooks <local.case>;"
+return <local.prune>
 
 //***********************************************************
 // mage_wipeSpells
@@ -351,7 +392,7 @@ IF <mage_KnowSpell <local.spell>>
  return 0
 else
  IF (<IsEmpty <tag.spells>>)
-  mage_initSpells <local.spell>
+  tag.spells = <local.spell>
  ELSE
   tag.spells .=<local.spell>;
  ENDIF
@@ -365,7 +406,7 @@ endif
 //***********************************************************
 //Carrega as magias do jogador <default> da DB para a lista local.
 [FUNCTION mage_loadSpells]
-DB.QUERY="SELECT spellid FROM spellbooks WHERE player='<DB.escapedata <UID>>' ORDER BY diff ASC;"
+DB.QUERY="SELECT DISTINCT spellid FROM spellbooks WHERE player='<DB.escapedata <UID>>' ORDER BY diff ASC;"
 tag.spells=;<DB.ROW.0.spellid>;
 for r 1 <eval <DB.ROW.NUMROWS>-1>
  if (!<IsEmpty <DB.ROW.<dlocal.r>.spellid>>)
@@ -427,19 +468,23 @@ return 1
 // mage_getIncLearning <spell>
 //***********************************************************
 //Retorna quantas vezes o char tem que acertar a magia para aprender
-//inc=dificuldade-skill
 [FUNCTION mage_getIncLearning]
-local.inc=<eval <strarg <serv.spell.<argv[0]>.skillreq>>-<src.<DEF.Skill_<streat <serv.spell.<argv[0]>.skillreq>>>>>
+//Custo da magia em sí (0~60)
+local.cost=<BETWEEN 0,60,<strarg <serv.spell.<argv[0]>.skillreq>>,125.0>
 
-//inc=inc/ratio
-local.inc /= <DEF.MAGE_LEARN_RATIO>
+//Bônus pela skill do playa (-25~0)
+local.cost -= <BETWEEN 0,25,<src.<DEF.Skill_<streat <serv.spell.<argv[0]>.skillreq>>>>,1250>
 
-//inc += offset
-local.inc=<QVAL <local.inc> <= <DEF.MAGE_LEARN_OFFSET>?<DEF.MAGE_LEARN_OFFSET>:<local.inc>+<DEF.MAGE_LEARN_OFFSET>>
+//Modificador por Inscription (-25~30)
+local.cost -= <BETWEEN -30,25,<src.Inscription>,1250>
 
-//inc += magias aprendendo
-local.inc += <mage_countLearningSpells>
-return <local.inc>
+//Modificador por spells sendo aprendidas (+3 x spells)
+local.cost += <eval 3*(<mage_countLearningSpells>-1)>
+
+//Minimizar em 5
+local.cost = <MAXIMUM <DEF.MAGE_LEARN_OFFSET>,<local.cost>>
+
+return <local.cost>
 
 //***********************************************************
 // mage_learnSpell <spell>,[<value>]
@@ -829,7 +874,7 @@ return 1
 
 [FUNCTION mage_DrawBookPage]
 IF (<ctag0.mage_property>==<DEF.MAGE_KNOWN>)
- DB.QUERY="SELECT spellid FROM spellbooks WHERE player='<DB.ESCAPEDATA <UID.<cTAG0.MAGE_GRIMORIO>.link>>' AND skill='<DB.ESCAPEDATA <ctag.mage_skill>>' ORDER BY diff ASC LIMIT <eval (<ctag.mage_page>-1)*2>, 3;"
+ DB.QUERY="SELECT DISTINCT spellid FROM spellbooks WHERE player='<DB.ESCAPEDATA <UID.<cTAG0.MAGE_GRIMORIO>.link>>' AND skill='<DB.ESCAPEDATA <ctag.mage_skill>>' ORDER BY diff ASC LIMIT <eval (<ctag.mage_page>-1)*2>, 3;"
  local.spell1=<DB.ROW.0.spellid>
  local.spell2=<DB.ROW.1.spellid>
  local.nextpage=<QVAL <DB.ROW.NUMROWS>==3?1:0>
