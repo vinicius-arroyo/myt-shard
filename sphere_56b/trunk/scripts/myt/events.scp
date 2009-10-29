@@ -738,107 +738,96 @@ endif
 //*************************************
 on=@SpellSelect
 //*************************************
-//Aumenta a dificuldade da magia em 10.0% por tile andado.
-//IF (<argn3>==3)
-// ctag.actp=<p>
-//ELIF (<argn3>==2)
-// LOCAL.penalty=<eval (<distance <ctag.actp>>*100)+<strarg <serv.spell.<argn1>.skillreq>>>
-// IF (!<BELLTEST <src.<def.<streat <serv.spell.<argn1>.skillreq>>>>>,<dLOCAL.penalty>>) && (<LOCAL.penalty>!=<actdiff>) //O ultimo teste representa SE o playa andou ou não. Se não andou, ignorar o teste.
-//  action=-1
-//  return 1
-// ENDIF
-//endif
+//Aumenta a dificuldade da magia em 4.5 por tile andado. Ver função MAGE_SUCCESS em sistema_de_magia.scp
 
 //Novo sistema de magias
-IF (<IsGM>)
- return 6//Proceder como o de normal
-ENDIF
-IF (<tag0.mage_spellid>) && (<argn3>==3)//Foi cancelada e começada outra magia posteriormente?
- serv.log SPELLSELECT 3. Aborta.
- mage_cleartags
- argn3=2        //Começar a castar de novo
- return 6
-ENDIF
-
-IF (<argn3>==3)           //Iniciar
-
- //Guarda se o char sabe a spell e quam é a spell
- tag.mage_know=<mage_knowSpell <argn1>>
- tag.mage_spellid=<argn1>
+IF (!<IsGM>)
+ IF (<tag0.mage_spellid>) && (<argn3>==3)//Foi cancelada e começada outra magia posteriormente?
+  serv.log SPELLSELECT 3. Aborta.
+  mage_cleartags
+  argn3=2        //Começar a castar de novo
+  return 6
+ ENDIF
  
- //Define bônus/penalidade por modalidade de cast (WoP, wand/orb, scroll)
- if (<argo>==<uid>)      //Mago castando sozinho
-  tag.mage_source=<DEF.MAGE_SELF>
-  if !(<tag0.mage_know>)
-   argn2=(<argn2>*125)/100       //consimir 25% mais de mana
-  endif
- else
-  tag.mage_uid=<argo>            //Salva item
-  argn2=0                        //Castando por item. Não usar mana.
-  if (<argo.type>==t_wand)//Mago castando por varinha ou gema
-   tag.mage_source=<DEF.MAGE_WAND>
+ IF (<argn3>==3)           //Iniciar
+ 
+  //Guarda se o char sabe a spell e quam é a spell
+  tag.mage_know=<mage_knowSpell <argn1>>
+  tag.mage_spellid=<argn1>
+  
+  //Define bônus/penalidade por modalidade de cast (WoP, wand/orb, scroll)
+  if (<argo>==<uid>)      //Mago castando sozinho
+   tag.mage_source=<DEF.MAGE_SELF>
+   if !(<tag0.mage_know>)
+    argn2=(<argn2>*125)/100       //consimir 25% mais de mana
+   endif
   else
-   if (<argo.type>==t_SCROLL)//Mago castando por pergaminho
-    tag.mage_source=<DEF.MAGE_SCROLL>
-    if (!<tag0.mage_know>)//Se mago não sabe magia do pergaminho, gasta mana.
-     argn2=<serv.spell.<argn1>.manause>
+   tag.mage_uid=<argo>            //Salva item
+   argn2=0                        //Castando por item. Não usar mana.
+   if (<argo.type>==t_wand)//Mago castando por varinha ou gema
+    tag.mage_source=<DEF.MAGE_WAND>
+   else
+    if (<argo.type>==t_SCROLL)//Mago castando por pergaminho
+     tag.mage_source=<DEF.MAGE_SCROLL>
+     if (!<tag0.mage_know>)//Se mago não sabe magia do pergaminho, gasta mana.
+      argn2=<serv.spell.<argn1>.manause>
+     endif
     endif
    endif
   endif
- endif
- IF (<Mana> < <argn2>)
-  sysmessageyellow Falta-lhe mana suficiente para esta magia...
-  return 1
- endif
- tag.mage_mana=<argn2>
- tag.mage_p=<p>
+  IF (<Mana> < <argn2>)
+   sysmessageyellow Falta-lhe mana suficiente para esta magia...
+   return 1
+  endif
+  tag.mage_mana=<argn2>
+  tag.mage_p=<p>
+ ENDIF
+ serv.log SPELLSELECT <argn1> (<serv.spell.<argn1>.name>) - <argn2> - <argo.name> - Fase: <argn3>
+ return 6
 ENDIF
-serv.log SPELLSELECT <argn1> (<serv.spell.<argn1>.name>) - <argn2> - <argo.name> - Fase: <argn3>
-return 6
 
 //*************************************
 on=@spellcast
 //*************************************
 
-if (<flags>&statf_invisible) && (!<IsGM>)
- flags ^= statf_invisible
- sysmessagegreen Voce foi revelado!
- emotered aparece
- update
-endif
-
-//Novo sistema de magias
-IF (<IsGM>)
- return 0
-ENDIF
-local.skill=<src.<serv.skill.<DEF.<streat <serv.spell.<argn1>.skillreq>>>.key>>
-IF <tag0.mage_source>==<DEF.MAGE_SELF>  //Mago castando via WoP
- if !<tag0.mage_know>                   //Não sabe a magia
-  argn2=(<argn2>*125)/100
+IF (!<IsGM>)
+ if (<flags>&statf_invisible)
+  flags ^= statf_invisible
+  sysmessagegreen Voce foi revelado!
+  emotered aparece
+  update
  endif
-ELIF <tag0.mage_source>==<DEF.MAGE_SCROLL>//Mago castando via scroll
- if <tag0.mage_know>                                                            //Sabe a magia
-  serv.log sabe a spell
-  argn2=(<strarg <serv.spell.<argn1>.skillreq>>*100)/125                         //Bônus de 25%
- elif (<inscription> > <local.skill>)   //Não sabe a magia. Usar Inscription?
-  if (<skillcheck inscription <eval <strarg <serv.spell.<argn1>.skillreq>>/10>>)
-   argn2=0      //Passou no teste com inscription
-  else
-   argn2=1500   //Não passou no teste de inscription
+ 
+ //Novo sistema de magias
+ local.skill=<src.<serv.skill.<DEF.<streat <serv.spell.<argn1>.skillreq>>>.key>>
+ IF <tag0.mage_source>==<DEF.MAGE_SELF>  //Mago castando via WoP
+  if !<tag0.mage_know>                   //Não sabe a magia
+   argn2=(<argn2>*125)/100
   endif
- else
-  serv.log nao sabe a spell
-  argn2=<eval <strarg <serv.spell.<argn1>.skillreq>>/10>        //Barra a diff hard coded de t_scroll
- endif
-ELIF (<tag0.mage_source>==<DEF.MAGE_GEM>) || (<tag0.mage_source>==<DEF.MAGE_WAND>)//Mago castando via gema/varinha encantada
- argn2=0//Não tem chance de falha
- serv.log Gema/varinha
+ ELIF <tag0.mage_source>==<DEF.MAGE_SCROLL>//Mago castando via scroll
+  if <tag0.mage_know>                                                            //Sabe a magia
+   serv.log sabe a spell
+   argn2=(<strarg <serv.spell.<argn1>.skillreq>>*100)/125                         //Bônus de 25%
+  elif (<inscription> > <local.skill>)   //Não sabe a magia. Usar Inscription?
+   if (<skillcheck inscription <eval <strarg <serv.spell.<argn1>.skillreq>>/10>>)
+    argn2=0      //Passou no teste com inscription
+   else
+    argn2=1500   //Não passou no teste de inscription
+   endif
+  else
+   serv.log nao sabe a spell
+   argn2=<eval <strarg <serv.spell.<argn1>.skillreq>>/10>        //Barra a diff hard coded de t_scroll
+  endif
+ ELIF (<tag0.mage_source>==<DEF.MAGE_GEM>) || (<tag0.mage_source>==<DEF.MAGE_WAND>)//Mago castando via gema/varinha encantada
+  argn2=0//Não tem chance de falha
+  serv.log Gema/varinha
+ ENDIF
+ //Define chance de falha por andar
+ 
+ tag.mage_actdiff=<argn2>
+ serv.log SPELLCAST s: <argn1> (<serv.spell.<argn1>.name>) - d: <argn2> - ad: <argn3> - tag.actdiff: <dtag.mage_actdiff> - <argo.name>
+ return 6
 ENDIF
-//Define chance de falha por andar
-
-tag.mage_actdiff=<argn2>
-serv.log SPELLCAST s: <argn1> (<serv.spell.<argn1>.name>) - d: <argn2> - ad: <argn3> - tag.actdiff: <dtag.mage_actdiff> - <argo.name>
-return 6
 
 //*************************************
 //on=@destroy
