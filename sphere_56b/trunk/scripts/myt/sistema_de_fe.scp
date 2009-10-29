@@ -9,33 +9,11 @@ Por:
         Galthar, o Errante
 
 ToDo:
-- Criar função para GM setar um item como t_idol com todos os parâmetros necessários
-        para o setup do sistema.
-- Criar uma memory para guardar as adorações do player para cada deus, inclusive alinhamento do deus
-        pontos de nível de oferenda e pontos de oração.
-- Criar gump para player layer com opções de fazer doação ou orar.
-        - Fazer doação: Target num tanto de moedas. O tanto de moedas é consumido.
-          O jogador ganha o valor das moedas em cobre em pontos de oferenda na memory
-                > Se o jogador fizer uma doação para um deus cujo alinhamento é
-                  contrário ao de alguma memory de deus que ele já tenha, dá debuff do deus da memory.
-                > Se o jogador fizer uma doação para um deus que já tenha memory, aumenta
-                  os pontos de doação na memory. Se os pontos de doação excederem o 
-                  offerincrease atual, ele ganha um ponto de alma + IDOL_PRAYLEVEL pontos de pray
-        - Orar: Chama uma função PRAY do deus definido para da buff ou debuff para o player.
-                > Se o player orar para um deus cujo alinhamento é contrário ao de
-                  alguma memory de deus que ele já tenha, causa um debuff de médio prazo 
-                  definido pelo deus da priumeira memory. A memory é apagada (excomungação).
-                > Se o player odar para um deus que já tenha memory, causa um buff de
-                  médio prazo e gasta um ponto de pray.
-                > Se o jogador não tem uma memory para esse deus mas orar, ele recebe o buff,
-                  recebe a memory porém com pontos de oferenda e pontos de oração zerados.
-                > Se o jogador não tiver pontos de pray para gastar, dá uma mensagem de que o deus
-                  ficou contente, adiciona de 3 a 7 pontos de oferenda (como se doasse 3 a 7
-                  moedas de cobre) e seta o cool down da memory para IDOL_COOLDOWN para não subir
-                  mais os pontos de oferenda (nem por oferenda) até o cool down zerar.
-- Criar uma função de PRAY para cada deus existente na MyT. Essa função será chamada pelo gump
-        do ídolo e trará um benefício ou maldição para o jogador.
-        
+
+
+
+Deuses:
+
 Melian
 Metryah
 Lyria
@@ -55,7 +33,7 @@ Molag'Bal
         
 
 [DEFNAME idols]
-IDOL_COOLDOWN           3*24*60*60      //Tempo de intervalo entre as oferendas (3 dias)
+IDOL_COOLDOWN           3//*24*60*60      //Tempo de intervalo entre as oferendas (3 dias)
 IDOL_MINOFFER           5*100           //Menor oferenda para ganhar um ponto de alma em cobres (5 mo)
 IDOL_OFFERINCREASE      75*10           //Incremento em cobre para o próximo ponto de alma (7mo e 5mp)
 IDOL_PRAYLEVEL          3               //Quantos PRAY ele pode chamar para cada nível de oferenda (6 pontos de oração).
@@ -90,10 +68,14 @@ if <src.IsGM>
  local.time=<eval (<serv.time>-<more2>)/10>
  local.stime=<f_timestring <local.time>>
  local.time = <eval <local.time>/86400>
- if (<local.time> >= <morex>)
-  local.rate=<eval <local.time>/<morex>> dias para cada oferenda
+ if (<local.time>) && (<morex>)
+  if (<local.time> >= <morex>)
+   local.rate=<eval <local.time>/<morex>> dias para cada oferenda
+  else
+   local.rate=<eval <morex>/<local.time>> oferendas por dia
+  endif
  else
-  local.rate=<eval <morex>/<local.time>> oferendas por dia
+  local.rate=Nenhuma
  endif
  src.f_sendTooltip <name>,Deus: <tag.god><DEF.BR> Idade: <local.stime><DEF.BR> Oferendas: <morex> (<STRTRESURE <dtag0.offers>>)<DEF.BR> Razao: <local.rate>.
 else
@@ -142,6 +124,13 @@ return 1
 
 
 [ITEMDEF i_mry_pray]
+//more1=Proxima doação com bônus de orações
+//more2=Dinheiro doado desde o ultimo bônus de alma
+//morex=Número de doações feitas
+//morey=Orações restantes
+//morez=Deus ficou zangado
+//morem=Almas doadas
+//tag.donations=Total de dinheiro doado
 ID=01C13
 NAME=Fe
 TYPE=t_eq_script
@@ -157,8 +146,8 @@ return 1
 
 
 //////////////////////////////////////////////
-[FUNCTION idolo]
-//Função para GM setar um ídolo
+[FUNCTION idulo]
+//Função para GM setar um ídulo
 if (!<argo>)
  if (!<IsEmpty <args>>)
   if (STRMATCH(*1*,<args>)) || (STRMATCH(*unblock*,<args>)) || (STRMATCH(*on*,<args>))
@@ -169,8 +158,8 @@ if (!<argo>)
    return 1
   endif
  endif
- sysmessageyellow Selecione um item para ser transformado em idolo:
- targetf idolo
+ sysmessageyellow Selecione um item para ser transformado em idulo:
+ targetf idulo
 elif (!<argo.IsItem>)
  sysmessagered Inválido.
 else
@@ -211,7 +200,7 @@ sysmessagegreen Processo terminado. <obj.name> agora eh um idulo e nao tem mais 
 [FUNCTION idol_open]
 //Abre o gump de idolo pra player
 ctag0.idol_uid=<argn>
-DIALOG d_idol
+SDIALOG d_idol
 
 
 //////////////////////////////////////////////
@@ -279,15 +268,24 @@ ref1.tag.offers = <eval <ref1.tag0.offers> + <local.amount>>
 ref2.tag.offers = <eval <ref2.tag0.offers> + <local.amount>>
 obj.remove
 
-//Decide se ajuda o player
+local.do=1
+//Decide se dá prays para o player
 if (<ref2.more2> >= <ref2.more1>)
  ref2.more1 += <DEF.IDOL_OFFERINCREASE>
  ref2.more2 = 0
- sysmessageblue <ref2.name> esta muito contente com voce!
- morte_incrementaPontos 1
+ sysmessageblue <ref2.name> esta contente com voce e atendera <eval <DEF.IDOL_PRAYLEVEL>> oracoes.
  ref2.morey += <DEF.IDOL_PRAYLEVEL>
+ local.do=0
+endif
+
+//Decide se dá alma pro player
+if (<idol_totalDonations> > <idol_nextSoulDonation>)
+ morte_incrementaPontos 1
  ref2.morem += 1
-else
+ local.do=0
+endif
+
+if (<local.do>)
  sysmessagegreen Voce doa <obj.amount> <obj.name> para <ref2.name>.
 endif
 
@@ -304,6 +302,30 @@ FORCONTID i_mry_pray 1
   local.enemyMem=<uid>
  endif
 END
+
+//////////////////////////////////////////////
+[FUNCTION idol_totalSouls]
+//Soma todos os pontos de alma concedidos
+local.s=0
+FORCONTID i_mry_pray 1
+ local.s += <morem>
+END
+return <local.s>
+
+//////////////////////////////////////////////
+[FUNCTION idol_nextSoulDonation]
+//Determina quanto dinheiro precisa para proxima doação
+local.souls=<idol_totalSouls>
+return <eval (2@<local.souls>)*<DEF.IDOL_OFFERINCREASE>>
+
+//////////////////////////////////////////////
+[FUNCTION idol_totalDonations]
+//Soma todo dinheiro já doado
+local.m=0
+FORCONTID i_mry_pray 1
+ local.m += <tag0.offers>
+END
+return <local.m>
 
 //////////////////////////////////////////////
 [FUNCTION idol_IsMyGod]
@@ -402,6 +424,11 @@ local.time += <eval (<ref1.tag.offers>/10)*60>
 timerf 5,sysmessageorange Sua bencao vai durar <f_timestring <local.time>>.
 new.timer=<local.time>
 
+
+//////////////////////////////////////////////
+//              Funções de Debuff           //
+//////////////////////////////////////////////
+
 [FUNCTION idol_debuff_Melian]
 local.moddex=<eval 30-<DEX>>
 Buff_Dex <local.moddex>, <eval 3*24*60*60>
@@ -482,6 +509,12 @@ Buff_Dex <local.moddex>, <eval 3*24*60*60>
 [FUNCTION idol_debuff_Molag'Bal]
 tag.morte_desmaios=<DEF.MAX_DESMAIOS>
 suicide
+
+
+//////////////////////////////////////////////
+//              Itemdefs de Buff            //
+//////////////////////////////////////////////
+
 
 [ITEMDEF i_mry_buff_Melian]
 ID=i_memory
