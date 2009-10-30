@@ -51,6 +51,7 @@ on=@ItemEquip
 if (<IsGM>) || (<flags>&080200b)
  return 0
 endif
+
 if (<act.isweapon>)
  if (<act.dam.hi> > 10) && !(<region.tag0.permissions>&TOWN_CAN_WEAPON) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_WAR)
   sysmessageyellow Eh bom que voce saiba que nao se pode andar com armas pesadas aqui.
@@ -332,7 +333,24 @@ if ((<action> > 064) && (<action> < 069)) || (<action>==06C) || (<action>==06D)
  endif
 endif
 
-  
+ON=@Hitting
+//Player com capuz?
+say <eval !<src.rec_CanSeeMe>> <eval <src.IsPlayer>>
+if (!<src.rec_CanSeeMe>) && (<src.IsPlayer>)
+ if (<src.restest i_capuz>)
+  src.capuz
+ else
+  obj=<src.findlayer.layer_helm>
+  if (<obj>)
+   obj.p=<src.p>
+  endif
+ endif
+ timerf 1,say Aha! Voce!
+ if !(<src.ctag0.town_<tag.town_region>_flags>&TOWN_FLAG_CRIMINAL)
+  src.town_setFlags <DEF.TOWN_FLAG_CRIMINAL>,<tag.town_region>
+ endif
+endif
+
 on=@Death
 town_UnRegServant
 serv.log Hey! Hey! Hey! Guarda <name> (<uid>) foi destruido!!!
@@ -869,7 +887,9 @@ elif (0<argv2>)
   elif (<tag0.advice_step>==4)
    tag.advice_step=
    attack <obj>
-   obj.town_setFlags TOWN_FLAG_CRIMINAL,<tag.town>
+   if <obj.rec_CanSeeMe>
+    obj.town_setFlags TOWN_FLAG_CRIMINAL,<tag.town>
+   endif
    return 1
   else
    timerf 4 guard_advice,<argv0>,<argv1>,1
