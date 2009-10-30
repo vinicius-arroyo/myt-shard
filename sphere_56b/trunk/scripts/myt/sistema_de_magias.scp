@@ -360,7 +360,7 @@ DB.QUERY="SELECT DISTINCT player FROM spellbooks;"
 local.prune=0
 for p 0 <eval <DB.ROW.NUMROWS>-1>
  obj=<DB.ROW.<dlocal.p>.player>
- if (!<obj.IsChar>)
+ if (!0<obj.Instances>) && (!<obj.IsChar>)
   if (<eval STRLEN(<local.case>)> < 2)
    local.case = "WHERE player='<DB.ROW.<dlocal.p>.player>'"
   else
@@ -372,8 +372,41 @@ end
 if (!<local.prune>)
  return 0
 endif
+serv.log [MAGE_PruneDB] "DELETE FROM spellbooks <local.case>;"
 DB.EXECUTE="DELETE FROM spellbooks <local.case>;"
 return <local.prune>
+
+//***********************************************************
+// mage_DumpSpells
+//***********************************************************
+//Mostra as magias inscritas na DB para este char
+[FUNCTION mage_DumpSpells]
+if (!<argo>)
+ sysmessageyellow Selecione o char:
+ TARGETF mage_DumpSpells
+ELSE
+ local.uid=<argo>
+ if (<local.uid>&040000000)
+  local.uid=<local.uid>^040000000
+ endif
+ DB.QUERY="SELECT * FROM spellbooks WHERE player='<local.uid>' OR player='<dlocal.uid>';"
+ local.c=0
+ SERV.LOG ----------------[DUMPSPELLS]-------------------
+ serv.log UID:<local.uid> ARGO:<argo>  ACC:<argo.account>   NAME:<argo.tag.name>
+ for s 0 <eval <DB.ROW.NUMROWS>-1>
+  local.m=I:<DB.ROW.<dlocal.s>.id>::P:<DB.ROW.<dlocal.s>.player>::Sid:<DB.ROW.<dlocal.s>.spellid>::Sk:<DB.ROW.<dlocal.s>.skill>::Dif:<DB.ROW.<dlocal.s>.diff>
+  if (<local.c>)
+   local.c=0
+   sysmessageyellow <local.m>
+  else
+   local.c=1
+   sysmessagegreen <local.m>
+  endif
+  serv.log <dlocal.s> - <local.m>
+ end
+ SERV.LOG ----------------[/DUMPSPELLS]------------------
+ENDIF
+
 
 //***********************************************************
 // mage_wipeSpells
@@ -418,7 +451,7 @@ else
  ENDIF
 ENDIF
 if (<IsPlayer>)
- DB.QUERY="INSERT INTO spellbooks SET player='<DB.ESCAPEDATA <src.uid>>', skill='<DB.ESCAPEDATA <streat <serv.spell.<local.spell>.skillreq>>>',diff='<DB.ESCAPEDATA <eval <strarg <serv.spell.<local.spell>.skillreq>>>>', spellid='<DB.ESCAPEDATA <local.spell>>';"
+ DB.QUERY="INSERT INTO spellbooks SET player='<src.uid>', skill='<DB.ESCAPEDATA <streat <serv.spell.<local.spell>.skillreq>>>',diff='<DB.ESCAPEDATA <eval <strarg <serv.spell.<local.spell>.skillreq>>>>', spellid='<DB.ESCAPEDATA <local.spell>>';"
 endif
 
 //***********************************************************
@@ -426,7 +459,7 @@ endif
 //***********************************************************
 //Carrega as magias do jogador <default> da DB para a lista local.
 [FUNCTION mage_loadSpells]
-DB.QUERY="SELECT DISTINCT spellid FROM spellbooks WHERE player='<DB.escapedata <UID>>' ORDER BY diff ASC;"
+DB.QUERY="SELECT DISTINCT spellid FROM spellbooks WHERE player='<UID>' ORDER BY diff ASC;"
 tag.spells=;<DB.ROW.0.spellid>;
 for r 1 <eval <DB.ROW.NUMROWS>-1>
  if (!<IsEmpty <DB.ROW.<dlocal.r>.spellid>>)
@@ -444,7 +477,7 @@ if (<IsNum <argv[0]>>)
 else
  local.spellid=<argv[0]>
 endif
-DB.EXECUTE="DELETE FROM spellbooks WHERE player='<DB.ESCAPEDATA <UID>>' AND spellid='<DB.ESCAPEDATA <local.spellid>>'";
+DB.EXECUTE="DELETE FROM spellbooks WHERE player='<UID>' AND spellid='<DB.ESCAPEDATA <local.spellid>>'";
 mage_loadSpells
   
 [FUNCTION mage_KnowSpell]
