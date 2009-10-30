@@ -10,9 +10,11 @@
 //*****************************************************************************
 
 //TODO:
-//diminuir area de cura
+
 
 //TAGS usadas:
+[DEFNAME camping]
+i_gravetos      i_kindling
 
 //*****************************************************************************
 //*****************************************************************************
@@ -27,9 +29,12 @@
 
 //cancela efeito do camping se alguem em warmode
 IF (<FLAGS> & statf_war) 
-    OBJ=<argv[1]>
-    OBJ.REGION.ALLCLIENTS SYSMESSAGERED <NAME> perturbou o acampamento!
-    OBJ.LINK.REMOVE
+    OBJ=<argv1>
+    REF1=<UID>
+    FORCLIENTS 2
+     SYSMESSAGERED <rec_fGetName <ref1>> perturbou o acampamento!
+    END
+    //OBJ.LINK.REMOVE
     OBJ.REMOVE
 ENDIF
 
@@ -57,7 +62,7 @@ ENDIF
 [ITEMDEF i_multi_campfire]
 ID=i_campfire
 TYPE=t_multi
-MULTIREGION=-5,-5,5,5
+MULTIREGION=-3,-3,3,3
 
 ON=@Create
 MOREZ=29
@@ -81,8 +86,9 @@ IF (<MORE2> < 1)
 ENDIF
 
 //cura quem estiver na regiao
+obj=<UID>
 FORCLIENTS 1
- CAMPHEAL <R1,2>,<uid>
+ CAMPHEAL <R1,2>,<obj>
 ENDFOR
 
 //subtrai tempo percorrido
@@ -95,11 +101,10 @@ RETURN 1
 //*****************************************************************************
 [ITEMDEF 0de1]
 DEFNAME=i_kindling
-DEFNAME2=i_gravetos
 TYPE=t_kindling
-NAME=gravetos%s%
-RESOURCES=1 i_log
-SKILLMAKE=BOWCRAFT 0.0
+NAME=graveto%s%
+RESOURCES=
+SKILLMAKE=0.0 Lumberjacking
 REPLICATE=1
 WEIGHT=.5
 CATEGORY=MyT - Items by Professions
@@ -119,8 +124,11 @@ endif
 
 src.skill_gain skill_camping
 
-if (!<belltest <SRC.CAMPING>,400>)
+if (!<belltest <SRC.CAMPING>,<R40.0>>) && (<R5>) && (!<IsGm>)
     SRC.emotered falhou ao acender a fogueira
+    if (<amount> > 1)
+        decrement
+    endif
     return 1
 endif
 
@@ -128,7 +136,14 @@ SERV.newitem i_campfire
 NEW.morez=29
 NEW.p=<p>
 //tempo total (30 a 330 segundos)
-NEW.timer=<EVAL (<SRC.CAMPING>*3)/10>+30
+
+//Determina tempo mínimo por graveto pelo Camping
+local.timer=<BETWEEN 150,500,<src.camping>,125.0>
+
+//Determina o tempo pela quantidade de gravetos
+local.timer=<MINIMUM 6000,<MAXIMUM 300,<eval (<amount>*<local.timer>)>>>
+
+NEW.decay=<local.timer>
 
 //teste se sera um caping de cura
 if (!<belltest <SRC.CAMPING>,700>)
@@ -143,7 +158,7 @@ NEW.LINK=<UID>
 //tempo total (max 300 segundos)
 NEW.MORE2=<EVAL (<SRC.CAMPING>*3)/10>
 //healing interval (de 2 a 12 segundos)
-NEW.MORE1=<EVAL 12-(<SRC.CAMPING>/100)>
+NEW.MORE1=<EVAL 14-(<SRC.CAMPING>/100)>
 NEW.TIMER=<NEW.MORE1>
 UPDATE
 SRC.emotered faz uma bela fogueira
@@ -172,19 +187,11 @@ SRC.RESEND
 return 1
 
 on=@timer
-if (<more1>)
- more1 -= 1
- timer 60
-else
- serv.newitem i_ember_lit
- NEW.morez=2
- new.attr=012
- new.timer=<serv.decaytimer>*60
- new.p=<p>
- new.emoteyellow apagou
- remove
-endif
-return 1
+serv.newitem i_ember_lit
+NEW.morez=2
+new.p=<p>
+new.decay=1200
+new.emoteyellow apagou
 
 [ITEMDEF 0de4]
 DUPEITEM=0de3
@@ -218,18 +225,11 @@ MOVABLE=0
 return 1
 
 on=@timer
-if (<more1>)
- more1 -= 1
- timer 60
-else
- serv.newitem i_ember
- new.attr=012
- new.timer=<serv.decaytimer>*60
- new.p=<p>
- new.emoteyellow apagou
- remove
-endif
-return 1
+serv.newitem i_ember
+new.p=<p>
+new.decay=1200
+new.emoteyellow apagou
+
 
 //*****************************************************************************
 // i_ember
