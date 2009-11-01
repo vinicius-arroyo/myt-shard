@@ -318,7 +318,7 @@ if (<argo.morex>)
  src.ctag.mage.enchant_spell=<argo.morex>
 endif
 src.ctag.mage_skill=Skill_<serv.skill.<eval <argo.tdata1>>.key>
-dialog d_spellbook 3
+SDIALOG d_spellbook 3
 return 1
 
 //***********************************************************
@@ -327,7 +327,7 @@ return 1
 //Selecinou a magia <argn> como sendo a magia do encantamento de uma gema
 [FUNCTION mage_enchant_gem_select_spell]
 ctag.mage.enchant_spell=<argn>
-dialog d_spellbook 3
+SDIALOG d_spellbook 3
 return 1
 
 
@@ -433,37 +433,58 @@ endif
 //***********************************************************
 //Adiciona uma magia para o jogador <default> na DB e na lista local.
 [FUNCTION mage_addSpell]
-if (<isNum <argv0>>)
- local.spell=<serv.spell.<argv0>.defname>
-else
- local.spell=<argv0>
-endif
-if (!<serv.spell.<local.spell>.defname>)
+local.spell=<mage_GetSpellNumber <argv0>>
+
+if (!<local.spell>)
  return 0
 endif
+
 IF <mage_KnowSpell <local.spell>>
  return 0
 else
  IF (<IsEmpty <tag.spells>>)
   tag.spells = <local.spell>
  ELSE
-  tag.spells .=<local.spell>;
+  tag.spells .= <serv.spell.<local.spell>.defname>;
  ENDIF
 ENDIF
 if (<IsPlayer>)
- DB.QUERY="INSERT INTO spellbooks SET player='<src.uid>', skill='<DB.ESCAPEDATA <streat <serv.spell.<local.spell>.skillreq>>>',diff='<DB.ESCAPEDATA <eval <strarg <serv.spell.<local.spell>.skillreq>>>>', spellid='<DB.ESCAPEDATA <local.spell>>';"
+ DB.QUERY="INSERT INTO spellbooks SET player=<src.dUID>, skill=<dDEF.<DB.ESCAPEDATA <streat <serv.spell.<local.spell>.skillreq>>>>, diff=<eval <strarg <serv.spell.<local.spell>.skillreq>>>, spellid=<dlocal.spell>;"
 endif
+
+//***********************************************************
+// mage_GetSpellNumber
+//***********************************************************
+[FUNCTION mage_GetSpellNumber]
+//Retorna o número da spell <args>
+
+if (<IsNum <argv0>>)
+ if <serv.spell.<argn>>
+  return <argn>
+ endif
+endif
+
+if (!<serv.resources.<argv0>>)
+ //sysmessageyellow Resource nao existe.
+ return 0
+endif
+
+if (<hval <DEF.<argv0>>&0ca000000>!=0ca000000)
+ //sysmessageyellow Nao eh magia.
+ return 0
+endif
+return <eval <argv0>^0ca000000>
 
 //***********************************************************
 // mage_loadSpells
 //***********************************************************
 //Carrega as magias do jogador <default> da DB para a lista local.
 [FUNCTION mage_loadSpells]
-DB.QUERY="SELECT DISTINCT spellid FROM spellbooks WHERE player='<UID>' ORDER BY diff ASC;"
-tag.spells=;<DB.ROW.0.spellid>;
+DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<dUID> ORDER BY diff ASC;"
+tag.spells=;<serv.spell.<DB.ROW.0.spellid>.defname>;
 for r 1 <eval <DB.ROW.NUMROWS>-1>
  if (!<IsEmpty <DB.ROW.<dlocal.r>.spellid>>)
-  tag.spells .=<DB.ROW.<dlocal.r>.spellid>;
+  tag.spells .=<serv.spell.<DB.ROW.0.spellid>.defname>;
  endif
 end
 
@@ -472,20 +493,16 @@ end
 //***********************************************************
 //Apaga uma dada magia da DB e carrega novamente a lista local para o jogador <default>
 [FUNCTION mage_forgetSpell]
-if (<IsNum <argv[0]>>)
- local.spellid=<serv.spell.<argv[0]>.defname>
-else
- local.spellid=<argv[0]>
-endif
-DB.EXECUTE="DELETE FROM spellbooks WHERE player='<UID>' AND spellid='<DB.ESCAPEDATA <local.spellid>>'";
+local.spellid=<mage_GetSpellNumber <argv0>>
+
+DB.EXECUTE="DELETE FROM spellbooks WHERE player=<dUID> AND spellid=<dlocal.spell>";
 mage_loadSpells
   
 [FUNCTION mage_KnowSpell]
-//Checa na lista local se o jogador conhece a dada spell
-IF (STRMATCH(*;<serv.spell.<argn>.defname>;*,<src.tag.spells>))// || (STRMATCH(;<serv.spell.<argn>.defname>;*,<src.tag.spells>)) || (STRMATCH(*;<serv.spell.<argn>.defname>;,<src.tag.spells>))
- return 1
-ENDIF
-return 0
+//Checa na DB local se o jogador conhece a dada spell
+DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<eval <uid>> AND spellid=<eval <mage_GetSpellNumber <argv0>>>;"
+RETURN <DB.ROW.NUMROWS>
+
 
 
 //*******************************************************************************
@@ -582,7 +599,7 @@ endif
 obj.more2 += <local.inc>
 if <obj.more2> >= <mage_getIncLearning <obj.more1>>
  //terminou o aprendizado
- mage_addSpell <serv.resources.<obj.more1>.defname>
+ mage_addSpell <hval <obj.more1>^0ca000000>
  timerf 3 sysmessageorange,Voce aprendeu uma magia nova: <serv.resources.<obj.more1>.name>
  timerf 3 psfx,<serv.resources.<obj.more1>.SOUND>
  obj.remove
@@ -882,7 +899,7 @@ DESCRIPTION=destruicao
 
 on=@dclick
 src.ctag.mage_skill=skill_magery
-src.DIALOG d_spellbook 1
+src.SDIALOG d_spellbook 1
 return 1
 
 [ITEMDEF i_grimorio_necro]
@@ -895,7 +912,7 @@ DESCRIPTION=necromancia
 
 on=@dclick
 src.ctag.mage_skill=skill_necromancy
-src.DIALOG d_spellbook 1
+src.SDIALOG d_spellbook 1
 return 1
 
 [ITEMDEF i_grimorio_restauracao]
@@ -908,7 +925,7 @@ DESCRIPTION=restauracao
 
 on=@dclick
 src.ctag.mage_skill=skill_focus
-src.DIALOG d_spellbook 1
+src.SDIALOG d_spellbook 1
 return 1
 
 [ITEMDEF i_grimorio_alteracao]
@@ -921,13 +938,13 @@ DESCRIPTION=alteracao
 
 on=@dclick
 src.ctag.mage_skill=skill_spellweaving
-src.DIALOG d_spellbook 1
+src.SDIALOG d_spellbook 1
 return 1
 
 
 [FUNCTION mage_DrawBookPage]
 IF (<ctag0.mage_property>==<DEF.MAGE_KNOWN>)
- DB.QUERY="SELECT DISTINCT spellid FROM spellbooks WHERE player='<DB.ESCAPEDATA <UID.<cTAG0.MAGE_GRIMORIO>.link>>' AND skill='<DB.ESCAPEDATA <ctag.mage_skill>>' ORDER BY diff ASC LIMIT <eval (<ctag.mage_page>-1)*2>, 3;"
+ DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<UID.<cTAG0.MAGE_GRIMORIO>.dlink> AND skill=<eval <DEF.<ctag.mage_skill>>> ORDER BY diff ASC LIMIT <eval (<ctag.mage_page>-1)*2>, 3;"
  local.spell1=<DB.ROW.0.spellid>
  local.spell2=<DB.ROW.1.spellid>
  local.nextpage=<QVAL <DB.ROW.NUMROWS>==3?1:0>
@@ -940,7 +957,7 @@ button 49 9 2205 2205 1 0 1002
 IF (<eval <local.spell1>>)
  dhtmlgump 82 8 112 35 0 0 <DEF.BFONT_SIZE5><DEF.BFONT_DBLUE><serv.spell.<local.spell1>.name>//Nome da magia
  if (!<IsEmpty <src.ctag.mage_action>>)//Se é necessário apertar a runa pra fazer alguma coisa (inscription, etc)
-  button 65 46 2472 2473 1 0 <eval <DEF.<local.spell1>>&~0ca000000>
+  button 65 46 2472 2473 1 0 <dlocal.spell1>
  endif
  gumppic 60 41 <serv.spell.<local.spell1>.RUNE_ITEM>// //Runa
  dhtmlgump 107 41 88 41 0 0 <DEF.BFONT_SIZE4><mage_GetSpellRunes <local.spell1>>//WoP
@@ -965,7 +982,7 @@ ENDIF
 IF (<eval <local.spell2>>)
  dhtmlgump 212 8 112 35 0 0 <DEF.BFONT_SIZE5><DEF.BFONT_DBLUE><serv.spell.<local.spell2>.name>
  if (!<IsEmpty <src.ctag.mage_action>>)//Se é necessário apertar a runa pra fazer alguma coisa (inscription, etc)
-  button 225 46 2472 2473 1 0 <eval <DEF.<local.spell2>>&~0ca000000>
+  button 225 46 2472 2473 1 0 <dlocal.spell2>
  endif
  gumppic 220 41 <serv.spell.<local.spell2>.RUNE_ITEM>//gumppic 60 41 2240
  dhtmlgump 267 41 88 41 0 0 <DEF.BFONT_SIZE4><mage_GetSpellRunes <local.spell2>>
@@ -1079,35 +1096,35 @@ ON=1000
 // learning spells
 src.ctag.mage_property=<DEF.MAGE_LEARNING>
 src.ctag.mage_page=1
-src.DIALOG d_spellbook 2
+src.SDIALOG d_spellbook 2
 
 ON=1001
 // known spells
 src.ctag.mage_property=<DEF.MAGE_KNOWN>
 src.ctag.mage_page=1
-src.DIALOG d_spellbook 2
+src.SDIALOG d_spellbook 2
 
 ON=1002
 // pg-
 src.ctag.mage_page=<src.ctag0.mage_page>-1
 IF (!<src.ctag0.mage_page>)
  src.ctag.mage_property=
- src.DIALOG d_spellbook 1
+ src.SDIALOG d_spellbook 1
 ELSE
- src.DIALOG d_spellbook 2
+ src.SDIALOG d_spellbook 2
 ENDIF
 
 ON=1003
 // pg+
 src.ctag.mage_page=<src.ctag0.mage_page>+1
-src.DIALOG d_spellbook 2
+src.SDIALOG d_spellbook 2
 
 ON=1004
 //Mais poder
 IF (<ctag0.mage.power> < 10)
  ctag.mage.power=<ctag0.mage.power>+1
 endif
-DIALOG d_spellbook 3
+SDIALOG d_spellbook 3
 return 1
 
 ON=1005
@@ -1115,7 +1132,7 @@ ON=1005
 IF (<ctag0.mage.power> > 0)
  ctag.mage.power=<ctag0.mage.power>-1
 endif
-DIALOG d_spellbook 3
+SDIALOG d_spellbook 3
 return 1
 
 ON=1006
@@ -1124,11 +1141,11 @@ IF (!<ctag0.mage.enchant_spell>)
  ctag.mage_action=mage_enchant_gem_select_spell         //Função que vai ser chamada quando a magia for selecionada
  ctag.mage_property=<DEF.MAGE_KNOWN>            //Abrir o livro na parte de magias conhecidas
  ctag.mage_page=1                               //Abrir o livro na página 1
- DIALOG d_spellbook 2                           //Abrir o livro
+ SDIALOG d_spellbook 2                           //Abrir o livro
  sysmessagegreen Selecione uma magia conhecida:
 else
  ctag.mage.enchant_spell=
- DIALOG d_spellbook 3
+ SDIALOG d_spellbook 3
 endif
 return 1
 
