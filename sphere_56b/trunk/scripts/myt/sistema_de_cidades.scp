@@ -946,7 +946,7 @@ return <hval <DB.ROW.0.artefactUID>>
 
 [FUNCTION town_changeArtefact]
 if (!<argo>)
- sysmessageyellow Selecione um item do mundo para ser o artefato de <serv.resources.<ctag.town_region>.name>:
+ sysmessageyellow Selecione um item do mundo para ser o artefato de <serv.area.<ctag.town_region>.name>:
  targetf town_changeArtefact
 else
  //Já existe um artefato?
@@ -958,14 +958,14 @@ else
  endif
  argo.type=t_town_artefact
  argo.tag.town=<ctag.town_region>
- argo.name=<argo.name> de <serv.resources.<ctag.town_region>.name>
+ argo.name=<argo.name> de <serv.area.<ctag.town_region>.name>
  DB.EXECUTE="UPDATE towns SET artefactUID=<eval <argo.uid>> WHERE region='<ctag.town_region>';"
 endif
 
 
 [FUNCTION town_changeVault]
 if (!<argo>)
- sysmessageyellow Selecione um container do mundo para ser o cofre de <serv.resources.<ctag.town_region>.name>:
+ sysmessageyellow Selecione um container do mundo para ser o cofre de <serv.area.<ctag.town_region>.name>:
  targetf town_changeVault
 else
  if (<argo.cont>)
@@ -987,7 +987,7 @@ endif
 [FUNCTION town_IsTown]
 //Determina se existe TOWN na region <ARGS>. Se não há ARGS, usa a region em que DEFAULT está.
 if (STRMATCH(a_*,<args>))
- if (<serv.resources.<args>.uid>&06000000)
+ if (<IsAreadef <args>>)
   local.region=<args>
  else
   return 0
@@ -1013,9 +1013,9 @@ endif
 DB.EXECUTE="INSERT INTO towns SET region='<DB.ESCAPEDATA <argv0>>', type=<eval <argv1>>, capital='<DB.ESCAPEDATA <argv2>>', tresure=0;"
 DB.EXECUTE="INSERT INTO towns_privs SET region='<DB.ESCAPEDATA <argv0>>', position=1, title='mestre', description='Mestre. Todos os privilegios. Nao pode ser apagado.', privs=<eval 0FFFFFF>;"
 DB.EXECUTE="INSERT INTO towns_privs SET region='<DB.ESCAPEDATA <argv0>>', position=999, title='cidadao', description='Simples membro. Sem privilegios. Nao pode ser apagado', privs=0;"
-serv.resources.<argv0>.events +r_town
-serv.resources.<argv0>.allclients town_enter <args>
-serv.resources.<argv0>.tag.permissions=<town_getPermissions <argv0>>
+serv.area.<argv0>.events +r_town
+serv.area.<argv0>.allclients town_enter <args>
+serv.area.<argv0>.tag.permissions=<town_getPermissions <argv0>>
 
 
 [FUNCTION townAddSubTown]
@@ -1028,7 +1028,7 @@ town <ctag.town_region>
 
 [FUNCTION town_selectCapital]
 // LIST para seleção da capital da nova Town
-list_new Selecione a capital para <serv.resources.<ctag.town_region>.name>:
+list_new Selecione a capital para <serv.area.<ctag.town_region>.name>:
 list_newDbCol 20,Nome,Nome
 list_newDbCol 200,Tipo,Tipo
 list_setAction townAddSubTown
@@ -1038,12 +1038,12 @@ list_loadFromDb "SELECT region AS Nome, type AS tipo, capital from towns WHERE t
 for i <ctag.list_numitems>
  //Salvar defname da capital em outra lista
  TRY ctag.town_capital_<dlocal.i>=<ctag.list_row<local.i>_01>
- TRY ctag.list_row<local.i>_01=<serv.resources.<ctag.list_row<local.i>_01>.name>
+ TRY ctag.list_row<local.i>_01=<serv.area.<ctag.list_row<local.i>_01>.name>
  DOSWITCH <ctag.list_row<local.i>_02>
   local.null
   TRY ctag.list_row<local.i>_02=Estado maior
-  TRY ctag.list_row<local.i>_02=Sub-Regiao de <serv.resources.<DB.ROW.<eval <local.i>-1>.capital>.name>
-  TRY ctag.list_row<local.i>_02=Regiao sob administracao de <serv.resources.<DB.ROW.<eval <local.i>-1>.capital>.name>
+  TRY ctag.list_row<local.i>_02=Sub-Regiao de <serv.area.<DB.ROW.<eval <local.i>-1>.capital>.name>
+  TRY ctag.list_row<local.i>_02=Regiao sob administracao de <serv.area.<DB.ROW.<eval <local.i>-1>.capital>.name>
  ENDDO
 end
 
@@ -1094,7 +1094,7 @@ ref1=<argv1>
 DB.QUERY="SELECT master FROM towns WHERE region='<argv0>';"
 IF (0<DB.ROW.0.master>)
  local.oldmaster=<DB.ROW.0.master>
- f_sendMessage <local.oldmaster>,Voce nao eh mais mestre de <serv.resources.<argv0>.name>!,<DEF.SM_RED>
+ f_sendMessage <local.oldmaster>,Voce nao eh mais mestre de <serv.area.<argv0>.name>!,<DEF.SM_RED>
  //Seta mestre atual como membro comum.
  DB.QUERY="SELECT id FROM towns_privs WHERE position=999 AND region='<argv0>';"
  local.newpos=<DB.ROW.0.id>
@@ -1111,7 +1111,7 @@ else
 endif
 DB.EXECUTE="UPDATE towns SET master=<eval <ref1>> WHERE region='<argv0>';"
 
-f_sendMessage <ref1>,Voce eh o novo mestre de <serv.resources.<argv0>.name>!,<DEF.SM_GREEN>
+f_sendMessage <ref1>,Voce eh o novo mestre de <serv.area.<argv0>.name>!,<DEF.SM_GREEN>
 if (<ref1.IsOnline>)
  ref1.psfx 05B4
 endif
@@ -1119,7 +1119,7 @@ endif
 
 [FUNCTION town_deleteTown]
 //deleta a town de DEFNAME=<argv0> da DB
-prompt_new Excluir <serv.resources.<argv0>.name>?<DEF.BR>Isso removera <serv.resources.<argv0>.name> do sistema de cidades permanentemente. (S/N)?
+prompt_new Excluir <serv.area.<argv0>.name>?<DEF.BR>Isso removera <serv.area.<argv0>.name> do sistema de cidades permanentemente. (S/N)?
 prompt_setAction town_deleteTown2 <argv0>,
 prompt_show
 
@@ -1131,10 +1131,10 @@ IF (STRMATCH(S,<argv1>))
  DB.EXECUTE="DELETE FROM towns_privs WHERE region='<argv0>';"
  DB.EXECUTE="DELETE FROM towns WHERE region='<argv0>';"
  DB.EXECUTE="UPDATE towns SET type=1, capital=region WHERE capital='<argv0>';"
- serv.resources.<argv0>.events -r_town
- serv.resources.<argv0>.allclients events -e_InTown
- serv.resources.<argv0>.tag.permissions=
- sysmessagered <serv.resources.<argv0>.name> excuida do sistema de cidades!
+ serv.area.<argv0>.events -r_town
+ serv.area.<argv0>.allclients events -e_InTown
+ serv.area.<argv0>.tag.permissions=
+ sysmessagered <serv.area.<argv0>.name> excuida do sistema de cidades!
  return 1
 ENDIF
 return 0
@@ -1298,7 +1298,7 @@ RETURN <DB.ROW.0.cnt>
 
 [FUNCTION town_targAddFriend]
 if (!<argo>)
- sysmessageyellow Selecione um jogador de uma raca proibida em <serv.resources.<ctag.town_region>.name> para ser aceito na cidade:
+ sysmessageyellow Selecione um jogador de uma raca proibida em <serv.area.<ctag.town_region>.name> para ser aceito na cidade:
  targetf town_targAddFriend
 else
  //Isso eh um jogador?
@@ -1317,7 +1317,7 @@ else
    sysmessagered Ess<argo.sex e/a> <argo.tag.raca> nao pode ser amigo da cidade enquanto estiver banido!
   else
    argo.town_setAsFriend <ctag.town_region>
-   argo.sysmessagegreen Voce agora eh um amigo em <serv.resources.<ctag.town_region>.name>!
+   argo.sysmessagegreen Voce agora eh um amigo em <serv.area.<ctag.town_region>.name>!
   endif
  endif
  town
@@ -1326,7 +1326,7 @@ endif
 
 [FUNCTION town_targAddCriminal]
 if (!<argo>)
- sysmessageyellow Selecione um jogador para ser marcado como criminoso de <serv.resources.<ctag.town_region>.name>:
+ sysmessageyellow Selecione um jogador para ser marcado como criminoso de <serv.area.<ctag.town_region>.name>:
  targetf town_targAddCriminal
 else
  //Isso eh um jogador?
@@ -1353,7 +1353,7 @@ endif
 
 [FUNCTION town_targInviteCitzen]
 if (!<argo>)
- sysmessageyellow Selecione um jogador para convidar a cidadao de <serv.resources.<ctag.town_region>.name>:
+ sysmessageyellow Selecione um jogador para convidar a cidadao de <serv.area.<ctag.town_region>.name>:
  targetf town_targInviteCitzen
 else
  //Isso eh um jogador?
@@ -1372,7 +1372,7 @@ else
   argo.ctag.town_region=<ctag.town_region>
   argo.ctag.town_uid=<uid>
   trysrc <argo> src.town_prompInviteCitzen
-  say Voce aceita ser um cidadao de <serv.resources.<ctag.town_region>.name>?
+  say Voce aceita ser um cidadao de <serv.area.<ctag.town_region>.name>?
   timerf 1,sysmessageorange Aguarde a resposta del<argo.sex e/a>.
   return 1
  endif
@@ -1386,7 +1386,7 @@ ref1=<ctag.town_uid>
 if (STRMATCH(s,<args>))
  town_Azilum <ctag.town_region>
 else
- prompt_new Voce deseja ser cidadao de <serv.resources.<ctag.town_region>.name>? (s/n)
+ prompt_new Voce deseja ser cidadao de <serv.area.<ctag.town_region>.name>? (s/n)
  prompt_setAction town_prompInviteCitzen
  prompt_show
 endif
@@ -1413,7 +1413,7 @@ endif
 local.capital=<town_getCapital <local.town>>
 DB.QUERY="SELECT uid FROM towns_members  WHERE region='<local.town>' OR region='<local.capital>';"
 for p 0 <eval <DB.ROW.NUMROWS>-1>
- f_sendMessage <DB.ROW.<dlocal.p>.uid>,[<serv.resources.<local.town>.name>] <argv0>,<DEF.SM_ORANGE>
+ f_sendMessage <DB.ROW.<dlocal.p>.uid>,[<serv.area.<local.town>.name>] <argv0>,<DEF.SM_ORANGE>
 end
 
 
@@ -1443,7 +1443,7 @@ SDIALOG d_town
 
 [FUNCTION town_PromptFirstColor]
 //Pergunta a cor primária da Town. 0 para TARGET em item
-prompt_new Escolha a cor primaria de <serv.resources.<ctag.town_region>.name>:<DEF.BR>(numero da cor ou '0' para target)
+prompt_new Escolha a cor primaria de <serv.area.<ctag.town_region>.name>:<DEF.BR>(numero da cor ou '0' para target)
 prompt_setAction town_setColor 1,
 prompt_setActionBack SDIALOG d_town
 prompt_show
@@ -1451,7 +1451,7 @@ prompt_show
 
 [FUNCTION town_PromptSecondColor]
 //Pergunta a cor secundária da Town. 0 para TARGET em item
-prompt_new Escolha a cor secundaria de <serv.resources.<ctag.town_region>.name>:<DEF.BR>(numero da cor ou '0' para target)
+prompt_new Escolha a cor secundaria de <serv.area.<ctag.town_region>.name>:<DEF.BR>(numero da cor ou '0' para target)
 prompt_setAction town_setColor 2,
 prompt_setActionBack SDIALOG d_town
 prompt_show
@@ -1569,7 +1569,7 @@ SDIALOG d_town
 [FUNCTION town_listMembers]
 //Lista todos os membros e cidadãos da town com region=<ctag.town_region>
 town_clearTable
-list_new "Lista de cidadaos de <serv.resources.<ctag.town_region>.name>"
+list_new "Lista de cidadaos de <serv.area.<ctag.town_region>.name>"
 list_newDbCol 25,uid,Nome
 list_newDbCol 200,title,Titulo
 list_setAction town_showMember
@@ -1586,7 +1586,7 @@ list_show 1
 //Lista todos os membros e cidadãos da town com region=<ctag.town_region>
 town_pruneServants <ctag.town_region>//Pruna primeiro
 town_clearTable
-list_new "Lista de funcionarios de <serv.resources.<ctag.town_region>.name>"
+list_new "Lista de funcionarios de <serv.area.<ctag.town_region>.name>"
 list_newDbCol 25,uid,Nome
 list_newDbCol 200,uid,Cargo
 list_setAction town_showNPC
@@ -1620,7 +1620,7 @@ list_show 1
 [FUNCTION town_listMembersPosition]
 //Lista todos os membros e cidadãos da town com region=<ctag.town_region> e cargo=<ctag.town_positionID>
 town_clearTable
-list_new "Lista de cidadaos de <serv.resources.<ctag.town_region>.name> com cargo de <ctag.town_title>"
+list_new "Lista de cidadaos de <serv.area.<ctag.town_region>.name> com cargo de <ctag.town_title>"
 list_newDbCol 25,uid,Nome
 list_newDbCol 200,title,Titulo
 list_setAction town_showMember
@@ -1643,7 +1643,7 @@ IF (!<argv>)
  else
   local.pos=1
  endif
- list_new "Qual sera o novo cargo de <uid.<ctag.town_uid>.tag.name> em <serv.resources.<ctag.town_region>.name>?"
+ list_new "Qual sera o novo cargo de <uid.<ctag.town_uid>.tag.name> em <serv.area.<ctag.town_region>.name>?"
  list_newDbCol 25,title,Titulo
  list_newDbCol 200,position,Posicao
  list_setAction town_listChangePosition
@@ -1669,7 +1669,7 @@ ELSE
   return 1
  endif
  local.newpos=<ref1.town_getTitle <ctag.town_region>>
- f_sendMessage <tag.town_uid>,[<serv.resources.<ctag.town_region>.name>]Voce foi <local.w> de <local.oldpos> a <local.newpos>!,<DEF.SM_ORANGE>
+ f_sendMessage <tag.town_uid>,[<serv.area.<ctag.town_region>.name>]Voce foi <local.w> de <local.oldpos> a <local.newpos>!,<DEF.SM_ORANGE>
  SDIALOG d_town
 ENDIF
 
@@ -1709,7 +1709,7 @@ return <DB.ROW.0.criminals>
 [FUNCTION town_listEnemies]
 //Lista todos os jogadores com flag de banido ou criminoso ou inadimplente.
 town_clearTable
-list_new "Lista de inimigos publicos de <serv.resources.<ctag.town_region>.name>"
+list_new "Lista de inimigos publicos de <serv.area.<ctag.town_region>.name>"
 list_newDbCol 25,uid,Nome
 list_newDbCol 200,flags,Estado
 list_setAction town_showCriminal
@@ -1739,7 +1739,7 @@ list_show 1
 [FUNCTION town_listPrisioners]
 //Lista todos os jogadores com flag de preso.
 town_clearTable
-list_new "Lista de prisioneiros de <serv.resources.<ctag.town_region>.name>"
+list_new "Lista de prisioneiros de <serv.area.<ctag.town_region>.name>"
 list_newDbCol 25,uid,Nome
 list_newDbCol 200,flags,Estado
 list_setAction town_showCriminal
@@ -1770,7 +1770,7 @@ list_show 1
 [FUNCTION town_listFriends]
 //Lista todos os jogadores com flag de Friend
 town_clearTable
-list_new "Lista de extrangeiros amigos de <serv.resources.<ctag.town_region>.name>"
+list_new "Lista de extrangeiros amigos de <serv.area.<ctag.town_region>.name>"
 list_newDbCol 25,uid,Nome
 list_newCol 200,Raca
 list_setAction town_showFriend
@@ -1789,7 +1789,7 @@ list_show 1
 //Lista todos os membros e cidadãos da town com region=<ctag.town_region> para transferir a tirularidade
 IF (!<argn>)
  town_clearTable
- list_new "Para quem deseja transferir a titularidade de <serv.resources.<ctag.town_region>.name>?"
+ list_new "Para quem deseja transferir a titularidade de <serv.area.<ctag.town_region>.name>?"
  list_newDbCol 25,uid,Nome
  list_newDbCol 200,position,Hierarquia
  list_newDbCol 275,title,Titulo
@@ -1815,8 +1815,8 @@ endif
 if (STRMATCH(s,<args>))
  town_Independecy <ctag.town_region>
 else
- local.capital=<serv.resources.<town_getCapital <ctag.town_region>>.name>
- prompt_new Deseja tornar <serv.resources.<ctag.town_region>.name> independente? A alta cupola de <local.capital> pode nao gostar da ideia! (s/n)
+ local.capital=<serv.area.<town_getCapital <ctag.town_region>>.name>
+ prompt_new Deseja tornar <serv.area.<ctag.town_region>.name> independente? A alta cupola de <local.capital> pode nao gostar da ideia! (s/n)
  prompt_setAction town_Independecy <ctag.town_region>,
  prompt_setActionBack town_Configurations
  prompt_show
@@ -1831,7 +1831,7 @@ else
  local.town=<region.defname>
 endif
 DB.EXECUTE="UPDATE towns SET type=1, capital='<local.town>' WHERE region='<local.town>';"
-town_MassMessage Foi declarada a independencia de <serv.resources.<local.town>.name>!!!
+town_MassMessage Foi declarada a independencia de <serv.area.<local.town>.name>!!!
 town_Configurations
 
 [FUNCTION town_PrisionMenu]
@@ -1861,7 +1861,7 @@ if (!<IsNum <argv0>>)
  for i <ctag.list_numitems>
   //Salvar defname da capital em outra lista
   TRY ctag.town_region_<dlocal.i>=<ctag.list_row<local.i>_01>
-  TRY ctag.list_row<local.i>_01=<serv.resources.<ctag.list_row<local.i>_01>.name>
+  TRY ctag.list_row<local.i>_01=<serv.area.<ctag.list_row<local.i>_01>.name>
   DOSWITCH <ctag.list_row<local.i>_02>
    local.null
    TRY ctag.list_row<local.i>_02=Estado maior
@@ -1910,7 +1910,7 @@ if (!<IsNum <argv0>>)
  for i <ctag.list_numitems>
   //Salvar defname da capital em outra lista
   TRY ctag.town_region_<dlocal.i>=<ctag.list_row<local.i>_01>
-  TRY ctag.list_row<local.i>_01=<serv.resources.<ctag.list_row<local.i>_01>.name>
+  TRY ctag.list_row<local.i>_01=<serv.area.<ctag.list_row<local.i>_01>.name>
   DOSWITCH <ctag.list_row<local.i>_02>
    local.null
    TRY ctag.list_row<local.i>_02=Estado maior
@@ -1924,7 +1924,7 @@ else
  local.type=<hval <local.capital_type>+1>
  DB.EXECUTE="UPDATE towns SET capital='<local.capital>', type=<dlocal.type> WHERE region='<ctag.town_region>';"
  DB.EXECUTE="UPDATE towns SET capital='<local.capital>' WHERE capital='<ctag.town_region>' AND type<=<local.type>;"
- town_MassMessage A regiao <serv.resources.<ctag.town_region>.name> foi anexada a <serv.resources.<local.capital>.name>!,<local.capital>
+ town_MassMessage A regiao <serv.area.<ctag.town_region>.name> foi anexada a <serv.area.<local.capital>.name>!,<local.capital>
 endif
 
 
@@ -1960,7 +1960,7 @@ sysmessagegreen Peticao enviada. A resposta pode demorar dias se nenhum responsa
 [FUNCTION town_sendCitzenshipPetition]
 //Envia uma nova petição para ser cidadão
 ctag.gtime = ".<eval <var.tDay>>/<eval <var.tMonth>>/<eval <var.tYear>>"
-local.text=Declaro-me candidato a ser um cidadao de <serv.resources.<ctag.town_region>.name> esperando a apreciacao do governo.
+local.text=Declaro-me candidato a ser um cidadao de <serv.area.<ctag.town_region>.name> esperando a apreciacao do governo.
 DB.EXECUTE="INSERT INTO towns_petitions SET title='Peticao de azilo de <tag.name>', text='<local.text>', father=0, type=<eval <DEF.TOWN_PET_AZILUM>>, UID=<eval <UID>>, gtime='<DB.ESCAPEDATA <STRSUB 1 10 <ctag.gtime>>>', time=CURRENT_TIMESTAMP(), region='<ctag.town_region>', flags=0;"
 sysmessagegreen Peticao de cidadania enviada. A resposta pode demorar dias se nenhum responsavel aparecer.
 
@@ -1975,7 +1975,7 @@ if (!<IsNum <argv0>>)
   local.town=<region.defname>
  endif
  town_clearTable
- list_new Peticoes abertas em <serv.resources.<local.town>.name>
+ list_new Peticoes abertas em <serv.area.<local.town>.name>
  list_newDbCol 20,title,Titulo
  list_newDbCol 300,UID,requisitado por
  list_setAction town_listOpenPetitions
@@ -2002,7 +2002,7 @@ if (!<IsNum <argv0>>)
   local.town=<region.defname>
  endif
  town_clearTable
- list_new Peticoes ja votadas em <serv.resources.<local.town>.name>
+ list_new Peticoes ja votadas em <serv.area.<local.town>.name>
  list_newDbCol 20,title,Titulo
  list_newDbCol 300,UID,requisitado por
  list_setAction town_listOpenPetitions
@@ -2140,7 +2140,7 @@ town_Laws
 [FUNCTION town_lawsList]
 //Lista as leis da town
 town_clearTable
-list_new Decretos promulgados em <serv.resources.<ctag.town_region>.name>:
+list_new Decretos promulgados em <serv.area.<ctag.town_region>.name>:
 list_newDbCol 20,id,No.
 list_newDbCol 100,gtime,data
 list_newDbCol 300,title,Titulo
@@ -2174,7 +2174,7 @@ ctag.town_title=
 ctag.town_description=
 ctag.town_positionID=
 ctag.town_privs=
-list_new "Lista de cargos de <serv.resources.<ctag.town_region>.name>"
+list_new "Lista de cargos de <serv.area.<ctag.town_region>.name>"
 list_newDbCol 25,title,Titulo
 list_newDbCol 200,position,Posicao
 list_setAction town_showPosition
@@ -2205,7 +2205,7 @@ SDIALOG d_town
 [FUNCTION town_lawsListRevoke]
 //Lista leis para revogar
 town_clearTable
-list_new Desejo revogar o seguinte decreto de <serv.resources.<ctag.town_region>.name>:
+list_new Desejo revogar o seguinte decreto de <serv.area.<ctag.town_region>.name>:
 list_newDbCol 20,id,No.
 list_newDbCol 100,gtime,data
 list_newDbCol 300,title,Titulo
@@ -2249,7 +2249,7 @@ endif
 [FUNCTION town_lawsListEdit]
 //Lista decretos para editar
 town_clearTable
-list_new Desejo modificar o seguinte decreto de <serv.resources.<ctag.town_region>.name>:
+list_new Desejo modificar o seguinte decreto de <serv.area.<ctag.town_region>.name>:
 list_newDbCol 20,id,No.
 list_newDbCol 100,gtime,data
 list_newDbCol 300,title,Titulo
@@ -2330,7 +2330,7 @@ DOSWITCH <local.racen>
 end
 if (strmatch(*<local.race>*,<local.races>))
  if (<town_getCash> < <DEF.TOWN_SERVANT_1_HIRE>)
-  sysmessageyellow <serv.resources.<local.town>.name> nao tem dinheiro para pagar por um porteiro.
+  sysmessageyellow <serv.area.<local.town>.name> nao tem dinheiro para pagar por um porteiro.
   town_PageNPCs
   retuen 1
  endif
@@ -2370,7 +2370,7 @@ DOSWITCH <local.racen>
 end
 if (strmatch(*<local.race>*,<local.races>))
  if (<town_getCash> < <DEF.TOWN_SERVANT_3_HIRE>)
-  sysmessageyellow <serv.resources.<local.town>.name> nao tem dinheiro para pagar por um senescal.
+  sysmessageyellow <serv.area.<local.town>.name> nao tem dinheiro para pagar por um senescal.
   town_PageNPCs
   retuen 1
  endif
@@ -2416,7 +2416,7 @@ DOSWITCH <local.racen>
 end
 if (strmatch(*<local.race>*,<local.races>))
  if (<town_getCash> < <DEF.TOWN_GUARD_<dlocal.level>_HIRE>)
-  sysmessageyellow <serv.resources.<local.town>.name> nao tem dinheiro para pagar por este guarda.
+  sysmessageyellow <serv.area.<local.town>.name> nao tem dinheiro para pagar por este guarda.
   town_PageNPCs
   retuen 1
  endif
@@ -2465,7 +2465,7 @@ if (<IsEmpty <args>>)
  prompt_setActionBack SDIALOG d_town
  prompt_show
 else
- serv.resources.<ctag.town_region>.tag.prisionTime=<eval <argn>*60>
+ serv.area.<ctag.town_region>.tag.prisionTime=<eval <argn>*60>
  SDIALOG d_town
 endif
 
@@ -2478,7 +2478,7 @@ if (<IsEmpty <args>>)
  prompt_setActionBack SDIALOG d_town
  prompt_show
 else
- serv.resources.<ctag.town_region>.tag.prisionFee=<argn>
+ serv.area.<ctag.town_region>.tag.prisionFee=<argn>
  SDIALOG d_town
 endif
 
@@ -2490,11 +2490,11 @@ targetfg town_AddCell2
 
 [FUNCTION town_AddCell2]
  local.c=0
- WHILE (!<IsEmpty <serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>>>)
+ WHILE (!<IsEmpty <serv.area.<ctag.town_region>.tag.cell_<dlocal.c>>>)
   local.c += 1
  END
  //local.c += 1
- serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>=<targp>
+ serv.area.<ctag.town_region>.tag.cell_<dlocal.c>=<targp>
  sysmessage args: <args> targp: <targp>
  town_PrisionCells
 
@@ -2506,16 +2506,16 @@ targetfg town_AddCell2
 local.t=0
 FOR c 0 5
  if (<local.c> != <argn>)
-  local.cache_<dlocal.t>=<serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>>
+  local.cache_<dlocal.t>=<serv.area.<ctag.town_region>.tag.cell_<dlocal.c>>
   local.t += 1
  endif
- serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>=
+ serv.area.<ctag.town_region>.tag.cell_<dlocal.c>=
 END
 
 //Repopula a lista
 FOR n 0 5
  if (!<IsEmpty <local.cache_<dlocal.n>>>) && (<EVAL STRLEN(<local.cache_<dlocal.n>>)> > 2)
-  serv.resources.<ctag.town_region>.tag.cell_<dlocal.n>=<local.cache_<dlocal.n>>
+  serv.area.<ctag.town_region>.tag.cell_<dlocal.n>=<local.cache_<dlocal.n>>
  endif
 END
 town_PrisionCells
@@ -2538,16 +2538,16 @@ endif
 
 [FUNCTION town_changeReleasePoint]
 //Target no ponto de banimento/soltura da town
-sysmessageyellow Selecione um ponto no mapa 'FORA DOS MUROS' de <serv.resources.<ctag.town_region>.name>
+sysmessageyellow Selecione um ponto no mapa 'FORA DOS MUROS' de <serv.area.<ctag.town_region>.name>
 targetfg town_changeReleasePoint2
 
 [FUNCTION town_changeReleasePoint2]
-serv.resources.<ctag.town_region>.tag.town_releasePoint = <TARGP>
+serv.area.<ctag.town_region>.tag.town_releasePoint = <TARGP>
 SDIALOG d_town
 
 [FUNCTION town_manageBook]
 if (<region.defname> != <ctag.town_region>) || (<region.defname> != <ctag.town_region>)
- sysmessagered Voce so poderia fazer isso em <serv.resources.<ctag.town_region>.name>.
+ sysmessagered Voce so poderia fazer isso em <serv.area.<ctag.town_region>.name>.
  return 1
 elif (!<argo>)
  sysmessageyellow Selecione um livro dentro de uma estante:
@@ -3244,10 +3244,10 @@ else
 endif
 DB.EXECUTE="INSERT INTO towns_servants SET uid=<eval <uid>>, type=<eval <tag0.servant>>, region='<local.town>';"
 DORAND 3
- say Nao ha lugar como o lar. E <serv.resources.<local.town>.name> eh meu novo lar!
- say <serv.resources.<local.town>.name> eh meu novo lar!
- say Eh bom estar em <serv.resources.<local.town>.name>. Morarei aqui.
- say Ja me instalei em <serv.resources.<local.town>.name>. Agora aqui eh meu lar.
+ say Nao ha lugar como o lar. E <serv.area.<local.town>.name> eh meu novo lar!
+ say <serv.area.<local.town>.name> eh meu novo lar!
+ say Eh bom estar em <serv.area.<local.town>.name>. Morarei aqui.
+ say Ja me instalei em <serv.area.<local.town>.name>. Agora aqui eh meu lar.
 END
 tag.town_region=<local.town>
 
@@ -3349,7 +3349,7 @@ END
 
 timerf 3 say <local.emote>
 
-serv.resources.<tag.town_region>.tag.town_cost=<local.total>
+serv.area.<tag.town_region>.tag.town_cost=<local.total>
 
 
 [FUNCTION town_pruneServants]
@@ -3618,7 +3618,7 @@ WHILE (!<IsEmpty <DEF.TOWN_PERMISSION_<dlocal.r>>>)
 END
 DB.EXECUTE="UPDATE towns SET permissions=<dlocal.flags> WHERE region='<ctag.town_region>';"
 ctag.town_page=<DEF.TOWN_PAGE_REPORT>
-serv.resources.<ctag.town_region>.tag.permissions=<local.flags>
+serv.area.<ctag.town_region>.tag.permissions=<local.flags>
 SDIALOG d_town
 
 
@@ -3648,12 +3648,12 @@ SDIALOG d_town
 [FUNCTION town_buildReport]
         //CALL para contruir html e valores de TOWN_PAGE_REPORT
         DB.QUERY="SELECT * FROM towns WHERE region='<DB.ESCAPEDATA <ctag.town_region>>';"
-        local.html=<DEF.BFONT_LPURPLE>    <serv.resources.<ctag.town_region>.name><DEF.BFONT_white> eh<addspace>
+        local.html=<DEF.BFONT_LPURPLE>    <serv.area.<ctag.town_region>.name><DEF.BFONT_white> eh<addspace>
         DOSWITCH <DB.ROW.0.type>
          local.html .= UM TREMENDO BUG (reportar no forum)
          local.html .= uma regiao soberana
-         local.html .= uma sub-regiao de <serv.resources.<DB.ROW.0.capital>.name>
-         local.html .= uma regiao sob a administracao de <serv.resources.<DB.ROW.0.capital>.name>
+         local.html .= uma sub-regiao de <serv.area.<DB.ROW.0.capital>.name>
+         local.html .= uma regiao sob a administracao de <serv.area.<DB.ROW.0.capital>.name>
         ENDDO
         local.html .= <addspace>cujo responsavel eh <DEF.BFONT_LPURPLE><uid.<DB.ROW.0.master>.tag.name><DEF.BFONT_white>
         if (<DB.ROW.0.artefactUID>)
@@ -3661,12 +3661,12 @@ SDIALOG d_town
         endif
         local.html .= ".<DEF.BR>"
         local.html .= - Tesouro: <strtresure <DB.row.0.tresure>><DEF.BR>
-        local.html .= - Gasto periodico: <strtresure <serv.resources.<ctag.town_region>.tag0.town_cost>> a cada <f_timestring <eval <DEF.TOWN_TRIG_TIME>/10>>
+        local.html .= - Gasto periodico: <strtresure <serv.area.<ctag.town_region>.tag0.town_cost>> a cada <f_timestring <eval <DEF.TOWN_TRIG_TIME>/10>>
         local.races=<DB.ROW.0.FriendRaces>
 
 
 [FUNCTION d_town_buildMemberHtml]
-        local.html=<DEF.BFONT_GREEN><uid.<ctag.town_uid>.tag.name><DEF.BFONT_WHITE>, <ctag.town_title> de <serv.resources.<ctag.town_region>.name>.
+        local.html=<DEF.BFONT_GREEN><uid.<ctag.town_uid>.tag.name><DEF.BFONT_WHITE>, <ctag.town_title> de <serv.area.<ctag.town_region>.name>.
         local.html .= "<DEF.BR>Posicao hierarquica: <dctag.town_position><DEF.BFONT_LPURPLE>"
         if (!<ctag0.town_member_flags>)
          local.html .= "<DEF.BR> - Em dia com o governo"
@@ -3698,7 +3698,7 @@ SDIALOG d_town
         
 
 [FUNCTION d_town_buildCriminalHtml]
-        local.html=<DEF.BFONT_GREEN><uid.<ctag.town_uid>.tag.name><DEF.BFONT_WHITE> eh um criminoso em <serv.resources.<ctag.town_region>.name>.<DEF.BFONT_LPURPLE>
+        local.html=<DEF.BFONT_GREEN><uid.<ctag.town_uid>.tag.name><DEF.BFONT_WHITE> eh um criminoso em <serv.area.<ctag.town_region>.name>.<DEF.BFONT_LPURPLE>
         if (!<ctag0.town_member_flags>)
          local.html .= "<DEF.BR> - Em dia com o governo"
         else
@@ -3721,7 +3721,7 @@ SDIALOG d_town
 
 [FUNCTION d_town_buildFriendHtml]
         ref1=<ctag0.town_uid>
-        local.html=<DEF.BFONT_GREEN><ref1.tag.name>, <ref1.sex o/a> <ref1.tag.raca> <DEF.BFONT_WHITE> eh um extrangeiro com permissao de permanecer em <serv.resources.<ctag.town_region>.name>.<DEF.BFONT_LPURPLE>
+        local.html=<DEF.BFONT_GREEN><ref1.tag.name>, <ref1.sex o/a> <ref1.tag.raca> <DEF.BFONT_WHITE> eh um extrangeiro com permissao de permanecer em <serv.area.<ctag.town_region>.name>.<DEF.BFONT_LPURPLE>
         if (!<ctag0.town_member_flags>)
          local.html .= "<DEF.BR> - Em dia com o governo"
         else
@@ -3761,7 +3761,7 @@ SDIALOG d_town
         FOR n 0 <eval <DB.ROW.NUMROWS>-1>
          try local.npc_<eval <DB.ROW.<dlocal.n>.type>> = 0<local.npc_<eval <DB.ROW.<dlocal.n>.type>>>+1
         END
-        local.t = <serv.resources.<ctag.town_region>.name> tem no momento <eval <DB.ROW.NUMROWS>> servidores, gerando um gasto de <strtresure <serv.resources.<ctag.town_region>.tag0.town_cost>> a cada <f_timestring <eval <DEF.TOWN_TRIG_TIME>/10>><DEF.BR>
+        local.t = <serv.area.<ctag.town_region>.name> tem no momento <eval <DB.ROW.NUMROWS>> servidores, gerando um gasto de <strtresure <serv.area.<ctag.town_region>.tag0.town_cost>> a cada <f_timestring <eval <DEF.TOWN_TRIG_TIME>/10>><DEF.BR>
         local.s=1
         WHILE (!<IsEmpty <DEF.TOWN_SERVANT_<dlocal.s>>>)
          local.t .= " - <DEF.TOWN_SERVANT_<dlocal.s>>: <dlocal.npc_<dlocal.s>><DEF.BR>"
@@ -3793,28 +3793,28 @@ SDIALOG d_town
          local.ord=<STRTRESURE <DEF.TOWN_SERVANT_<obj.dtag0.SERVANT>_ORD>>
          local.guard=0
         ENDIF
-        local.html=<DEF.BFONT_LBLUE><obj.name><DEF.BFONT_WHITE> eh um <local.position> de <serv.resources.<obj.tag.town_region>.name><DEF.BR>
+        local.html=<DEF.BFONT_LBLUE><obj.name><DEF.BFONT_WHITE> eh um <local.position> de <serv.area.<obj.tag.town_region>.name><DEF.BR>
         local.html .= Seu salario eh de <local.ord><DEF.BR>
         local.html .= Este funcionario esta contratado ha <f_timestring <eval <obj.age>*6>><DEF.BR>
         local.html .= Atualmente ele se encontra em <obj.region.name> e sua posicao atual eh <QVAL <IsGM>?<obj.p>:<obj.sextantp>>.
         return <local.html>
         
 [FUNCTION d_town_buildPrisionHtml]
-        local.fee=<serv.resources.<ctag.town_region>.tag0.prisionFee>
-        local.time=<f_timestring <serv.resources.<ctag.town_region>.tag0.prisionTime>>
-        local.prisions=<serv.resources.<ctag.town_region>.tag0.prisions>
+        local.fee=<serv.area.<ctag.town_region>.tag0.prisionFee>
+        local.time=<f_timestring <serv.area.<ctag.town_region>.tag0.prisionTime>>
+        local.prisions=<serv.area.<ctag.town_region>.tag0.prisions>
         local.cells=0
         local.prisioners=<town_getPrisioners <ctag.town_region>>
         for c 0 4
-         if (!<IsEmpty <serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>>>)
+         if (!<IsEmpty <serv.area.<ctag.town_region>.tag.cell_<dlocal.c>>>)
           local.cells += 1
          endif
         end
-        if (!<serv.resources.<ctag.town_region>.tag0.prisionTime>)
-         local.html = O sistema de prisao esta desabilitado. Os delinquentes sao atacados e banidos de <serv.resources.<ctag.town_region>.name>.
+        if (!<serv.area.<ctag.town_region>.tag0.prisionTime>)
+         local.html = O sistema de prisao esta desabilitado. Os delinquentes sao atacados e banidos de <serv.area.<ctag.town_region>.name>.
         else
          local.html = "Celas ativas: <dlocal.cells> <DEF.BR>Tempo minimo de cativeiro: <local.time> <DEF.BR>Fianca minima: "
-         if <serv.resources.<ctag.town_region>.tag0.prisionFee>
+         if <serv.area.<ctag.town_region>.tag0.prisionFee>
           local.html .= "<STRTRESURE <local.fee>> "
          else
           local.html .= "Inafiancavel "
@@ -4034,17 +4034,17 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_CONFIG>)
           dtext +18 *20 45 Declarar independencia
           button - +3 30008 30009 1 0 38
          else
-          dtext +18 *20 45 Tornar <serv.resources.<ctag.town_region>.name> subordinada a outra regiao.
+          dtext +18 *20 45 Tornar <serv.area.<ctag.town_region>.name> subordinada a outra regiao.
           button - +3 30008 30009 1 0 37
          endif
         ENDIF
         dtext +18 *20 5 Prisao
         button - +3 30008 30009 1 0 100
         IF (<src.town_CheckPrivs <DEF.TOWN_PRIV_LAWS>>)
-         dtext +18 *20 45 Mudar ponto de soltura/banimento (<QVAL <IsGM>?<serv.resources.<ctag.town_region>.tag0.town_releasePoint>:<SEXTANTP <serv.resources.<ctag.town_region>.tag0.town_releasePoint>>>)
+         dtext +18 *20 45 Mudar ponto de soltura/banimento (<QVAL <IsGM>?<serv.area.<ctag.town_region>.tag0.town_releasePoint>:<SEXTANTP <serv.area.<ctag.town_region>.tag0.town_releasePoint>>>)
          button - +3 30008 30009 1 0 109
         else
-         dtext +18 *20 5 Ponto de soltura/banimento (<SEXTANTP <serv.resources.<ctag.town_region>.tag0.town_releasePoint>>)
+         dtext +18 *20 5 Ponto de soltura/banimento (<SEXTANTP <serv.area.<ctag.town_region>.tag0.town_releasePoint>>)
         endif
         IF (<src.town_CheckPrivs <DEF.TOWN_PRIV_BOOKS>>)
          dtext +18 *20 45 Prender/soltar um livro
@@ -4176,7 +4176,7 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_PRIVS>)
          local.privs=<ctag0.town_privs>
         ENDIF
         resizepic 92 89 2620 416 289
-        dtext 105 100 036 Privilegios para <ctag.town_title> de <serv.resources.<ctag.town_region>.name>:
+        dtext 105 100 036 Privilegios para <ctag.town_title> de <serv.area.<ctag.town_region>.name>:
         dorigin 105 100
         local.r=0
         local.c=11
@@ -4477,11 +4477,11 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_CELLS_LIST>)
         dorigin 101 100
         local.c=0
         dtext +19 *30 47 Precioneo botao do lado da cela para remove-la.
-        WHILE (!<IsEmpty <serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>>>)
+        WHILE (!<IsEmpty <serv.area.<ctag.town_region>.tag.cell_<dlocal.c>>>)
          if (<IsGM>)
-          dtext +19 *20 56 Cela <eval <dlocal.c>+1> (<serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>>)
+          dtext +19 *20 56 Cela <eval <dlocal.c>+1> (<serv.area.<ctag.town_region>.tag.cell_<dlocal.c>>)
          else
-          dtext +19 *20 56 Cela <eval <dlocal.c>+1> (<sextantp <serv.resources.<ctag.town_region>.tag.cell_<dlocal.c>>>)
+          dtext +19 *20 56 Cela <eval <dlocal.c>+1> (<sextantp <serv.area.<ctag.town_region>.tag.cell_<dlocal.c>>>)
          endif
          button - +1 30008 30009 1 0 <eval 120+<local.c>>
          local.c += 1
@@ -4511,7 +4511,7 @@ gumppic 0 356 10402
 gumppic 518 0 10410
 gumppic 518 160 10411
 gumppic 518 356 10412
-dhtmlgump 92 43 416 38 1 0 <DEF.CENTER><DEF.BFONT_RED><serv.resources.<ctag.town_region>.name>
+dhtmlgump 92 43 416 38 1 0 <DEF.CENTER><DEF.BFONT_RED><serv.area.<ctag.town_region>.name>
 call d_town_solve
 
 [DIALOG d_town text]
@@ -4860,7 +4860,7 @@ town_PrisionMenu
 
 ON=101
 //Ativa/desativar prisão
-if (<serv.resources.<ctag.town_region>.tag0.prisionTime>)
+if (<serv.area.<ctag.town_region>.tag0.prisionTime>)
  town_PrisionActivate 0
 else
  town_PrisionActivate
