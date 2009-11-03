@@ -82,6 +82,18 @@ Destruição              Alteração       Restauração
 Necromancia             Restauração     Alteração
 Restauração             Necromancia     Destruição
 
+
+DROP TABLE IF EXISTS `mytserver`.`spellbooks`;
+CREATE TABLE  `mytserver`.`spellbooks` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `player` int(5) unsigned default NULL COMMENT 'UID do jogador',
+  `spellid` int(4) unsigned default NULL COMMENT 'ID da spell',
+  `skill` int(3) unsigned default NULL COMMENT 'Essa spell e relativa a que skill?',
+  `diff` int(5) unsigned default NULL COMMENT 'Dificuldade da spell. Para classificar no livro',
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `ByPlayer` USING BTREE (`player`,`spellid`)
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
 //************************************************************************************
 //************************************************************************************
 //************************************************************************************
@@ -164,11 +176,16 @@ endif
 //***********************************************************
 //Evita magos ganharem skill em spells muito simples para seu nível.
 [FUNCTION mage_skillgain]
-try LOCAL.MY=<SRC.<DEF.SKILL_<streat <serv.spell.<tag0.mage_spellid>.skillreq>>>>
-LOCAL.ACT=<strarg <serv.spell.<tag0.mage_spellid>.skillreq>>+300
+//cache vars
+LOCAL.skillreq=<serv.spell.<tag0.mage_spellid>.skillreq>
+LOCAL.skilldiff=<strarg <LOCAL.skillreq>>
+LOCAL.skillreq=<streat <LOCAL.skillreq>>
+LOCAL.skillname=SKILL_<LOCAL.skillreq>
+
+try LOCAL.MY=<SRC.<DEF.<LOCAL.skillname>>>
+LOCAL.ACT=<LOCAL.skilldiff>+300
 if (<local.my> < <local.act>)
- loca.skillname=SKILL_<streat <serv.spell.<tag0.mage_spellid>.skillreq>>
- //Checar caminhos opostos
+  //Checar caminhos opostos
  if (<DEF.<local.skillname>>==<DEF.SKILL_Spellweaving>) && (<Magery>)
   magery -= 1
  elif (<DEF.<local.skillname>>==<DEF.SKILL_Magery>) && (<Spellweaving>)
@@ -179,7 +196,8 @@ if (<local.my> < <local.act>)
   necromancy -= 1
  endif
  //Trigar ganho de skill
- serv.log skill_gain SKILL_<streat <serv.spell.<tag0.mage_spellid>.skillreq>>
+ serv.log skill_gain <LOCAL.skillname>
+ skill_gain <LOCAL.skillname>
 endif
 
 //***********************************************************
@@ -202,7 +220,7 @@ if (!<IsEmpty <tag.mage_p>>)
  if (<local.penalty>)
   local.penalty += <eval (<tag0.mage_actdiff>*10)-2.6>//Ajuste liear de -2.6 por causa de aflhas automáticas. Estamos testando 2x a magia desse jeito. Então o segundo teste (de penalidade por correr) deve ser mais brando pra não foder uma magia que já foi dada como sucesso.
   local.skill=<streat <serv.spell.<tag0.mage_spellid>.skillreq>>
-  TRY local.skill = <src.<eval <DEF.<local.skill>>^0c0000000>>
+  TRY local.skill = <src.<eval <DEF.<local.skill>>&03fffffff>> //03fffffff=(~0c0000000) pega ID da skill e na sequencia o valor que o player tem
   //serv.log SPELLSUCCESS: Penalidade por andar: <dlocal.penalty> (<dlocal.skill>)
   if (!<BELLTEST <local.skill>,<local.penalty>>)
    sysmessagered Voce andou de mais!
@@ -358,54 +376,54 @@ sysmessageyellow Um total de <dlocal.s> magias para <dlocal.p> jogadores.
 [FUNCTION mage_pruneDB]
 DB.QUERY="SELECT DISTINCT player FROM spellbooks;"
 local.prune=0
+local.lst=-1.0        //truque sujo
 for p 0 <eval <DB.ROW.NUMROWS>-1>
- obj=<DB.ROW.<dlocal.p>.player>
- if (!0<obj.Instances>) && (!<obj.IsChar>)
-  if (<eval STRLEN(<local.case>)> < 2)
-   local.case = "WHERE player='<DB.ROW.<dlocal.p>.player>'"
-  else
-   local.case .= " OR player='<DB.ROW.<dlocal.p>.player>'"
-  endif
-  local.prune += 1
- endif
+    LOCAL.player=<DB.ROW.<dlocal.p>.player>
+    obj=<LOCAL.player>
+    if ( (!<obj.Instances>) && (!<obj.IsChar>) ) || !<obj> 
+        local.lst .= ,<eval <LOCAL.player>>
+        local.prune += 1
+    endif
 end
-if (!<local.prune>)
- return 0
+
+if <local.prune>
+    local.q="DELETE FROM spellbooks WHERE player IN (<local.lst>);"
+    serv.log [MAGE_PruneDB] <local.q>
+    DB.EXECUTE=<local.q>
+    return <local.prune>
 endif
-serv.log [MAGE_PruneDB] "DELETE FROM spellbooks <local.case>;"
-DB.EXECUTE="DELETE FROM spellbooks <local.case>;"
-return <local.prune>
+
+return 0
 
 //***********************************************************
 // mage_DumpSpells
 //***********************************************************
 //Mostra as magias inscritas na DB para este char
 [FUNCTION mage_DumpSpells]
-if (!<argo>)
- sysmessageyellow Selecione o char:
- TARGETF mage_DumpSpells
-ELSE
- local.uid=<argo>
- if (<local.uid>&040000000)
-  local.uid=<local.uid>^040000000
- endif
- DB.QUERY="SELECT * FROM spellbooks WHERE player='<local.uid>' OR player='<dlocal.uid>';"
- local.c=0
- SERV.LOG ----------------[DUMPSPELLS]-------------------
- serv.log UID:<local.uid> ARGO:<argo>  ACC:<argo.account>   NAME:<argo.tag.name>
- for s 0 <eval <DB.ROW.NUMROWS>-1>
-  local.m=I:<DB.ROW.<dlocal.s>.id>::P:<DB.ROW.<dlocal.s>.player>::Sid:<DB.ROW.<dlocal.s>.spellid>::Sk:<DB.ROW.<dlocal.s>.skill>::Dif:<DB.ROW.<dlocal.s>.diff>
-  if (<local.c>)
-   local.c=0
-   sysmessageyellow <local.m>
-  else
-   local.c=1
-   sysmessagegreen <local.m>
-  endif
-  serv.log <dlocal.s> - <local.m>
- end
- SERV.LOG ----------------[/DUMPSPELLS]------------------
-ENDIF
+if !<argo>
+    sysmessageyellow Selecione o char:
+    TARGETF mage_DumpSpells
+else
+    local.uid=<argo>
+    local.uid &= ~040000000
+
+    DB.QUERY="SELECT * FROM spellbooks WHERE player=<dlocal.uid>;"
+    local.c=0
+    serv.log ----------------[DUMPSPELLS]-------------------
+    serv.log UID:<local.uid>(<dlocal.uid>) ARGO:<argo> ACC:<argo.account> NAME:<argo.tag.name>
+    for s 0 <eval <DB.ROW.NUMROWS>-1>
+        local.m=I:<DB.ROW.<dlocal.s>.id>::P:<DB.ROW.<dlocal.s>.player>::Sid:<DB.ROW.<dlocal.s>.spellid>::Sk:<DB.ROW.<dlocal.s>.skill>::Dif:<DB.ROW.<dlocal.s>.diff>
+        if <local.c>
+            local.c=0
+            sysmessageyellow <local.m>
+        else
+            local.c=1
+            sysmessagegreen <local.m>
+        endif
+        serv.log <dlocal.s> - <local.m>
+    end
+    serv.log ----------------[/DUMPSPELLS]------------------
+endif
 
 
 //***********************************************************
@@ -414,7 +432,7 @@ ENDIF
 //Limpa todas as magias do player <default> da DB
 [FUNCTION mage_wipeSpells]
 return 1
-//DB.QUERY="DELETE FROM spellbooks WHERE player='<DB.ESCAPEDATA <UID>>';"
+//DB.QUERY="DELETE FROM spellbooks WHERE player=<eval <UID>>';"
 
 //***********************************************************
 // mage_initSpells [<spell>]
@@ -449,7 +467,8 @@ else
  ENDIF
 ENDIF
 if (<IsPlayer>)
- DB.QUERY="INSERT INTO spellbooks SET player=<src.dUID>, skill=<dDEF.<DB.ESCAPEDATA <streat <serv.spell.<local.spell>.skillreq>>>>, diff=<eval <strarg <serv.spell.<local.spell>.skillreq>>>, spellid=<dlocal.spell>;"
+    local.sk=<serv.spell.<local.spell>.skillreq>
+    DB.QUERY="INSERT INTO spellbooks SET player=<dSRC>, skill=<dDEF.<streat <LOCAL.sk>>>, diff=<eval <strarg <LOCAL.sk>>>, spellid=<dlocal.spell>;"
 endif
 
 //***********************************************************
@@ -495,7 +514,7 @@ mage_loadSpells
   
 [FUNCTION mage_KnowSpell]
 //Checa na DB local se o jogador conhece a dada spell
-DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<eval <uid>> AND spellid=<eval <mage_GetSpellNumber <argv0>>>;"
+DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<dUID> AND spellid=<eval <mage_GetSpellNumber <argv0>>>;"
 RETURN <DB.ROW.NUMROWS>
 
 
@@ -940,7 +959,7 @@ return 1
 
 [FUNCTION mage_DrawBookPage]
 IF (<ctag0.mage_property>==<DEF.MAGE_KNOWN>)
- DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<UID.<cTAG0.MAGE_GRIMORIO>.dlink> AND skill=<eval <DEF.<ctag.mage_skill>>> ORDER BY diff ASC LIMIT <eval (<ctag.mage_page>-1)*2>, 3;"
+ DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<eval <UID.<cTAG0.MAGE_GRIMORIO>.link>> AND skill=<eval <DEF.<ctag.mage_skill>>> ORDER BY diff ASC LIMIT <eval (<ctag.mage_page>-1)*2>, 3;"
  local.spell1=<DB.ROW.0.spellid>
  local.spell2=<DB.ROW.1.spellid>
  local.nextpage=<QVAL <DB.ROW.NUMROWS>==3?1:0>
@@ -1590,12 +1609,12 @@ argn -= 1
 src.<argn> -= 125
 
 [FUNCTION test_allspells]
-for s 100 350
- if (<serv.spell.<dlocal.s>>)
-  serv.log mage_addspell <serv.spell.<dlocal.s>.defname>
-  src.mage_addspell <serv.spell.<dlocal.s>.defname>
- endif
- local.c += 1
+for s 100 349
+    if <serv.spell.<dlocal.s>>
+        serv.log mage_addspell <serv.spell.<dlocal.s>.defname>
+        src.mage_addspell <serv.spell.<dlocal.s>.defname>
+        local.c += 1
+    endif
 end
 mage_loadSpells
 sysmessageyellow Voce aprendeu <dlocal.c> magias.
