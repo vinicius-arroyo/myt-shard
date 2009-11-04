@@ -12,42 +12,51 @@
 
 //*****************************************************************************
 //*****************************************************************************
-// SQL TABLES
+[comment SQL TABLES]
 //*****************************************************************************
 //*****************************************************************************
 
-//CREATE TABLE  `mytserver`.`accounts` (
-//  `idAcct` int(10) unsigned NOT NULL auto_increment,
-//  `username` varchar(45) NOT NULL,
-//  PRIMARY KEY  (`idAcct`),
-//  UNIQUE KEY `byUsername` (`username`)
-//) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+CREATE TABLE  `mytserver`.`accounts` (
+  `idAcct` int(10) unsigned NOT NULL auto_increment,
+  `username` varchar(45) NOT NULL,
+  PRIMARY KEY  (`idAcct`),
+  UNIQUE KEY `byUsername` (`username`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
-//CREATE TABLE `mytserver`.`eventsLog` (
-//  `idEvent` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
-//  `timestamp` TIMESTAMP NOT NULL,
-//  `charUid` INTEGER UNSIGNED NOT NULL,
-//  `charAcct` INTEGER UNSIGNED NOT NULL,
-//  `eventType` ENUM('Kill PC','Kill NPC','Killed by PC','Killed by NPC','Login','Logout','GM Note','Jail') NOT NULL,
-//  `char2Uid` INTEGER UNSIGNED NOT NULL,
-//  `char2Acct` INTEGER UNSIGNED NOT NULL,
-//  `x` SMALLINT UNSIGNED NOT NULL,
-//  `y` SMALLINT UNSIGNED NOT NULL,
-//  `z` TINYINT NOT NULL,
-//  `message` VARCHAR(255) NOT NULL,
-//  PRIMARY KEY (`idEvent`),
-//  INDEX `byTs`(`timestamp`),
-//  INDEX `byUid`(`charUid`),
-//  INDEX `byAcct`(`charAcct`)
-//)
-//ENGINE = MyISAM;
+CREATE TABLE `mytserver`.`eventsLog` (
+  `idEvent` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+  `timestamp` TIMESTAMP NOT NULL,
+  `charUid` INTEGER UNSIGNED NOT NULL,
+  `charAcct` INTEGER UNSIGNED NOT NULL,
+  `eventType` ENUM('Kill PC','Kill NPC','Killed by PC','Killed by NPC','Login','Logout','GM Note','Jail') NOT NULL,
+  `char2Uid` INTEGER UNSIGNED NOT NULL,
+  `char2Acct` INTEGER UNSIGNED NOT NULL,
+  `x` SMALLINT UNSIGNED NOT NULL,
+  `y` SMALLINT UNSIGNED NOT NULL,
+  `z` TINYINT NOT NULL,
+  `message` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`idEvent`),
+  INDEX `byTs`(`timestamp`),
+  INDEX `byUid`(`charUid`),
+  INDEX `byAcct`(`charAcct`)
+)
+ENGINE = MyISAM;
 
-//CREATE TABLE `mytserver`.`stat_onlineUsers` (
-//  `timestamp` TIMESTAMP NOT NULL,
-//  `count` SMALLINT UNSIGNED NOT NULL,
-//  PRIMARY KEY (`timestamp`)
-//)
-//ENGINE = MyISAM;
+CREATE TABLE  `mytserver`.`server_stats` (
+  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `players` smallint(5) unsigned NOT NULL default '0',
+  `items` int(10) unsigned NOT NULL default '0',
+  `chars` int(10) unsigned NOT NULL default '0',
+  `ram` int(10) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`timestamp`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE TABLE  `mytserver`.`server_events` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `type` enum('Startup','Shutdown','SVN Update') NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
 //*****************************************************************************
 // event_log( type )
@@ -143,10 +152,18 @@ endif
 //*****************************************************************************
 // event_serverTick()
 //*****************************************************************************
-//chamado a cada tick do 'onserver_timer' para funcoes periodicas
+//chamado a cada tick do 'f_onserver_timer()' para funcoes periodicas (typ 10 min)
 [FUNCTION event_serverTick]
 
 //loga a quantidade maxima de players no ultimo periodo
-DB.EXECUTE "INSERT INTO stat_onlineUsers SET timestamp=NOW(), count=<eval <var.ev_max_on_players>>"
+DB.EXECUTE "INSERT INTO server_stats SET timestamp=NOW(), players=<eval <var.ev_max_on_players>>, items=<serv.items>, chars=<serv.chars>, ram=<serv.mem>"
 var.ev_max_on_players = <serv.clients>
 
+//*****************************************************************************
+// event_server
+//*****************************************************************************
+//salva na DB um evento relativo ao servidor
+[FUNCTION event_server]
+if (<DB.CONNECTED>)
+    DB.EXECUTE INSERT INTO server_events SET timestamp=now(), type='<args>';
+endif
