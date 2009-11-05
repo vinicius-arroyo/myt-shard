@@ -872,6 +872,9 @@ town_setFlags <DEF.TOWN_FLAG_BANNED>,<local.town>
 [FUNCTION town_GetPosition]
 //Retorna o número da posição de 1 a 999 do cargo de DEFAULT na region ARGS ou region do DEFAULT
 local.pos=<town_GetPositionID <args>>
+if (!<local.pos>)
+ RETURN 1000
+endif
 DB.QUERY="SELECT position FROM towns_privs WHERE id=<dlocal.pos>;"
 RETURN <eval <DB.ROW.0.position>>
 
@@ -3610,15 +3613,17 @@ town
 
 [FUNCTION d_town_okay_laws]
 //OKAY da página TOWN_PAGE_PERMISSIONS
-local.flags=0
-local.r=0
-WHILE (!<IsEmpty <DEF.TOWN_PERMISSION_<dlocal.r>>>)
- local.flags |= <eval (2@<local.r>)*<ARGCHK[<dlocal.r>]>>
- local.r += 1
-END
-DB.EXECUTE="UPDATE towns SET permissions=<dlocal.flags> WHERE region='<ctag.town_region>';"
+if (<town_getPrivs <ctag.town_region>>&<DEF.TOWN_PRIV_MEMBER>)
+ local.flags=0
+ local.r=0
+ WHILE (!<IsEmpty <DEF.TOWN_PERMISSION_<dlocal.r>>>)
+  local.flags |= <eval (2@<local.r>)*<ARGCHK[<dlocal.r>]>>
+  local.r += 1
+ END
+ DB.EXECUTE="UPDATE towns SET permissions=<dlocal.flags> WHERE region='<ctag.town_region>';"
+ serv.area.<ctag.town_region>.tag.permissions=<local.flags>
+endif
 ctag.town_page=<DEF.TOWN_PAGE_REPORT>
-serv.area.<ctag.town_region>.tag.permissions=<local.flags>
 SDIALOG d_town
 
 
@@ -3981,7 +3986,7 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_TAXES>)
 elif (<ctag.town_page>==<DEF.TOWN_PAGE_BANS>)
         DB.QUERY="SELECT flags FROM towns_members WHERE UID=<dctag.town_UID> AND region='<ctag.town_region>';"
         ctag.town_member_flags=<DB.ROW.0.flags>
-        local.priv=<town_canMember <uid.<dctag.town_UID>.town_GetPosition <ctag.town_region>>>
+        local.priv=<town_canMember <uid.<ctag.town_UID>.town_GetPosition <ctag.town_region>>>
         resizepic 92 87 2620 416 147
         call d_town_buildCriminalHtml
         dhtmlgump 98 95 403 130 0 1 <local.html>
@@ -4105,8 +4110,13 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_RACES>)
 elif (<ctag.town_page>==<DEF.TOWN_PAGE_PERMISSIONS>)
         DB.QUERY="SELECT permissions FROM towns WHERE region='<ctag.town_region>';"
         local.permissions=<DB.row.0.permissions>
+        local.priv=<eval <town_getPrivs <ctag.town_region>>&<DEF.TOWN_PRIV_MEMBER>>
         resizepic 92 89 2620 416 289
-        dtext 105 100 036 O que deve ser permitido?
+        if (<local.priv>)
+         dtext 105 100 036 O que deve ser permitido?
+        else
+         dtext 105 100 036 So eh permitido em <serv.area.<ctag.town_region>.name> as atividades assinaladas:
+        endif
         dorigin 105 100
         local.r=0
         local.c=11
@@ -4115,7 +4125,11 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_PERMISSIONS>)
           dorigin *200 100
           local.c += 12
          endif
-         checkbox - *20 210 211 <eval <local.permissions>&<eval 2@<local.r>>> <dlocal.r>
+         if (<local.priv>)
+          checkbox - *20 210 211 <eval <local.permissions>&<eval 2@<local.r>>> <dlocal.r>
+         else
+          gumppic - *20 <QVAL <eval <local.permissions>&<eval 2@<local.r>>>?211:210>
+         endif
          dtext +22 +1 2100 <DEF.TOWN_PERMISSION_<dlocal.r>>
          local.r += 1
         END
