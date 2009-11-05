@@ -13,11 +13,6 @@
 
         -=ToDo=-
 - Apagar magias da DB quando char for deletado
-- Modificar quantas vezes tem que acertar uma spell para aprender:
-        A = SKILLREQ/20
-        B = -(INSCRIPTION/33)
-        C = -(SkillDaMagia/100)
-    Tem que acertar A+B+C vezes.
 - Refazer o sistema de encantar itens
 - Encantar armas/armaduras
 
@@ -1575,7 +1570,7 @@ if (<tag0.skill_test_time>)
  if (<local.extime> < 0)
   sysmessagered Voce deve esperar mais <f_timestring <eval -<local.extime>/10>> para subir novamente uma skill.
   return 1
-  endif
+ endif
 endif
 list_new Escolha uma skill para subir 12.5 pontos:
 list_newCol 20,Skill
@@ -1598,7 +1593,26 @@ for s 0 54
 end
 list_show 1
 
+[FUNCTION test_CorrectSkills]
+if (<skilltotal> > <TAG0.skill_maxSkillSumValue>)
+ local.s=0
+ WHILE ( (<skilltotal> > <TAG0.skill_maxSkillSumValue>) && (<local.s> < 55) )
+  src.<dlocal.s>=0
+  local.s += 1
+ END
+ timerf 2,sysmessagered Sua skill tava muito alta, champs.
+endif
+
 [FUNCTION test_skill_apply_up]
+if (<tag0.skill_test_time>)
+ local.eltime=<hval <serv.time>-<tag0.skill_test_time>>
+ local.extime=<hval <local.eltime>-10*60*60>
+ if (<local.extime> < 0)
+  sysmessagered Voce deve esperar mais <f_timestring <eval -<local.extime>/10>> para subir novamente uma skill.
+  return 1
+ endif
+endif
+test_CorrectSkills
 argn -= 1
 src.<argn> += 125
 src.tag.skill_test_time=<serv.time>
@@ -1610,11 +1624,11 @@ src.<argn> -= 125
 
 [FUNCTION test_allspells]
 for s 100 349
-    if <serv.spell.<dlocal.s>>
-        serv.log mage_addspell <serv.spell.<dlocal.s>.defname>
-        src.mage_addspell <serv.spell.<dlocal.s>.defname>
-        local.c += 1
-    endif
+ if (<serv.spell.<dlocal.s>>)
+  serv.log mage_addspell <serv.spell.<dlocal.s>.defname>
+  src.mage_addspell <serv.spell.<dlocal.s>.defname>
+ endif
+ local.c += 1
 end
 mage_loadSpells
 sysmessageyellow Voce aprendeu <dlocal.c> magias.
