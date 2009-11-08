@@ -1,0 +1,104 @@
+[COMMENT teleporters]
+
+Sistema de gerenciamento de teleporters via DB
+
+CREATE TABLE  `teleporters` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `ax` smallint(5) unsigned NOT NULL,
+  `ay` smallint(5) unsigned NOT NULL,
+  `az` tinyint(4) NOT NULL,
+  `am` tinyint(3) unsigned NOT NULL,
+  `bx` smallint(5) unsigned NOT NULL,
+  `by` smallint(5) unsigned NOT NULL,
+  `bz` tinyint(4) NOT NULL,
+  `bm` tinyint(3) unsigned NOT NULL,
+  `name` varchar(45) NOT NULL,
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `byA` (`ax`,`ay`,`az`,`am`)
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
+//*****************************************************************************
+// teleporters
+//*****************************************************************************
+// .teleporters [ browse | import | export | clear ]
+[FUNCTION teleporters]
+
+//Função principal para client
+if !(<eval strlen(<args>)>) 
+    src.sysmessageyellow Utilize .teleporters [ browse | import | export | clear ]
+    src.sysmessageyellow browse - navega pelos teleporters cadastrados no DB
+    src.sysmessageyellow import - busca todos t_telepad do world e cria os registros no DB
+    src.sysmessageyellow export - gera arquivo teleporters_data.scp com dados do DB
+    src.sysmessageyellow clear  - limpa todos t_telepad do world
+elif (STRMATCH(browse,<args>)
+    src.sysmessageyellow Nao implementado...
+elif (STRMATCH(import,<args>)
+    teleporters_import
+elif (STRMATCH(export,<args>)
+    teleporters_export
+elif (STRMATCH(clear,<args>)
+    teleporters_clear
+endif
+return 1
+
+//*****************************************************************************
+// teleporters_import
+//*****************************************************************************
+[FUNCTION teleporters_import]
+sysmessageyellow Importando... 
+LOCAL.sum=0
+LOCAL.query=INSERT IGNORE INTO teleporters (ax,ay,az,am,bx,`by`,bz,bm,name) VALUES
+
+foritems 6444
+    if <type>==t_telepad
+        LOCAL.s=( <p.x>,<p.y>,<p.z>,<p.m>,<morex>,<morey>,<morez>,<morem>,"<region.defname>" )
+        LOCAL.sum += 1
+        DB.EXECUTE <LOCAL.query> <LOCAL.s>
+    endif
+endfor
+sysmessageyellow Importado: <dLOCAL.sum>
+
+//*****************************************************************************
+// teleporters_clear
+//*****************************************************************************
+[FUNCTION teleporters_clear]
+sysmessageyellow Limpando...
+LOCAL.sum=0
+foritems 6444
+    if <type>==t_telepad
+        remove
+        LOCAL.sum += 1
+    endif
+endfor
+sysmessageyellow Removidos: <dLOCAL.sum>
+
+//*****************************************************************************
+// teleporters_export
+//*****************************************************************************
+[FUNCTION teleporters_export]
+sysmessageyellow Exportando... 
+LOCAL.sum=0
+
+local.filen=scripts/myt/teleporters_data.scp
+FILE.MODE.APPEND=0
+FILE.MODE.CREATE=1
+LOCAL.file=<FILE.OPEN <local.filen>>
+file.writeline=<DEF.SECTION>teleporters<DEF.SECTIONE>
+
+DB.QUERY "SELECT * FROM teleporters"
+if (<DB.ROW.NUMROWS> > 0)
+    for R 0 <eval <DB.ROW.NUMROWS>-1>
+        LOCAL.s = <DB.ROW.<eval <LOCAL.R>>.ax>,<DB.ROW.<eval <LOCAL.R>>.ay>,<DB.ROW.<eval <LOCAL.R>>.az>,<DB.ROW.<eval <LOCAL.R>>.am>=
+        LOCAL.s .= <DB.ROW.<eval <LOCAL.R>>.bx>,<DB.ROW.<eval <LOCAL.R>>.by>,<DB.ROW.<eval <LOCAL.R>>.bz>,<DB.ROW.<eval <LOCAL.R>>.bm>=
+        LOCAL.s .= tp_<DB.ROW.<eval <LOCAL.R>>.id>_<DB.ROW.<eval <LOCAL.R>>.name>
+        file.writeline=<LOCAL.s>
+        LOCAL.sum += 1
+    end
+endif
+
+file.writeline=<DEF.SECTION>EOF<DEF.SECTIONE>
+file.close=1
+sysmessageyellow Exportado: <dLOCAL.sum>
+serv.resync
+
+[EOF]
