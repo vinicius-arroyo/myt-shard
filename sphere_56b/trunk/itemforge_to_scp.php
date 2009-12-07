@@ -62,7 +62,6 @@ function writeItem($DB){
 	writeln("[ITEMDEF ".$DB->f('itemdef')."]");
 	writeln("ID=".$DB->f('dispid'));
 	writeln("NAME=".$DB->f('name'));
-	writeln("ID=".$DB->f('dispid'));
 	writeln("CATEGORY=".$DB->f('category'));
 	writeln("SUBSECTION=".$DB->f('subsection'));
 	writeln("DESCRIPTION=".$DB->f('name'));
@@ -87,8 +86,8 @@ function writeItem($DB){
 	writeln("SKILL=".$DB->f('skill'));
 	writeln("REQSTR=".$DB->f('reqstr'));
 	writeln("TWOHANDS=".$DB->f('twohands'));
-	writeln("TEVENTS=".$DB->f('tevents'));
-//	writeMultiLine("TEVENTS",$DB->f('tevents'));
+//	writeln("TEVENTS=".$DB->f('tevents'));
+	writeMultiLine("TEVENTS",$DB->f('tevents'));
 	writeln("");
 	writeln("ON=@CREATE");
 	writeln("COLOR=".$DB->f('color'));
