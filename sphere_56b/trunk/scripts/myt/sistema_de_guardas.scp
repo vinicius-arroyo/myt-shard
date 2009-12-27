@@ -48,76 +48,100 @@ on=@login
 town_enter <region.defname>
 
 on=@ItemEquip
-if (<IsGM>) || (<flags>&080200b)
- return 0
+if (<IsGM>) || (<flags>&080200b) //statf_hidden|statf_insubstantial|statf_invisible|statf_dead|statf_invul
+    return 0
 endif
 
-if (<act.isweapon>)
- if (<act.dam.hi> > 10) && !(<region.tag0.permissions>&TOWN_CAN_WEAPON) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_WAR)
-  sysmessageyellow Eh bom que voce saiba que nao se pode andar com armas pesadas aqui.
-  TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_WEAPON>
- endif
-elif ( (<act.baseid>==i_capuz) || (<act.layer>==layer_helm) ) && !(<region.tag0.permissions>&TOWN_CAN_HOOD) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_HOOD)
- if !(<rec_CanSeeMe>)
-  sysmessageyellow Eh bom que voce saiba que nao se pode andar encapuzado aqui.
-  TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_HOOD>
- endif
+//se estiver equipando uma arma
+if <act.isweapon>
+    //com dano alto
+    if <act.dam.hi> > 10
+        //e nao tiver permissao
+        if !(<region.tag0.permissions>&TOWN_CAN_WEAPON) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_WEAPON)
+            sysmessageyellow Eh bom que voce saiba que nao se pode andar com armas pesadas aqui.
+            TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_WEAPON>
+            cTAG.town_warn_guards = 1
+        endif
+    endif
+//se estiver equipando um capuz ou elmo    
+elif ( (<act.baseid>==i_capuz) || (<act.layer>==layer_helm) ) 
+    //e nao tiver permissao
+    if !(<region.tag0.permissions>&TOWN_CAN_HOOD) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_HOOD)
+        if !(<rec_CanSeeMe>)
+            sysmessageyellow Eh bom que voce saiba que nao se pode andar encapuzado aqui.
+            TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_HOOD>
+            cTAG.town_warn_guards = 1
+        endif
+    endif        
 endif
-return 0
 
 on=@UserWarmode
-if (<IsGM>) || (<flags>&080200b)
- return 0
+if (<IsGM>) || (<flags>&080200b) //statf_hidden|statf_insubstantial|statf_invisible|statf_dead|statf_invul
+    return 0
 endif
-if (!<argn1>) && !(<region.tag0.permissions>&TOWN_CAN_WARMODE) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_WAR)
- TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_WARMODE>//guards_near guard_advice,<uid>,<DEF.TOWN_CAN_WARMODE>
+
+//se em warmode
+if !<argn1>
+    //e nao tiver permissao
+    if !(<region.tag0.permissions>&TOWN_CAN_WARMODE) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_WAR)
+        TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_WARMODE>//guards_near guard_advice,<uid>,<DEF.TOWN_CAN_WARMODE>
+        cTAG.town_warn_guards = 1
+    endif
 endif
-return 0
 
 on=@TownSpellSuccess
 if !(<region.tag0.permissions>&TOWN_CAN_MAGIC) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_MAGIC)
- guards_near guard_advice,<uid>,<DEF.TOWN_CAN_MAGIC>
+    TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_MAGIC>
 endif
 
 on=@TownHit
+
 if (!<IsPlayer>) || (!<act>) || (<src>==<uid>)
- return 0
+    return 0
 endif
 
 //testar brain_animal para RESOURCES
-if (<act.NPC>==brain_animal) && !(<region.tag0.permissions>&TOWN_CAN_RESOURCES) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_RESOURCES)
- serv.log brain_animal <src.brain>
- if !(<act.memoryfindtype.memory_ipet>)
-  sysmessageyellow Eh bom voce saber que nao eh permitido cacar aqui.
-  guards_near guard_advice,<uid>,<DEF.TOWN_CAN_RESOURCES>
+//se RESOURCES animais
+if <act.NPC>==brain_animal
+    //e nao tiver permissao
+    if !(<region.tag0.permissions>&TOWN_CAN_RESOURCES) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_RESOURCES)
+        //e nao for pet
+        if !(<act.memoryfindtype.memory_ipet>)
+//            sysmessageyellow Eh bom voce saber que nao eh permitido cacar aqui.
+            TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_RESOURCES>
+        endif
+    endif        
  endif
 
-//Testar se o alvo é guarda
-elif (<act.IsTEvent.e_town_guard>) && !(<region.tag0.permissions>&TOWN_CAN_HARM) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_HARM) && !(<ctag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
- DORAND 3
-  ACT.SAY Como ousa?
-  ACT.SAY Agora foi de mais!
-  ACT.SAY Tome isto!
- END
- town_setAsCriminal <act.tag.town>
- act.attack <uid>
-
-//testar vendor/player/guard para HARM
-elif (<act.IsTownNPC>) && !(<region.tag0.permissions>&TOWN_CAN_HARM) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_HARM)
- TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_HARM>
-
-//Testar se o alvo é player free
-elif (<act.IsPlayer>) && !(<region.tag0.permissions>&TOWN_CAN_HARM) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_HARM) && !(<tag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
- //Testar se o alvo é criminoso ou banido
- if !(<act.ctag0.town_<region.defname>_flags>&<hval <DEF.TOWN_FLAG_CRIMINAL>|<DEF.TOWN_FLAG_BANNED>>)
-  TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_HARM>
- endif
+//nao tem permissao para machucar?
+elif !(<region.tag0.permissions>&TOWN_CAN_HARM) && !(<ctag0.town_<region.defname>_privs>&TOWN_PRIV_HARM) //&& !(<ctag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
+    //Testar se o alvo é guarda
+    if <act.IsTEvent.e_town_guard>
+        //se ainda nao foi marcado como criminoso
+        if !(<ctag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
+            DORAND 3
+                ACT.SAY Como ousa?
+                ACT.SAY Agora foi de mais!
+                ACT.SAY Tome isto!
+            END
+            town_setAsCriminal <act.tag.town>
+            act.attack <uid>
+        endif
+    
+    //testar vendor/player/guard para HARM || Testar se o alvo é player free ||
+    elif (<act.IsTownNPC>) || (<act.IsPlayer>)
+        TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_HARM>   
+    endif
 endif
-return 0
+
+ //Testar se o alvo é criminoso ou banido
+// if !(<act.ctag0.town_<region.defname>_flags>&<hval <DEF.TOWN_FLAG_CRIMINAL>|<DEF.TOWN_FLAG_BANNED>>)
+//  TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_HARM>
+// endif
 
 on=@CallGuards
 if !(<guards_near guard_advice,<uid>,<argn2>>)
- town_NpcNear town_npc_call_help,<uid>,<argn2>
+    town_NpcNear town_npc_call_help,<uid>,<argn2>
 endif
 return 1
 
@@ -126,15 +150,16 @@ ON=@SKILLSUCCESS
 //*************************************
 //serv.log [SKILLSUCCESS] <src.account>/<src.action>/<eval <src.action>>
 if (!<IsPlayer>)
- return 0
+    return 0
 endif
 
-if  !(<region.tag0.permissions>&TOWN_CAN_RESOURCES) && (!<IsEmpty <region.tag.permissions>>)
- if (<ctag0.town_<region.defname>_privs>&TOWN_PRIV_RESOURCES)
-  return 0
- endif
+//se coleta de resources for permitido ou nao definido, retorna
+if !(<region.tag0.permissions>&TOWN_CAN_RESOURCES) && (!<IsEmpty <region.tag.permissions>>)
+    if (<ctag0.town_<region.defname>_privs>&TOWN_PRIV_RESOURCES)
+        return 0
+    endif
 else
- return 0
+    return 0
 endif
 
 doswitch <src.action>
@@ -218,44 +243,22 @@ endif
 return 1
 
 [EVENTS e_town_guard]
-ON=@NPCSeeNewPlayer
-//Somente se ele estiver wandering, goin to, going home, stay ou guard item.
-if ((<action> > 064) && (<action> < 069)) || (<action>==06C) || (<action>==06D)
- local.perm=<region.tag0.permissions>
- local.flags=<src.ctag0.town_<tag.town_region>_flags>
- local.privs=<src.ctag0.town_<tag.town_region>_privs>
- IF (!<src.rec_CanSeeMe>) && !(<local.perm>&TOWN_CAN_HOOD) && !(<local.privs>&TOWN_PRIV_HOOD)
-  guard_advice <src>,<DEF.TOWN_CAN_HOOD>
- ELIF (<local.flags>&023) && !(<src.restest i_capuz>)
-  attack <src>
-  if (<local.flags>&020)
-   say Intrus<src.sex o/a> <src.tag.raca>! Alarme! Alarme!
-  elif (<local.flags>&02)
-   say Criminos<src.sex o/a>!
-  elif (<local.flags>&01)
-   say Hey, <src.tag.name>! Voce esta banid<src.sex o/a> de <region.name>! FORA!
-  endif
- ELIF (<src.flags>&020) && !(<local.perm>&TOWN_CAN_WARMODE) && !(<local.privs>&TOWN_PRIV_WAR)
-  guard_advice <src>,<DEF.TOWN_CAN_WARMODE>
- ELIF (<src.weapon.dam.hi> > 10) && !(<local.perm>&TOWN_CAN_WEAPON) && !(<local.privs>&TOWN_PRIV_WAR)
-  guard_advice <src>,<DEF.TOWN_CAN_WEAPON>
- endif
-endif
+//esta sendo feito a mesma coisa no NPCLookAtChar
+//ON=@NPCSeeNewPlayer
 
+//ON=@PersonalSpace
+//if (<src.IsPlayer>)
+// if (<src.ctag0.town_<tag.town>_flags>&023) //TOWN_FLAG_BANNED|TOWN_FLAG_CRIMINAL|TOWN_FLAG_FORBIDDEN
+//  attack <src>
+// endif
+//endif
 
-ON=@PersonalSpace
-if (<src.IsPlayer>)
- if (<src.ctag0.town_<tag.town>_flags>&023)
-  attack <src>
- endif
-endif
-
-ON=@NPCHearUnknown
-if (<src.IsPlayer>)
- if (<src.ctag0.town_<tag.town>_flags>&023)
-  attack <src>
- endif
-endif
+//ON=@NPCHearUnknown
+//if (<src.IsPlayer>)
+// if (<src.ctag0.town_<tag.town>_flags>&023) //TOWN_FLAG_BANNED|TOWN_FLAG_CRIMINAL|TOWN_FLAG_FORBIDDEN
+//  attack <src>
+// endif
+//endif
 
 ON=@Kill
 if (<tag0.task>==<DEF.GUARD_TASK_PATROL>)
@@ -302,35 +305,75 @@ ENDIF
 
 
 ON=@NPCLookAtChar
-//Lagoso. Cuidado
-if (!<src.IsPlayer>)
- return 0
-elif (<tag0.guard_checkedd_<src.uid>>) || (!<CanSeeLos <src>>)
- return 0
-endif
-try tag0.guard_checkedd_<src.uid>=1
-timerf 4,tag.guard_checkedd_<src.uid>=
 
+//Lagoso. Cuidado
+
+//somente conitnua se olhar para player
+if !<src.IsPlayer>
+    return 0
+//elif !<CanSeeLos <src>>    
+//    return 0
+//nao precisa verificar novamente
+elif !<src.cTAG0.town_warn_guards>
+    return 0
+endif
+
+//Somente se ele estiver wandering, goin to, going home, stay ou guard item.
 if ((<action> > 064) && (<action> < 069)) || (<action>==06C) || (<action>==06D)
- local.perm=<region.tag0.permissions>
- local.flags=<src.ctag0.town_<tag.town_region>_flags>
- local.privs=<src.ctag0.town_<tag.town_region>_privs>
- IF (!<src.rec_CanSeeMe>) && !(<local.perm>&TOWN_CAN_HOOD) && !(<local.privs>&TOWN_PRIV_HOOD)
-  guard_advice <src>,<DEF.TOWN_CAN_HOOD>
- ELIF (<local.flags>&023) && !(<src.restest i_capuz>)
-  attack <src>
-  if (<local.flags>&020)
-   say Intrus<src.sex o/a> <src.tag.raca>! Alarme! Alarme!
-  elif (<local.flags>&02)
-   say Criminos<src.sex o/a>!
-  elif (<local.flags>&01)
-   say Hey, <src.tag.name>! Voce esta banid<src.sex o/a> de <region.name>! FORA!
-  endif
- ELIF (<src.flags>&020) && !(<local.perm>&TOWN_CAN_WARMODE) && !(<local.privs>&TOWN_PRIV_WAR)
-  guard_advice <src>,<DEF.TOWN_CAN_WARMODE>
- ELIF (<src.weapon.dam.hi> > 10) && !(<local.perm>&TOWN_CAN_WEAPON) && !(<local.privs>&TOWN_PRIV_WAR)
-  guard_advice <src>,<DEF.TOWN_CAN_WEAPON>
- endif
+    serv.log [GUARDAS]@NPCLookAtChar suspeito <src.account>
+    
+    LOCAL.perm=<region.tag0.permissions>^0ffff
+    LOCAL.privs=<src.ctag0.town_<tag.town_region>_privs>^0ffff
+    LOCAL.cantdo=<local.perm>&<local.privs>&0ff //somente os bits inferiores interessam
+    LOCAL.flags=<src.ctag0.town_<tag.town_region>_flags>    
+ 
+    //se estiver marcado para prisao
+    if (<LOCAL.flags>&023) //TOWN_FLAG_BANNED|TOWN_FLAG_CRIMINAL|TOWN_FLAG_FORBIDDEN
+        //sem capuz
+        if !<src.restest i_capuz>)
+            attack <src>
+            if (<local.flags>&020)
+               say Intrus<src.sex o/a> <src.tag.raca>! Alarme! Alarme!
+            elif (<local.flags>&02)
+               say Criminos<src.sex o/a>!
+            elif (<local.flags>&01)
+               say Hey, <src.tag.name>! Voce esta banid<src.sex o/a> de <region.name>! FORA!
+            endif
+        endif
+    else
+        //pode ignora-lo em seguranca
+        src.cTAG0.town_warn_guards=0
+    endif
+
+    //se puder fazer o que quiser, ignora player
+    if !<local.cantdo>
+        return 0
+    endif
+    
+    //warmode
+    if (<local.cantdo>&TOWN_CAN_WARMODE)
+        if (<src.flags>&020)
+            guard_advice <src>,<DEF.TOWN_CAN_WARMODE>
+            return 0;
+        endif
+    endif
+    
+    //usando arma com dano alto
+    if (<local.cantdo>&TOWN_CAN_WEAPON)
+        if (<src.weapon.dam.hi> > 10)
+            guard_advice <src>,<DEF.TOWN_CAN_WEAPON>
+            return 0;
+        endif
+    endif
+
+    //usando capuz
+    if (<local.cantdo>&TOWN_CAN_HOOD)
+        if (!<src.rec_CanSeeMe>) && 
+            guard_advice <src>,<DEF.TOWN_CAN_HOOD>
+            return 0;
+        endif
+    endif
+
 endif
 
 ON=@Hitting
@@ -352,7 +395,7 @@ endif
 
 on=@Death
 town_UnRegServant
-serv.log Hey! Hey! Hey! Guarda <name> (<uid>) foi destruido!!!
+serv.log [GUARDAS-e_town_guard]@Death  Guarda <name> (<uid>) foi destruido!!!
 
 
 
@@ -404,7 +447,7 @@ elif (<cont.tag0.task>==<DEF.GUARD_TASK_PATROL>) && (<cont.action> < 55) && (<co
  //serv.log [PATROL] <cont.name> esta ocupado.
  timer=15
 else
- serv.log [PATROL] <cont.name> nao esta mais patrulhando. <cont.action> - <cont.daction>
+ serv.log [GUARDAS-i_mry_guard]@timer *PATROL* <cont.name> nao esta mais patrulhando. <cont.action> - <cont.daction>
 endif
 return 1
 
@@ -737,19 +780,67 @@ return 1
 
 [FUNCTION town_enter]
 if (!<IsEmpty <args>>)
- local.town=<args>
+    local.town=<args>
 else
- local.town=<region.defname>
+    local.town=<region.defname>
 endif
-if (<IsPlayer>)
- events +e_InTown
- try cTAG.town_<local.town>_privs=<town_getPrivs <local.town>>
- try cTAG.town_<local.town>_flags=<src.town_getFlags <local.town>>
- if !(STRMATCH(*<tag.raca>*,<town_getRaces <local.town>>)) && !(<cTAG0.town_<local.town>_flags>&<def.TOWN_FLAG_FRIEND>)
-  cTAG0.town_<local.town>_flags = <hval <cTAG0.town_<local.town>_flags>|<DEF.TOWN_FLAG_FORBIDDEN>>
- endif
+
+if <IsPlayer>
+    events +e_InTown
+    try cTAG.town_<local.town>_privs=<town_getPrivs <local.town>>
+    try cTAG.town_<local.town>_flags=<src.town_getFlags <local.town>>
+    if !(STRMATCH(*<tag.raca>*,<town_getRaces <local.town>>)) && !(<cTAG0.town_<local.town>_flags>&<def.TOWN_FLAG_FRIEND>)
+        cTAG0.town_<local.town>_flags = <hval <cTAG0.town_<local.town>_flags>|<DEF.TOWN_FLAG_FORBIDDEN>>
+    endif
+ 
+    cTAG.town_warn_guards=0
+    if (<IsGM>) || (<flags>&080200b) //statf_hidden|statf_insubstantial|statf_invisible|statf_dead|statf_invul
+        return 0
+    endif
+
+    //verifica se ha alguma infracao em andamento
+ 
+    //armado?
+    if <weapon>
+        //com dano alto
+        if <weapon.dam.hi> > 10
+            //e nao tiver permissao
+            if !(<region.tag0.permissions>&TOWN_CAN_WEAPON) && !(<ctag0.town_<local.town>_privs>&TOWN_PRIV_WEAPON)
+                serv.log [GUARDAS]-<src.account> entrou em TOWN armado
+                cTAG.town_warn_guards = 1
+                return 0
+            endif
+        endif
+    endif
+    
+    //se estiver equipando um capuz ou elmo    
+    if ( <rescount i_capuz> || <findlayer.layer_helm> ) 
+        //e nao tiver permissao
+        if !(<region.tag0.permissions>&TOWN_CAN_HOOD) && !(<ctag0.town_<local.town>_privs>&TOWN_PRIV_HOOD)
+            serv.log [GUARDAS]-<src.account> entrou em TOWN com capuz
+            cTAG.town_warn_guards = 1
+            return 0
+        endif        
+    endif
+ 
+    //se em warmode
+    if (<flags>&statf_war)
+        if !(<region.tag0.permissions>&TOWN_CAN_WARMODE) && !(<ctag0.town_<local.town>_privs>&TOWN_PRIV_WAR)
+            serv.log [GUARDAS]-<src.account> entrou em TOWN em warmode
+            cTAG.town_warn_guards = 1
+            return 0
+        endif
+    endif
+    
+    //procurado?
+    if (<cTAG0.town_<local.town>_flags>&023)//TOWN_FLAG_BANNED|TOWN_FLAG_CRIMINAL|TOWN_FLAG_FORBIDDEN
+        serv.log [GUARDAS]-<src.account> entrou em TOWN sendo procurado
+        cTAG.town_warn_guards = 1
+        return 0
+    endif
+    
 elif (<NPC> > 1) && (<NPC> < 10)
- events +e_NPCInTown
+    events +e_NPCInTown
 endif
 
 [FUNCTION guard_setPost]
@@ -804,12 +895,13 @@ endif
 obj=<argv0>
 
 //iniciar
-if (<obj.ctag0.town_<tag.town>_flags>&023)
+if (<obj.ctag0.town_<tag.town>_flags>&023) //TOWN_FLAG_BANNED|TOWN_FLAG_CRIMINAL|TOWN_FLAG_FORBIDDEN
   attack <obj>
   return 1
 
 //O delito é grave? Vira criminal na hora!
-elif (<argv1> == 08) ||  (<argv1> == 020) ||  (<argv1> == 040)
+//TOWN_CAN_HARM|TOWN_CAN_STEAL|TOWN_CAN_LOCKPICK
+elif (<argv1>&068)
  DORAND 3
   say Assasin<obj.sex o/a>! Ninguem pode <STRTOLOWER <DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>> em <region.name>!
   say Que despauterio <STRTOLOWER <DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>> em <region.name>!
@@ -831,7 +923,7 @@ elif (!<tag0.advice_step>) && !(<flags>&020)// && (!0<argv2>)
 //Já estou ralhando de antes
 elif (0<argv2>)
  local.charge=<eval LOGARITHM(<argv1>, 2)>
- serv.log [ADVICE] - <dlocal.charge> - <argv1> - <DEF.TOWN_PERMISSION_<dlocal.charge>>
+ serv.log [GUARDAS-advice] - <dlocal.charge> - <argv1> - <DEF.TOWN_PERMISSION_<dlocal.charge>>
  local.state=1
  doswitch <local.charge>
   local.state=<eval <obj.flags>&020>    //WARMODE
