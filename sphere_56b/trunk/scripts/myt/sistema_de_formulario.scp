@@ -88,11 +88,11 @@ CREATE TABLE  `mytserver`.`accounts` (
   `username` varchar(45) NOT NULL,
   `name` varchar(45) NOT NULL,
   `mail` varchar(45) NOT NULL,
-  `status` enum('form','waiting','rejected','active') NOT NULL default 'form',
+  `status` enum('form','waiting','rejected','active','confirm') NOT NULL default 'form',
   `lastedit` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   PRIMARY KEY  (`idAcct`),
   UNIQUE KEY `byUsername` (`username`)
-) ENGINE=MyISAM AUTO_INCREMENT=18 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
 CREATE TABLE  `mytserver`.`form_answers` (
   `id` int(10) unsigned NOT NULL auto_increment,
@@ -135,70 +135,94 @@ STARTPOINT_Elfo         Lynn
 STARTPOINT_Humano       Lynn
 STARTPOINT_Orc          Lynn
 
+[PLEVEL 0]
+confirme
+
 [PLEVEL 4]
 formulario
+mail_key
 
 [FUNCTION form_checkAccStatus]
 //Assim que um char for criado ou fizer login chama esta função para conhecer o stsus da conta
 //e então tomar a provicência correta
+
+IF (<IsNum <src.account>>)
+    DB.QUERY=SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <eval <src.account>>>'
+ELSE
+    DB.QUERY=SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>'
+ENDIF
+
 if (<serv.account.<src.account>.plevel>==0)     //Conta não aprovada
- IF (<IsNum <src.account>>)
-  DB.QUERY="SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <eval <src.account>>>'";
- ELSE
-  DB.QUERY="SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>'";
- ENDIF
- if (!<DB.ROW.NUMROWS>) || (STRMATCH(,<DB.ROW.0.mail>))
-  try src.go <DEF.FORM_NEWBIEPOINT>
-  serv.account.<src.account>.MAXCHARS=1
-  src.DIALOG d_form_new 1
-  return 1
- endif
- if (STRMATCH(waiting,<DB.ROW.0.status>))
-  src.timerf 7,sysmessageyellow Sua conta esta aguardando aprovacao.
-  src.timerf 14,sysmessageyellow Sua conta esta aguardando aprovacao.
-  src.timerf 22,sysmessageyellow Sua conta esta aguardando aprovacao.
-  return 1
- endif
- if (STRMATCH(form,<DB.ROW.0.status>))
-  src.playerform
-  return 1
- endif
- if (STRMATCH(rejected,<DB.ROW.0.status>))
-  src.sfx 05b3
-  try src.go <DEF.FORM_NEWBIEPOINT>
-  src.ctag.form.method=<DEF.FORM_DENIED>
-  src.ctag.form.class=<DEF.FORM_ACCOUNT>
-  src.DIALOG d_formulario 1
-  return 1
- endif
- src.sfx 05a6
- src.ctag.form.method=<DEF.FORM_ACCEPT>
- src.ctag.form.class=<DEF.FORM_ACCOUNT>
- src.DIALOG d_formulario 1
- return 1
+
+    if (!<DB.ROW.NUMROWS>) || (STRMATCH(,<DB.ROW.0.mail>))
+        try src.go <DEF.FORM_NEWBIEPOINT>
+        serv.account.<src.account>.MAXCHARS=1
+        src.DIALOG d_form_new 1
+    elif (STRMATCH(confirm,<DB.ROW.0.status>))        
+        src.timerf 7,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+        src.timerf 14,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+        src.timerf 22,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+    elif (STRMATCH(waiting,<DB.ROW.0.status>))
+        src.timerf 7,sysmessageyellow Sua conta esta aguardando aprovacao.
+        src.timerf 14,sysmessageyellow Sua conta esta aguardando aprovacao.
+        src.timerf 22,sysmessageyellow Sua conta esta aguardando aprovacao.
+    elif (STRMATCH(form,<DB.ROW.0.status>))
+        src.playerform
+    elif (STRMATCH(rejected,<DB.ROW.0.status>))
+        src.sfx 05b3
+        try src.go <DEF.FORM_NEWBIEPOINT>
+        src.ctag.form.method=<DEF.FORM_DENIED>
+        src.ctag.form.class=<DEF.FORM_ACCOUNT>
+        src.DIALOG d_formulario 1
+    else
+        src.sfx 05a6
+        src.ctag.form.method=<DEF.FORM_ACCEPT>
+        src.ctag.form.class=<DEF.FORM_ACCOUNT>
+        src.DIALOG d_formulario 1
+    endif
+    
 else    //Jogador/GM antigo
- IF (<IsNum <src.account>>)
-  DB.QUERY="SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <eval <src.account>>>'";
- ELSE
-  DB.QUERY="SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>'";
- ENDIF
- if (!<DB.ROW.NUMROWS>) || (STRMATCH(,<DB.ROW.0.mail>)) //Jogador novo sem cadastro
-  src.dialog d_form_new 1
-  return 1
- else
-  if (<src.IsGM>) //GM cadastrado. Mostrar se tem contas para avaliar.
-   DB.QUERY="SELECT COUNT(idAcct) AS cnt FROM accounts WHERE status='waiting';"
-   if (<DB.ROW.0.cnt>)
-    timerf 7,sysmessageyellow,Existem <eval <DB.ROW.0.cnt>> formularios a serem avaliados.
-    timerf 9,sysmessageyellow,Digite '.formulario' para lista-los.
-   endif
-  else
-   if (<tag0.char_criado>==2) //Jogador antigo, cadastrado, char novo
-    tag0.char_criado=1
-    try src.go <DEF.STARTPOINT_<src.tag.raca>>
-  endif
- endif
+
+    if (!<DB.ROW.NUMROWS>) || (STRMATCH(,<DB.ROW.0.mail>)) //Jogador novo sem cadastro
+        src.dialog d_form_new 1
+        return 1
+    else
+        if (<src.IsGM>) //GM cadastrado. Mostrar se tem contas para avaliar.
+            DB.QUERY=SELECT COUNT(idAcct) AS cnt FROM accounts WHERE status='waiting'
+            if (<DB.ROW.0.cnt>)
+                timerf 7,sysmessageyellow,Existem <eval <DB.ROW.0.cnt>> formularios a serem avaliados.
+                timerf 9,sysmessageyellow,Digite '.formulario' para lista-los.
+            endif
+        else
+            if (<tag0.char_criado>==2) //Jogador antigo, cadastrado, char novo
+                tag0.char_criado=1
+                try src.go <DEF.STARTPOINT_<src.tag.raca>>
+            endif
+        endif
+    endif
 endif
+
+[FUNCTION confirme]
+if <tag.actkey>==<args>
+    sysmessageyellow Email ativado com sucesso!
+    IF (<IsNum <src.account>>)
+        DB.EXECUTE=UPDATE accounts SET status='form' WHERE username='<DB.ESCAPEDATA <eval <src.account>>>'
+    ELSE
+        DB.EXECUTE=UPDATE accounts SET status='form' WHERE username='<DB.ESCAPEDATA <account>>'
+    ENDIF
+    playerform
+    tag.actkey=
+else
+    sysmessageyellow Chave invalida!
+endif
+
+[FUNCTION mail_key]
+DB.QUERY=SELECT mail FROM accounts WHERE username='<src.account>'
+IF (<DB.ROW.NUMROWS>)   //jogador já cadastrado
+    tag.actkey = <serv.time>^<R1000>
+    sysmessageyellow Email de confirmacao enviado! <sendmail <DB.ROW.0.mail>,<DEF.EMAIL_TYPE_CONFIRM>,<eval <tag.actkey>>>
+ENDIF
+
 
 [FUNCTION playerform]
 //Abre o formulário para os jogadores
@@ -509,12 +533,12 @@ ENDIF
 //Use call form_SubmitAccounts
 
 //Checar a consistência das respostas
-FOR r 1 <DEF.FORM_QUESTIONS>
- IF (STRLEN(<ctag.form.a_<dlocal.r>>) < 3)
-  sysmessageyellow Sua resposta para a <dlocal.r>a. questao nao parece consistente.
-  local.redo=<local.r>
- ENDIF
-ENDFOR
+//FOR r 1 <DEF.FORM_QUESTIONS>
+// IF (STRLEN(<ctag.form.a_<dlocal.r>>) < 3)
+//  sysmessageyellow Sua resposta para a <dlocal.r>a. questao nao parece consistente.
+//  local.redo=<local.r>
+// ENDIF
+//ENDFOR
 
 //Checar a DB
 IF (!<DB.CONNECTED>)
@@ -622,14 +646,14 @@ ENDIF
 
 [FUNCTION dform_DeniedAccount]
 //Carrega o gump avisando ao player queo formulário foi recusado.
-dhtmlgump 20 107 598 329 8 1 Suas respostas ao formulario nao foram suficientes para certificar seus conhecimentos de representacao e sobre o ambiente do Mystical Tales Shard. Voce pode tentar novamente, quantas vezes forem necessarias.<DEF.BR>Se tiver dúvidas sobre representacao ou se a conduta do seu personagem eh adequada ao ambiente da MyT, debata a questao no forum da MyT na secao de Rolaplay em www.forum.myt.com.br<DEF.BR>Se voce acha que seus conhecimentos sobre o ambiente da MyT sao insuficientes, leia os textos de ambientacao em www.myt.com.br<DEF.BR><DEF.BR>Apontamentos do avaliador:<DEF.BR><serv.account.<src.account>.tag.form.reason>
+dhtmlgump 20 107 598 329 8 1 Suas respostas ao formulario nao foram suficientes para certificar seus conhecimentos de representacao e sobre o ambiente do Mystical Tales Shard. Voce pode tentar novamente, quantas vezes forem necessarias.<DEF.BR>Se tiver duvidas sobre representacao ou se a conduta do seu personagem eh adequada ao ambiente da MyT, debata a questao no forum da MyT na secao de Rolaplay em forum.myt.com.br<DEF.BR>Se voce acha que seus conhecimentos sobre o ambiente da MyT sao insuficientes, leia os textos de ambientacao em www.myt.com.br<DEF.BR><DEF.BR>Apontamentos do avaliador:<DEF.BR><serv.account.<src.account>.tag.form.reason>
 resizepic 22 55 9250 599 40
 dtext 36 65 18 Respostas recusadas!
 button 562 441 247 248 1 0 13
 
 [FUNCTION dform_AcceptAccount]
 //Carrega o gump avisando ao player que ele passou na Fuvest da MyT.
-dhtmlgump 20 107 598 329 8 1 Obrigado! Voce foi promovido de convidado a jogador no Mystical Tales Shard! Agora voce pode participar da comunidade de jogadores sem restricoes! Aproveite!<DEF.BR>Se voce precisar de maiores informacoes sobre a extensa e profunda jogabilidade permitida pelo servidor pode ler os manuais dos sistemas em www.myt.com.br ou ainda discuti-las em nosso forum (www.forum.myt.com.br) ou ainda ler e produzir seus proprios textos sobre os sistemas em nosso Wiki (www.wiki.myt.com.br).<DEF.BR><DEF.BR>Apontamentos do avaliador:<DEF.BR><serv.account.<src.account>.tag.form.reason>
+dhtmlgump 20 107 598 329 8 1 Obrigado! Voce foi promovido de convidado a jogador no Mystical Tales Shard! Agora voce pode participar da comunidade de jogadores sem restricoes! Aproveite!<DEF.BR>Se voce precisar de maiores informacoes sobre a extensa e profunda jogabilidade permitida pelo servidor pode ler os manuais dos sistemas em www.myt.com.br ou ainda discuti-las em nosso forum (forum.myt.com.br) ou ainda ler e produzir seus proprios textos sobre os sistemas em nosso Wiki (www.wiki.myt.com.br).<DEF.BR><DEF.BR>Apontamentos do avaliador:<DEF.BR><serv.account.<src.account>.tag.form.reason>
 resizepic 22 55 9250 599 40
 dtext 36 65 18 Sua conta foi aceita!
 button 562 441 247 248 1 0 14
@@ -649,6 +673,16 @@ for d 0 <local.a>
 endfor
 if (<local.a> > 0)
  serv.log [FORM PRUNE] <dlocal.a> contas GUEST inuteis removidas.
+endif
+
+[FUNCTION form_removeAccount]
+// Nao aceito
+if !(<isgm>)
+    if (<account.plevel>==0)
+        DB.EXECUTE=DELETE FROM accounts WHERE username='<account>'
+        DB.EXECUTE=DELETE FROM form_answers WHERE username='<account>'
+        TRYSRV serv.account <account> DELETE
+     endif
 endif
 
 //////////////////////////////////////////GUMPS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -738,9 +772,12 @@ ON=15
 //GM aprova conta
 IF (<IsNum <ctag.form.account>>)
  DB.EXECUTE="UPDATE accounts SET status='active' WHERE username='<dctag.form.account>';"
+ DB.QUERY="SELECT mail FROM accounts WHERE username='<dctag.form.account>';"
 ELSE
  DB.EXECUTE="UPDATE accounts SET status='active' WHERE username='<ctag.form.account>';"
+ DB.QUERY="SELECT mail FROM accounts WHERE username='<ctag.form.account>';"
 ENDIF
+src.sysmessagered Aprovado, enviando email: <sendmail <DB.ROW.0.mail>,<DEF.EMAIL_TYPE_ACCEPTED>,"<argtxt[0]>">
 serv.account.<ctag.form.account>.tag.form.reason=<argtxt[0]>
 obj=<serv.account.<ctag.form.account>.char.0>
 from_clearctags
@@ -754,9 +791,12 @@ ON=16
 //GM reprova conta
 IF (<IsNum <ctag.form.account>>)
  DB.EXECUTE="UPDATE accounts SET status='rejected' WHERE username='<dctag.form.account>';"
+ DB.QUERY="SELECT mail FROM accounts WHERE username='<dctag.form.account>';"
 ELSE
  DB.EXECUTE="UPDATE accounts SET status='rejected' WHERE username='<ctag.form.account>';"
+ DB.QUERY="SELECT mail FROM accounts WHERE username='<ctag.form.account>';"
 ENDIF
+src.sysmessagered Reprovado, enviando email: <sendmail <DB.ROW.0.mail>,<DEF.EMAIL_TYPE_REJECTED>,"<argtxt[0]>">
 serv.account.<ctag.form.account>.tag.form.reason=<argtxt[0]>
 obj=<serv.account.<ctag.form.account>.char.0>
 from_clearctags
@@ -828,7 +868,7 @@ text 535 356 37 12
 [DIALOG d_form_new text]
 Mystical Tales Shard
 Cadastro de jogadores
-Pra que sua conta seja aceita e efetivada, eh necessario que voce forneca seu NOME REAL e um E-MAIL VALIDO. Caso seu nome real e um e-mail valido não sejam fornecidos, sua conta sera deliberadamenet excluida do servidor sem avisos.<DEF.BR>Tambem eh necessario que voce leia, entenda e aceite, sem restricoes ou resalvas, as Regras do Servidor e os Termos de Servico. Apos isso, voce podera continuar com o processo de confirmacao respondendo o questionario de ambientação.<DEF.BR> Obrigado e bom divertimento!!!<DEF.BR><DEF.BR> -- Staff Mystical Tales Shard
+Pra que sua conta seja aceita e efetivada, eh necessario que voce forneca seu NOME REAL e um E-MAIL VALIDO. Caso seu nome real e um e-mail valido nao sejam fornecidos, sua conta sera deliberadamente excluida do servidor sem avisos.<DEF.BR>Tambem eh necessario que voce leia, entenda e aceite, sem restricoes ou resalvas, as Regras do Servidor e os Termos de Servico. Apos isso, voce podera continuar com o processo de confirmacao respondendo o questionario de ambientacao.<DEF.BR> Obrigado e bom divertimento!!!<DEF.BR><DEF.BR> -- Staff Mystical Tales Shard
 Nome real
 <ctag.name>
 e-mail
@@ -855,66 +895,54 @@ ON=3
 // Aceito
 ctag.name=<argtxt[0]>
 ctag.mail=<argtxt[1]>
+
+IF (<IsNum <src.account>>)
+ sysmessagered O username utilizado  parece um numero e nao deve ser utilizado. 
+ sysmessagered Crie outra conta...
+ DIALOG d_form_new
+ SERV.LOG [FORMULARIO] conta <src.account> sera deletada por parecer numerica (<eval <src.account>>)
+ timerf 60,form_removeAccount
+ return 0
+
 //Checar nome
-IF !(STRMATCH(* *,<ctag.name>)) || (<eval STRLEN(<ctag.name>)> < 8)
- sysmessagered <ctag.name> nao parece ser um nome valido.
+ELIF !(STRMATCH(* *,<ctag.name>)) || (<eval STRLEN(<ctag.name>)> < 8)
+ sysmessagered Nome invalido: <ctag.name>
  DIALOG d_form_new
  return 0
-ENDIF
+
 //checar mail
-IF (STRMATCH(* *,<ctag.mail>)) || (<eval STRLEN(<ctag.mail>)> < 8) || !(STRMATCH(*@*,<ctag.mail>)) || !(STRMATCH(*.*,<ctag.mail>))
- sysmessagered <ctag.mail> nao parece ser um e-mail valido.
+ELIF (STRMATCH(* *,<ctag.mail>)) || (<eval STRLEN(<ctag.mail>)> < 8) || !(STRMATCH(*@*,<ctag.mail>)) || !(STRMATCH(*.*,<ctag.mail>))
+ sysmessagered E-mail invalido: <ctag.mail>
  DIALOG d_form_new
  return 0
 ENDIF
+
 //Checar DB
-DB.QUERY="SELECT idAcct FROM accounts WHERE mail LIKE '<DB.ESCAPEDATA <ctag.mail>>'"
+DB.QUERY=SELECT idAcct FROM accounts WHERE mail LIKE '<DB.ESCAPEDATA <ctag.mail>>'
 IF (<DB.ROW.NUMROWS>)
  sysmessagered O email <ctag.mail> ja esta sendo usado.
  SERV.LOG [FORMULARIO] IP:<src.account.lastip> Acc:<src.account> Tentando se inscrever com e-mail ja utilizado!!! (<ctag.mail>)
  DIALOG d_form_new
  return 0
 ENDIF
-IF (<IsNum <src.account>>)
- DB.QUERY="SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <eval <src.account>>>';"
-ELSE
- DB.QUERY="SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>';"
-ENDIF
-IF (<DB.ROW.NUMROWS>)   //jogador já cadastrado
- local.idAcct=<DB.ROW.0.idAcct>
- IF (<serv.account.<src.account>.plevel>) //Jogador já joga na MyT
-  DB.EXECUTE="UPDATE accounts SET name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>', status='active' WHERE idAcct=<dlocal.idAcct>";
- ELSE                   //Jogador ainda não aceito pelo formulario
-  DB.EXECUTE="UPDATE accounts SET name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>', status='form' WHERE idAcct=<dlocal.idAcct>";
- ENDIF
-ELSE                    //Jogador não cadastrado
- IF (<IsNum <src.account>>)
-  DB.EXECUTE="INSERT INTO accounts SET username='<DB.ESCAPEDATA <src.account>>', name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>';"
- ELSE
-  DB.EXECUTE="INSERT INTO accounts SET username='<DB.ESCAPEDATA <src.account>>', name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>';"
- ENDIF
-ENDIF
-IF (<serv.account.<src.account>.plevel>==0)
- playerform
-else
- from_clearctags
-ENDIF
-return 1
 
-ON=0
-// Nao aceito
-IF !(<IsGM>)
- IF (<serv.account.<src.account>.plevel>==0)
-  SERV.LOG [FORMULARIO] conta <src.account> nao aceita Regras e TdS. Conta deletada.
-  IF (<IsNum <src.account>>)
-   DB.EXECUTE="DELETE FROM accounts WHERE username='<eval <src.account>>';"
-   DB.EXECUTE="DELETE FROM form_answers WHERE username='<eval <src.account>>';"
-  ELSE
-   DB.EXECUTE="DELETE FROM accounts WHERE username='<src.account>';"
-   DB.EXECUTE="DELETE FROM form_answers WHERE username='<src.account>';"
-  ENDIF
-  TRYSRV serv.account <src.account> DELETE
- endif
+
+DB.QUERY=SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>'
+IF (<DB.ROW.NUMROWS>)   //jogador já cadastrado
+ 
+ local.idAcct=<DB.ROW.0.idAcct>
+ DB.EXECUTE=UPDATE accounts SET name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>', status='confirm' WHERE idAcct=<dlocal.idAcct>
+ 
+ELSE                    //Jogador não cadastrado
+
+ DB.EXECUTE=INSERT INTO accounts SET username='<DB.ESCAPEDATA <src.account>>', name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>', status='confirm'
+ 
 ENDIF
+
+mail_key
+
+ON=0 //close/not accept
+SERV.LOG [FORMULARIO] conta <src.account> nao aceita Regras e TdS. Conta deletada.
+src.form_removeAccount
 
 [EOF]
