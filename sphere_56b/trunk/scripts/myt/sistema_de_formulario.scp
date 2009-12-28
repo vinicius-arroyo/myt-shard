@@ -146,29 +146,25 @@ mail_key
 //Assim que um char for criado ou fizer login chama esta função para conhecer o stsus da conta
 //e então tomar a provicência correta
 
-IF (<IsNum <src.account>>)
-    DB.QUERY=SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <eval <src.account>>>'
-ELSE
-    DB.QUERY=SELECT status, mail FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>'
-ENDIF
+src.form_cacheAccountInfo
 
 if (<serv.account.<src.account>.plevel>==0)     //Conta não aprovada
 
-    if (!<DB.ROW.NUMROWS>) || (STRMATCH(,<DB.ROW.0.mail>))
+    if (STRMATCH(,<src.ctag.form_mail>))
         try src.go <DEF.FORM_NEWBIEPOINT>
         serv.account.<src.account>.MAXCHARS=1
         src.DIALOG d_form_new 1
-    elif (STRMATCH(confirm,<DB.ROW.0.status>))        
+    elif (STRMATCH(confirm,<src.ctag.form_status>))        
         src.timerf 7,sysmessageyellow Sua conta esta aguardando confirmacao de email.
         src.timerf 14,sysmessageyellow Sua conta esta aguardando confirmacao de email.
         src.timerf 22,sysmessageyellow Sua conta esta aguardando confirmacao de email.
-    elif (STRMATCH(waiting,<DB.ROW.0.status>))
+    elif (STRMATCH(waiting,<src.ctag.form_status>))
         src.timerf 7,sysmessageyellow Sua conta esta aguardando aprovacao.
         src.timerf 14,sysmessageyellow Sua conta esta aguardando aprovacao.
         src.timerf 22,sysmessageyellow Sua conta esta aguardando aprovacao.
-    elif (STRMATCH(form,<DB.ROW.0.status>))
+    elif (STRMATCH(form,<src.ctag.form_status>))
         src.playerform
-    elif (STRMATCH(rejected,<DB.ROW.0.status>))
+    elif (STRMATCH(rejected,<src.ctag.form_status>))
         src.sfx 05b3
         try src.go <DEF.FORM_NEWBIEPOINT>
         src.ctag.form.method=<DEF.FORM_DENIED>
@@ -183,7 +179,7 @@ if (<serv.account.<src.account>.plevel>==0)     //Conta não aprovada
     
 else    //Jogador/GM antigo
 
-    if (!<DB.ROW.NUMROWS>) || (STRMATCH(,<DB.ROW.0.mail>)) //Jogador novo sem cadastro
+    if (STRMATCH(,<src.ctag.form_mail>)) //Jogador novo sem cadastro
         src.dialog d_form_new 1
         return 1
     else
@@ -203,7 +199,7 @@ else    //Jogador/GM antigo
 endif
 
 [FUNCTION confirme]
-if <tag.actkey>==<args>
+if <tag0.actkey>==<args>
     sysmessageyellow Email ativado com sucesso!
     IF (<IsNum <src.account>>)
         DB.EXECUTE=UPDATE accounts SET status='form' WHERE username='<DB.ESCAPEDATA <eval <src.account>>>'
@@ -217,20 +213,52 @@ else
 endif
 
 [FUNCTION mail_key]
-DB.QUERY=SELECT mail FROM accounts WHERE username='<src.account>'
-IF (<DB.ROW.NUMROWS>)   //jogador já cadastrado
+form_cacheAccountInfo
+IF <ctag0.form_id>
     tag.actkey = <serv.time>^<R1000>
-    sysmessageyellow Email de confirmacao enviado! <sendmail <DB.ROW.0.mail>,<DEF.EMAIL_TYPE_CONFIRM>,<eval <tag.actkey>>>
+    sysmessageyellow Email de confirmacao enviado! <sendmail <ctag.form_mail>,<DEF.EMAIL_TYPE_CONFIRM>,<eval <tag.actkey>>>
+ENDIF
+
+[FUNCTION form_cacheAccountInfo]
+
+IF (<IsNum <account>>)
+    DB.QUERY=SELECT * FROM accounts WHERE username='<eval <account>>'
+ELSE
+    DB.QUERY=SELECT * FROM accounts WHERE username='<account>'
+ENDIF
+
+IF <DB.ROW.NUMROWS>
+    ctag.form_name=<DB.ROW.0.name>
+    ctag.form_mail=<DB.ROW.0.mail>
+    ctag.form_status=<DB.ROW.0.status>
+    ctag.form_id=<DB.ROW.0.idAcct>
+ELSE
+    ctag.form_name=
+    ctag.form_mail=
+    ctag.form_status=
+    ctag.form_id=
 ENDIF
 
 
 [FUNCTION playerform]
-//Abre o formulário para os jogadores
-ctag.form.method=<DEF.FORM_SUBMIT>
-ctag.form.class=<DEF.FORM_ANSWER>
-ctag.form.page=0
-call form_loadAnswers
-DIALOG d_formulario 1
+if <serv.account.<account>.plevel>
+    sysmessagered Voce ja eh um jogador aceito.
+    return 1
+endif
+
+form_cacheAccountInfo
+if (STRMATCH(form,<ctag.form_status>)) || (STRMATCH(rejected,<ctag.form_status>)) || (STRMATCH(waiting,<ctag.form_status>))
+    //Abre o formulário para os jogadores
+    ctag.form.method=<DEF.FORM_SUBMIT>
+    ctag.form.class=<DEF.FORM_ANSWER>
+    ctag.form.page=0
+    call form_loadAnswers
+    DIALOG d_formulario 1
+else
+    sysmessagered Voce nao pode responder o formulario ainda.
+    return 1
+endif
+
 
 [FUNCTION formulario]
 //GMs visualizarem os formulários.
@@ -554,12 +582,8 @@ IF (<local.redo>)
 ENDIF
 
 //Checar conta errada ou fantasma
-IF (<IsNum <src.account>>)
- DB.QUERY="SELECT name, mail FROM accounts WHERE username='<DB.ESCAPEDATA <eval <src.account>>>';"
-ELSE
- DB.QUERY="SELECT name, mail FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>';"
-ENDIF
-if (!0<DB.ROW.NUMROWS>) || !(STRMATCH(*@*.*,<DB.ROW.0.mail>)) || !(STRMATCH(* *,<DB.ROW.0.name>))
+src.form_cacheAccountInfo
+if (!<src.ctag0.form_id>) || !(STRMATCH(*@*.*,<src.ctag.form_mail>)) || !(STRMATCH(* *,<src.ctag.form_name>))
  sysmessagered Sua conta ainda nao foi efetivada. Preencha o formulario.
  src.dialog d_form_new 1
  return 1
@@ -567,12 +591,7 @@ endif
 
 //Tudo okay, pode enviar
 //Aumentar a contagem de tentativas se foi rejeitada
-IF (<IsNum <src.account>>)
- DB.QUERY="SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <eval <src.account>>>' and status='rejected';"
-ELSE
- DB.QUERY="SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>' and status='rejected';"
-ENDIF
-if (<DB.ROW.NUMROWS>)
+IF (STRMATCH(rejected,<src.ctag.form_status>))
  src.account.tag.form.try = <src.account.tag0.form.try>+1
 endif
 
