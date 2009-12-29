@@ -142,74 +142,103 @@ confirme
 formulario
 mail_key
 
+[ITEMDEF i_deed_form]
+ID=i_deed
+TYPE=t_script
+NAME=MyT Ticket
+
+ON=@CREATE
+attr |= attr_newbie
+
+ON=@DCLICK
+src.menu m_create_char
+return 1
+
 [FUNCTION form_checkAccStatus]
 //Assim que um char for criado ou fizer login chama esta função para conhecer o stsus da conta
 //e então tomar a provicência correta
 
 src.form_cacheAccountInfo
+if (STRMATCH(active,<src.ctag.form_status>)) 
 
-if (<serv.account.<src.account>.plevel>==0)     //Conta não aprovada
-
-    if (STRMATCH(,<src.ctag.form_mail>))
-        try src.go <DEF.FORM_NEWBIEPOINT>
-        serv.account.<src.account>.MAXCHARS=1
-        src.DIALOG d_form_new 1
-    elif (STRMATCH(confirm,<src.ctag.form_status>))        
-        src.timerf 7,sysmessageyellow Sua conta esta aguardando confirmacao de email.
-        src.timerf 14,sysmessageyellow Sua conta esta aguardando confirmacao de email.
-        src.timerf 22,sysmessageyellow Sua conta esta aguardando confirmacao de email.
-    elif (STRMATCH(waiting,<src.ctag.form_status>))
-        src.timerf 7,sysmessageyellow Sua conta esta aguardando aprovacao.
-        src.timerf 14,sysmessageyellow Sua conta esta aguardando aprovacao.
-        src.timerf 22,sysmessageyellow Sua conta esta aguardando aprovacao.
-    elif (STRMATCH(form,<src.ctag.form_status>))
-        src.playerform
-    elif (STRMATCH(rejected,<src.ctag.form_status>))
-        src.sfx 05b3
-        try src.go <DEF.FORM_NEWBIEPOINT>
-        src.ctag.form.method=<DEF.FORM_DENIED>
-        src.ctag.form.class=<DEF.FORM_ACCOUNT>
-        src.DIALOG d_formulario 1
-    else
+    if !<serv.account.<src.account>.plevel>  //Conta recem aprovada
         src.sfx 05a6
         src.ctag.form.method=<DEF.FORM_ACCEPT>
         src.ctag.form.class=<DEF.FORM_ACCOUNT>
         src.DIALOG d_formulario 1
-    endif
+        
+        REF1=<src.findid.i_deed_form>
+        REF1.color=0044 //green
+    else //Jogador/GM antigo
     
-else    //Jogador/GM antigo
-
-    if (STRMATCH(,<src.ctag.form_mail>)) //Jogador novo sem cadastro
-        src.dialog d_form_new 1
-        return 1
-    else
         if (<src.IsGM>) //GM cadastrado. Mostrar se tem contas para avaliar.
             DB.QUERY=SELECT COUNT(idAcct) AS cnt FROM accounts WHERE status='waiting'
             if (<DB.ROW.0.cnt>)
                 timerf 7,sysmessageyellow,Existem <eval <DB.ROW.0.cnt>> formularios a serem avaliados.
                 timerf 9,sysmessageyellow,Digite '.formulario' para lista-los.
             endif
-        else
-            if (<tag0.char_criado>==2) //Jogador antigo, cadastrado, char novo
-                tag0.char_criado=1
-                try src.go <DEF.STARTPOINT_<src.tag.raca>>
-            endif
         endif
+
     endif
+    
+    return 1
 endif
 
+
+REF1=<src.findid.i_deed_form>
+if !<REF1>
+    SERV.NEWITEM i_deed_form
+    new.bounce 
+    REF1=<new>
+endif
+REF1.color=0020 //red
+
+if (STRMATCH(,<src.ctag.form_mail>))
+//        try src.go <DEF.FORM_NEWBIEPOINT>
+    serv.account.<src.account>.MAXCHARS=1
+    src.DIALOG d_form_new 1
+elif (STRMATCH(confirm,<src.ctag.form_status>))        
+    src.timerf 7,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+    src.timerf 14,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+    src.timerf 22,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+    REF1.color=00d4 //purple
+elif (STRMATCH(waiting,<src.ctag.form_status>))
+    src.timerf 7,sysmessageyellow Sua conta esta aguardando aprovacao.
+    src.timerf 14,sysmessageyellow Sua conta esta aguardando aprovacao.
+    src.timerf 22,sysmessageyellow Sua conta esta aguardando aprovacao.
+    REF1.color=0020 //red
+elif (STRMATCH(form,<src.ctag.form_status>))
+    src.playerform
+    REF1.color=0020 //red
+elif (STRMATCH(rejected,<src.ctag.form_status>))
+    src.sfx 05b3
+//        try src.go <DEF.FORM_NEWBIEPOINT>
+    src.ctag.form.method=<DEF.FORM_DENIED>
+    src.ctag.form.class=<DEF.FORM_ACCOUNT>
+    src.DIALOG d_formulario 1
+    REF1.color=0020 //red
+endif
+
+
+
 [FUNCTION confirme]
-if <tag0.actkey>==<args>
-    sysmessageyellow Email ativado com sucesso!
-    IF (<IsNum <src.account>>)
-        DB.EXECUTE=UPDATE accounts SET status='form' WHERE username='<DB.ESCAPEDATA <eval <src.account>>>'
-    ELSE
-        DB.EXECUTE=UPDATE accounts SET status='form' WHERE username='<DB.ESCAPEDATA <account>>'
-    ENDIF
-    playerform
-    tag.actkey=
+src.form_cacheAccountInfo
+
+if (STRMATCH(waiting,<src.ctag.form_status>))        
+    if <tag0.actkey>==<args>
+        sysmessageyellow Email ativado com sucesso!
+        IF (<IsNum <src.account>>)
+            DB.EXECUTE=UPDATE accounts SET status='form' WHERE username='<DB.ESCAPEDATA <eval <src.account>>>'
+        ELSE
+            DB.EXECUTE=UPDATE accounts SET status='form' WHERE username='<DB.ESCAPEDATA <account>>'
+        ENDIF
+        tag.actkey=
+        form_checkAccStatus
+    else
+        sysmessageyellow Chave invalida!
+    endif
 else
-    sysmessageyellow Chave invalida!
+    sysmessageyellow Nao pode ativar novamente!
 endif
 
 [FUNCTION mail_key]
@@ -241,12 +270,8 @@ ENDIF
 
 
 [FUNCTION playerform]
-if <serv.account.<account>.plevel>
-    sysmessagered Voce ja eh um jogador aceito.
-    return 1
-endif
-
 form_cacheAccountInfo
+
 if (STRMATCH(form,<ctag.form_status>)) || (STRMATCH(rejected,<ctag.form_status>)) || (STRMATCH(waiting,<ctag.form_status>))
     //Abre o formulário para os jogadores
     ctag.form.method=<DEF.FORM_SUBMIT>
@@ -254,9 +279,10 @@ if (STRMATCH(form,<ctag.form_status>)) || (STRMATCH(rejected,<ctag.form_status>)
     ctag.form.page=0
     call form_loadAnswers
     DIALOG d_formulario 1
+elif (STRMATCH(active,<ctag.form_status>))     
+    sysmessagered Voce ja eh um jogador aceito.
 else
     sysmessagered Voce nao pode responder o formulario ainda.
-    return 1
 endif
 
 
@@ -785,7 +811,7 @@ serv.account.<src.account>.plevel=1
 serv.account.<src.account>.tag.try=
 serv.account.<src.account>.tag.reason=
 serv.account.<src.account>.MAXCHARS=
-try src.go <DEF.STARTPOINT_<src.tag.raca>>
+//try src.go <DEF.STARTPOINT_<src.tag.raca>>
 
 ON=15
 //GM aprova conta
@@ -798,6 +824,7 @@ ELSE
 ENDIF
 src.sysmessagered Aprovado, enviando email: <sendmail <DB.ROW.0.mail>,<DEF.EMAIL_TYPE_ACCEPTED>,"<argtxt[0]>">
 serv.account.<ctag.form.account>.tag.form.reason=<argtxt[0]>
+serv.account.<ctag.form.account>.plevel=0
 obj=<serv.account.<ctag.form.account>.char.0>
 from_clearctags
 formulario
@@ -963,5 +990,6 @@ mail_key
 ON=0 //close/not accept
 SERV.LOG [FORMULARIO] conta <src.account> nao aceita Regras e TdS. Conta deletada.
 src.form_removeAccount
+
 
 [EOF]
