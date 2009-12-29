@@ -207,12 +207,24 @@ xcc_CreateChar
 xchar_createNew
 
 [FUNCTION char_createNew]
+if <argn1> && ( <var.shard_online> || <isgm> )
+    form_cacheAccountInfo
+    if (STRMATCH(active,<ctag.form_status>))
+        go <DEF.FINAL_STARTPOINT>
+    else
+        go <DEF.GLOBAL_STARTPOINT>
+    endif
+else
+    go <DEF.GLOBAL_STARTPOINT>
+endif
 cc_CreateChar
 
 [FUNCTION cc_CreateChar]
 dialogclose d_char_create
 clearctags
+LOCAL.actkey=<tag0.actkey>
 cleartags
+tag.actkey=<LOCAL.actkey>
 cTAG.CC_PAGE=1
 DIALOG d_char_create <cTAG0.CC_PAGE>
 
@@ -443,9 +455,10 @@ tag.pontosdealma=5
 crafting_init
 tailor_init
 
-tag.char_criado=2       //Avisa o sistema de formulário que este char está RECÉM criado.
-                        //ao @login verifica se é necessário fazer cadastro ou formulário
-                        //e então tag.char_criado é setado para 1.
+tag.char_criado=1
+                        
+findlayer.layer_bankbox.empty
+
 trigger @login
 
 
@@ -819,4 +832,38 @@ cc_ApplyRace
 cc_SetupChar
 cc_ApplyClass
 try <DEF.cc_sign_<dtag0.cc_sign>_func>
+
+
+
+
+
+
+
+
+[ITEMDEF i_stone_chars]
+ID=0eDD
+NAME=Pedra de Criacao
+TYPE=t_script
+
+ON=@DCLICK
+src.menu m_create_char
+return 1
+
+[MENU m_create_char]
+Mystical Tales
+ON=0 Substituir personagem (tudo neste sera perdido)
+char_createNew
+
+ON=0 Responder Formulario
+playerform
+
+ON=0 Entrar no mundo de Mystical Tales
+
+src.form_cacheAccountInfo
+if (<src.isgm>) || (<var.shard_online> && (STRMATCH(active,<src.ctag.form_status>)) )
+    src.char_createNew 1
+else        
+    src.sysmessageyellow Voce ainda nao tem permissao para sair de Lynn
+endif
+
 [EOF]
