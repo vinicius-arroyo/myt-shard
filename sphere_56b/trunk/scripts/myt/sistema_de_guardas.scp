@@ -1054,8 +1054,10 @@ endif
 [FUNCTION IsTownNPC]
 //Retorna 1 se esse NPC é da town, mas não é guarda.
 IF !<IsPlayer>
-    if (<NPC>==<DEF.BRAIN_VENDOR>) || (<NPC>==<DEF.BRAIN_BANKER>) || (<NPC>==<DEF.BRAIN_HUMAN>)  || (<NPC>==<DEF.BRAIN_VENDOR_OFFDUTY>)
-        return 1
+    if <karma> >= 0
+        if (<NPC>==<DEF.BRAIN_VENDOR>) || (<NPC>==<DEF.BRAIN_BANKER>) || (<NPC>==<DEF.BRAIN_HUMAN>)  || (<NPC>==<DEF.BRAIN_VENDOR_OFFDUTY>)
+            return 1
+        endif            
     endif
 ENDIF
 return 0
@@ -1080,13 +1082,27 @@ return <local.ret>
 //*****************************************************************************
 [FUNCTION town_NpcNear]
 //Executa a função <args> em todos os NPCs da Town a 12 tile de distância que vêem DEFAULT
+//<args> normamente eh <funcao>,<uid>,<mascara>
+
+//evita chamar essa funcao pelo mesmo motivo muitas vezes seguida.
+if <serv.time> < <tag0.town_npcnear_<argv2>>
+    return
+endif
+
+//7s cooldown
+try tag.town_npcnear_<argv2>=<eval <serv.time>+70>
+
 obj=<UID>
 local.ret=0
 FORCHARS 12
- IF (<canSeeLos <obj>>) && (<IsTownNPC>) && (<obj>!=<UID>) && (<obj.act>!=<UID>)
-  try <args>
-  local.ret=1
- ENDIF
+    if (<obj>!=<UID>) && (<obj.act>!=<UID>)
+        if <IsTownNPC>
+            if <canSeeLos <obj>>
+                try <args>
+                local.ret=1
+            endif
+        endif
+    endif        
 END
 return <local.ret>
 
@@ -1112,8 +1128,8 @@ DOSWITCH <local.charge>
  local.t .= Tem gente brigando aqui!            //Entrar em warmode pode?
  local.t .= Ha alguem armado aqui!              //Arma mais pesada que uma adaga ou cajado
  local.t .= Uma pessoa encapuzada!              //Andar de capuz pode?
- local.t .= Um<obj.sex " "/"a "> assassin<obj.sex o/a>!//QUALQUER harm. Incluindo de magia. SRC do @DAMAGE? @HIT? @SPELLSUCCESS de SPELL_HARM?
- local.t .= Um<obj.sex " "/"a ">feiticeiro!     //QUALQUER magia. Até Healing ou Fireworks
+ local.t .= Um<obj.sex  /a > assassin<obj.sex o/a>!//QUALQUER harm. Incluindo de magia. SRC do @DAMAGE? @HIT? @SPELLSUCCESS de SPELL_HARM?
+ local.t .= Um<obj.sex  /a >feiticeiro!     //QUALQUER magia. Até Healing ou Fireworks
  local.t .= Pega ladrao!                        //Snooping e stealing.
  local.t .= Pega ladrao!                        //No step do lockpicking. 1x por segundo
  local.t .= Pega ladrao!                        //Mining, lumber, @Kill BRAIN_ANIMAL, fishing, facas especiais
