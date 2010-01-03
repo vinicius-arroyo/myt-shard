@@ -14,11 +14,11 @@ nº      Ataque
 201     Dom Negro
 206     Infestação
 214     Choque mental
-
+        
         Buff
 202     Proteção contra veneno
 210     Mascara da morte
-
+        
         Debuff
 200     Cançar musculos
 204     Envelhecer (stats)
@@ -27,17 +27,17 @@ nº      Ataque
 211     Demência
 215     Pacto de sangue (dano contra)
 217     Pânico
-
+        
         Summon
 209     Morto vivo menor
 212     Morto vivo
 218     Morto vivo maior
-
+        
         Poly
 203     Rato
 215     Esqueleto
 219     Liche
-
+        
         RP
 205     Vomitar sapos
 213     Putrefação
@@ -114,8 +114,8 @@ local.modnec=<eval (<argn2>*<src.int>)/150>
 local.str=<EFFECTSPELL s_cansar_musculos,<local.modnec>,<src.uid>>
 local.str=<maximum 20-<str>,-<local.str>>
 
-local.dex=<EFFECTSPELL s_cansar_musculos,<argn2>,<src.uid>>
-local.str=<maximum 20-<dex>,-<local.dex>>
+local.dex=<EFFECTSPELL s_cansar_musculos,<local.modnec>,<src.uid>>
+local.dex=<maximum 20-<dex>,-<local.dex>>
 
 local.time=<DURATIONSPELL s_cansar_musculos,<argn2>,<src.uid>>
 
@@ -267,6 +267,7 @@ local.time=<DURATIONSPELL s_polymorph_rat,<argn2>,<src.uid>>
 src.f_polymorph c_rato_poly,0,<local.time>
 src.Buff_STR <local.str>,<local.time>
 src.Buff_DEX <local.dex>,<local.time>
+src.haste <local.time>
 return 1
 
 //***********************************************************
@@ -276,7 +277,7 @@ return 1
 [ITEMDEF i_scroll_envelhecer]
 ID=02264
 NAME=Pergaminho Envelhecer
-RESOURCES=i_carta,i_r_nightshade,i_r_asa_morcego
+RESOURCES=i_carta,i_r_nightshade,i_r_asa_morcego 
 SKILLMAKE=INSCRIPTION 40.0, Necromancy 40.0
 TYPE=T_SCROLL
 WEIGHT=1
@@ -357,6 +358,10 @@ SKILLREQ=NECROMANCY 30.0
 INTERRUPT=35.0,100.0
 
 on=@Effect
+if (<flags>&statf_conjured)
+ vomitar
+ return 1
+endif
 newitem i_mry_frog_vomit
 new.more1=<EFFECTSPELL s_vomitar_sapos,<argn2>,<src.uid>>
 new.link=<uid>
@@ -392,7 +397,8 @@ endif
 serv.newnpc c_bullfrog
 new.p=<link.p>
 new.movedir <link.dir>
-new.timerf 120 remove
+new.flags |= statf_conjured
+new.timerf 35 suicide
 timer <R5,12>
 return 1
 
@@ -427,7 +433,7 @@ CAST_TIME=15
 RESOURCES=i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_musgo_sangue
 RUNE_ITEM=23005
 SCROLL_ITEM=i_scroll_infestacao
-FLAGS=SPELLFLAG_GOOD | spellflag_scripted | spellflag_summon
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted
 DURATION=20,120
 MANAUSE=16
 SKILLREQ=NECROMANCY 40.0
@@ -529,7 +535,7 @@ Buff_INT <local.int>,<local.time>
 MANA=<minimum <int>,<mana>>
 newitem i_mry_poison_mind
 new.link <uid>
-new.more1 <local.time>
+new.more1 <eval <local.time>/2>
 new.equip
 return 1
 
@@ -549,7 +555,7 @@ more1 -= 1
 if (<link.mana>)
  link.mana -= 1
 endif
-timer 1
+timerd 15
 return 1
 
 
@@ -644,7 +650,7 @@ INTERRUPT=65.0,100.0
 
 on=@Effect
 local.body=<body>
-IF (<R0,<argn2>> < 15.0)
+IF (<R0,<argn2>> < 12.5)
  local.body={c_zombie 2 c_grim_reaper 1}
 ENDIF
 local.time=<DURATIONSPELL s_mascara_morte,<argn2>,<src.uid>>
@@ -711,7 +717,8 @@ newitem i_spl_demence
 new.link <UID>
 new.more2 <src.uid>//Guardar o caster pra fugir
 new.equip
-new.timer <DURATIONSPELL s_demencia,<argn2>,<src.uid>>
+new.more1 <DURATIONSPELL s_demencia,<argn2>,<src.uid>>
+new.timer=1
 return 1
 
 [ITEMDEF i_spl_demence]
@@ -722,7 +729,7 @@ layer=layer_special
 
 on=@create
 attr=022
-more2=5
+more1=5
 
 on=@equip
 timer 1
@@ -737,13 +744,13 @@ on=@timer
 IF (!<more1>)
  remove
 ENDIF
-more2=<more2>-1
+more1=<more1>-1
 timer=<R2,4>
 
 IF (!<link.isplayer>)
  link.mana=0
  link.act=<more2>//UID do caster
- link.action=069//Wandering
+ link.action=069//Flee
  return 1
 ENDIF
 
@@ -760,9 +767,9 @@ ENDIF
 return 1
 
 on=@unequip
-cont.flags=<cont.flags>&~0400000        //Tira hallu
-cont.update
-cont.sysmessagegreen Voce se sente melhor
+link.flags=<cont.flags>^0400000        //Tira hallu
+link.update
+link.sysmessagegreen Voce se sente melhor
 return 1
 
 [FUNCTION msay]
@@ -889,6 +896,7 @@ RESOURCES=i_r_nightshade,i_r_musgo_sangue,i_r_olho_morto_vivo
 RUNE_ITEM=20482
 SCROLL_ITEM=i_scroll_putrefacao
 FLAGS=SPELLFLAG_HARM | spellflag_scripted | spellflag_targ_char
+EFFECT=5,30
 DURATION=40,180
 MANAUSE=24
 SKILLREQ=NECROMANCY 70.0
@@ -897,6 +905,14 @@ INTERRUPT=75.0,100.0
 on=@Effect
 local.time=<DURATIONSPELL s_putrefacao,<argn2>,<src.uid>>
 f_polymorph c_zombie,0,<local.time>
+//f_polymorph <body>,0b53,<local.time>
+slow <local.time>
+local.str=<maximum <eval 20-<STR>>,-<eval <local.effect>/2>>
+local.dex=<maximum <eval 20-<DEX>>,-<local.effect>>
+Buff_STR <local.str>,<local.time>
+Buff_DEX <local.dex>,<local.time>
+HITS=<minimum <hits>,<str>>
+STAM=<minimum <dex>,<stam>>
 return 1
 
 
@@ -1067,7 +1083,13 @@ timerf <local.time> tag.pacto_sangue
 return 1
 
 [EVENTS e_pacto_sangue]
-on=@hit
+on=@Hitting//Para playas
+if (<src.uid>==<tag0.pacto_sangue>)
+ local.dam=<eval (<argn1>*<R105,120>)/100)>
+ DAMAGE <local.dam> <argn2> <argn3>
+endif
+
+on=@Hit//Para NPCs
 if (<src.uid>==<tag0.pacto_sangue>)
  local.dam=<eval (<argn1>*<R105,120>)/100)>
  DAMAGE <local.dam> <argn2> <argn3>
