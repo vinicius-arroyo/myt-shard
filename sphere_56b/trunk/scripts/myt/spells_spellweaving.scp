@@ -12,32 +12,32 @@
 [COMMENT spells_spellweaving]]
 nº      Ataque
 256     Dardos gélidos
-266     Chuva de gelo
-
+266     Cone de gelo
+        
         Buff
 251     Resistência ao frio
 254     Rapidês do tigre
 260     Intligência da coruja
 264     Força do touro
-
+        
         Debuff
 252     Sensibilidade ao frio
 258     Congelar arma
-
+        
         Summon
 253     Pardal
 259     Leão marinho
 262     Animais da floresta
-265     Companheiro
-269     Urso polar
-
+265     Urso cinzento
+268     Dríade
+        
         Poly
 255     Gaivota
 257     Macaco
 263     Corso
 267     Urso polar
 269     Grande urso polar
-
+        
         RP
 261     Criar água
 250     Ensopar
@@ -202,7 +202,7 @@ ON=@Create
         ATTR=ATTR_MAGIC
         MOREX=252
         MOREY={30 70}
-
+        
 [ITEMDEF i_rune_sens_frio]
 NAME=Cold Weakness
 ID=020A4
@@ -349,7 +349,7 @@ DESCRIPTION=Rapidez do tigre
 ON=@Create
         ATTR=ATTR_MAGIC
         MOREX=254
-
+        
 [ITEMDEF i_rune_rapid_tigre]
 NAME=Agilidade Felina
 ID=02088
@@ -417,7 +417,7 @@ DESCRIPTION=Forma de gaivota
 ON=@Create
         ATTR=ATTR_MAGIC
         MOREX=255
-
+        
 [Spell 255]
 DEFNAME=s_forma_gaivota
 NAME=Forma de Aguia
@@ -440,6 +440,7 @@ local.time=<DURATIONSPELL s_forma_gaivota,<argn2>,<src.uid>>
 src.f_polymorph c_aguia_poly,0,<local.time>
 src.Buff_STR <local.str>,<local.time>
 src.Buff_DEX <local.dex>,<local.time>
+src.haste <local.time>
 aid
 return 0
 
@@ -536,7 +537,7 @@ DESCRIPTION=Forma de gorila
 ON=@Create
         ATTR=ATTR_MAGIC
         MOREX=257
-
+        
 [Spell 257]
 DEFNAME=s_forma_gorila
 NAME=Forma Lupina
@@ -616,6 +617,7 @@ endif
 on=@Effect
 weapon.f_cold_weapon
 weapon.timerf <DURATIONSPELL 258,<argn2>,<src.uid>>,f_cold_weapon
+return 1
 
 [FUNCTION f_cold_weapon]
 if (<tag0.s258>)
@@ -639,10 +641,10 @@ else
  color=08be
  tag.s258.name=<name>
  name=<name> (congelado)
- if (!<IsEvent.e_fragile>)
-  tag.s258nofragile=1
-  events +e_fragile
- endif
+ //if (!<IsEvent.e_fragile>)
+ // tag.s258nofragile=1
+ // events +e_fragile
+ //endif
  if (<cont.IsChar>)
   cont.damage <R1,3>,dmg_cold,<src>
   movenear <cont>,2
@@ -727,7 +729,7 @@ DESCRIPTION=Inteligencia da coruja
 ON=@Create
         ATTR=ATTR_MAGIC
         MOREX=260
-
+        
 [ITEMDEF i_rune_int_coruja]
 NAME=Bencao de Metryah
 ID=02089
@@ -763,13 +765,15 @@ SKILLREQ=SPELLWEAVING 60.0
 INTERRUPT=65.0,100.0
 
 on=@Effect
-LOCAL.EFFECT=<EFFECTSPELL 254,<argn2>,<src.uid>>
-LOCAL.DURATION=<DURATIONSPELL 254,<argn2>,<src.uid>>
+LOCAL.EFFECT=<EFFECTSPELL 260,<argn2>,<src.uid>>
+LOCAL.DURATION=<DURATIONSPELL 260,<argn2>,<src.uid>>
 newitem=i_rune_int_coruja
 new.tag.modint=<minimumN 135-<int>,<LOCAL.EFFECT>>
-IF (<BELLTEST <src.spellweaving>,80.0>)
- new.tag.modskill=EvaluatingIntel
- new.tag.modskillval=<eval <local.effect>*8>
+IF (<src.EvaluatingIntel> < 105.0)
+ IF (<BELLTEST <src.spellweaving>,80.0>)
+  new.tag.modskill=EvaluatingIntel
+  new.tag.modskillval=<MINIMUMN <eval <local.effect>*8>, <eval 105.0-<src.EvaluatingIntel>>>
+ ENDIF
 ENDIF
 new.link <uid>
 trysrc <uid> src.new.equip
@@ -919,7 +923,7 @@ DESCRIPTION=Forma de corso
 ON=@Create
         ATTR=ATTR_MAGIC
         MOREX=263
-
+        
 [Spell 263]
 DEFNAME=s_forma_corso
 NAME=Avatar de Aranrosse
@@ -973,7 +977,7 @@ DESCRIPTION=Força do touro
 ON=@Create
         ATTR=ATTR_MAGIC
         MOREX=264
-
+        
 [ITEMDEF i_rune_for_touro]
 NAME=Forca do touro
 ID=0208F
@@ -1123,14 +1127,16 @@ SKILLREQ=SPELLWEAVING 90.0
 INTERRUPT=95.0,100.0
 
 on=@START
-IF (<targ.distance> > 3)
- sysmessageyellow Muito longe...
- return 1
+IF (!<NPC>)
+ IF (<targ.distance> > 4)
+  sysmessageyellow Muito longe...
+  return 1
+ ENDIF
 ENDIF
 
 on=@SELECT
 if (<argn>==2)//passou no teste
- if (<src.act.distance <UID>> > 3)
+ if (<src.act.distance <UID>> > 4)
   src.sysmessageyellow Muito longe...
   return 1
  endif
@@ -1143,7 +1149,7 @@ forchars 2
   EFFECT 0 i_fx_fireball 6 16 1 91 3
  ENDIF
 end
-if (!<src.restest i_rune_cone_gelo>) && (!<R0,2>)//Cooldown
+if (!<src.restest i_rune_cone_gelo>) && (!<R2>)//Cooldown
  if (!<BELLTEST <MagicResistance>,30.0>)
   EFFECT 3 i_fire_column 0 16 0 91 3
   stonned <eval <EFFECTSPELL s_cone_gelo,dam_cold,<src.Spellweaving>,<src.uid>>/2>
@@ -1174,7 +1180,7 @@ DESCRIPTION=Forma de urso pardo
 ON=@Create
         ATTR=ATTR_MAGIC
         MOREX=267
-
+        
 [Spell 267]
 DEFNAME=s_forma_urso
 NAME=Licantropia
@@ -1260,19 +1266,11 @@ obj.int=<eval 100+<local.effect>>
 obj.rescold=<minimum <local.effect>,100>
 obj.aid
 obj.spellweaving <eval <local.effect>*8>
+obj.magery=<obj.spellweaving>
 obj.EvaluatingIntel <eval (<local.effect>*20)/3>
 obj.Healing <eval <local.effect>*7>
-obj.events += e_dryad_mage
 return 0
 
-[EVENTS e_dryad_mage]
-on=@spellselect
-argn1={256 2 266 1}
-return 6
-
-on=@spellcast
-argn1={256 2 266 1}
-return 6
 
 //***********************************************************
 //              SPELL ALTERATION Polimorfar para urso polar
@@ -1293,7 +1291,7 @@ DESCRIPTION=Forma de urso polar
 ON=@Create
         ATTR=ATTR_MAGIC
         MOREX=269
-
+        
 [Spell 269]
 DEFNAME=s_forma_ursop
 NAME=Licantropia Maior
