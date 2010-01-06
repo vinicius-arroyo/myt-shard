@@ -49,26 +49,27 @@ src.DAMAGE <R3,5> DAM_FIRE <src.uid>
 // t_caldron
 //******************************************************************************
 [TYPEDEF t_caldron]
-on=@dclick
-IF (<link>!=04fffffff)
- if (<link.more1>
-  src.sysmessagered O caldeirao esta muito quente para voce encostar nele.
-  return 1
- endif
+ON=@DCLICK
+obj=<tag0.liquid>
+if <obj>
+    if <obj.more1>
+        src.sysmessagered O caldeirao esta muito quente para voce encostar nele.
+        return 1
+    endif
 endif
 
-on=@tryfill
-IF (!<CaldronCheckFire>)
- src.sysmessagered Voce precisa colocar o caldeirao em cima de uma fogueira.
- return 1
+ON=@TRYFILL
+IF !<CaldronCheckFire>
+    src.sysmessagered Voce precisa colocar o caldeirao em cima de uma fogueira.
+    return 1
 endif
 
-on=@FillEnd
+ON=@FillEnd
 //caldeirao cheio nao pode se mexer
 attr = attr_move_never
 timer -1
 
-on=@timer
+ON=@TIMER
 timer=-1
 return 1
 
@@ -77,68 +78,67 @@ return 1
 //******************************************************************************
 [TYPEDEF t_stew]
 //Conteúdo de caldeirão
-on=@clientToolTip
-if (<more1>)
- f_sendToolTip <DEF.LIQUID_<more2>_name>,(aquecendo)
+ON=@CLIENTTOOLTIP
+if <more1>
+    f_sendToolTip <DEF.LIQUID_<more2>_name>,(aquecendo)
 else
- f_sendToolTip <DEF.LIQUID_<more2>_name>,(pronto)
+    f_sendToolTip <DEF.LIQUID_<more2>_name>,(pronto)
 endif
 return 1
 
-on=@click
-if (<more1>)
- message <DEF.LIQUID_<more2>_name>
- message (aquecendo)
+ON=@CLICK
+if <more1>
+    message <DEF.LIQUID_<more2>_name>
+    message (aquecendo)
 else
- message <DEF.LIQUID_<more2>_name>
- message (frio)
+    message <DEF.LIQUID_<more2>_name>
+    message (pronto)
 endif
 return 1
 
-on=@timer
-IF (!<LINK.CaldronCheckFire>)
- more1=0
- emotered esfriou
- update
-ELIF (<more1>)
- more1 -= 1
- timer 3
- DORAND 5
-  emotered aquecendo
-  effect 2,i_fx_smoke,0,14,0
-  sfx 05aF
-  sfx 021
-  effect 2,i_fx_smoke,0,14,0
- ENDDO
+ON=@TIMER
+IF !<LINK.CaldronCheckFire>
+    more1=0
+    emotered esfriou
+    update
+ELIF <more1>
+    more1 -= 1
+    timer 3
+    DORAND 5
+        emotered aquecendo
+        effect 2,i_fx_smoke,0,14,0
+        sfx 05aF
+        sfx 021
+        effect 2,i_fx_smoke,0,14,0
+    ENDDO
 ELSE
- //terminou
- if (<Isempty <DEF.LIQUID_<more2>_BOIL>>)
-  link.emotegreen evaporou
-  link.EmptyRecipient
- else
-  link.more2=<DEF.LIQUID_<more2>_BOIL>
-  link.GenerateCaldronFill
-  link.emotegreen virou <DEF.LIQUID_<link.more2>_name>
- endif
- remove
+    //terminou
+    if <Isempty <DEF.LIQUID_<more2>_BOIL>>
+        link.emotegreen evaporou
+        link.EmptyRecipient
+    else
+        link.more2=<DEF.LIQUID_<more2>_BOIL>
+        link.GenerateCaldronFill
+        link.emotegreen virou <DEF.LIQUID_<link.more2>_name>
+    endif
+    remove
 ENDIF
 return 1
 
-ON=@DClick
+ON=@DCLICK
 if (<src.distance <UID>> > 1) && (!<src.IsGM>)
- src.sysmessagered Muito longe...
- return 1
-endif
-if (<more2>==LIQUID_WATER)
- more1 90
- src.cTAG.caldron=<link>
- src.skillmenu sm_caldron_water
- return 1
-ELIF (<more2>==LIQUID_SWAMP)
- more1 90
- src.cTAG.caldron=<link>
- src.skillmenu sm_caldron_swamp
- return 1
+    src.sysmessagered Muito longe...
+    return 1
+elif <more2>==LIQUID_WATER
+    more1 90
+    src.cTAG.caldron=<link>
+    src.skillmenu sm_caldron_water
+    return 1
+ELIF <more2>==LIQUID_SWAMP
+    more1 90
+    src.cTAG.caldron=<link>
+    src.skillmenu sm_caldron_swamp
+    return 1
 endif
 
 //******************************************************************************
@@ -433,15 +433,15 @@ ON=@DCLICK
 return 1
 
 on=@FillEnd
-IF (<LINK>==04fffffff)
- GenerateCaldronFill
-endif
+GenerateCaldronFill
 
 on=@EmptyRecipient
-uid.<link>.remove
-link=-1
+obj=<tag0.liquid>
+if <obj>
+    obj.remove
+    tag.liquid=
+endif
 attr = attr_move_always
-update
 
 //******************************************************************************
 // i_beeswax
@@ -619,25 +619,28 @@ endif
 // GenerateCaldronFill
 //******************************************************************************
 [FUNCTION GenerateCaldronFill]
-//Gera i_bowl_stew no caldeirão
- link=-1
- serv.newitem i_bowl_stew
- new.more2=<more2>
- if (<more2>!=LIQUID_WATER)
-  new.color=<DEF.LIQUID_<more2>_color>
- else
-  new.color=05f
- endif
- new.p=<p.x>,<p.y>,<eval <p.z>+6>,<p.m>
- new.attr=attr_move_never
- new.update
- new.link=<uid>
- new.more1=30// x*3segundos para terminar
- new.timer 1
- link=<new>
- //update //SE DER UPDATE O MORE1 VAI PRA 1. PQ?
- link.update
+obj=<tag0.liquid>
+if <obj>
+    obj.remove
+endif
 
+//Gera i_bowl_stew no caldeirão
+serv.newitem i_bowl_stew
+new.more2=<more2>
+if <more2>!=LIQUID_WATER
+    new.color=<DEF.LIQUID_<more2>_color>
+else
+    new.color=05f
+endif
+new.p=<p.x>,<p.y>,<eval <p.z>+6>,<p.m>
+new.attr=attr_move_never
+//new.update
+new.link=<uid>
+new.more1=30// x*3segundos para terminar
+new.timer 1
+
+tag.liquid=<new>
+new.update
 //******************************************************************************
 // CaldronCheckFire
 //******************************************************************************
@@ -676,16 +679,17 @@ endfor
 //******************************************************************************
 // CaldronMakeDrink
 //******************************************************************************
+//<caldeirao>,<liquido>,<sucesso>
 [FUNCTION CaldronMakeDrink]
-//Adiciona um preparo para bebeida/líquido no caldeirão depois de crafting.
-obj=<argv[0]>
-obj.more2=<argv[1]>
-obj.link.remove
-obj.GenerateCaldronFill
-sfx=05AE
-emotegreen terminou <DEF.LIQUID_<argv[1]>_name>
-sysmessagegreen Agora eh so esperar e pronto!
-
+if <argv2>
+    //Adiciona um preparo para bebeida/líquido no caldeirão depois de crafting.
+    obj=<argv0>
+    obj.more2=<argv1>
+    obj.GenerateCaldronFill
+    sfx=05AE
+    emotegreen terminou <DEF.LIQUID_<argv[1]>_name>
+    sysmessagegreen Agora eh so esperar e pronto!
+endif
 //******************************************************************************
 //******************************************************************************
 //
@@ -710,8 +714,7 @@ obj.tag.nam1=uvas
 obj.tag.amt1=10
 obj.tag.item=1
 obj.tag.emote=amassando uvas
-obj.tag.selection=<cTAG0.caldron>,<DEF.LIQUID_PRE_WINE>
-obj.tag.f_end=CaldronMakeDrink
+obj.tag.f_done=CaldronMakeDrink <cTAG0.caldron>,<DEF.LIQUID_PRE_WINE>
 emoteyellow amassa umas uvas
 src.fazitem
 
@@ -729,8 +732,7 @@ obj.tag.nam1=macas
 obj.tag.amt1=12
 obj.tag.item=1
 obj.tag.emote=misturando macas
-obj.tag.selection=<cTAG0.caldron>,<DEF.LIQUID_PRE_CIDER>
-obj.tag.f_end=CaldronMakeDrink
+obj.tag.f_done=CaldronMakeDrink <cTAG0.caldron>,<DEF.LIQUID_PRE_CIDER>
 emoteyellow corta umas macas
 src.fazitem
 
@@ -751,8 +753,7 @@ obj.tag.nam2=uvas
 obj.tag.amt2=8
 obj.tag.item=1
 obj.tag.emote=amassando frutas
-obj.tag.selection=<cTAG0.caldron>,<DEF.LIQUID_PRE_RUM>
-obj.tag.f_end=CaldronMakeDrink
+obj.tag.f_done=CaldronMakeDrink <cTAG0.caldron>,<DEF.LIQUID_PRE_RUM>
 emoteyellow pica umas frutas
 src.fazitem
 
@@ -770,8 +771,7 @@ obj.tag.nam1=bagos de trigo
 obj.tag.amt1=6
 obj.tag.item=1
 obj.tag.emote=debulhando trigo
-obj.tag.selection=<cTAG0.caldron>,<DEF.LIQUID_PRE_BEER>
-obj.tag.f_end=CaldronMakeDrink
+obj.tag.f_done=CaldronMakeDrink <cTAG0.caldron>,<DEF.LIQUID_PRE_BEER>
 emoteyellow debulha o trigo
 src.fazitem
 
@@ -795,8 +795,7 @@ obj.tag.nam3=maca
 obj.tag.amt3=2
 obj.tag.item=1
 obj.tag.emote=mistura ingredientes
-obj.tag.selection=<cTAG0.caldron>,<DEF.LIQUID_PRE_MORVOR>
-obj.tag.f_end=CaldronMakeDrink
+obj.tag.f_done=CaldronMakeDrink <cTAG0.caldron>,<DEF.LIQUID_PRE_MORVOR>
 emoteyellow cortando
 src.fazitem
 

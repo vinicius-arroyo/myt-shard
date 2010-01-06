@@ -230,11 +230,17 @@ LIQUID_034_BOIL     LIQUID_MORVOR
 //**************************************************************************************************
 //**************************************************************************************************
 
+//**************************************************************************************************
+//t_water
+//**************************************************************************************************
 [TYPEDEF t_water]
 TERRAIN = 01797 017b2
 TERRAIN = 0a8   0ab
 TERRAIN = 0136  0137
 
+//**************************************************************************************************
+//t_water
+//**************************************************************************************************
 [TYPEDEF t_swamp]
 TERRAIN = 07dc 0808
 TERRAIN = 083b 0867
@@ -242,17 +248,26 @@ TERRAIN = 03d65
 TERRAIN = 03dc0 03df1
 TERRAIN = 03ef0
 
+//**************************************************************************************************
+//t_oil
+//**************************************************************************************************
 [TYPEDEF t_oil]
-//Para compatibilidade com sistema de caldeirao.
-on=@step
-src.DAMAGE <R3,5> DAM_FIRE <src.uid>
+ON=@STEP
+src.DAMAGE <R3,5> DAM_FIRE <src>
 
+//**************************************************************************************************
+//t_glue
+//**************************************************************************************************
 [TYPEDEF t_glue]
-on=@step
-IF (!<argn1>) && (!<src.IsGM>)
- src.sysmessageorange Seus pes estao presos em <name>!
- src.nomove <R7,15>
-ENDIF
+ON=@STEP
+if (!<argn1>) && (!<src.IsGM>)
+    src.sysmessageorange Seus pes estao presos em <name>!
+    src.nomove <R7,15>
+endif
+
+//**************************************************************************************************
+//sistema de caldeirao
+//**************************************************************************************************
 
 //Bebidas t_* para compatibilidade com sistema de caldeirao.
 [TYPEDEF t_wine]
@@ -265,6 +280,10 @@ ENDIF
 
 [TYPEDEF t_morvor]
 
+//**************************************************************************************************
+//t_poison
+//**************************************************************************************************
+
 //Transferir para o skill_poisoning.scp
 [TYPEDEF t_poison]
 
@@ -275,61 +294,63 @@ ENDIF
 //tdata1 timer de decay
 //more1 flags de ações POOL_*
 [TYPEDEF t_pool]
-on=@step
-IF (!<argn1>) && (!<src.IsGM>)
- IF (<more1>&POOL_STICKY)
-  src.sysmessageorange Seus pes estao presos em <name>!
-  src.nomove <R7,15>
- ELIF (<more1>&POOL_SLIPPERY)
-  emotered escorregou
-  src.f_faint
-  LOCAL.timer=<R2,5>
-  src.nomove <EVAL <LOCAL.timer>+2>
-  src.timerf <LOCAL.timer>,f_wakeup
-  src.timerf <LOCAL.timer>,emotered,levanta
- ENDIF
-ENDIF
+ON=@STEP
+if (!<argn1>) && (!<src.IsGM>)
+    if (<more1>&POOL_STICKY)
+        src.sysmessageorange Seus pes estao presos em <name>!
+        src.nomove <R7,15>
+    elif (<more1>&POOL_SLIPPERY)
+        src.emotered escorregou
+        src.f_faint
+        LOCAL.timer=<R2,5>
+        src.nomove <EVAL <LOCAL.timer>+2>
+        src.timerf <LOCAL.timer>,f_wakeup
+        src.timerf <LOCAL.timer>,emotered,levanta
+    endif
+endif
 
-on=@dclick
+ON=@DCLICK
 if (<src.distance <UID>> > 1) && (!<SRC.IsGM>) && (<more1>&POOL_FLAMABLE)
- src.sysmessageyellow Chegue mais perto...
- return 1
-endif
-IF (<more1>&POOL_FLAMABLE)
- pool_take_fire
- return 1
+    src.sysmessageyellow Chegue mais perto...
+    return 1
+elif <more1>&POOL_FLAMABLE
+    pool_take_fire
+    return 1
 endif
 
+//**************************************
 [FUNCTION pool_init]
 //O que deveria estar no @create do TYPEDEF, mas TYPEDEF não tem @create ainda
 timerf 1,attr,012
 timerf 1,timer,<TDATA1>
 
+//**************************************
 [FUNCTION pool_take_fire]
- serv.newitem i_fire
- new.p=<p>
- new.timer=<R60,360>
- new.attr=012
- new.effect 2, i_fire_column, 0, 27, 0
- new.sfx 047
- IF (<more1>&POOL_INCINERATE)
-  new.timerf <R2,3>,pool_incinerate
- ENDIF
- remove
+serv.newitem i_fire
+new.p=<p>
+new.timer=<R60,360>
+new.attr=012
+new.effect 2, i_fire_column, 0, 27, 0
+new.sfx 047
+if (<more1>&POOL_INCINERATE)
+    new.timerf <R2,3>,pool_incinerate
+endif
+remove
 
+//**************************************
 [FUNCTION pool_incinerate]
 foritems 1
- if (<baseid>==i_log) || (<baseid>==i_tabua) || (<baseid>==i_gravetos) || (<baseid>==i_kindling) || ( (<more1>&POOL_INCINERATE) && (<type>==t_pool) )
-  IF (!<LOCAL.done>)
-   more1 |= POOL_INCINERATE
-   pool_take_fire
-   LOCAL.done += 1
-  endif
- endif
+    if !<LOCAL.done>
+        if (<baseid>==i_log) || (<baseid>==i_tabua) || (<baseid>==i_gravetos) || (<baseid>==i_kindling) || ( (<more1>&POOL_INCINERATE) && (<type>==t_pool) )
+            more1 |= POOL_INCINERATE
+            pool_take_fire
+            LOCAL.done += 1
+        endif
+    endif
 endfor
-IF (<local.done>)
- timerf <R4,5>,pooL_incinerate
- emotered alastra
+if <local.done>
+    timerf <R4,5>,pool_incinerate
+    emotered alastra
 endif
 
 
@@ -396,256 +417,273 @@ endif
 //DrkinkRecipient
 
 [TYPEDEF t_recipient]
-on=@click
-IF (<more2>)
- message=@036 <serv.itemdef.<baseid>.name> de <DEF.LIQUID_<more2>_NAME>
-ELSE
- message=@036 <serv.itemdef.<baseid>.name> vazio(a)
-ENDIF
-if (<link>!=04fffffff)
- more1=<link.amount>
+ON=@CLICK
+if <more1>
+    message=@036 <serv.itemdef.<baseid>.name> de <DEF.LIQUID_<more2>_NAME>
+    message Doses: <eval <more1>>/<eval <tdata1>>
+else
+    message=@036 <serv.itemdef.<baseid>.name> vazio(a)
 endif
-message Doses: <eval <more1>>/<eval <tdata1>>
 RETURN 1
 
-on=@clientToolTip
-if (<link>!=04fffffff)
- more1=<link.amount>
-endif
-if (<more2>) && (!<more1>)
- more2=
- link=04fffffff
-endif
+//**************************************
+ON=@CLIENTTOOLTIP
 f_sendToolTip <serv.itemdef.<baseid>.name>,(<DEF.LIQUID_<more2>_NAME>)<DEF.BR>Doses: <eval <more1>>/<eval <tdata1>>
 return 1
 
-on=@Dropon_ground
+//**************************************
+ON=@DROPON_GROUND
 //Manter dispid de cheio, se cheio
-if (<obj.TDATA3>) && (<more1>)
- obj.dispid=<obj.TDATA3>
- update
+if <TDATA3> && <more1>
+    dispid=<TDATA3>
+    update
 endif
 //src.sysmessage DropOn_ground SRC:<src.name> ARGN1:<argn1> ARGS:<args>
-if (<link>!=04fffffff)
- recip_ReleaseContent
+if <link>!=04fffffff
+    recip_ReleaseContent
 endif
 
-on=@DClick
-if (<more2>) && (!<more1>)
- more2=
- link=04fffffff
- update
+//**************************************
+ON=@DCLICK
+if !<more1>
+    more2=
+    link=04fffffff
 endif
-IF (<topobj>!=<SRC.UID>) && (<DISTANCE <src>> > 1) && (!<SRC.IsGM>)
- src.sysmessageyellow Muito longe...
- return 1
+if (<topobj>!=<SRC>) && (<DISTANCE <src>> > 1) && (!<SRC.IsGM>)
+    src.sysmessageyellow Muito longe...
+    return 1
+    
+//tem liquido?    
+elif <more2>
+    //Lavar maos e rosto?
+    if <GetRecipientCan>&RECIPIENT_WASH_HANDS
+        src.sfx 023E
+        src.anim 17
+        //agua?
+        if <more2>==LIQUID_WATER
+            src.emoteyellow lavando as maos e o rosto
+        else
+            src.emoteyellow se lava com  <DEF.LIQUID_<MORE2>_NAME>
+        endif
+        return 1
+    //Bebivel ?
+    elif <GetRecipientCan>&RECIPIENT_DRINK
+        DrinkRecipient        
+        return 1
+    //dclick cheio abre target
+    elif <GetRecipientCan>&RECIPIENT_TARG_FULL
+        src.sysmessageyellow Aonde voce deseja por <DEF.LIQUID_0<EVAL <more2>>_NAME>?
+        src.targetfg recip_targ <UID>
+        return 1         
+    endif         
+
+//está vazio ?
+else
+    //dclick vazio abre target
+    if <GetRecipientCan>&RECIPIENT_TARG_EMPTY
+        src.sysmessageyellow Com o que voce deseja encher <serv.itemdef.<baseid>.name>?
+        src.targetfg recip_targ <UID>
+        return 1
+    endif        
 endif
-IF (<GetRecipientCan>&RECIPIENT_WASH_HANDS) && (<more2>)
- //Lavar maos e rosto
- src.sfx 023E
- if (<more2>==LIQUID_WATER)
-  src.emoteyellow lavando as maos e o rosto
- else
-  src.emoteyellow se lava com  <DEF.LIQUID_<MORE2>_NAME>
- endif
- src.anim 17
-ELIF (<GetRecipientCan>&RECIPIENT_DRINK) && (<more2>)
- //Bebivel se tiver conteudo
- DrinkRecipient
-ELIF (<GetRecipientCan>&RECIPIENT_TARG_EMPTY) && (!<more2>)
- //está vazio e dclick vazio abre target
- src.sysmessageyellow Com o que voce deseja encher <serv.itemdef.<baseid>.name>?
- src.targetfg recip_targ <UID>
-ELIF (<GetRecipientCan>&RECIPIENT_TARG_FULL) && (<more2>)
- //está cheio e dclick cheio abre target
- src.sysmessageyellow Aonde voce deseja por <DEF.LIQUID_0<EVAL <more2>>_NAME>?
- src.targetfg recip_targ <UID>
-ELSE
- src.sysmessagered Voce nem imagina como usar isso.
-endif
+
+src.sysmessagered Voce nem imagina como usar isso.
 return 1
 
-on=@TARGON_GROUND
-IF (<src.distance <src.targp>> > 2) && (!<SRC.IsGM>)
- src.sysmessageyellow Muito longe...
- return 1
+//**************************************
+ON=@TARGON_GROUND
+if (<src.distance <src.targp>> > 2) && (!<SRC.IsGM>)
+    src.sysmessageyellow Muito longe...
+    return 1
 //deixei o recipiente pra tras?
 elif (<src.distance <uid>> > 2) && (!<SRC.IsGM>)
- src.sysmessageyellow Muito longe...
- return 1
-endif
-IF (<more1> < <TDATA1>)
+    src.sysmessageyellow Muito longe...
+    return 1
+
 //não-cheio ou vazio.
- IF (<serv.map(<argv[0]>,<argv[1]>).statics(0)>)
-  FOR z 0 3
-   IF (<serv.map(<argv[0]>,<argv[1]>).statics(<LOCAL.z>)>)
-    IF (!<ISEMPTY <DEF.LIQUID_<serv.map(<argv[0]>,<argv[1]>).statics(<LOCAL.z>).type>>>)
-     LOCAL.t=<serv.map(<argv[0]>,<argv[1]>).statics(<LOCAL.z>).type>
-    ENDIF
-   ENDIF
-  ENDFOR
-  IF (!<LOCAL.t>)
-   IF (<more1>)
+elif <more1> < <TDATA1>
+
+    //se tem statics por cima, verifica se algum eh liquido. mapa nao serve.
+    if <serv.map(<argv0>,<argv1>).statics(0)>
+        FOR z 0 3
+            if (<serv.map(<argv0>,<argv1>).statics(<LOCAL.z>)>)
+                if (!<ISEMPTY <DEF.LIQUID_<serv.map(<argv0>,<argv1>).statics(<LOCAL.z>).type>>>)
+                    LOCAL.t=<serv.map(<argv0>,<argv1>).statics(<LOCAL.z>).type>
+                endif
+            endif
+        ENDFOR
+        if !<LOCAL.t>
+            //tem algumas doses?
+            if <more1>
+                src.emoteyellow jogando <DEF.LIQUID_<more2>_NAME> fora
+                PourRecipient <src.targp>
+            //vazio
+            else
+                sysmessagered Nao ha nada ai.
+            endif
+            return 1
+        endif
+    else
+        //verifica se mapa tem liquido
+        LOCAL.t <serv.map(<argv0>,<argv1>).type>
+    endif
+    trigger @TryFill,<DEF.TAT_AS_ARGS>,<LOCAL.t>,0
+    
+//cheio
+else
     src.emoteyellow jogando <DEF.LIQUID_<more2>_NAME> fora
     PourRecipient <src.targp>
-    return 1
-   else
-    sysmessagered Nao ha nada ai.
-    return 1
-   endif
-  ENDIF
- ELSE
-  LOCAL.t <serv.map(<argv[0]>,<argv[1]>).type>
- ENDIF
- trigger @TryFill,<DEF.TAT_AS_ARGS>,<LOCAL.t>,0
-ELIF (<more1>==<TDATA1>)
- src.emoteyellow jogando <DEF.LIQUID_<more2>_NAME> fora
- PourRecipient <src.targp>
-ENDIF
-
-on=@TryFill
-IF (<ARGV[1]>)
-//Encher a partir de item
- IF (<argv[0]>==t_recipient)
-  LOCAL.liquid=<UID.<argv[1]>.more2>
- ELSE
-  LOCAL.liquid <DEF.LIQUID_<argv[0]>>
- ENDIF
-ELSE
-//Encher a partir de static/mapa
- LOCAL.liquid=<DEF.LIQUID_<argv[0]>>
-ENDIF
-IF (!<ISEMPTY <DEF.LIQUID_<LOCAL.liquid>>>) || (!<LOCAL.liquid>)
- IF (<more1>)
-  src.emoteyellow jogando <DEF.LIQUID_<more2>_NAME> fora
-  PourRecipient <src.targp>
-  return 1
- else
-  sysmessagered Nao ha nada ai.
-  return 1
- endif
-ENDIF
-IF (<LOCAL.liquid>!=<more2>) && (<more2>)
-//Tem coisa dentro mas é diferente do que quer se por.
- src.sysmessagered <serv.itemdef.<baseid>.name> ja contem <DEF.LIQUID_<MORE2>_NAME>
- return 1
-ENDIF
-trigger @Fill,<DEF.TAT_AS_ARGS>,<LOCAL.liquid>,<argv[1]>
-if  !(<region.tag0.permissions>&TOWN_CAN_RESOURCES)
- if !(<src.ctag.town_<region.defname>_privs>&TOWN_PRIV_RESOURCES)
-  src.TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<SRC>,<DEF.TOWN_CAN_RESOURCES>
-  src.sysmessageyellow Eh bom que voce saiba que nao se pode coletar recursos naturais aqui.
- endif
 endif
 
+//**************************************
+//<src type>,<src uid>
+ON=@TryFill
 
+//serv.log [RECIPIENTES]@TryFill <name> with <argv1>(<argv0>)
+//Encher a partir de item?
+if <ARGV1>
+    if (<argv0>==t_recipient)
+        LOCAL.liquid=<UID.<argv1>.more2>
+    else
+        LOCAL.liquid=<DEF.LIQUID_<argv0>>
+    endif
+    
+//Encher a partir de static/mapa    
+else
+    LOCAL.liquid=<DEF.LIQUID_<argv0>>
+endif
 
+if (!<ISEMPTY <DEF.LIQUID_<LOCAL.liquid>>>) || (!<LOCAL.liquid>)
+    if <more1>
+        src.emoteyellow jogando <DEF.LIQUID_<more2>_NAME> fora
+        PourRecipient <src.targp>
+        return 1
+    else
+        src.sysmessagered Nao ha nada ai.
+        return 1
+    endif
+endif
+
+//Tem coisa dentro mas é diferente do que quer se por.
+if (<LOCAL.liquid>!=<more2>) && (<more2>)
+    src.sysmessagered <serv.itemdef.<baseid>.name> ja contem <DEF.LIQUID_<MORE2>_NAME>
+    return 1
+    
+//ok    
+else
+    //@Fill,liquid,uid_src
+    trigger @Fill,<DEF.TAT_AS_ARGS>,<LOCAL.liquid>,<argv1>
+
+    if  !(<region.tag0.permissions>&TOWN_CAN_RESOURCES)
+        if !(<src.ctag0.town_<region.defname>_privs>&TOWN_PRIV_RESOURCES)
+            src.TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<SRC>,<DEF.TOWN_CAN_RESOURCES>
+            src.sysmessageyellow Eh bom que voce saiba que nao se pode coletar recursos naturais aqui.
+        endif
+    endif
+endif
+//**************************************
+//<liquid>,<src uid>
 on=@Fill
 //Determina capacidade
 LOCAL.cap=<TDATA1>-<more1>
 
 //Determina quanto encher
-IF (<ARGV[1]>)
- //tem um item
- obj=<argv[1]>
- if (!<obj.more2>) && (<obj.type>==t_recipient)
-  src.sysmessagered <obj.more2> esta vazio.
-  return 0
- ELIF (<obj.type>!=t_recipient)
-  FillRecipient <argv[0]>,<TDATA1>
-  src.sfx 05A4
-  src.BOW
-  //recip_UpdateContent
- else
-  obj.TransferRecipient <uid>
-  src.sfx 0240
-  //recip_UpdateContent
- endif
-ELSE
+obj=<argv1>
+
 //Enchendo de tile static/map
- FillRecipient <argv[0]>,<TDATA1>
- recip_UpdateContent
- src.sfx 05A4
- src.BOW
-ENDIF
+if (!<obj>) || (<obj.type>!=t_recipient)
+    FillRecipient <argv0>,<TDATA1>
+    src.sfx 05A4
+    src.BOW
+
+//fill a partir de um item
+else
+    if <obj.more2>
+        obj.TransferRecipient <uid>
+        src.sfx 0240
+    else
+        src.sysmessagered <obj.name> esta vazio.
+    endif
+endif
 f_renameRecipient
-src.EMOTEYELLOW enchendo <serv.itemdef.<baseid>.name> com <DEF.LIQUID_<argv[0]>_NAME>
+update
+src.EMOTEYELLOW enchendo <serv.itemdef.<baseid>.name> com <DEF.LIQUID_<argv0>_NAME>
 
-
+//**************************************
 on=@EmptyRecipient
 f_renameRecipient
-//recip_ReleaseContent
 
+//**************************************
 on=@TARGON_ITEM
 
 //deixei o recipiente pra tras?
 if (<src.distance <uid>> > 2) && (!<SRC.IsGM>)
- src.sysmessageyellow Muito longe...
- return 1
-elif (<src.targ>==<uid>)
+    src.sysmessageyellow Muito longe...
+    return 1
+elif <src.targ>==<uid>
     src.sysmessagered Voce nem imagina como usar isso.
     return 1
-elif (!<more2>)
-    //vazio
+elif !<more2>
+    //vazio, tenta enxer com targ
     trigger @TryFill,<DEF.TAT_AS_ARGS>,<SRC.TARG.TYPE>,<SRC.TARG.UID>
-ELSE
-//Ja tem coisa
-    IF (!<IsEmpty <DEF.LIQUID_<src.targ.type>>>) || ( (<src.targ.type>==t_recipient) && (<src.targ.more1>) )
+    
+//Ja tem coisa    
+else
     //por mais conteudo?
-        IF (<src.targ.IsContainerRecipient>) && (<src.targ.type>==t_container)
+    if (!<IsEmpty <DEF.LIQUID_<src.targ.type>>>) || ( (<src.targ.type>==t_recipient) && (<src.targ.more1>) )
+        if (<src.targ.IsContainerRecipient>) && (<src.targ.type>==t_container)
             src.targ.type=<TYPE>
-            src.targ.trigger @TryFill,<DEF.TAT_AS_ARGS>,<TYPE>,<UID>  
-        ELIF (<src.targ.more2>!=<more2>)
+        elif (<src.targ.more2>!=<more2>)
             src.sysmessagered <serv.itemdef.<src.targ.baseid>.name> ja contem <DEF.LIQUID_<src.targ.more2>_NAME>.
             return 1
-        ELIF (<src.targ.more1> >= <src.targ.TDATA1>)
+        elif (<src.targ.more1> >= <src.targ.TDATA1>)
             src.sysmessagered <serv.itemdef.<src.targ.baseid>.name> ja esta ate a boca.
             return 1
-        ENDIF
+        endif
         src.targ.trigger @TryFill,<DEF.TAT_AS_ARGS>,<TYPE>,<UID>
-    ELIF (<src.targ.type>==t_recipient) && ( (!<src.targ.more1>) || (<src.targ.more2>==<more2>) )
+    elif (<src.targ.type>==t_recipient) && ( (!<src.targ.more1>) || (<src.targ.more2>==<more2>) )
         //transferir conteudo para recipiente vazio
         src.targ.trigger @TryFill,<DEF.TAT_AS_ARGS>,<TYPE>,<UID>  
-    ELIF (<src.targ.IsContainerRecipient>) && (<src.targ.type>==t_container)
+    elif (<src.targ.IsContainerRecipient>) && (<src.targ.type>==t_container)
         //Transferir para container-recipiente
         src.targ.type=<TYPE>
         src.targ.trigger @TryFill,<DEF.TAT_AS_ARGS>,<TYPE>,<UID>
-    ELIF (<src.targ.type>==t_fire) || (<src.targ.type>==t_forge)
-        IF (<MOREx>&LIQUID_CAN_EXTINGUISH)
+    elif (<src.targ.type>==t_fire) || (<src.targ.type>==t_forge)
+        if <MOREx>&LIQUID_CAN_EXTINGUISH
             src.targ.more1=
             src.targ.timerd 1
             src.emoteyellow apaga <src.targ.name> com <DEF.LIQUID_<MORE2>_NAME>
             PourRecipient <src.targ.p>
-        ELSE
+        else
             src.sysmessagered Voce nao pode apagar fogo com este liquido.
-        ENDIF
-    ELIF (<src.targ.baseid>==i_frasco_oleo_vazio)
-        IF (<more2>==LIQUID_OIL)
+        endif
+    elif <src.targ.baseid>==i_frasco_oleo_vazio
+        if <more2>==LIQUID_OIL
             src.targ.decrement
             serv.newitem i_frasco_oleo
             src.bounce <new>
             src.emoteyellow guardando oleo em frasco
             ConsumeRecipient 1
             src.sfx 0240
-        ELSE
+        else
             src.sysmessagered Voce so pode colocar oleo ai.
-        ENDIF
-    ELSE
+        endif
+    else
         src.sysmessagered Coloque este liquido em um recipiente mais adequado.
-    ENDIF
-ENDIF
+    endif
+endif
 
+//**************************************
 on=@TARGON_CHAR
 
 //deixei o recipiente pra tras?
 if (<src.distance <uid>> > 2) && (!<SRC.IsGM>)
- src.sysmessageyellow Muito longe...
- return 1
-endif
+    src.sysmessageyellow Muito longe...
+    return 1
 
 //tem liquido?
-if (<more2>)
-    if (<GetRecipientCan>&RECIPIENT_WET_CHAR)
+elif <more2>
+    if <GetRecipientCan>&RECIPIENT_WET_CHAR
         if (<src.targ.npc>) && (<src.targ.karma> < -2000)
             src.targ.attack <src>
         endif
@@ -672,327 +710,377 @@ else
     return 1
 endif
 
+//**************************************
 on=@TARGON_SELF
-IF (!<more2>)
- src.sysmessagered E o que voce acha que esta fazendo? Vai urinar ou cospir para encher?
- return 1
+if !<more2>
+    src.sysmessagered E o que voce acha que esta fazendo? Vai urinar ou cospir para encher?
+    return 1
 endif
-IF (<GetRecipientCan>&RECIPIENT_WET_CHAR)
- if (<src.tag0.pegandofogo>) && (<moreX>&LIQUID_CAN_EXTINGUISH)
-  src.tag.pegandofogo=
-  src.emoteyellow joga <DEF.LIQUID_<more2>_NAME> no fogo
- else
-  src.emotered se molha com <DEF.LIQUID_<more2>_NAME>
- endif
- PourRecipient <src.p>
-ELIF (<GetRecipientCan>&RECIPIENT_TARG_DRINK)
- DrinkRecipient
-ENDIF
+if <GetRecipientCan>&RECIPIENT_WET_CHAR
+    if (<src.tag0.pegandofogo>) && (<moreX>&LIQUID_CAN_EXTINGUISH)
+        src.tag.pegandofogo=
+        src.emoteyellow joga <DEF.LIQUID_<more2>_NAME> no fogo
+    else
+        src.emotered se molha com <DEF.LIQUID_<more2>_NAME>
+    endif
+    PourRecipient <src.p>
+elif <GetRecipientCan>&RECIPIENT_TARG_DRINK
+    DrinkRecipient
+endif
 
-on=@DropOn_Char
+//**************************************
+ON=@DROPON_CHAR
 //src.sysmessage DropOn_Char SRC:<src.name> ACT:<act.name> ARGO:<argo.name>
 recip_UpdateContent
 
-on=@DropOn_Item
+//**************************************
+ON=@DROPON_ITEM
 //src.sysmessage DropOn_Item SRC:<src.name> ARGO:<argo.name>
-if (<more2>) && (<argo.topobj.IsChar>)
- if  (<argo.inSpecialLayer>)
-  recip_ReleaseContent
- else
-  if (<cont.topobj> != <argo.topobj>) || (<link>==04fffffff)
-   recip_UpdateContent
-  endif
- endif
+if <more2> && <argo.topobj.IsChar>
+    if  <argo.inSpecialLayer>
+        recip_ReleaseContent
+    else
+        if (<cont.topobj> != <argo.topobj>) || (<link>==04fffffff)
+            recip_UpdateContent
+        endif
+    endif
 else
- recip_ReleaseContent
+    recip_ReleaseContent
 endif
 
+//**************************************
 ON=@Sell
 serv.log Sell 
 recip_ReleaseContent
 
+//**************************************
 ON=@Buy
 serv.log Buy
 recip_UpdateContent
 
+//**************************************
 on=@DropOn_Self
 recip_UpdateContent
 
+
+
+//**************************************************************************************************
+// t_liquid
+//**************************************************************************************************
+
 [TYPEDEF t_liquid]
-on=@Consume
+ON=@CONSUME
 //serv.log AT.Consume <argn> <name>/<link.name>
-topobj.timerf 1,recip_UpdatePack
+topobj.timerf 1,uid.<link>.updconsume <argn>
 
-[FUNCTION recip_UpdatePack]
-FORCONTTYPE t_recipient
-        update
-ENDFOR
+[FUNCTION updconsume]
+if <argn> < <more1>
+    more1 -= <argn>
+    update
+else
+    EmptyRecipient
+endif
 
+//**************************************************************************************************
+//**************************************************************************************************
+// FUNCTIONs
+//**************************************************************************************************
+//**************************************************************************************************
+
+//**************************************************************************************************
+// recip_targ
+//**************************************************************************************************
 [FUNCTION recip_targ]
 //Bypass de target pq @TARGON_GROUND não triga se for num tile sem static (direto no mapa)
 
-IF (<DISTANCE <TARGP>> > 2) && (!<IsGM>)
- sysmessagered Muito longe...
- return 1
+if (<DISTANCE <TARGP>> > 2) && (!<IsGM>)
+    sysmessagered Muito longe...
+    return 1
 endif
 
-obj=<argv[0]>
-if (<argo>)
- src.TARG=<argo.uid>
- IF (<ARGO.IsItem>)
-  obj.trigger @TARGON_ITEM,<DEF.TAT_AS_ARGN>,<argo.UID>
- ELIF (<argo.IsChar>)
-  IF (<argo.UID>==<src.UID>)
-   obj.trigger @TARGON_SELF,<DEF.TAT_AS_ARGS>,<argo.UID>
-  ELSE
-   obj.trigger @TARGON_CHAR,<DEF.TAT_AS_ARGS>,<argo.UID>
-  ENDIF
- ENDIF
+obj=<argv0>
+if <argo>
+    src.TARG=<argo>
+    if <ARGO.IsItem>
+        obj.trigger @TARGON_ITEM,<DEF.TAT_AS_ARGN>,<argo>
+    elif <argo.IsChar>
+        if <argo>==<src>
+            obj.trigger @TARGON_SELF,<DEF.TAT_AS_ARGS>,<argo>
+        else
+            obj.trigger @TARGON_CHAR,<DEF.TAT_AS_ARGS>,<argo>
+        endif
+    endif
 else
- src.TARGP=<targp>
- obj.trigger @TARGON_GROUND,<DEF.TAT_AS_ARGS>,<targp.x>,<targp.y>
+    src.TARGP=<targp>
+    obj.trigger @TARGON_GROUND,<DEF.TAT_AS_ARGS>,<targp.x>,<targp.y>
 endif
 
+//**************************************************************************************************
+// recip_UpdateContent
+//**************************************************************************************************
+[FUNCTION recip_UpdateContent]
+//Faz correções na memory que contem o conteúdo
+
+//se recipiente fora do char ou sem liquido
+if (!<topobj.IsChar>) || (!<more2>) || (!<more1>)
+    if <link>!=04fffffff
+        recip_ReleaseContent
+    endif
+    return 0
+endif
+
+//serv.log [RECIP]recip_UpdateContent
+
+if <link>!=04fffffff  //já existe memory
+    //no banco?
+    if <inSpecialLayer>
+        recip_ReleaseContent
+    //em outro player?
+    elif <topobj>!=<link.topobj>
+        link.cont=<topobj>
+    endif
+//    serv.log [RECIP]recip_UpdateContent atualizou link.amount pra <eval <more1>>
+    link.amount=<more1>
+else //Não existe memory
+    if (!<argo>) || (!<inSpecialLayer>)
+        src.newitem <DEF.LIQUID_<more2>_ITEM>
+        new.cont=<src>//src.equip <new>
+        new.amount <more1>
+        link=<new>
+        new.link=<uid>
+//        serv.log [RECIP]recip_UpdateContent criou memory com <eval <more1>>
+//    else
+//        serv.log [RECIP]recip_UpdateContent <argo>/<inSpecialLayer>
+    endif
+endif
+
+//**************************************************************************************************
+// recip_ReleaseContent
+//**************************************************************************************************
+[FUNCTION recip_ReleaseContent]
+//serv.log [RECIP]recip_ReleaseContent
+//Tira do player a memory que contém o conteúdo
+link.remove
+link=04fffffff
+
+//**************************************************************************************************
+// ConsumeRecipient
+//**************************************************************************************************
 [FUNCTION ConsumeRecipient]
 if (<TYPE>!=t_recipient) || (!<argn>)
- return 0
+    return 0
 endif
-IF (<argn> >= <more1>)
- LOCAL.ret=<more1>
- EmptyRecipient
-ELSE
- LOCAL.ret=<argn>
- more1 -= <argn>
-ENDIF
-if (<link.uid>)
- if (<more1>)
-  link.amount=<more1>
- else
-  link.remove
-  link=04fffffff
- endif
-endif
-update
-RETURN <LOCAL.ret>
 
-[FUNCTION EmptyRecipient]
-if (<TYPE>!=t_recipient)
- return 0
+//quer mais q o disponivel?
+if <argn> >= <more1>
+    LOCAL.ret=<more1>
+    EmptyRecipient
+else
+    LOCAL.ret=<argn>
+    more1 -= <argn>
+    update
 endif
-trigger @TryEmptyRecipient
-if (<tag0.return>==1)
- tag.return=
- return 1
-endif
-if (<link>!=04fffffff)
- recip_ReleaseContent
-endif
-more1=
-more2=
-dispid=<baseid>
-if (<GetRecipientCan>&RECIPIENT_DYE)
- color=
-endif
-update
-trigger @EmptyRecipient
-RETURN 1
-
-[FUNCTION FillRecipient]
-if (<TYPE> != t_recipient) || (!<argv[0]>) || (!<argv[1]>)
- RETURN 0
-ENDIF
-
-IF (<more2>!=<argv[0]>) && (<more2>)
- more2=
- more1=
- morex=
-endif
-more2=<argv[0]>
-
-LOCAL.space=<eval <TDATA1>-<more1>>
-
-IF (<argv[1]> > <LOCAL.space>)
- LOCAL.ret=<eval <argv[1]>-<LOCAL.space>>
- LOCAL.doses=<TDATA1>
-ELSE
- LOCAL.ret=0
- LOCAL.doses=<eval <argv[1]>+<more1>>
-ENDIF
-more1=<LOCAL.doses>
 
 recip_UpdateContent
+RETURN <LOCAL.ret>
 
+//**************************************************************************************************
+// EmptyRecipient
+//**************************************************************************************************
+[FUNCTION EmptyRecipient]
+if <TYPE>!=t_recipient
+    return 0
+endif
+
+//ninguem esta usando... habilitar?
+//trigger @TryEmptyRecipient
+//if (<tag0.return>==1)
+// tag.return=
+// return 1
+//endif
+
+if <link>!=04fffffff
+    recip_ReleaseContent
+endif
+more1=0
+more2=0
+dispid=<baseid>
+
+if <GetRecipientCan>&RECIPIENT_DYE)
+    color=
+endif
+
+trigger @EmptyRecipient
+update
+RETURN 1
+
+//**************************************************************************************************
+// FillRecipient
+//**************************************************************************************************
+//default: OBJ to fill
+//<liquid>,<amount>
+[FUNCTION FillRecipient]
+//serv.log [RECIPIENTES]@FillRecipient <argv0>/<argv1>
+if (<TYPE> != t_recipient) || (!<argv0>) || (!<argv1>)
+    RETURN 0
+endif
+
+//liquido diferente do atual?
+if <more2>!=<argv0>
+    more1=0 //zera
+endif
+
+//qnto cabe?
+LOCAL.space=<eval <TDATA1>-<more1>>
+
+//enxe tudo?
+if <argv1> > <LOCAL.space>
+    LOCAL.ret=<eval <argv1>-<LOCAL.space>>
+    more1=<TDATA1>  
+//parcial
+else
+    LOCAL.ret=0
+    more1=<eval <argv1>+<more1>>
+endif
+
+//atualiza flags
+more2=<argv0>
 morex=<DEF.LIQUID_<more2>_CAN>
 morey=<DEF.LIQUID_<more2>_FORCE>
 
-if (<TDATA3>)
- dispid=<TDATA3>
+recip_UpdateContent
+
+if <TDATA3>
+    dispid=<TDATA3>
 endif
-if (<GetRecipientCan>&RECIPIENT_DYE)
- color=<DEF.LIQUID_<argv[0]>_COLOR>
+
+if <GetRecipientCan>&RECIPIENT_DYE
+    color=<DEF.LIQUID_<argv0>_COLOR>
 endif
-update
+
+
 trigger @FillEnd
-RETURN <LOCAL.ret>
+update
+return <LOCAL.ret>
 
+//**************************************************************************************************
+// TransferRecipient
+//**************************************************************************************************
+//<uid to fill>
 [FUNCTION TransferRecipient]
-if (<IsEmpty <argv[0]>>)
- serv.log [RECIPIENTES] <name> (<UID>) transferencia sem destino.
- return 0
-endif
-if (!<IsNum <argv[0]>>)
- serv.log [RECIPIENTES] <name> (<UID>) referencia do destino nao eh uma UID.
- return 0
-endif
-obj=<argv[0]>
-if (!<obj.IsItem>)
- serv.log [RECIPIENTES] <name> (<UID>) -> <obj.name> (<obj.UID>) destino da transferencia nao eh item.
- return 0
-endif
-if (<obj.type>!=t_recipient) && (!<obj.IsContainerRecipient>)
- serv.log [RECIPIENTES] <name> (<UID>) -> <obj.name> (<obj.UID>) destino da transferencia nao eh recipiente.
- return 0
-endif
-if (!<more2>) || (!<more1>)
- serv.log [RECIPIENTES] <name> (<UID>) -> <obj.name> (<obj.UID>) origem da transferencia eh vazia ou invalida.
- return 0
-endif
-if (<obj.more2> != <more2>) && (<obj.more2>)
- serv.log [RECIPIENTES] <name> (<UID>) -> <obj.name> (<obj.UID>) destino da transferencia tem conteudo destinto.
- return 0
+
+obj=<argv0>
+if !<obj>
+    serv.log [RECIPIENTES] <name> (<UID>) transferencia sem destino.
+    return 0
+elif !<obj.IsItem>
+    serv.log [RECIPIENTES] <name> (<UID>) -> <obj.name> (<obj.UID>) destino da transferencia nao eh item.
+    return 0
+elif (<obj.type>!=t_recipient) && (!<obj.IsContainerRecipient>)
+    serv.log [RECIPIENTES] <name> (<UID>) -> <obj.name> (<obj.UID>) destino da transferencia nao eh recipiente.
+    return 0
+elif (!<more2>) || (!<more1>)
+    serv.log [RECIPIENTES] <name> (<UID>) -> <obj.name> (<obj.UID>) origem da transferencia eh vazia ou invalida.
+    return 0
+elif (<obj.more2> != <more2>) && (<obj.more2>)
+    serv.log [RECIPIENTES] <name> (<UID>) -> <obj.name> (<obj.UID>) destino da transferencia tem conteudo destinto.
+    return 0
 endif
 
-trigger @TryEmptyRecipient
-if (<tag0.return>==1)
- tag.return=
- return 1
+//trigger @TryEmptyRecipient
+//if (<tag0.return>==1)
+// tag.return=
+// return 1
+//endif
+
+//fill obj com <more1> doses de <more2> liquido
+more1=<obj.FillRecipient <more2>,<more1>>
+
+if !<more1>
+    EmptyRecipient
+else
+    recip_UpdateContent
+    update
 endif
 
-LOCAL.remain=<obj.FillRecipient <more2>,<more1>>
-
-if (!<Local.Remain>)
- EmptyRecipient
- if (<link>!=04fffffff)
-  recip_ReleaseContent 
- endif
-ELSE
- more1=<LOCAL.remain>
- recip_UpdateContent
- update
-endif
-
+//**************************************************************************************************
+// PoolRecipient
+//**************************************************************************************************
 [FUNCTION PoolRecipient]
 //PoolRecipient <p.x>,<p.y>,<p.z>,<p.m>
-IF (<IsEmpty <ARGV[0]>>) || (<IsEmpty <ARGV[1]>>)
- serv.log [RECIPIENTES] <name> (<UID>) tentando criar poca sem coordenadas.
- return 0
-ENDIF
-IF (<IsEmpty <ARGV[2]>>) || (<IsEmpty <ARGV[3]>>)
- LOCAL.p=<ARGV[0]>,<ARGV[1]>,<SRC.P.Z>,<SRC.P.M>
-ELSE
- LOCAL.p=<ARGV[0]>,<ARGV[1]>,<ARGV[2]>,<ARGV[3]>
-ENDIF
+if (<IsEmpty <ARGV0>>) || (<IsEmpty <ARGV1>>)
+    serv.log [RECIPIENTES] <name> (<UID>) tentando criar poca sem coordenadas.
+    return 0
+elif (<IsEmpty <ARGV2>>) || (<IsEmpty <ARGV3>>)
+    LOCAL.p=<ARGV0>,<ARGV1>,<SRC.P.Z>,<SRC.P.M>
+else
+    LOCAL.p=<ARGV0>,<ARGV1>,<ARGV2>,<ARGV3>
+endif
 serv.newitem <DEF.Liquid_<more2>_POOL>
 new.p=<LOCAL.p>
 
+//**************************************************************************************************
+// PourRecipient
+//**************************************************************************************************
 [FUNCTION PourRecipient]
 PoolRecipient <args>
 EmptyRecipient
 src.sfx 0364
 
+//**************************************************************************************************
+// DrinkRecipient
+//**************************************************************************************************
 [FUNCTION DrinkRecipient]
- SRC.SFX {030 1 031 1 02D6 1 04CC 1 04Cd 1}
- src.emoteyellow tomando <DEF.LIQUID_<MORE2>_name> em <name>
- src.anim 34
- IF (<morex>&LIQUID_CAN_DRINK)
-  IF (<morex>&LIQUID_CAN_POISON)
-   src.timerf 4,veneno,<morey>
-  ELIF (<src.food> < 50)
-   IF (!<morey>)
-    src.food += 1
-   else
-    src.food += <morey>
-   endif
-  ENDIF
- ELSE
-  src.timerf 2,cospir
-  src.timerf 2,sysmessageorange,Isso tem um gosto bem ruim...
+SRC.SFX {030 1 031 1 02D6 1 04CC 1 04Cd 1}
+src.emoteyellow tomando <DEF.LIQUID_<MORE2>_name> em <name>
+src.anim 34
+if <morex>&LIQUID_CAN_DRINK
+    if <morex>&LIQUID_CAN_POISON
+        src.timerf 4,veneno,<morey>
+    elif <src.food> < 50
+        if !<morey>
+            src.food += 1
+        else
+            src.food += <morey>
+        endif
+    endif
+else
+    src.timerf 2,cospir
+    src.timerf 2,sysmessageorange,Isso tem um gosto bem ruim...
  endif
  ConsumeRecipient 1
 
+//**************************************************************************************************
+// IsContainerRecipient
+//**************************************************************************************************
 [FUNCTION IsContainerRecipient]
-IF (<dispiddec>==0E77) || (<dispiddec>==0E7B) || (<dispiddec>==0E83) || (<dispiddec>==0154D)
- RETURN 1
-ELSE
- RETURN 0
-ENDIF
-
-[FUNCTION GetRecipientCan]
-IF (<morez>)
- return <morez>
+if (<dispiddec>==0E77) || (<dispiddec>==0E7B) || (<dispiddec>==0E83) || (<dispiddec>==0154D)
+    RETURN 1
 else
- return <TDATA2>
+    RETURN 0
 endif
 
+//**************************************************************************************************
+// GetRecipientCan
+//**************************************************************************************************
+[FUNCTION GetRecipientCan]
+if <morez>
+    return <morez>
+else
+    return <TDATA2>
+endif
+
+//**************************************************************************************************
+// f_renameRecipient
+//**************************************************************************************************
 [FUNCTION f_renameRecipient]
-//if (<type>==t_container)
- name=<serv.itemdef.<baseid>.name>
-//elif (<more1>)
-// name=<serv.itemdef.<baseid>.name> com <eval <more1>> doses de <DEF.LIQUID_<more2>_NAME>
-//else
-// name=<serv.itemdef.<baseid>.name> vazio(a)
-//endif
-
-[FUNCTION recip_UpdateContent]
-//Faz correções na memory que contem o conteúdo
-if (!<topobj.IsChar>)
- return 0
+if <type>==t_container
+    name=<serv.itemdef.<baseid>.name>
+elif <more1>
+    name=<serv.itemdef.<baseid>.name> com <eval <more1>> doses de <DEF.LIQUID_<more2>_NAME>
+else
+    name=<serv.itemdef.<baseid>.name> vazio(a)
 endif
-//Tem conteúdo?
-if (<more2>)
- if (<link>!=04fffffff)  //já existe memory
- //em char
-  if (<topobj.IsChar>)
-  //banco?
-   if (<inSpecialLayer>)
-    recip_ReleaseContent
-   elif (<topobj>!=<link.topobj>)
-    link.cont=<topobj>
-   endif
-   link.amount=<more1>
-  else
-   recip_ReleaseContent
-  endif
- else //Não existe memory
-  if (<topobj.IsChar>)
-  //banco?
-   if (<argo>)
-    if (!<inSpecialLayer>)
-     src.newitem <DEF.LIQUID_<more2>_ITEM>
-     src.equip <new>
-     new.amount <more1>
-     link=<new>
-     new.link=<uid>
-    endif
-   else
-    src.newitem <DEF.LIQUID_<more2>_ITEM>
-    new.cont=<src>//src.equip <new>
-    new.amount <more1>
-    link=<new>
-    new.link=<uid>
-   endif
-  endif
- endif
-else //vazio
- if (<link>!=04fffffff)
-  recip_ReleaseContent
- endif
-endif
-
-[FUNCTION recip_ReleaseContent]
-//Tira do player a memory que contém o conteúdo
-link.remove
-link=04fffffff
 
 //**************************************************************************************************
 //**************************************************************************************************
@@ -1529,9 +1617,9 @@ DESCRIPTION=Bacia
 on=@FillEnd
 if (<more2>==LIQUID_BLOOD)
  dispid=i_water_bloody
-ELIF (<more2>)
+elif (<more2>)
  dispid=<TDATA3>
-ENDIF
+endif
 update
 
 
@@ -1539,9 +1627,9 @@ on=@Dropon_ground
 //Manter dispid de cheio de sangue, se cheio de sangue
 if (<more2>==LIQUID_BLOOD)
  dispid=i_water_bloody
-ELIF (<more2>)
+elif (<more2>)
  dispid=<TDATA3>
-ENDIF
+endif
 update
 
 on=@create
@@ -1718,11 +1806,8 @@ on=@Fill
 morez=RECIPIENT_WASH_HANDS|RECIPIENT_WASH_BANDAGE
 
 on=@EmptyRecipient
-IF (!<more1>) && (!<more2>)
- TYPE=t_container
- f_renameRecipient
- update
-ENDIF
+TYPE=t_container
+f_renameRecipient
 
 //**************************************************************************************************
 // i_tub_empty
@@ -1753,9 +1838,9 @@ on=@Fill
 morez=RECIPIENT_WASH_HANDS|RECIPIENT_WASH_BANDAGE|RECIPIENT_DYE
 
 on=@FillEnd
-IF (<more2>==LIQUID_WATER)
+if (<more2>==LIQUID_WATER)
  dispid=0e7b
-ELSE
+else
  color=<DEF.LIQUID_<more2>_COLOR>
 endif
 update
@@ -1763,18 +1848,14 @@ update
 on=@Dropon_ground
 //Manter dispid de cheio, se cheio
 morez=RECIPIENT_WASH_HANDS|RECIPIENT_WASH_BANDAGE|RECIPIENT_DYE
-IF (<more2>==LIQUID_WATER)
+if (<more2>==LIQUID_WATER)
  dispid=0e7b
  update
 endif
 
 on=@EmptyRecipient
-IF (!<more1>) && (!<more2>)
- TYPE=t_container
- f_renameRecipient
- update
-ENDIF
-
+TYPE=t_container
+f_renameRecipient
 
 //**************************************************************************************************
 // i_vaso_oleo
