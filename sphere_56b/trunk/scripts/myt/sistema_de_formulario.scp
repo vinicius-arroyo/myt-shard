@@ -197,10 +197,16 @@ if (STRMATCH(,<src.ctag.form_mail>))
 //        try src.go <DEF.FORM_NEWBIEPOINT>
     serv.account.<src.account>.MAXCHARS=1
     src.DIALOG d_form_new 1
-elif (STRMATCH(confirm,<src.ctag.form_status>))        
-    src.timerf 7,sysmessageyellow Sua conta esta aguardando confirmacao de email.
-    src.timerf 14,sysmessageyellow Sua conta esta aguardando confirmacao de email.
-    src.timerf 22,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+elif (STRMATCH(confirm,<src.ctag.form_status>))
+    //para re-enviar key automaticamente
+    if !<src.tag0.actkey>
+        src.mail_key
+        src.timerf 7,sysmessageyellow Um novo email de confirmacao foi enviado, favor verificar!
+    else
+        src.timerf 7,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+        src.timerf 14,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+        src.timerf 22,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+    endif
     REF1.color=00d4 //purple
 elif (STRMATCH(waiting,<src.ctag.form_status>))
     src.timerf 7,sysmessageyellow Sua conta esta aguardando aprovacao.
@@ -245,7 +251,8 @@ endif
 form_cacheAccountInfo
 IF <ctag0.form_id>
     tag.actkey = <serv.time>^<R1000>
-    sysmessageyellow Email de confirmacao enviado! <sendmail <ctag.form_mail>,<DEF.EMAIL_TYPE_CONFIRM>,<eval <tag.actkey>>>
+    sysmessageyellow Email de confirmacao enviado para <ctag.form_mail>! <sendmail <ctag.form_mail>,<DEF.EMAIL_TYPE_CONFIRM>,<eval <tag.actkey>>>
+    serv.log [FORM]Email de confirmacao enviado para <ctag.form_mail>
 ENDIF
 
 [FUNCTION form_cacheAccountInfo]
@@ -807,7 +814,9 @@ playerform
 
 ON=14
 //Okay no dialogo de 'Sua conta foi aceita'
-serv.account.<src.account>.plevel=1
+if !<serv.account.<src.account>.plevel>
+    serv.account.<src.account>.plevel=1
+endif    
 serv.account.<src.account>.tag.try=
 serv.account.<src.account>.tag.reason=
 serv.account.<src.account>.MAXCHARS=
