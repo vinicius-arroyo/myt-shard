@@ -13,9 +13,9 @@
 //-logar no DB mortes/assassinos
 
 //A cada <max_desmaios> o player morre imediatamente, senao ele fica em estado
-//de coma. O tempo de coma depende do numero de desmaios (x 1 min). Se o nume-
-//ro de desmaios for menor que <max_desmaios/2>, o player volta a vida sozinho
-//apos o tempo, caso contrario ele morre se não for atendido.
+//de coma. O tempo de coma depende do numero de desmaios (x 1 min).
+
+//O contador de desmaios so incrementa caso o player nao seja atendido a tempo
 
 //Apos morto pode-se ressucitar em qualquer ank, desde que tenha pontos de alma
 //positivos. Esses pontos tambem influenciam no tempo minimo em que o player
@@ -37,6 +37,7 @@
 //tag.morte_desmaios
 //tag.morte_local
 //tag.morte_horario
+//tag.morte_recupera_ponto_desmaio timestamp quando sera dado mais um ponto de desmaio
 //tag.fpk
 //tag.lastkillUID
 //tag.lastkillname
@@ -51,8 +52,8 @@
 //*****************************************************************************
 //*****************************************************************************
 [DEFNAME morte]
-max_desmaios=5
-
+max_desmaios=4
+desmaio_cooldown=6048000    //7 days
 //*****************************************************************************
 //*****************************************************************************
 // EVENTs
@@ -66,6 +67,7 @@ serv.log [MORTE] <account> (<uid>) morreu: <flags>
 //marca a hora/local
 tag.morte_horario=<time>/(10)
 tag.morte_local=<p>
+tag.morte_recupera_ponto_desmaio=<eval <serv.time>+<DEF.desmaio_cooldown> 
 
 hits=1
 flags |= statf_dead
@@ -77,8 +79,7 @@ sendpacket 02C 0
 f_faint 1
 
 //se puder ficar desmaiado
-if (<tag0.morte_desmaios> < <DEF.max_desmaios>)
-    tag.morte_desmaios=<eval <tag0.morte_desmaios>+1>
+if (<tag0.morte_desmaios> <= <DEF.max_desmaios>)
 
     SERV.NEWITEM=i_mry_desmaio
     NEW.link=<uid>
@@ -86,14 +87,17 @@ if (<tag0.morte_desmaios> < <DEF.max_desmaios>)
     NEW.timer=<eval (60*<tag0.morte_desmaios>)>
     
     //indica morte apos 'timer'
-    if (<tag0.morte_desmaios> > (<DEF.max_desmaios>/2) )
+    if <tag0.morte_desmaios> == <DEF.max_desmaios>
         NEW.more1=1 
     endif
 
     timerf 3,DIALOG,d_desmaio
 
     sysmessageyellow Voce perdeu a consciencia (<tag0.morte_desmaios> min)!!!
+    
+//NAO DEVE CHEGAR AQUI.
 else
+    serv.log [MORTE-ERROR] <account> (<uid>) <flags> 
     f_morre
 endif
 return 1
@@ -356,7 +360,7 @@ f_returnToLife
 [FUNCTION f_morre]
 //somente morre se tiver corpse
 if (<tag0.corpse>)
-    tag.morte_desmaios=0
+    morte_decrementaDesmaios <DEF.max_desmaios>
     morte_decrementaPontos 1
 
     sysmessageyellow Voce perdeu a ligacao com seu corpo.
@@ -366,18 +370,36 @@ if (<tag0.corpse>)
 endif
 
 //*****************************************************************************
-// morte_incrementaPontos
+// morte_incrementaPontos <pontos>
 //*****************************************************************************
 [FUNCTION morte_incrementaPontos]
  tag.pontosdealma=<eval <tag.pontosdealma>+<argn>>
  sysmessagegreen Voce ganhou: <argn> ponto(s) de alma
  
 //*****************************************************************************
-// morte_decrementaPontos
+// morte_decrementaPontos <pontos>
 //*****************************************************************************
 [FUNCTION morte_decrementaPontos]
  tag.pontosdealma=<eval <tag.pontosdealma>-<argn>>
  sysmessagered Voce perdeu: <argn> ponto(s) alma
+
+//*****************************************************************************
+// morte_incrementaDesmaios <pontos>
+//*****************************************************************************
+[FUNCTION morte_incrementaDesmaios]
+ tag.morte_desmaios=<eval <tag0.morte_desmaios>+<argn>>
+ if <tag0.morte_desmaios> > <DEF.max_desmaios>
+    tag.morte_desmaios=<DEF.max_desmaios>
+ endif
+ 
+//*****************************************************************************
+// morte_decrementaDesmaios <pontos>
+//*****************************************************************************
+[FUNCTION morte_decrementaDesmaios]
+ tag.morte_desmaios=<eval <tag0.morte_desmaios>-<argn>>
+ if <tag0.morte_desmaios> < 0
+    tag.morte_desmaios=0
+ endif
  
 //*****************************************************************************
 // morte_arrastar(uid)
@@ -408,6 +430,15 @@ endif
     sysmessageyellow Precisa de algo cortante na mao.
  endif
  
+//*****************************************************************************
+// morte_init
+//*****************************************************************************
+[FUNCTION morte_init]
+ if <serv.time> > <tag0.morte_recupera_ponto_desmaio>
+    tag.morte_recupera_ponto_desmaio=<eval <serv.time>+<DEF.desmaio_cooldown>  
+    morte_decrementaDesmaios 1
+ endif    
+
 //*****************************************************************************
 //*****************************************************************************
 // ITEMDEFs
@@ -493,6 +524,7 @@ ON=@CREATE
 ON=@TIMER
 //recobra consciencia se more1 != 1
  if (<more1>!=1)
+    cont.morte_incrementaDesmaios 1
     cont.f_returnToLife
  else
     cont.f_morre
@@ -580,7 +612,7 @@ elif (<tag0.morte_desmaios>==3)
 else
  LOCAL.l1=Voce precisa de cuidados 
  LOCAL.l2=medicos ou morrera
- LOCAL.l3= logo.
+ LOCAL.l3=logo.
 endif
 
 gumppic 0 0 2080
