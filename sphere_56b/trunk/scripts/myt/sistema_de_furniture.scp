@@ -198,34 +198,69 @@ Return 1
  //  ENCAIXOTADOS //
 ///////////////////
 
+[FUNCTION pack_unpack]
+if (<src.region.flags>&<def.region_flag_nobuilding>) && (!<src.IsGM>)
+    src.sysmessagered Nao eh possovel colocar este item aqui por ordens superiores.
+    return 1
+endif
+src.ctag.pack=<uid>
+if (<IsEmpty <tag.south>>)
+    if (<IsEmpty <tag.east>>)
+        src.sysmessagered Item com problemas. Poste no post de bugs do forum.
+        return 1
+    else
+        src.sysmessageorange O item ficara voltado para o leste.
+        src.unpackToEast
+        return 1
+    endif
+else
+    if (<IsEmpty <tag.east>>)
+        src.sysmessageorange O item ficara voltado para o sul.
+        src.unpackToSouth
+        return 1
+    endif
+endif
+src.dialog d_unpack
+
+[FUNCTION unpackToEast]
+obj=<ctag.pack>
+if (<obj.topobj>!=<src>)
+    src.sysmessagered Isso deve estar em sua posse.
+    return 1
+endif
+obj.type=t_deed
+obj.more1=<obj.tag.east>
+obj.use
+
+[FUNCTION unpackToSouth]
+obj=<ctag.pack>
+if (<obj.topobj>!=<src>)
+    src.sysmessagered Isso deve estar em sua posse.
+    return 1
+endif
+obj.type=t_deed
+obj.more1=<obj.tag.south>
+obj.use
+
+[TYPEDEF t_packed]
+on=@Dclick
+if (<topobj>!=<src>)
+    src.sysmessagered Isso deve estar em sua posse.
+    return 1
+endif
+pack_unpack
+return 1
 
 [ITEMDEF i_bancada_encaixotada]
 ID=0e3c
 NAME=bancada (desmontada)
-type=t_table
+type=t_packed
 SKILLMAKE=Carpentry 91.2
 RESOURCES=4 i_mesa_p, 8 i_suporte, 200 i_parafuso, 12 i_barra_metal
 
-on=@dclick
-if (<type>!=t_deed)
- src.tag.uidtemp=<UID>
- src.menu m_bancada
- return 1
-endif
-
-[MENU m_bancada]
-(MyT) Colocar movel (MyT)
-on=0 Colocar voltada para o norte ( \ )
-SRC.FINDID(i_bancada_encaixotada).type=t_deed
-SRC.FINDID(i_bancada_encaixotada).MORE=i_bancada_n
-SRC.FINDID(i_bancada_encaixotada).USE
-return 1
-
-on=0 Colocar voltada para o oeste ( / )
-SRC.FINDID(i_bancada_encaixotada).type=t_deed
-SRC.FINDID(i_bancada_encaixotada).MORE=i_bancada_w
-SRC.FINDID(i_bancada_encaixotada).USE
-return 1
+ON=@Create
+tag.south=i_bancada_n
+tag.east=i_bancada_w
 
 [ITEMDEF i_moinho_encaixotado]
 ID=0e3c
@@ -364,3 +399,36 @@ RETURN 1
 
 on=0 Nao
 
+[DIALOG d_unpack]
+100,75
+page 0
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+gumppic 0 0 10400
+gumppic 0 160 10401
+gumppic 0 356 10402
+gumppic 518 0 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+gumppic 225 45 2501
+dtext 231 45 26 Mystical Tales Shard
+resizepic 92 87 2620 416 310
+resizepic 112 107 2620 376 106
+dhtmlgump 120 115 360 89 0 0 <DEF.CENTER><DEF.BFONT_GREEN>Desempacotando<DEF.BR><DEF.DIV_E><DEF.BFONT_LGRAY>Voce esta prestes e desencaixotar este objeto. Selecione para qual direcao ele deve ficar voltado.<DEF.BR>Cuidado! Esta acao pode nao ter volta.
+tilepic 190 220 2713
+tilepic 361 220 2712
+button 172 316 2444 2444 1 0 1
+dtext 185 317 47 Leste
+button 355 316 2444 2444 1 0 2
+dtext 375 317 47 Sul
+
+[DIALOG d_unpack text]
+
+[DIALOG d_unpack button]
+ON=1
+// ToEast
+unpackToEast
+
+ON=2
+//ToSouth
+unpackToSouth
