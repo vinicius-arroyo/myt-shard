@@ -4,6 +4,43 @@
  ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
 
+//REAGENTES (máscaras - more1)
+//i_r_perola_negra    =0001
+//i_r_musgo_sangue    =0002
+//i_r_alho            =0004
+//i_r_ginseng         =0008
+//i_r_raiz_de_mandrake=0010
+//i_r_nightshade      =0020
+//i_r_cinza_sulfurosa =0040
+//i_r_teia_de_aranha  =0080
+//i_r_asa_morcego     =0100
+//i_r_olho_morto_vivo =0200
+//i_r_rocha_negra
+//i_r_sangue_invocado
+//i_r_frasco_sangue
+//i_r_osso
+//i_r_enxofre
+//i_r_osso_demonio
+//i_r_poeira_fertil
+//i_r_sangue_dragao
+//i_r_capuz_algoz
+//i_r_vidro_vulcanico
+//i_r_ferro_guza
+//i_r_pomis
+//i_r_ectoplasma
+//i_r_cinza_vulcanica
+//i_r_madeira_morta
+//i_r_coracao_dragao
+
+
+//######################################################################
+//######################################################################
+//
+//                          TYPEDEFs
+//
+//######################################################################
+//######################################################################
+
 [TYPEDEF t_potion]
 
 on=@ClientToolTip
@@ -11,7 +48,11 @@ on=@ClientToolTip
 LOCAL.tip = Quantidade: <eval <amount>> 
 IF (<attr>&attr_identified) || (<src.isgm>)
     LOCAL.name <DEF.<BASEID>_IDNAME>
-    LOCAL.tip .= <DEF.BR><DEF.BFONT_LRED>[ <f_potionStr> ]
+    if (<more2>)
+     LOCAL.tip .= <DEF.BR>Forca: <DEF.BFONT_LRED><fval <more2>>
+    else
+     LOCAL.tip .= <DEF.BR>Forca unica
+    endif
 //NAO ENVIAR, CONSOME BANDA E NEM SEMPRE EH UTILIZADO
 //  LOCAL.tip <DEF.<BASEID>_IDTIP>
 ELSE
@@ -23,12 +64,33 @@ src.addcliloc 1042971,<LOCAL.name>
 src.addcliloc 1070722,<LOCAL.tip>
 RETURN 1
 
+[TYPEDEF t_potion_poison]
+on=@dclick
+if (<attr>&attr_identified)
+ src.f_usePoison <uid>
+else
+ src.veneno <more2>
+ src.sysmessagered Voce tomou veneno!
+ potion_consume
+ src.cry
+endif
+return 1
+
+//######################################################################
+//######################################################################
+//
+//                          FUNCTIONS
+//
+//######################################################################
+//######################################################################
+
+
 [FUNCTION f_potionStr]
-if (<more2> < 955)
+if (<more2> < 31.4)
  return fraca
-elif (<more2> < 1250)
+elif (<more2> < 62.7)
  return normal
-elif (<more2> < 1750)
+elif (<more2> < 94.0)
  return forte
 else
  return concentrada
@@ -46,237 +108,1257 @@ new.type=t_spell
 new.cont=<src>
 new.link=<src>
 
-//########################################################
-//##                            ##
-//##            Poções ordinárias       ##
-//##                            ##
-//########################################################
 
-// --- HEALING ---
-[ITEMDEF 0f0c]
-//Potion (Yellow)
-DEFNAME=i_bottle_yellow
-NAME=pocao amarela
-TYPE=T_POTION
-TDATA1=i_bottle_empty
-RESOURCES=i_bottle_empty
-WEIGHT=1
-DESCRIPTION=Poção amarela(Heal)
-SUBSECTION=Potions
-CATEGORY=MyT - Provisions - Alchemy & Magic
+[ITEMDEF i_pot_regen_hp]
+//MORE1:HP restante (em decimos)
+//MOREX:HP por sengundo (em décimos)
+//MOREY:Totalizador de HP
+id=i_memory
+name=HP Regen
+TYPE=t_eq_script
+layer=layer_special
 
-on=@create
-more2={0 2000}
+ON=@TIMER
+IF (<more1> < 1)
+ IF (<link.hits> >= <link.maxhits>)
+  link.hits = <link.maxhits>
+ ENDIF
+ remove
+ENDIF
 
-on=@dclick
-if <src.findlayer.layer_flag_potionused>
-    return 0
-endif
-
-src.effect 3 i_fx_sparkle 0 16 0
-if (<more2> <= 890)
-    src.hits += <R8,15>
-elif (<more2> <= 1000)
-    src.hits += <R22,27>
-elif (<more2> <= 1500)
-    src.hits += <R33,55>
-else
-    src.sfx 0202 
-    src.hits += <R65,90>
-endif
-
-if <src.hits> > <src.maxhits>
-    src.hits=<src.maxhits>
-endif
-
-potion_consume
+MOREY += <MOREX>
+WHILE (<morey> > 9) && (<more1> > 9)
+ morey -= 10
+ more1 -= 10
+ link.hits += 1
+ if (<more1> < 0)
+  link.hits += <eval <more1>/10>
+ endif
+END
+IF (<link.hits> >= <link.maxhits>)
+ link.hits = <link.maxhits>
+ remove
+ENDIF
+timer = 1
 return 1
 
-// --- NIGHTSIGHT ---
-
-[ITEMDEF 0f06]
-//Potion (Black)
-DEFNAME=i_bottle_black
-NAME=pocao negra
-TYPE=t_potion
-TDATA1=i_bottle_empty
-RESOURCES=i_bottle_empty
-WEIGHT=1
-DESCRIPTION=Poção negra(Nightsight)
-SUBSECTION=Potions
-CATEGORY=MyT - Provisions - Alchemy & Magic
-
-ON=@Create
-    MORE1=S_Night_Sight
-    MORE2={ 30.0 90.0 }
+[FUNCTION f_pot_regen_hp]
+newitem i_pot_regen_hp
+new.equip
+new.link=<UID>
+new.more1=<argv0>
+new.morex=<argv1>
+new.timer 1
 
 
 
-// --- CURE ---
+[ITEMDEF i_pot_regen_mp]
+//MORE1:MP restante (em decimos)
+//MOREX:MP por sengundo (em décimos)
+//MOREY:Totalizador de MP
+id=i_memory
+name=MP Regen
+TYPE=t_eq_script
+layer=layer_special
 
-[ITEMDEF 0f07]
-//Potion (Orange)
-DEFNAME=i_bottle_orange
-NAME=pocao alaranjada
-TYPE=T_POTION
-TDATA1=i_bottle_empty
-RESOURCES=i_bottle_empty
-WEIGHT=1
-DESCRIPTION=Poção alaranjada(Cura)
-SUBSECTION=Potions
-CATEGORY=MyT - Provisions - Alchemy & Magic
+ON=@TIMER
+IF (<more1> < 1)
+ IF (<link.mana> >= <link.maxmana>)
+  link.mana = <link.maxmana>
+ ENDIF
+ remove
+ENDIF
 
-ON=@Create
-    MORE1=s_cure
-    MORE2={ 300 900 }
-
-// --- AGILITY ---
-
-[ITEMDEF 0f08]
-//Potion (Blue)
-DEFNAME=i_bottle_blue
-NAME=pocao azulada
-TYPE=T_POTION
-TDATA1=i_bottle_empty
-RESOURCES=i_bottle_empty
-WEIGHT=1
-DESCRIPTION=Poção azulada(Agility)
-SUBSECTION=Potions
-CATEGORY=MyT - Provisions - Alchemy & Magic
-
-ON=@Create
-    MORE1=s_agility
-    MORE2={ 300 900 }
-
-// --- STRENGTH ---
-
-[ITEMDEF 0f09]
-//Potion (White)
-DEFNAME=i_bottle_white
-NAME=pocao alva
-TYPE=T_POTION
-TDATA1=i_bottle_empty
-RESOURCES=i_bottle_empty
-WEIGHT=1
-DESCRIPTION=Poção alva(Strength)
-SUBSECTION=Potions
-CATEGORY=MyT - Provisions - Alchemy & Magic
-
-ON=@Create
-    MORE1=s_Strength
-    MORE2={ 300 900 }
-
-// --- POISON ---
-
-[ITEMDEF 0f0a]
-//Potion (Green)
-DEFNAME=i_bottle_green
-NAME=pocao verde
-TYPE=T_POTION
-TDATA1=i_bottle_empty
-RESOURCES=i_bottle_empty
-WEIGHT=1
-DESCRIPTION=Poção verde(Poison)
-SUBSECTION=Potions
-CATEGORY=MyT - Provisions - Alchemy & Magic
-
-ON=@Create
-    MORE1=s_Poison
-    MORE2={ 300 900 }
-
-on=@dclick
-if (<attr>&attr_identified)
- src.f_usePoison <uid>
-else
- src.veneno <more2>
- src.sysmessagered Voce tomou veneno!
- src.cry
-endif
+MOREY += <MOREX>
+WHILE (<morey> > 9) && (<more1> > 9)
+ morey -= 10
+ more1 -= 10
+ link.mana += 1
+ if (<more1> < 0)
+  link.mana += <eval <more1>/10>
+ endif
+END
+IF (<link.mana> >= <link.maxmana>)
+ link.mana = <link.maxmana>
+ remove
+ENDIF
+timer = 1
 return 1
 
-// --- REFRESH ---
+[FUNCTION f_pot_regen_mp]
+newitem i_pot_regen_mp
+new.equip
+new.link=<UID>
+new.more1=<argv0>
+new.morex=<argv1>
+new.timer 1
 
-[ITEMDEF 0f0b]
-//Potion (Red)
-DEFNAME=i_bottle_red
-NAME=pocao escarlate
-TYPE=T_POTION
-TDATA1=i_bottle_empty
-RESOURCES=i_bottle_empty
-WEIGHT=1
-DESCRIPTION=Poção escarlate(Stam)
-SUBSECTION=Potions
-CATEGORY=MyT - Provisions - Alchemy & Magic
 
-ON=@Create
-    MORE1=s_refresh
-    MORE2={ 300 900 }
 
-// --- EXPLOSION ---
+[ITEMDEF i_pot_regen_sp]
+//MORE1:SP restante (em decimos)
+//MOREX:SP por sengundo (em décimos)
+//MOREY:Totalizador de SP
+id=i_memory
+name=SP Regen
+TYPE=t_eq_script
+layer=layer_special
 
-[ITEMDEF 0f0d]
-//Potion (Purple)
-DEFNAME=i_bottle_purple
-NAME=pocao rosea
-TYPE=T_POTION
-TDATA1=0
-RESOURCES=i_bottle_empty
-WEIGHT=1
-DESCRIPTION=Poção rosea(Explosion)
-SUBSECTION=Potions
-CATEGORY=MyT - Provisions - Alchemy & Magic
+ON=@TIMER
+IF (<more1> < 1)
+ IF (<link.stam> >= <link.maxstam>)
+  link.stam = <link.maxstam>
+ ENDIF
+ remove
+ENDIF
 
-ON=@Create
-    MORE1=s_explosion
-    MORE2={ 30.0 80.0 }
-
-on=@dclick
-//Reduzir 80% do efeito.
-if !<tag0.fix>
-    more2=<eval ((<more2>*2)/10)>
-    tag.fix=1
-endif
-
-// --- MANA ---
-
-[ITEMDEF i_potion_Mana]
-ID=i_bottle_WHITE
-NAME=pocao alva
-TYPE=T_POTION
-TDATA1=i_bottle_empty
-RESOURCES=i_reag_eye_of_newt 3, i_bottle_EMPTY
-SKILLMAKE=ALCHEMY 65.1
-DESCRIPTION=Poção prateada(Mana)
-SUBSECTION=Potions
-CATEGORY=MyT - Provisions - Alchemy & Magic
-
-ON=@Create
-    MORE2={0 200}
-
-on=@dclick
-if <src.findlayer.layer_flag_potionused>
-    return 0
-endif
-
-src.effect 3 i_fx_sparkle 0 16 0
-if (<more2> <= 890)
-    src.mana += <R5,15>
-elif (<more2> <= 1000)
-    src.mana += <R17,27>
-elif (<more2> <= 1500)
-    src.mana += <R30,55>
-else
-    src.sfx 01e7
-    src.mana += <R60,80>
-endif
-
-if <src.mana> > <src.maxmana>
-    src.mana=<src.maxmana>
-endif
-
-potion_consume
+MOREY += <MOREX>
+WHILE (<morey> > 9) && (<more1> > 9)
+ morey -= 10
+ more1 -= 10
+ link.stam += 1
+ if (<more1> < 0)
+  link.stam += <eval <more1>/10>
+ endif
+END
+IF (<link.stam> >= <link.maxstam>)
+ link.stam = <link.maxstam>
+ //remove //Não some se completar, mas força completar
+ENDIF
+timer = 1
 return 1
 
+[FUNCTION f_pot_regen_sp]
+newitem i_pot_regen_sp
+new.equip
+new.link=<UID>
+new.more1=<argv0>
+new.morex=<argv1>
+new.timer 1
+
+[FUNCTION petrify]
+sfx 05A9
+stone
+serv.newitem i_coin_copper
+new.color 1
+new.p=<p>
+new.nudgeup 20
+new.attr 012
+new.timer 3
+new.emoteyellow petrifica
+
+[FUNCTION f_fogo_grego]
+for 7
+    newitem=i_fx_fogo_grego
+    new.movenear <uid> 2
+    new.effect 2 i_fire_column 0 29 0 0 2
+    new.timer=<R6,12>
+end
+
+[FUNCTION f_use_fogo_grego]
+if !(0<argo>)//target no chão
+    newitem i_gold
+    new.p=<targp>
+    obj=<new>
+    face <obj>
+    if (<canseelos <new>>) && (<distance <new>> < 10)
+        obj.f_fogo_grego
+        obj.EFFECT 0 i_bottle_white 6 16 1
+        local.done=1
+    else
+        sysmessagered Muito longe...
+    endif
+    obj.remove
+elif (<argo.IsChar>)
+    if (<canseelos <argo>>) &&  (<distance <new>> < 6)
+        face <argo>
+        argo.f_fogo_grego
+        argo.f_pega_fogo <R6,12>
+        argo.EFFECT 0 i_bottle_white 6 25 1
+        local.done=1
+    else
+        sysmessagered Muito longe...
+    endif
+endif
+
+if (<local.done>)
+    consume i_potion_fogo_grego
+    sfx 011E
+endif
+    
+
+
+
+//######################################################################
+//######################################################################
+//
+//                          SPELLS
+//
+//######################################################################
+//######################################################################
+////////////////////////////////////////////////////////////////////////
+//                     SPELLS 350 a 399                               //
+////////////////////////////////////////////////////////////////////////
+
+[SPELL 350]
+//Heal por tempo
+DEFNAME=s_timed_heal
+NAME=Cura por tempo
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good | spellflag_dir_anim
+SKILLREQ=FOCUS 40.0
+INTERRUPT=45.0,100.0
+
+ON=@Effect
+DOSWITCH <eval <argn2>/416>
+    f_pot_regen_hp 20.0,2.0
+    f_pot_regen_hp 40.0,2.0
+    f_pot_regen_hp 60.0,4.0
+    f_pot_regen_hp 80.0,5.0
+ENDDO
+sfx snd_SPELL_HEAL
+effect 3 i_fx_heal_effect 0 31 0 27
+return 1
+
+
+[SPELL 351]
+//Heal e mana por tempo
+DEFNAME=s_timed_refresh
+NAME=Restauracao por tempo
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good | spellflag_dir_anim
+SKILLREQ=FOCUS 40.0
+INTERRUPT=45.0,100.0
+
+ON=@Effect
+DOSWITCH <eval <argn2>/416>
+    f_pot_regen_hp 8.0,1.0
+    f_pot_regen_hp 20.0,2.0
+    f_pot_regen_hp 40.0,4.0
+    f_pot_regen_hp 60.0,4.0
+ENDDO
+DOSWITCH <eval <argn2>/416>
+    f_pot_regen_mp 10.0,1.0
+    f_pot_regen_mp 15.0,1.5
+    f_pot_regen_mp 22.4,1.6
+    f_pot_regen_mp 37.5,2.5
+ENDDO
+sfx 01fc
+effect 3 i_fx_heal_effect 0 31 0 23
+return 1
+
+
+[SPELL 352]
+//Stam por tempo
+DEFNAME=s_timed_stam
+NAME=Folego por tempo
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good | spellflag_dir_anim
+SKILLREQ=FOCUS 40.0
+INTERRUPT=45.0,100.0
+
+ON=@Effect
+DOSWITCH <eval <argn2>/416>
+    f_pot_regen_sp 15.0,3.0
+    f_pot_regen_sp 30.0,3.0
+    f_pot_regen_sp 45.0,3.0
+    f_pot_regen_sp 60.0,4.0
+ENDDO
+sfx 01E7
+effect 3 i_fx_heal_effect 0 31 0 51
+return 1
+
+
+[SPELL 353]
+//Mana por tempo
+DEFNAME=s_timed_mana
+NAME=Magica por tempo
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good | spellflag_dir_anim
+SKILLREQ=FOCUS 40.0
+INTERRUPT=45.0,100.0
+
+ON=@Effect
+DOSWITCH <eval <argn2>/416>
+    f_pot_regen_mp 15.0,3.0
+    f_pot_regen_mp 35.0,3.5
+    f_pot_regen_mp 52.0,3.7
+    f_pot_regen_mp 64.0,4.0
+ENDDO
+sfx 0214
+effect 3 i_fx_heal_effect 0 31 0 8
+return 1
+
+[SPELL 354]
+//Heal
+DEFNAME=s_health_refresh
+NAME=Revitalização
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+INTERRUPT=45.0,100.0
+
+ON=@Effect
+local.hp=150
+DOSWITCH <eval <argn2>/413>
+    local.hp=20
+    local.hp=40
+    local.hp=60
+    local.hp=80
+ENDDO
+local.rest=<eval (4*<local.hp>)/5>
+local.hp=<R<local.rest>,<local.hp>>
+local.rest=<eval <maxhits>-<hits>>
+hits += <MINIMUMN <local.hp>,<local.rest>>
+sfx snd_SPELL_HEAL
+effect 3 i_fx_heal_effect 0 31 0
+return 1
+
+[SPELL 355]
+//Mana
+DEFNAME=s_mana_refresh
+NAME=Magica
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+INTERRUPT=45.0,100.0
+
+ON=@Effect
+local.mp=100
+DOSWITCH <eval <argn2>/416>
+    local.mp=15
+    local.mp=35
+    local.mp=50
+    local.mp=65
+ENDDO
+local.rest=<eval (4*<local.mp>)/5>
+local.mp=<R<local.rest>,<local.mp>>
+local.rest=<eval <maxmana>-<mana>>
+mana += <MINIMUMN <local.mp>,<local.rest>>
+sfx 05AA
+effect 3 i_fx_bless_effect 0 16 0
+return 1
+
+[SPELL 356]
+//Stam
+DEFNAME=s_stam_refresh
+NAME=Folego
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+INTERRUPT=45.0,100.0
+
+ON=@Effect
+local.sp=100
+DOSWITCH <eval <argn2>/416>
+    local.sp=15
+    local.sp=30
+    local.sp=45
+    local.sp=60
+ENDDO
+local.rest=<eval (4*<local.sp>)/5>
+local.sp=<R<local.rest>,<local.sp>>
+local.rest=<eval <maxstam>-<stam>>
+stam += <MINIMUMN <local.sp>,<local.rest>>
+sfx 01E7
+effect 3 i_fx_sparkle_2 0 16 0
+return 1
+
+// --- DEX ---
+
+[ITEMDEF i_rune_pot_dex]
+NAME=Pocao da destreza
+ID=02088
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffSkill,e_BuffStats
+
+on=@timer
+remove
+
+[SPELL 357]
+DEFNAME=s_pot_dex
+NAME=Pocao destreza
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+if (<restest i_rune_pot_dex>)
+    consume i_rune_pot_dex
+endif
+local.time=<BETWEEN 3,30,<argn2>,125.0>*60      //3 a 30 minutos
+local.effect=<BETWEEN 5,15,<argn2>,125.0>
+newitem=i_rune_pot_dex
+new.tag.moddex=<LOCAL.EFFECT>
+new.link <uid>
+trysrc <uid> src.new.equip
+new.timer=<local.time>
+SFX 028E
+effect 3 i_fx_curse 0 17 0 53 2
+return 1
+
+
+// --- STR ---
+
+[ITEMDEF i_rune_pot_str]
+NAME=Pocao da forca
+ID=0208F
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffSkill,e_BuffStats
+
+on=@timer
+remove
+
+[SPELL 358]
+DEFNAME=s_pot_str
+NAME=Pocao forca
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+if (<restest i_rune_pot_str>)
+    consume i_rune_pot_str
+endif
+local.time=<BETWEEN 3,30,<argn2>,125.0>*60      //3 a 30 minutos
+local.effect=<BETWEEN 5,15,<argn2>,125.0>
+newitem=i_rune_pot_str
+new.tag.modstr=<LOCAL.EFFECT>
+new.link <uid>
+trysrc <uid> src.new.equip
+new.timer=<local.time>
+SFX 01EE
+effect 3 i_fx_bless_effect 0 17 0 38 2
+return 1
+
+
+// --- INT ---
+
+[ITEMDEF i_rune_pot_int]
+NAME=Pocao da inteligencia
+ID=02089
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffSkill,e_BuffStats
+
+on=@timer
+remove
+
+[SPELL 359]
+DEFNAME=s_pot_int
+NAME=Pocao inteligencia
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+if (<restest i_rune_pot_int>)
+    consume i_rune_pot_int
+endif
+local.time=<BETWEEN 3,30,<argn2>,125.0>*60      //3 a 30 minutos
+local.effect=<BETWEEN 5,15,<argn2>,125.0>
+newitem=i_rune_pot_int
+new.tag.modint=<LOCAL.EFFECT>
+new.link <uid>
+trysrc <uid> src.new.equip
+new.timer=<local.time>
+SFX 01EB
+effect 3 i_fx_sparkle 0 17 0
+return 1
+
+
+// --- BUFF STAM ---
+
+[SPELL 360]
+DEFNAME=s_pot_max_folego
+NAME=Pocao maximo folego
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+if (<restest i_mry_buffMaxStats>)
+    consume i_mry_buffMaxStats
+endif
+local.time=<R100,150>
+local.effect=<R30,50>
+newitem=i_mry_buffMaxStats
+new.tag.modstam=<LOCAL.EFFECT>
+new.link <uid>
+trysrc <uid> src.new.equip
+new.timer=<local.time>
+stam=<maxstam>
+sfx 01E7
+effect 3 i_fx_sparkle_2 0 16 0 58
+return 1
+
+
+// --- FUROR DE BATALHA ---
+
+[ITEMDEF i_pot_furor_batalha]
+ID=0208F
+NAME=Furor de batalha
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@equip
+if (<link>==04fffffff)
+ link=<cont.uid>
+endif
+tag.tactics=<MINIMUM <eval 125.0-<link.tactics>>,<tag.tactics>>
+tag.swordsmanship=<MINIMUM <eval 125.0-<link.swordsmanship>>,<tag.swordsmanship>>
+tag.macefighting=<MINIMUM <eval 125.0-<link.macefighting>>,<tag.macefighting>>
+tag.wrestling=<MINIMUM <eval 125.0-<link.wrestling>>,<tag.wrestling>>
+tag.fencing=<MINIMUM <eval 125.0-<link.fencing>>,<tag.fencing>>
+
+link.tactics += <tag.tactics>
+link.swordsmanship += <tag.swordsmanship>
+link.macefighting += <tag.macefighting>
+link.wrestling += <tag.wrestling>
+link.fencing += <tag.fencing>
+link.maxhits += <tag.hits>
+link.maxstam += <tag.stam>
+link.say=@026 Graurrrr!
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+link.tactics -= <tag.tactics>
+link.swordsmanship -= <tag.swordsmanship>
+link.macefighting -= <tag.macefighting>
+link.wrestling -= <tag.wrestling>
+link.fencing -= <tag.fencing>
+link.maxhits -= <tag.hits>
+link.maxstam -= <tag.stam>
+
+on=@timer
+remove
+RETURN 1
+
+[SPELL 361]
+DEFNAME=s_pot_furor
+NAME=Pocao furor de batalha
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+if (<restest i_pot_furor_batalha>)
+    consume i_pot_furor_batalha
+endif
+local.buffskill=<BETWEEN 5.0,15.0,<argn2>,125.0>
+local.buffhits=<BETWEEN 5,20,<argn2>,125.0>
+local.buffstam=<BETWEEN 10,30,<argn2>,125.0>
+local.timer=<BETWEEN 90,1200,<argn2>,125.0>
+
+newitem i_pot_furor_batalha
+new.link=<uid>
+new.tag.tactics=<local.buffskill>
+new.tag.macefighting=<local.buffskill>
+new.tag.swordsmanship=<local.buffskill>
+new.tag.fencing=<local.buffskill>
+new.tag.wrestling=<local.buffskill>
+new.tag.hits=<local.buffhits>
+new.tag.stam=<local.buffstam>
+trysrc <uid> new.equip
+new.timer=<local.timer>
+sfx 050F
+effect 3 i_fx_bless_effect 0 17 0 21
+return 1
+
+
+// --- ARMOR ---
+
+[ITEMDEF i_spl_pot_armor]
+ID=8326
+name=Pocao da protecao
+type=t_eq_script
+layer=layer_special
+tevents=e_BuffRes
+
+on=@timer
+remove
+return 1
+
+[SPELL 362]
+DEFNAME=s_pot_armadura
+NAME=Pocao armadura
+SOUND=01ED
+CAST_TIME=11
+FLAGS=spellflag_good
+ 
+on=@Effect
+local.effect = <minimumN <BETWEEN 10,25,<argn2>,125.0>,<eval 66-<ar>>>
+local.duration = <BETWEEN 60,1200,<argn2>,125.0>
+newitem i_spl_pot_armor
+new.tag.modar=<R<eval (<local.effect>/3)*2>,<local.effect>>
+new.link=<UID>
+trysrc <uid> equip <new>
+new.timer=<local.duration>
+effect 3 i_fx_sparkle 0 16 0
+SFX 01ED
+return 1
+
+
+// --- WYRM ANCIÃO ---
+
+[EVENTS e_breath_o_fire]
+on=@CHARDCLICK
+IF (<serv.time> < <ctag0.no_breath>)
+ sysmessageyellow Aguarde ate poder cospir fogo novamente.
+ return 1
+ELIF (<act.flags>&01f)
+ sysmessageyellow Voce nao pode afetar este alvo.
+ return 1
+ELIF (!<CanSeeLOS <act>>)
+ sysmessagered Voce nao consegue ver o alvo.
+ return 1
+ELIF (<distance <act>> > 5)
+ sysmessagered Muito longe...
+ return 1
+endif
+anim 6
+emotered cospe fogo
+sfx 016A
+act.effect 3 i_fire_column 26 26 26
+act.damage <R20,50> DAM_FIRE|DAM_MAGIC <UID>
+ctag.no_breath=<eval <serv.time>+25>
+return 1
+
+[SPELL 363]
+DEFNAME=s_pot_wyrm
+NAME=Wyrm ancião
+SOUND=01ED
+CAST_TIME=11
+FLAGS=spellflag_good
+ 
+on=@Effect
+local.time=<BETWEEN 30,120,<argn2>,125.0>
+f_polymorph c_dragao_anciao,0,<local.time>
+events +e_breath_o_fire
+timerf <local.time>,events -e_breath_o_fire
+
+
+// --- GAZER ---
+
+[EVENTS e_breath_o_freeze]
+on=@CHARDCLICK
+IF (<serv.time> < <ctag0.no_breath>)
+ sysmessageyellow Aguarde ate poder petrificar novamente.
+ return 1
+ELIF (<act.flags>&01f)
+ sysmessageyellow Voce nao pode afetar este alvo.
+ return 1
+ELIF (!<CanSeeLOS <act>>)
+ sysmessagered Voce nao consegue ver o alvo.
+ return 1
+ELIF (<distance <act>> > 5)
+ sysmessagered Muito longe...
+ return 1
+endif
+anim 6
+emotered olhar malvado
+sfx 0179
+act.petrify
+act.timerf 12,stone
+ctag.no_breath=<eval <serv.time>+25>
+return 1
+
+[SPELL 364]
+DEFNAME=s_pot_gazer
+NAME=Gazer
+SOUND=01ED
+CAST_TIME=11
+FLAGS=spellflag_good
+ 
+on=@Effect
+local.time=<BETWEEN 40,180,<argn2>,125.0>
+f_polymorph c_gazer_lava,0,<local.time>
+events +e_breath_o_freeze
+timerf <local.time>,events -e_breath_o_freeze
+
+
+// --- FUGA ---
+
+[SPELL 365]
+DEFNAME=s_pot_haste
+NAME=Fuga
+SOUND=01ED
+CAST_TIME=11
+FLAGS=spellflag_good
+ 
+on=@Effect
+haste <between 15,75,<argn2>,125.0>
+SFX 028E
+effect 3 i_fx_bless_effect 0 17 0 53
+
+
+// --- ARCHERY ---
+
+[ITEMDEF i_spl_pot_archery]
+ID=8324
+NAME=Pocao Archery
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffSkill
+
+on=@equip
+timerf 5 f_memory_WatchDog
+
+on=@timer
+remove
+RETURN 1
+
+[SPELL 366]
+DEFNAME=s_pot_archery
+NAME=Olhos de aguia
+SOUND=01ED
+CAST_TIME=11
+FLAGS=spellflag_good
+ 
+on=@Effect
+consume i_spl_pot_archery
+newitem i_spl_pot_archery
+new.tag.modskill=Archery
+new.tag.modskillval=<BETWEEN 2.5,25.0,<argn2>,125.0>
+new.link=<uid>
+new.equip
+new.timer=1800
+EFFECT 2 i_fx_sparkle_2 0 16 0 09a
+sfx 489
+return 1
+
+
+// --- TACTICS ---
+
+[ITEMDEF i_spl_pot_tactics]
+ID=8328
+NAME=Pocao Tactics
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffSkill
+
+on=@equip
+timerf 5 f_memory_WatchDog
+
+on=@timer
+remove
+RETURN 1
+
+[SPELL 367]
+DEFNAME=s_pot_tactics
+NAME=Chamado da batalha
+SOUND=01ED
+CAST_TIME=11
+FLAGS=spellflag_good
+ 
+on=@Effect
+consume i_spl_pot_tactics
+newitem i_spl_pot_tactics
+new.tag.modskill=Tactics
+new.tag.modskillval=<BETWEEN 2.5,25.0,<argn2>,125.0>
+new.link=<uid>
+new.equip
+new.timer=1800
+sfx 530
+EFFECT 2 i_fx_heal_effect 0 16 0 026
+return 1
+
+
+// --- ASSASSINO ---
+
+[ITEMDEF i_pot_murder]
+ID=8354
+NAME=Pocao assassino
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@equip
+if (<link>==04fffffff)
+ link=<cont.uid>
+endif
+tag.tactics=<MINIMUM <eval 125.0-<link.tactics>>,<tag.tactics>>
+tag.hiding=<MINIMUM <eval 125.0-<link.hiding>>,<tag.hiding>>
+tag.stealth=<MINIMUM <eval 125.0-<link.stealth>>,<tag.stealth>>
+tag.poisoning=<MINIMUM <eval 125.0-<link.poisoning>>,<tag.poisoning>>
+tag.fencing=<MINIMUM <eval 125.0-<link.fencing>>,<tag.fencing>>
+
+link.tactics += <tag.tactics>
+link.fencing += <tag.fencing>
+link.hiding += <tag.hiding>
+link.stealth += <tag.stealth>
+link.poisoning += <tag.poisoning>
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+link.tactics -= <tag.tactics>
+link.fencing -= <tag.fencing>
+link.hiding -= <tag.hiding>
+link.stealth -= <tag.stealth>
+link.poisoning -= <tag.poisoning>
+
+on=@timer
+remove
+RETURN 1
+
+
+[SPELL 368]
+DEFNAME=s_pot_murder
+NAME=Pocao assassino
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+if (<restest i_pot_murder>)
+    consume i_pot_murder
+endif
+local.buffskill=<BETWEEN 5.0,15.0,<argn2>,125.0>
+local.buffskill2=<BETWEEN 5.0,25.0,<argn2>,125.0>
+
+newitem i_pot_murder
+new.link=<uid>
+new.tag.tactics=<local.buffskill>
+new.tag.hiding=<local.buffskill2>
+new.tag.stealth=<local.buffskill2>
+new.tag.fencing=<local.buffskill>
+new.tag.poisoning=<local.buffskill2>
+new.link=<uid>
+
+trysrc <uid> new.equip
+new.timer=900
+sfx 957
+effect 3 i_fx_bless_effect 0 17 0 020
+return 1
+
+
+// --- TINKERING ---
+
+[ITEMDEF i_pot_artisan]
+ID=8342
+NAME=Pocao artesao
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@Timer
+remove
+return 1
+
+[SPELL 369]
+DEFNAME=s_pot_artisan
+NAME=Pocao artesao
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+consume i_pot_artisan
+newitem i_pot_artisan
+new.BuffSkill Tinkering,<BETWEEN 5.0,25.0,<argn2>,125.0>
+new.equip
+new.timer 1800
+EFFECT 3 i_fx_bless_effect 0 16 0 030
+SFX 503
+return 1
+
+
+// --- BLACKSMITHING ---
+
+[ITEMDEF i_pot_blacksmith]
+ID=8382
+NAME=Pocao ferreiro
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@Timer
+remove
+return 1
+
+[SPELL 370]
+DEFNAME=s_pot_blacksmith
+NAME=Pocao ferreiro
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+consume i_pot_blacksmith
+newitem i_pot_blacksmith
+new.BuffSkill Blacksmithing,<BETWEEN 5.0,25.0,<argn2>,125.0>
+new.equip
+new.timer 1800
+EFFECT 3 i_fx_bless_effect 0 16 0 030
+SFX 1478
+return 1
+
+
+// --- POISONING ---
+
+[ITEMDEF i_pot_venomer]
+ID=8334
+NAME=Pocao envenenador
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@Timer
+remove
+return 1
+
+[SPELL 371]
+DEFNAME=s_pot_venomer
+NAME=Pocao envenenador
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+consume i_pot_venomer
+newitem i_pot_venomer
+new.BuffSkill Poisoning,<BETWEEN 5.0,25.0,<argn2>,125.0>
+new.equip
+new.timer 1800
+EFFECT 3 i_fx_heal_effect 0 16 0 0a3
+SFX 1140
+return 1
+
+
+// --- COOKING ---
+
+[ITEMDEF i_pot_cooking]
+ID=8321
+NAME=Pocao cozinheiro
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@Timer
+remove
+return 1
+
+[SPELL 372]
+DEFNAME=s_pot_cooking
+NAME=Pocao cozinheiro
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+consume i_pot_cooking
+newitem i_pot_cooking
+new.BuffSkill Cooking,<BETWEEN 5.0,25.0,<argn2>,125.0>
+new.equip
+new.timer 1800
+EFFECT 3 i_fx_heal_effect 0 16 0
+SFX snd_SPELL_CREATE_FOOD
+return 1
+
+
+// --- MINING ---
+
+[ITEMDEF i_pot_mining]
+ID=8376
+NAME=Pocao mineiro
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffMaxStats, e_BuffStats
+
+on=@Timer
+remove
+return 1
+
+[SPELL 373]
+DEFNAME=s_pot_mining
+NAME=Pocao mineiro
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+consume i_pot_mining
+newitem i_pot_mining
+new.BuffSkill Mining,<BETWEEN 5.0,25.0,<argn2>,125.0>
+new.tag.ModStam=<BETWEEN 10,35,<argn2>,125.0>
+new.tag.ModStr=<BETWEEN 5,12,<argn2>,125.0>
+new.equip
+new.timer 1800
+EFFECT 3 i_fx_heal_effect 0 16 0 0aea
+SFX 483
+return 1
+
+
+// --- GATUNO ---
+
+[ITEMDEF i_pot_steal]
+ID=8354
+NAME=Pocao gatuno
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@equip
+if (<link>==04fffffff)
+ link=<cont.uid>
+endif
+tag.hiding=<MINIMUM <eval 125.0-<link.hiding>>,<tag.hiding>>
+tag.stealth=<MINIMUM <eval 125.0-<link.stealth>>,<tag.stealth>>
+tag.stealing=<MINIMUM <eval 125.0-<link.stealing>>,<tag.stealing>>
+tag.snooping=<MINIMUM <eval 125.0-<link.snooping>>,<tag.snooping>>
+
+link.snooping += <tag.snooping>
+link.hiding += <tag.hiding>
+link.stealth += <tag.stealth>
+link.stealing += <tag.stealing>
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+link.snooping -= <tag.snooping>
+link.hiding -= <tag.hiding>
+link.stealth -= <tag.stealth>
+link.stealing -= <tag.stealing>
+
+on=@timer
+remove
+RETURN 1
+
+[SPELL 374]
+DEFNAME=s_pot_steal
+NAME=Pocao gatuno
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+if (<restest i_pot_steal>)
+    consume i_pot_steal
+endif
+local.buffskill=<BETWEEN 5.0,15.0,<argn2>,125.0>
+local.buffskill2=<BETWEEN 5.0,25.0,<argn2>,125.0>
+
+newitem i_pot_steal
+new.link=<uid>
+new.tag.hiding=<local.buffskill>
+new.tag.stealth=<local.buffskill>
+new.tag.snooping=<local.buffskill2>
+new.tag.stealing=<local.buffskill2>
+new.link=<uid>
+
+trysrc <uid> new.equip
+new.timer=900
+sfx 957
+effect 3 i_fx_bless_effect 0 17 0 020
+return 1
+
+// --- ALCHEMY ---
+
+[ITEMDEF i_pot_alchemy]
+ID=6238
+NAME=Pocao alquimista
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@Timer
+remove
+return 1
+
+[SPELL 375]
+DEFNAME=s_pot_alchemy
+NAME=Pocao alquimista
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+consume i_pot_alchemy
+newitem i_pot_alchemy
+new.BuffSkill Alchemy,<BETWEEN 5.0,25.0,<argn2>,125.0>
+new.equip
+new.timer 900
+EFFECT 3 i_fx_heal_effect 0 16 0
+SFX snd_SPELL_CREATE_FOOD
+return 1
+
+// --- MAGERY ---
+
+[ITEMDEF i_pot_magery]
+ID=8337
+NAME=Pocao destruicao
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@Timer
+remove
+return 1
+
+[SPELL 376]
+DEFNAME=s_pot_magery
+NAME=Pocao mago destruicao
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+consume i_pot_magery
+newitem i_pot_magery
+new.BuffSkill Magery,<BETWEEN 5.0,25.0,<argn2>,125.0>
+new.equip
+new.timer 900
+EFFECT 3 i_fx_heal_effect 0 16 0
+SFX snd_SPELL_CREATE_FOOD
+return 1
+
+// --- FOCUS ---
+
+[ITEMDEF i_pot_focus]
+ID=8336
+NAME=Pocao restaurador
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@Timer
+remove
+return 1
+
+[SPELL 377]
+DEFNAME=s_pot_focus
+NAME=Pocao mago restauracao
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+consume i_pot_focus
+newitem i_pot_focus
+new.BuffSkill Focus,<BETWEEN 5.0,25.0,<argn2>,125.0>
+new.equip
+new.timer 900
+EFFECT 3 i_fx_heal_effect 0 16 0
+SFX snd_SPELL_CREATE_FOOD
+return 1
+
+// --- NECROMANCY ---
+
+[ITEMDEF i_pot_necromancy]
+ID=8339
+NAME=Pocao necromante
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@Timer
+remove
+return 1
+
+[SPELL 378]
+DEFNAME=s_pot_necromancy
+NAME=Pocao mago necromancao
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+consume i_pot_necromancy
+newitem i_pot_necromancy
+new.BuffSkill Necromancy,<BETWEEN 5.0,25.0,<argn2>,125.0>
+new.equip
+new.timer 900
+EFFECT 3 i_fx_heal_effect 0 16 0
+SFX snd_SPELL_CREATE_FOOD
+return 1
+
+// --- SPELLWEAVING ---
+
+[ITEMDEF i_pot_spellweaving]
+ID=8375
+NAME=Pocao necromante
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@Timer
+remove
+return 1
+
+[SPELL 379]
+DEFNAME=s_pot_spellweaving
+NAME=Pocao mago alteracao
+SOUND=snd_SPELL_HEAL
+CAST_TIME=28
+RUNE_ITEM=2256
+FLAGS=spellflag_good
+SKILLREQ=FOCUS 40.0
+
+ON=@Effect
+consume i_pot_spellweaving
+newitem i_pot_spellweaving
+new.BuffSkill Spellweaving,<BETWEEN 5.0,25.0,<argn2>,125.0>
+new.equip
+new.timer 900
+EFFECT 3 i_fx_heal_effect 0 16 0
+SFX snd_SPELL_CREATE_FOOD
+return 1
+
+//######################################################################
+//######################################################################
+//
+//                          ITEMDEFs
+//
+//######################################################################
+//######################################################################
 
 // --- GARRAFA VAZIA ---
 
@@ -295,27 +1377,957 @@ SUBSECTION=Magical Items
 DESCRIPTION=Garrafa alquimica
 
 
+// --- FOGO GREGO ---
+[ITEMDEF i_fx_fogo_grego]
+ID=i_fire
+NAME=fogo
+type=t_eq_script
+
+on=@create
+attr=012
+
+on=@Step
+if (!<src.IsGm>) && !(<src.flags>&03)//GM não, nem morto/invul
+    src.f_pega_fogo <R4,8>
+    remove
+return 1
+
 //########################################################
-//##                            ##
-//##            Poções avançadas        ##
-//##                            ##
+//##                                                    ##
+//##                    ELIXIRES                        ##
+//##                                                    ##
 //########################################################
 
+// --- HEALING ---
 
-// --- Magic Reflection ---
+[ITEMDEF i_bottle_yellow_lo]
+//Potion (Yellow)
+ID=0f0c
+NAME=pocao amarela
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_ginseng
+SKILLMAKE=Alchemy 23.4
+WEIGHT=1
+DESCRIPTION=Healing Lo
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
 
-[itemdef i_potion_magic_reflection]
+on=@create
+more1=s_health_refresh
+more2=31.3
+
+
+[ITEMDEF 0f0c]
+//Potion (Yellow)
+DEFNAME=i_bottle_yellow
+NAME=pocao amarela
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_ginseng, 1 i_r_raiz_de_mandrake
+SKILLMAKE=Alchemy 51.4
+WEIGHT=1
+DESCRIPTION=Healing
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+on=@create
+more1=s_health_refresh
+more2=62.6
+
+
+[ITEMDEF i_bottle_yellow_hi]
+//Potion (Yellow)
+ID=0f0c
+NAME=pocao amarela
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_ginseng, 2 i_r_raiz_de_mandrake
+SKILLMAKE=Alchemy 79.5
+WEIGHT=1
+DESCRIPTION=Healing Hi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+on=@create
+more1=s_health_refresh
+more2=93.8
+
+
+[ITEMDEF i_bottle_yellow_xhi]
+//Potion (Yellow)
+ID=0f0c
+NAME=pocao amarela
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 4 i_r_ginseng, 2 i_r_raiz_de_mandrake
+SKILLMAKE=Alchemy 107.5
+WEIGHT=1
+DESCRIPTION=Healing XHi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+on=@create
+more1=s_health_refresh
+more2=125.0
+
+
+// --- STAM ---
+
+[ITEMDEF i_bottle_red_lo]
+//Potion (Red)
+ID=0f0b
+NAME=pocao escarlate
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_musgo_sangue
+SKILLMAKE=Alchemy 16.3
+WEIGHT=1
+DESCRIPTION=Stam Lo
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_stam_refresh
+    MORE2=31.3
+
+
+[ITEMDEF 0f0b]
+//Potion (Red)
+DEFNAME=i_bottle_red
+NAME=pocao escarlate
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_musgo_sangue, 1 i_r_raiz_de_mandrake
+SKILLMAKE=Alchemy 43.6
+WEIGHT=1
+DESCRIPTION=Stam
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_stam_refresh
+    MORE2=62.6
+    
+[ITEMDEF i_bottle_red_hi]
+//Potion (Red)
+ID=0f0b
+NAME=pocao escarlate
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty 3 i_r_musgo_sangue, 2 i_r_raiz_de_mandrake
+SKILLMAKE=Alchemy 70.8
+WEIGHT=1
+DESCRIPTION=Stam hi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_stam_refresh
+    MORE2=93.9
+
+[ITEMDEF i_bottle_red_xhi]
+//Potion (Red)
+ID=0f0b
+NAME=pocao escarlate
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty 4 i_r_musgo_sangue, 2 i_r_raiz_de_mandrake
+SKILLMAKE=Alchemy 98.1
+WEIGHT=1
+DESCRIPTION=Stam xhi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_stam_refresh
+    MORE2=125.0
+    
+// --- MANA ---
+
+[ITEMDEF i_bottle_mana_lo]
+ID=i_bottle_WHITE
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_olho_morto_vivo
+SKILLMAKE=Alchemy 25.0
+DESCRIPTION=Mana Lo
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_mana_refresh
+    MORE2=31.3
+    
+[ITEMDEF i_bottle_mana]
+ID=i_bottle_WHITE
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_olho_morto_vivo, 1 i_r_perola_negra
+SKILLMAKE=Alchemy 53.3
+DESCRIPTION=Mana
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_mana_refresh
+    MORE2=62.6
+
+[ITEMDEF i_bottle_mana_hi]
+ID=i_bottle_WHITE
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 5 i_r_olho_morto_vivo, 1 i_r_perola_negra
+SKILLMAKE=Alchemy 81.7
+DESCRIPTION=Mana Hi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_mana_refresh
+    MORE2=93.9
+
+[ITEMDEF i_bottle_mana_XHi]
+ID=i_bottle_WHITE
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_olho_morto_vivo, 1 i_r_perola_negra, 1 i_r_raiz_de_mandrake
+SKILLMAKE=Alchemy 110.0
+DESCRIPTION=Mana XHi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_mana_refresh
+    MORE2=125.0
+    
+//########################################################
+//##                                                    ##
+//##                    POTIONS                         ##
+//##                                                    ##
+//########################################################
+
+// --- HEALING ---
+
+[ITEMDEF i_potion_yellow_lo]
+//Potion (Yellow)
+ID=0f0c
+NAME=pocao amarela
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 1 i_r_ginseng
+SKILLMAKE=Alchemy 3.0
+WEIGHT=1
+DESCRIPTION=Healing OT Lo
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+on=@create
+more1=s_timed_heal
+more2=31.3
+
+
+[ITEMDEF i_potion_yellow]
+//Potion (Yellow)
+ID=i_bottle_yellow
+NAME=pocao amarela
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 2 i_r_ginseng
+SKILLMAKE=Alchemy 31.7
+WEIGHT=1
+DESCRIPTION=Healing OT
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+on=@create
+more1=s_timed_heal
+more2=62.6
+
+
+[ITEMDEF i_potion_yellow_hi]
+//Potion (Yellow)
+ID=0f0c
+NAME=pocao amarela
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_ginseng
+SKILLMAKE=Alchemy 60.5
+WEIGHT=1
+DESCRIPTION=Healing OT Hi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+on=@create
+more1=s_timed_heal
+more2=93.8
+
+
+[ITEMDEF i_potion_yellow_xhi]
+//Potion (Yellow)
+ID=0f0c
+NAME=pocao amarela
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 4 i_r_ginseng
+SKILLMAKE=Alchemy 89.0
+WEIGHT=1
+DESCRIPTION=Healing OT XHi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+on=@create
+more1=s_timed_heal
+more2=125.0
+
+
+// --- STAM ---
+
+[ITEMDEF i_potion_red_lo]
+//Potion (Red)
+ID=0f0b
+NAME=pocao escarlate
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 1 i_r_musgo_sangue
+SKILLMAKE=Alchemy 1.7
+WEIGHT=1
+DESCRIPTION=Stam OT Lo
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_timed_stam
+    MORE2=31.3
+
+
+[ITEMDEF i_potion_red]
+//Potion (Red)
+ID=0f0b
+NAME=pocao escarlate
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 2 i_r_musgo_sangue
+SKILLMAKE=Alchemy 28.6
+WEIGHT=1
+DESCRIPTION=Stam OT
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_timed_stam
+    MORE2=62.6
+    
+[ITEMDEF i_potion_red_hi]
+//Potion (Red)
+ID=0f0b
+NAME=pocao escarlate
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty 3 i_r_musgo_sangue
+SKILLMAKE=Alchemy 55.4
+WEIGHT=1
+DESCRIPTION=Stam OT hi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_timed_stam
+    MORE2=93.9
+
+[ITEMDEF i_potion_red_xhi]
+//Potion (Red)
+ID=0f0b
+NAME=pocao escarlate
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty 4 i_r_musgo_sangue
+SKILLMAKE=Alchemy 82.3
+WEIGHT=1
+DESCRIPTION=Stam OT XHi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_timed_stam
+    MORE2=125.0
+    
+// --- MANA ---
+
+[ITEMDEF i_potion_mana_lo]
+ID=i_bottle_WHITE
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 1 i_r_olho_morto_vivo
+SKILLMAKE=Alchemy 12.5
+DESCRIPTION=Mana OT Lo
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_timed_mana
+    MORE2=31.3
+    
+[ITEMDEF i_potion_mana]
+ID=i_bottle_WHITE
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 2 i_r_olho_morto_vivo
+SKILLMAKE=Alchemy 41.7
+DESCRIPTION=Mana OT
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_timed_mana
+    MORE2=62.6
+
+[ITEMDEF i_potion_mana_hi]
+ID=i_bottle_WHITE
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_olho_morto_vivo
+SKILLMAKE=Alchemy 70.8
+DESCRIPTION=Mana OT Hi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_timed_mana
+    MORE2=93.9
+
+[ITEMDEF i_potion_mana_XHi]
+ID=i_bottle_WHITE
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 4 i_r_olho_morto_vivo
+SKILLMAKE=Alchemy 100.0
+DESCRIPTION=Mana OT XHi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_timed_mana
+    MORE2=125.0
+
+// --- REFRESH ---    
+    
+[ITEMDEF i_potion_refresh_lo]
+//Potion (Purple)
+ID=0f0d
+NAME=pocao rosea
+TYPE=T_POTION
+TDATA1=0
+RESOURCES=i_bottle_empty, 1 i_r_olho_morto_vivo, 1 i_r_ginseng
+SKILLMAKE=Alchemy 8.2
+WEIGHT=1
+DESCRIPTION=Refresh OT Lo
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_timed_refresh
+    MORE2=31.3
+    
+[ITEMDEF i_potion_refresh]
+//Potion (Purple)
+ID=0f0d
+NAME=pocao rosea
+TYPE=T_POTION
+TDATA1=0
+RESOURCES=i_bottle_empty, 1 i_r_olho_morto_vivo, 2 i_r_ginseng
+SKILLMAKE=Alchemy 38.8
+WEIGHT=1
+DESCRIPTION=Refresh OT
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_timed_refresh
+    MORE2=62.6
+    
+[ITEMDEF i_potion_refresh_hi]
+//Potion (Purple)
+ID=0f0d
+NAME=pocao rosea
+TYPE=T_POTION
+TDATA1=0
+RESOURCES=i_bottle_empty, 2 i_r_olho_morto_vivo, 3 i_r_ginseng
+SKILLMAKE=Alchemy 69.4
+WEIGHT=1
+DESCRIPTION=Refresh OT Hi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_timed_refresh
+    MORE2=93.9
+    
+[ITEMDEF i_potion_refresh_xhi]
+//Potion (Purple)
+ID=0f0d
+NAME=pocao rosea
+TYPE=T_POTION
+TDATA1=0
+RESOURCES=i_bottle_empty, 3 i_r_olho_morto_vivo, 3 i_r_ginseng
+SKILLMAKE=Alchemy 100.0
+WEIGHT=1
+DESCRIPTION=Refresh OT XHi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_timed_refresh
+    MORE2=125.0
+
+
+// --- NIGHTSIGHT ---
+
+
+[ITEMDEF 0f06]
+//Potion (Black)
+DEFNAME=i_bottle_black
+NAME=pocao negra
+TYPE=t_potion
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 6 i_r_perola_negra
+SKILLMAKE=Alchemy 62.7
+WEIGHT=1
+DESCRIPTION=Nightsight
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=S_Night_Sight
+    MORE2=62.6
+    
+[ITEMDEF i_bottle_black_xhi]
+//Potion (Black)
 ID=i_bottle_black
 NAME=pocao negra
 TYPE=t_potion
 TDATA1=i_bottle_empty
-DESCRIPTION=Poção da reflexão
-SUBSECTION=Potions
+RESOURCES=i_bottle_empty, 12 i_r_perola_negra
+SKILLMAKE=Alchemy 110.0
+WEIGHT=1
+DESCRIPTION=Nightsight XHi
+SUBSECTION=Potions buff
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
-on=@create
-more1=s_magic_reflection
-more2=50
+ON=@Create
+    MORE1=S_Night_Sight
+    MORE2=125.0
+    
+// --- AGILITY ---
+
+[ITEMDEF i_bottle_blue_lo]
+//Potion (Blue)
+ID=0f08
+NAME=pocao azulada
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, i_r_musgo_sangue
+SKILLMAKE=Alchemy 0.3
+WEIGHT=1
+DESCRIPTION=Agility Lo
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_pot_dex
+    MORE2={20.0 40.0}
+
+
+[ITEMDEF 0f08]
+//Potion (Blue)
+DEFNAME=i_bottle_blue
+NAME=pocao azulada
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 2 i_r_musgo_sangue
+SKILLMAKE=Alchemy 31.4
+WEIGHT=1
+DESCRIPTION=Agility
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_pot_dex
+    MORE2={50.0 70.0}
+
+[ITEMDEF i_bottle_blue_hi]
+//Potion (Blue)
+ID=0f08
+NAME=pocao azulada
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_musgo_sangue
+SKILLMAKE=Alchemy 62.5
+WEIGHT=1
+DESCRIPTION=Agility Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_pot_dex
+    MORE2={80.0 100.0}
+
+[ITEMDEF i_bottle_blue_xhi]
+//Potion (Blue)
+ID=0f08
+NAME=pocao azulada
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 4 i_r_musgo_sangue
+SKILLMAKE=Alchemy 93.6
+WEIGHT=1
+DESCRIPTION=Agility XHi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_pot_dex
+    MORE2=125.0
+
+
+// --- STRENGTH ---
+
+[ITEMDEF i_bottle_white_lo]
+//Potion (White)
+ID=0f09
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, i_r_raiz_de_mandrake
+SKILLMAKE=Alchemy 3.4
+WEIGHT=1
+DESCRIPTION=Strength Lo
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_pot_str
+    MORE2={20.0 40.0}
+
+
+[ITEMDEF 0f09]
+//Potion (White)
+DEFNAME=i_bottle_white
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 2 i_r_raiz_de_mandrake
+SKILLMAKE=Alchemy 33.1
+WEIGHT=1
+DESCRIPTION=Strength
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_pot_str
+    MORE2={50.0 70.0}
+
+[ITEMDEF i_bottle_white_hi]
+//Potion (White)
+ID=0f09
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_raiz_de_mandrake
+SKILLMAKE=Alchemy 62.7
+WEIGHT=1
+DESCRIPTION=Strength Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_pot_str
+    MORE2={80.0 100.0}
+
+[ITEMDEF i_bottle_white_xhi]
+//Potion (White)
+ID=0f09
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 4 i_r_raiz_de_mandrake
+SKILLMAKE=Alchemy 92.4
+WEIGHT=1
+DESCRIPTION=Strength XHi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_pot_str
+    MORE2=125.0
+
+
+
+// --- INTELIGENCE ---
+
+[ITEMDEF i_potion_int]
+//Potion (White)
+ID=0f0a
+NAME=pocao verde
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 1 i_r_raiz_de_mandrake, 2 i_r_ginseng, 1 i_r_perola_negra
+SKILLMAKE=Alchemy 67.5
+WEIGHT=1
+DESCRIPTION=Inteligence
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_pot_int
+    MORE2={35.0 55.0}
+
+[ITEMDEF i_potion_int_hi]
+//Potion (White)
+ID=0f0a
+NAME=pocao verde
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 2 i_r_raiz_de_mandrake, 2 i_r_ginseng, 2 i_r_perola_negra
+SKILLMAKE=Alchemy 98.0
+WEIGHT=1
+DESCRIPTION=Inteligence Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_pot_int
+    MORE2={85.0 125.0}
+
+// --- CURE ---
+[ITEMDEF i_bottle_orange_lo]
+//Potion (Orange)
+ID=0f07
+NAME=pocao alaranjada
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 2 i_r_alho
+SKILLMAKE=Alchemy 10.0
+WEIGHT=1
+DESCRIPTION=Cure lo
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_cure
+    more2=31.3
+
+[ITEMDEF 0f07]
+//Potion (Orange)
+DEFNAME=i_bottle_orange
+NAME=pocao alaranjada
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_alho
+SKILLMAKE=Alchemy 39.7
+WEIGHT=1
+DESCRIPTION=Cure
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_cure
+    more2=62.6
+    
+[ITEMDEF i_bottle_orange_hi]
+//Potion (Orange)
+ID=0f07
+NAME=pocao alaranjada
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_alho, i_r_perola_negra
+SKILLMAKE=Alchemy 69.5
+WEIGHT=1
+DESCRIPTION=Cure Hi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_cure
+    more2=93.8
+    
+[ITEMDEF i_bottle_orange_xhi]
+//Potion (Orange)
+ID=0f07
+NAME=pocao alaranjada
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_alho, 2 i_r_perola_negra
+SKILLMAKE=Alchemy 99.2
+WEIGHT=1
+DESCRIPTION=Cure XHi
+SUBSECTION=Potions aid
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_cure
+    more2=125.0
+
+// --- EXPLOSION ---
+
+[ITEMDEF i_bottle_purple_lo]
+//Potion (Purple)
+ID=0f0d
+NAME=pocao rosea
+TYPE=T_POTION
+TDATA1=0
+RESOURCES=i_bottle_empty, 2 i_r_cinza_sulfurosa
+SKILLMAKE=Alchemy 19.2
+WEIGHT=1
+DESCRIPTION=Explosion Lo
+SUBSECTION=Potions damage
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_explosion
+    MORE2=31.3
+
+[ITEMDEF 0f0d]
+//Potion (Purple)
+DEFNAME=i_bottle_purple
+NAME=pocao rosea
+TYPE=T_POTION
+TDATA1=0
+RESOURCES=i_bottle_empty, 3 i_r_cinza_sulfurosa, i_r_teia_de_aranha
+SKILLMAKE=Alchemy 45.3
+WEIGHT=1
+DESCRIPTION=Explosion
+SUBSECTION=Potions damage
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_explosion
+    MORE2=62.6
+
+[ITEMDEF i_bottle_purple_hi]
+//Potion (Purple)
+ID=0f0d
+NAME=pocao rosea
+TYPE=T_POTION
+TDATA1=0
+RESOURCES=i_bottle_empty, 4 i_r_cinza_sulfurosa, 1 i_r_teia_de_aranha
+SKILLMAKE=Alchemy 71.3
+WEIGHT=1
+DESCRIPTION=Explosion Hi
+SUBSECTION=Potions damage
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_explosion
+    MORE2=93.9
+
+[ITEMDEF i_bottle_purple_xhi]
+//Potion (Purple)
+ID=0f0d
+NAME=pocao rosea
+TYPE=T_POTION
+TDATA1=0
+RESOURCES=i_bottle_empty, 4 i_r_cinza_sulfurosa, 2 i_r_teia_de_aranha
+SKILLMAKE=Alchemy 97.4
+WEIGHT=1
+DESCRIPTION=Explosion XHi
+SUBSECTION=Potions damage
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_explosion
+    MORE2=125.0
+
+
+// --- POISON ---
+
+[ITEMDEF i_bottle_green_lo]
+//Potion (Green)
+ID=0f0a
+NAME=pocao verde
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 2 i_r_nightshade
+SKILLMAKE=Poisoning 33.3
+WEIGHT=1
+DESCRIPTION=Poison Lo
+SUBSECTION=Potions damage
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_Poison
+    MORE2={ 20.0 40.0 }
+    EVENTS=t_potion_poison
+
+[ITEMDEF 0f0a]
+//Potion (Green)
+DEFNAME=i_bottle_green
+NAME=pocao verde
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_nightshade
+SKILLMAKE=Poisoning 53.0
+WEIGHT=1
+DESCRIPTION=Poison
+SUBSECTION=Potions damage
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_Poison
+    MORE2={ 50.0 70.0}
+    EVENTS=t_potion_poison
+
+[ITEMDEF i_bottle_green_hi]
+//Potion (Green)
+ID=0f0a
+NAME=pocao verde
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 2 i_r_nightshade, i_r_olho_morto_vivo
+SKILLMAKE=Poisoning 72.7
+WEIGHT=1
+DESCRIPTION=Poison Hi
+SUBSECTION=Potions damage
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_Poison
+    MORE2={ 80.0 100.0 }
+    EVENTS=t_potion_poison
+
+[ITEMDEF i_bottle_green_xhi]
+//Potion (Green)
+ID=i_bottle_red
+NAME=pocao verde
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 3 i_r_nightshade, i_r_olho_morto_vivo
+SKILLMAKE=Alchemy 92.4
+WEIGHT=1
+DESCRIPTION=Poison XHi
+SUBSECTION=Potions damage
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_Poison
+    MORE2=125.0
+    EVENTS=t_potion_poison
+
+
+
+//########################################################
+//##                                                    ##
+//##                Poções avançadas                    ##
+//##                                                    ##
+//########################################################
 
 
 // --- Encolher ---
@@ -324,40 +2336,43 @@ more2=50
 ID=i_bottle_blue
 NAME=pocao azulada
 TYPE=T_POTION
+SKILLMAKE=Alchemy 63.3
+RESOURCES=i_bottle_empty, 2 i_r_osso, 1 i_r_vidro_vulcanico
 TDATA1=i_bottle_empty
-DESCRIPTION=Poção de encolher
-SUBSECTION=Potions
+DESCRIPTION=Shrink
+SUBSECTION=Potions adv
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 on=@create
-more2=50
+more2=50.0
 
 on=@dclick
 if (<topobj.uid> != <src.uid>)
- src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
+ src.sysmessagered Voce deve estar com esse tipo de pocao nas maos...
  return 1
 endif
- target Selecione o animal para encolher...
+ src.sysmessageyellow Selecione o animal para encolher...
+ target
 return 1
 
 on=@targon_char
 if <src.targ.npc> != 1
- src.sysmessage Este alvo nao pode ser encolhido por meio de uma pocao...
+ src.sysmessagered Este alvo nao pode ser encolhido por meio de uma pocao...
  return 1
 elif !<src.targ.ismypet>
- src.sysmessage Voce deve ser o dono do animal...
+ src.sysmessagered Voce deve ser o dono do animal...
  return 1
 elif (<src.targ.stam> > <eval (<more2>/10) + 10>)
  src.targ.stam=<src.targ.stam> + (- (<more2>/(10))) - 10
  src.newitem i_bottle_empty
  src.act.bounce
- src.sysmessage A dose aplicada nao surtiu efeito, tente com mais pocoes...
+ src.sysmessageyellow A dose aplicada nao surtiu efeito, tente com mais pocoes...
  src.consume 1 <baseid>
  return 1
 else
  src.targ.stam=<src.targ.str>
  src.targ.shrink
- src.say *Encolheu um animal*
+ src.emoteyellow encolheu um animal
  src.newitem i_bottle_empty
  src.act.bounce
  src.consume 1 <baseid>
@@ -373,9 +2388,11 @@ return 1
 ID=i_bottle_green
 NAME=pocao verde
 TYPE=T_POTION
+RESOURCES=i_bottle_empty, 5 i_r_cinza_sulfurosa, 1 i_r_cinza_vulcanica
+SKILLMAKE=Alchemy 69.8
 TDATA1=i_bottle_empty
-DESCRIPTION=Poção de explosão terrestre
-SUBSECTION=Potions
+DESCRIPTION=Explosão terrestre
+SUBSECTION=Potions damage
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 
@@ -424,7 +2441,7 @@ return 1
 
 on=@step 
  if (<src.gm> || <src.flags>&statf_dead)
-  return 1
+  return 0
  elif (0<tag.armed> == 2)
   src.damage <R25,40>,dam_fire|dam_physical
   src.effect 3,i_fx_explode,0,13,0
@@ -443,17 +2460,20 @@ return 1
 ID=i_bottle_orange
 NAME=pocao alaranjada
 TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_cinza_sulfurosa, 1 i_r_cinza_vulcanica, 2 i_r_enxofre
+SKILLMAKE=Alchemy 73.3
 TDATA1=i_bottle_empty
-DESCRIPTION=Poção sopro de fogo
-SUBSECTION=Potions
+DESCRIPTION=Sopro de fogo
+SUBSECTION=Potions damage
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 on=@dclick
 if (<topobj.uid> != <src.uid>)
- src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
+ src.sysmessagered Voce deve estar com esse tipo de pocao nas maos...
  return 1
 endif
- target Selecione o alvo...
+ sysmessageyellow Selecione o alvo...
+ target
 return 1
 
 on=@targon_char
@@ -466,11 +2486,11 @@ src.consume 1 <baseid>
 return 1
 
 on=@targon_item
-src.sysmessage Alvo invalido.
+src.sysmessagered Alvo invalido.
 return 1
 
 on=@targon_ground
-src.sysmessage Alvo invalido.
+src.sysmessagered Alvo invalido.
 return 1
 
 
@@ -481,43 +2501,16 @@ return 1
 ID=i_bottle_purple
 NAME=pocao rosea
 TYPE=T_POTION
+RESOURCES=i_bottle_empty, 5 i_r_musgo_sangue, 2 i_r_perola_negra, 1 i_r_alho
+SKILLMAKE=Alchemy 50.0
 TDATA1=i_bottle_empty
-DESCRIPTION=Morvor (Stamina)
-SUBSECTION=Potions
+DESCRIPTION=Buff Stamina
+SUBSECTION=Potions buff
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
-on=@dclick
-if <src.findlayer.layer_flag_potionused>
-    return 0
-endif
-serv.newitem i_mry_morvor
-new.equip
-new.more1=<src.stamina>
-new.more2={10 20}
-new.timer=1
-src.sysmessage Voce se sente estranhamente vigoroso.
-potion_consume
-return 1
-
-[itemdef i_mry_morvor]
-ID=i_memory
-NAME=pocao do maximo vigor
-TYPE=T_eq_script
-layer=30
-
-on=@timer
-if (<more2> > 1)
- cont.stamina=<cont.dex>
- more2=(<more2>+(-1))
- timer=1
- return 1
-else
- cont.stamina=<more1>
- cont.sysmessage O efeito da pocao passou.
- remove
- return 1
-endif
-
+on=@create
+    more1=s_pot_max_folego
+    more2=50.0
 
 
 // --- Invisibilidade ---
@@ -526,69 +2519,16 @@ endif
 ID=i_bottle_red
 NAME=pocao escarlate
 TYPE=t_potion
+RESOURCES=i_bottle_empty, 4 i_r_asa_morcego, 3 i_r_ectoplasma
+SKILLMAKE=Alchemy 57.2
 TDATA1=i_bottle_empty
-DESCRIPTION=Poção da invisibilidade
-SUBSECTION=Potions
+DESCRIPTION=Invis
+SUBSECTION=Potions buff
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
-ON=@DCLICK
-if <src.findlayer.layer_flag_potionused>
-    return 0
-endif
-src.invis_enter
-potion_consume
-return 1
-
-// --- Furor de Batalha ---
-
-[itemdef i_potion_furor]
-ID=i_bottle_yellow
-NAME=pocao amarela
-TYPE=T_POTION
-TDATA1=i_bottle_empty
-DESCRIPTION=Poção do furor de batalha
-SUBSECTION=Potions
-CATEGORY=MyT - Provisions - Alchemy & Magic
-
-on=@dclick
-if <src.findlayer.layer_flag_potionused>
-    return 0
-endif
-src.newitem i_mry_furor
-src.act.equip
-src.act.timer=(<src.str>/3)
-src.sysmessageblue Sentese estranhamnte disposto a lutar.
-src.tactics=(<src.tactics>+200)
-src.fencing=(<src.fencing>+200)
-src.wrestling=(<src.wrestling>+200)
-src.swordsmanship=(<src.swordsmanship>+200)
-src.macefighting=(<src.macefighting>+200)
-src.parrying=(<src.parrying>+200)
-src.skill_init
-src.say=@026 Graurrrr!
-
-potion_consume
-return 1
-
-[itemdef i_mry_furor]
-ID=i_memory
-NAME=pocao do furor de batalha
-TYPE=T_eq_script
-layer=30
-
-on=@timer
-cont.tactics=(<cont.tactics>+(-200))
-cont.fencing=(<cont.fencing>+(-200))
-cont.wrestling=(<cont.wrestling>+(-200))
-cont.swordsmanship=(<cont.swordsmanship>+(-200))
-cont.macefighting=(<cont.macefighting>+(-200))
-cont.parrying=(<cont.parrying>+(-200))
-cont.sysmessage Perdeu o furor de batalha.
-cont.say ouf!
-remove
-return 1
-
-
+ON=@Create
+    MORE1=s_forma_eterea
+    MORE2=125.0
 
 // --- Formula 21 (ferro para ouro) ---
 
@@ -596,29 +2536,37 @@ return 1
 ID=i_bottle_black
 NAME=pocao negra
 TYPE=T_POTION
+RESOURCES=i_bottle_empty, 4 i_r_rocha_negra, 2 i_r_sangue_invocado, 1 i_r_madeira_morta
+SKILLMAKE=Alchemy 71.0
 TDATA1=i_bottle_empty
-DESCRIPTION=Formula 21 (ouro)
-SUBSECTION=Potions
+DESCRIPTION=Formula 21
+SUBSECTION=Potions adv
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
+ON=@CREATE
+more2={ 50.0 90.0 }
+
 on=@dclick
-if (<topobj.uid> != <src.uid>)
- src.sysmessage Voce deve estar com esse tipo de pocao nas maos...
+if !(<attr>&01)
+ return 1
+elif (<topobj.uid> != <src.uid>)
+ src.sysmessagered Voce deve estar com esse tipo de pocao nas maos...
  return 1
 endif
- target Selecione um lingote de ferro.
+src.sysmessageyellow Selecione lingotes de metal:
+target 
 return 1
 
 on=@targon_char
-src.sysmessage Alvo invalido.
+src.sysmessagered Alvo invalido.
 return 1
 
 on=@targon_item
-if (<src.targ.dispid>!=i_ingot_iron)
- src.sysmessageyellow Isso nao e um lingote de ferro.
+if (<src.targ.type>!=t_ingot)
+ src.sysmessageyellow Isso nao e um lingote de metal.
  return 1
-elif (<src.targ.cont.uid> == <src.findlayer(21).uid>)
- src.sysmessageyellow O ferro deve estar fora de sua mala para aplicar a formula.
+elif (<src.targ.topobj> != <src.targ>)
+ src.sysmessageyellow O lingote deve estar fora de sua mala para aplicar a formula.
  return 1
 elif (!<src.targ.canseelos>) 
  src.sysmessageyellow O lingote deve estar visivel.
@@ -627,93 +2575,110 @@ elif (<src.targ.distance> >= 2)
  src.sysmessageyellow O lingote deve estar proximo.
  return 1
 endif
-src.targ.effect 2,i_fire_column,0,30,0
-src.targ.effect 2,i_fx_sparkle,0,16,0
 src.newitem=i_bottle_empty
 src.act.bounce
-sfx 01ec
-if !(<R50>)// || (<src.gm>==1)
- src.newitem=i_gold
- src.act.amount=<R1,<eval <src.int>/8>>
-elif !(<R20>)
- src.newitem=i_coin_copper
- src.act.amount=<R1,<eval <src.int>/3>>
+
+//Determinar o próximo metal
+if (<src.targ.defname>==i_ingot_copper)
+    local.ingot=i_ingot_bronze
+elif (<src.targ.defname>==i_ingot_bronze)
+    local.ingot=i_ingot_iron
+elif (<src.targ.defname>==i_ingot_iron)
+    local.ingot=i_ingot_silver
+elif (<src.targ.defname>==i_ingot_silver)
+    local.ingot=i_ingot_gold
+elif (<src.targ.defname>==i_ingot_gold)
+    local.ingot=i_ingot_mythril
+elif (<src.targ.defname>==i_ingot_mythril)
+    local.ingot={ i_ingot_ebano 1 i_ingot_rubridium 1}
+elif (<src.targ.defname>==i_ingot_ebano) || (<src.targ.defname>==i_ingot_rubridium)
+    local.ingot=i_ingot_obsidian
+elif (<src.targ.defname>==i_ingot_obsidian)
+    local.ingot=i_ingot_eldasthar
 else
- dorand (5)
-  src.newitem={ i_r_perola_negra 1 i_r_musgo_sangue 1 i_r_alho 1 i_r_ginseng 1 i_r_raiz_de_mandrake 1 i_r_nightshade 1 i_r_cinza_sulfurosa 1 i_r_teia_de_aranha 1 }
-  src.newitem={ i_horse_dung 1 0f3c 1 }
-  src.newitem={ i_log 1 i_board 1 01f7e 1}
-  src.newitem=i_potion_formula_21
-  src.newitem={ i_plant_potted_small 1 i_flower_potted_small 1 i_tree_small_potted_2 1 }
- enddo
+    local.ingot=<src.targ.defname>
 endif
-src.new.p=<src.targ.p>
-if (<src.new.type>!=t_gold)
- src.sysmessagered Algo de errado com a transmutacao... Tente denovo.
-endif
-src.targ.remove
-src.consume 1 <baseid>
+local.amountA=<MINIMUM <src.targ.amount>,25>
+local.amountB=<MAXIMUM <eval (<local.amountA>*<R7,9>)/10>,1>
+
+serv.newitem <local.ingot>
+new.amount=<local.amountB>
+new.p=<src.targ.p>
+src.targ.decrement <local.amountA>
+
+new.effect 2,i_fire_column,0,30,0
+new.effect 2,i_fx_sparkle,0,16,0
+sfx 01ec
+decrement
 return 1
 
 on=@targon_ground
-src.sysmessage Alvo invalido.
+src.sysmessagered Alvo invalido.
 return 1
 
 
 
 // --- Poção da proteção ---
 
-[ITEMDEF i_potion_Protection]
-// This potion erects a temporary force field around you. Nobody approaching will be able to get within 1 tile of you, though you can move close to them if you wish.
+[ITEMDEF i_potion_protection_lo]
 ID=i_bottle_blue
 NAME=pocao azulada
 TYPE=T_POTION
 TDATA1=i_bottle_empty
-RESOURCES=i_r_olho_morto_vivo, i_bottle_EMPTY
+RESOURCES=i_bottle_empty, 2 i_r_olho_morto_vivo
 SKILLMAKE=ALCHEMY 62.2
-DESCRIPTION=Poção da proteção
-SUBSECTION=Potions
+DESCRIPTION=Proteção Lo
+SUBSECTION=Potions buff
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 ON=@Create
-    MORE1=s_Protection
-    MORE2={500 890}
+    MORE1=s_pot_armadura
+    MORE2=31.3
 
-//A poção está muito forte. Atenuar.
-ON=@DClick
-if !<tag0.fix>
-    more2=<eval <more2>/3>
-    tag.fix=1
-endif
-
-// --- Poção da proteção maxima ---
-
-[ITEMDEF i_potion_Protection_max]
-// This potion erects a temporary force field around you. Nobody approaching will be able to get within 1 tile of you, though you can move close to them if you wish.
-ID=i_bottle_green
-NAME=pocao verde
+[ITEMDEF i_potion_protection]
+ID=i_bottle_blue
+NAME=pocao azulada
 TYPE=T_POTION
 TDATA1=i_bottle_empty
-RESOURCES=i_r_olho_morto_vivo, i_bottle_EMPTY
+RESOURCES=i_bottle_empty, 2 i_r_olho_morto_vivo, i_r_frasco_sangue
 SKILLMAKE=ALCHEMY 62.2
-DESCRIPTION=Poção maxima proteção
-SUBSECTION=Potions
+DESCRIPTION=Proteção
+SUBSECTION=Potions buff
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
-ON=@DClick
-if <src.findlayer.layer_flag_potionused>
-    return 0
-endif
-src.spelleffect s_Protection 650
-src.spelleffect s_reactive_armor 750
-src.spelleffect s_magic_reflection 1000
+ON=@Create
+    MORE1=s_pot_armadura
+    MORE2=62.6
 
-src.sysmessageblue Uma aura lhe cobre bloqueando ataques fisicos e magicos!
-src.sfx 0216
-src.emotered pele brilhando
-potion_consume
-return 1
+[ITEMDEF i_potion_protection_hi]
+ID=i_bottle_blue
+NAME=pocao azulada
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 2 i_r_olho_morto_vivo, i_r_frasco_sangue, i_r_sangue_invocado
+SKILLMAKE=ALCHEMY 62.2
+DESCRIPTION=Proteção Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
 
+ON=@Create
+    MORE1=s_pot_armadura
+    MORE2=93.9
+
+[ITEMDEF i_potion_protection_xhi]
+ID=i_bottle_blue
+NAME=pocao azulada
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 2 i_r_olho_morto_vivo, 2 i_r_frasco_sangue, i_r_sangue_invocado
+SKILLMAKE=ALCHEMY 62.2
+DESCRIPTION=Proteção XHi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_pot_armadura
+    MORE2=125.0
 
 // --- Poção do usro cinzento (polimorfa com stats) ---
 
@@ -723,19 +2688,15 @@ ID=i_bottle_orange
 NAME=pocao alaranjada
 TYPE=T_POTION
 TDATA1=i_bottle_empty
-RESOURCES=i_r_olho_morto_vivo, i_bottle_EMPTY
-SKILLMAKE=ALCHEMY 62.2
-DESCRIPTION=Poção urso
-SUBSECTION=Potions
+RESOURCES=i_bottle_empty, 4 i_r_ginseng, 2 i_r_frasco_sangue
+SKILLMAKE=Alchemy 67.1
+DESCRIPTION=Poly urso
+SUBSECTION=Potions adv
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
-ON=@DClick
-if <src.findlayer.layer_flag_potionused>
-    return 0
-endif
-src.f_polymorph c_bear_grizzly,30,40,30,-20
-potion_consume
-return 1
+ON=@Create
+    MORE1=s_forma_urso
+    MORE2={ 75.0 125.0 }
 
 
 // --- Poção mascara da morte (polimorfa pra undead e evita ataques de undead) ---
@@ -746,33 +2707,619 @@ ID=i_bottle_purple
 NAME=pocao rosea
 TYPE=T_POTION
 TDATA1=i_bottle_empty
-RESOURCES=i_r_olho_morto_vivo, i_bottle_EMPTY
-SKILLMAKE=ALCHEMY 62.2
-DESCRIPTION=Poção mascara da morte
-SUBSECTION=Potions
+RESOURCES=i_bottle_empty, 3 i_r_nightshade, 2 i_r_madeira_morta, 1 i_r_sangue_invocado
+SKILLMAKE=Alchemy 65.2
+DESCRIPTION=Mascara da morte
+SUBSECTION=Potions adv
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
-ON=@DClick
-if <src.findlayer.layer_flag_potionused>
-    return 0
+ON=@Create
+    MORE1=s_mascara_morte
+    MORE2={ 75.0 125.0 }
+    
+[ITEMDEF i_potion_fogo_grego]
+//Coctel molotof com efeito f_pega_fogo
+ID=i_bottle_white
+NAME=pocao alva
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 2 i_r_cinza_sulfurosa, i_r_cinza_vulcanica
+SKILLMAKE=Alchemy 60.0
+WEIGHT=1
+DESCRIPTION=Fogo grego
+SUBSECTION=Potions damage
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Dclick
+    TARGETFG f_use_fogo_grego
+    return 1
+
+[itemdef i_potion_haste]
+ID=i_bottle_black
+NAME=pocao negra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_ginseng, 2 i_r_poeira_fertil
+SKILLMAKE=Alchemy 87.0
+TDATA1=i_bottle_empty
+DESCRIPTION=Fuga
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_haste
+    more2={ 50.0 90.0 }
+
+// ----- POÇÕES DE BUFF DE SKILLS -----
+
+
+// --- Archery ---
+
+[itemdef i_potion_archery]
+ID=i_bottle_yellow
+NAME=pocao amarela
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_ginseng, 2 i_r_poeira_fertil
+SKILLMAKE=Alchemy 70.0
+TDATA1=i_bottle_empty
+DESCRIPTION=Archery
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_archery
+    more2={ 50.0 80.0 }
+
+[itemdef i_potion_archery_hi]
+ID=i_bottle_yellow
+NAME=pocao amarela
+TYPE=T_POTION
+RESOURCES=i_bottle_empty
+SKILLMAKE=Alchemy 92.0
+TDATA1=i_bottle_empty
+DESCRIPTION=Archery Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_archery
+    more2=125.0
+
+
+// --- Tactics ---
+
+[itemdef i_potion_tactics]
+ID=i_bottle_red
+NAME=pocao rubra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_raiz_de_mandrake, 2 i_r_capuz_algoz
+SKILLMAKE=Alchemy 73.5
+TDATA1=i_bottle_empty
+DESCRIPTION=Tactics
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_tactics
+    more2={ 50.0 80.0 }
+
+[itemdef i_potion_tactics_hi]
+ID=i_bottle_red
+NAME=pocao rubra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_raiz_de_mandrake, 3 i_r_capuz_algoz, i_r_vidro_vulcanico
+SKILLMAKE=Alchemy 95.1
+TDATA1=i_bottle_empty
+DESCRIPTION=Tactics Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_tactics
+    more2=125.0
+
+// --- Assassino ---
+
+[itemdef i_potion_murder]
+ID=i_bottle_black
+NAME=pocao negra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_nightshade, 2 i_r_pomis
+SKILLMAKE=Alchemy 80.0
+TDATA1=i_bottle_empty
+DESCRIPTION=Assassino
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_murder
+    more2={ 50.0 80.0 }
+
+[itemdef i_potion_murder_hi]
+ID=i_bottle_black
+NAME=pocao negra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_nightshade, 3 i_r_pomis, i_r_ectoplasma
+SKILLMAKE=Alchemy 100.0
+TDATA1=i_bottle_empty
+DESCRIPTION=Assassino Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_murder
+    more2=125.0
+
+
+// --- Artesão ---
+
+[itemdef i_potion_artisan]
+ID=i_bottle_blue
+NAME=pocao azulada
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_olho_morto_vivo, 1 i_r_madeira_morta
+SKILLMAKE=Alchemy 67.6
+TDATA1=i_bottle_empty
+DESCRIPTION=Artesao
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_artisan
+    more2={ 50.0 80.0 }
+
+[itemdef i_potion_artisan_hi]
+ID=i_bottle_blue
+NAME=pocao azulada
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_olho_morto_vivo, 2 i_r_madeira_morta, i_r_rocha_negra
+SKILLMAKE=Alchemy 88.8
+TDATA1=i_bottle_empty
+DESCRIPTION=Artesao Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_artisan
+    more2=125.0
+
+
+// --- Ferreiro ---
+
+[itemdef i_potion_blacksmith]
+ID=i_bottle_green
+NAME=pocao esverdeada
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_pelora_negra, 2 i_r_rocha_negra
+SKILLMAKE=Alchemy 69.2
+TDATA1=i_bottle_empty
+DESCRIPTION=Ferreiro
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_blacksmith
+    more2={ 50.0 80.0 }
+
+[itemdef i_potion_blacksmith_hi]
+ID=i_bottle_green
+NAME=pocao esverdeada
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_pelora_negra, 3 i_r_rocha_negra, i_r_sangue_invocado
+SKILLMAKE=Alchemy 96.2
+TDATA1=i_bottle_empty
+DESCRIPTION=Ferreiro Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_blacksmith
+    more2=125.0
+
+
+// --- Envenenador ---
+
+[itemdef i_potion_venomer]
+ID=i_bottle_white
+NAME=pocao alva
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_nightshade, 2 i_r_osso
+SKILLMAKE=Alchemy 65.5
+TDATA1=i_bottle_empty
+DESCRIPTION=Envenenador
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_venomer
+    more2={ 50.0 80.0 }
+
+[itemdef i_potion_venomer_hi]
+ID=i_bottle_white
+NAME=pocao alva
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_nightshade, 3 i_r_osso, i_r_enxofre
+SKILLMAKE=Alchemy 95.5
+TDATA1=i_bottle_empty
+DESCRIPTION=Envenenador Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_venomer
+    more2=125.0
+
+
+// --- Cozinheiro ---
+
+[itemdef i_potion_cooker]
+ID=i_bottle_black
+NAME=pocao negra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_alho, i_r_poeira_fertil
+SKILLMAKE=Alchemy 58.7
+TDATA1=i_bottle_empty
+DESCRIPTION=Cozinheiro
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_cooking
+    more2={ 50.0 80.0 }
+
+[itemdef i_potion_cooker_hi]
+ID=i_bottle_black
+NAME=pocao negra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_alho, 2 i_r_poeira_fertil
+SKILLMAKE=Alchemy 76.4
+TDATA1=i_bottle_empty
+DESCRIPTION=Cozinheiro Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_cooking
+    more2=125.0
+
+
+// --- Mineiro ---
+
+[itemdef i_potion_mining]
+ID=i_bottle_green
+NAME=pocao esverdeada
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_rocha_negra
+SKILLMAKE=Alchemy 68.0
+TDATA1=i_bottle_empty
+DESCRIPTION=Mineiro
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_mining
+    more2={ 50.0 80.0 }
+
+[itemdef i_potion_mining_hi]
+ID=i_bottle_green
+NAME=pocao esverdeada
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_rocha_negra, i_r_sangue_invocado
+SKILLMAKE=Alchemy 89.3
+TDATA1=i_bottle_empty
+DESCRIPTION=Mineiro Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_mining
+    more2=125.0
+
+
+// --- Gatuno ---
+
+[itemdef i_potion_stealing]
+ID=i_bottle_black
+NAME=pocao negra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_asa_morcego, 3 i_r_madeira_morta
+SKILLMAKE=Alchemy 76.7
+TDATA1=i_bottle_empty
+DESCRIPTION=Gatuno
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_steal
+    more2={ 50.0 80.0 }
+
+[itemdef i_potion_stealing_hi]
+ID=i_bottle_black
+NAME=pocao negra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_asa_morcego, 3 i_r_madeira_morta, i_r_frasco_sangue
+SKILLMAKE=Alchemy 96.8
+TDATA1=i_bottle_empty
+DESCRIPTION=Gatuno Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_steal
+    more2=125.0
+
+// --- Alquimista ---
+
+[itemdef i_potion_alchemy]
+ID=i_bottle_purple
+NAME=pocao rosea
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, i_r_ferro_guza, i_r_ectoplasma, i_r_sangue_dragao
+SKILLMAKE=Alchemy 86.7
+TDATA1=i_bottle_empty
+DESCRIPTION=Alquimista
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_alchemy
+    more2={ 10.0 70.0 }
+
+[itemdef i_potion_alchemy_hi]
+ID=i_bottle_purple
+NAME=pocao rosea
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 2 i_r_ferro_guza, 2 i_r_ectoplasma, i_r_sangue_dragao
+SKILLMAKE=Alchemy 106.7
+TDATA1=i_bottle_empty
+DESCRIPTION=Alquimista Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_alchemy
+    more2={ 80.0 125.0 }
+
+
+// --- Mago Destruidor ---
+
+[itemdef i_potion_magery]
+ID=i_bottle_red
+NAME=pocao rubra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, i_r_cinza_vulcanica, i_r_enxofre, i_r_vidro_vulcanico
+SKILLMAKE=Alchemy 82.4
+TDATA1=i_bottle_empty
+DESCRIPTION=Mago destruidor
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_magery
+    more2={ 40.0 90.0 }
+
+[itemdef i_potion_magery_hi]
+ID=i_bottle_red
+NAME=pocao rubra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 2 i_r_cinza_vulcanica, 2 i_r_enxofre, 2 i_r_vidro_vulcanico
+SKILLMAKE=Alchemy 102.4
+TDATA1=i_bottle_empty
+DESCRIPTION=Mago destruidor Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_magery
+    more2={ 100.0 125.0 }
+
+
+// --- Mago Restaurador ---
+
+[itemdef i_potion_focus]
+ID=i_bottle_blue
+NAME=pocao azulada
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, i_r_poeira_fertil, 2 i_r_ectoplasma, i_r_madeira_morta
+SKILLMAKE=Alchemy 82.4
+TDATA1=i_bottle_empty
+DESCRIPTION=Mago restaurador
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_focus
+    more2={ 40.0 90.0 }
+
+[itemdef i_potion_focus_hi]
+ID=i_bottle_blue
+NAME=pocao azulada
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 2 i_r_poeira_fertil, 3 i_r_ectoplasma, 2 i_r_madeira_morta
+SKILLMAKE=Alchemy 102.4
+TDATA1=i_bottle_empty
+DESCRIPTION=Mago restaurador Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_focus
+    more2={ 100.0 125.0 }
+
+
+// --- Mago Necromonger ---
+
+[itemdef i_potion_necromancy]
+ID=i_bottle_black
+NAME=pocao negra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_osso, 2 i_r_frasco_sangue, i_r_capuz_algoz
+SKILLMAKE=Alchemy 82.4
+TDATA1=i_bottle_empty
+DESCRIPTION=Mago necromante
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_necromancy
+    more2={ 40.0 90.0 }
+
+[itemdef i_potion_necromancy_hi]
+ID=i_bottle_black
+NAME=pocao negra
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_osso, i_r_sangue_dragao, 2 i_r_capuz_algoz
+SKILLMAKE=Alchemy 102.4
+TDATA1=i_bottle_empty
+DESCRIPTION=Mago necromante Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_necromancy
+    more2={ 100.0 125.0 }
+
+// --- Mago Alterador ---
+
+[itemdef i_potion_spellweaving]
+ID=i_bottle_orange
+NAME=pocao alaranjada
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 4 i_r_madeira_morta, 2 i_r_sangue_invocado, 1 i_r_ectoplasma
+SKILLMAKE=Alchemy 82.4
+TDATA1=i_bottle_empty
+DESCRIPTION=Mago alterador
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_spellweaving
+    more2={ 40.0 90.0 }
+
+[itemdef i_potion_spellweaving_hi]
+ID=i_bottle_orange
+NAME=pocao alaranjada
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 3 i_r_madeira_morta, 3 i_r_sangue_invocado, 3 i_r_ectoplasma
+SKILLMAKE=Alchemy 102.4
+TDATA1=i_bottle_empty
+DESCRIPTION=Mago alterador hu
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=s_pot_spellweaving
+    more2={ 100.0 125.0 }
+
+
+// --- Furor de Batalha ---
+
+[itemdef i_potion_furor]
+ID=i_bottle_yellow
+NAME=pocao amarela
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 7 i_r_raiz_de_mandrake, 2 i_r_rocha_negra, 1 i_r_capuz_algoz
+SKILLMAKE=Alchemy 64.3
+TDATA1=i_bottle_empty
+DESCRIPTION=Furor de batalha
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    more1=s_pot_furor
+    more2={ 30.0 60.0 }
+    
+[itemdef i_potion_furor_hi]
+ID=i_bottle_yellow
+NAME=pocao amarela
+TYPE=T_POTION
+RESOURCES=i_bottle_empty, 10 i_r_raiz_de_mandrake, 3 i_r_rocha_negra, 2 i_r_capuz_algoz
+SKILLMAKE=Alchemy 84.3
+TDATA1=i_bottle_empty
+DESCRIPTION=Furor de batalha Hi
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    more1=s_pot_furor
+    more2=125.0
+
+
+
+[ITEMDEF 02808]
+DEFNAME=i_smoke_bomb
+NAME=bomba de fumaca
+TYPE=t_potion
+RESOURCES=i_bottle_empty, i_r_cinza_sulfurosa, i_r_enxofre
+SKILLMAKE=Alchemy 62.8
+DESCRIPTION=Bomba de fumaca
+SUBSECTION=Potions buff
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+on=@dclick
+if (<src>!=<topobj>)
+ src.sysmessagered A bomba deve estar em seu poder.
+ return 1
 endif
-DOSWITCH <eval <src.int>/200>
- local.body c_zombie
- local.body c_zombie
- local.body c_skeleton
- local.body c_liche
- local.body c_liche
-ENDDO
-src.f_polymorph <local.body>,30,-10,-30,0
-src.f_death_mask 30
-potion_consume
+src.f_smoke_bomb
+decrement
 return 1
+
+[ITEMDEF i_oil_bomb]
+ID=i_oil_flask
+NAME=bomba
+TYPE=t_potion
+RESOURCES=i_frasco_oleo, 6 i_r_cinza_sulfurosa, 2 i_r_enxofre
+SKILLMAKE=Alchemy 88.2
+DESCRIPTION=Bomba de oleo
+SUBSECTION=Potions damage
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@Create
+    MORE1=s_explosion
+    MORE2=2000
+
+// --- POLYMORPHS PODEROSOS ---
+
+[ITEMDEF i_potion_poly_ancient_wyrm]
+//Polimorpha temporariamente para Ancient Wyrm e cospe fogo.
+ID=0f0a
+NAME=pocao verde
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 25 i_r_cinza_sulfurosa, 15 i_r_ectoplasma, 1 i_r_coracao_dragao
+SKILLMAKE=Alchemy 79.5
+WEIGHT=1
+DESCRIPTION=Wyrm ancião
+SUBSECTION=Potions adv
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+on=@create
+    more1=s_pot_wyrm
+    more2={ 15.0 125.0 }
+
+
+[ITEMDEF i_potion_poly_gazer]
+//Polimorpha temporariamente para Gazer e paralysa
+ID=i_bottle_red
+NAME=pocao escarlate
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=i_bottle_empty, 15 i_r_rocha_negra, 10 i_r_capuz_algoz, 5 i_r_ectoplasma
+SKILLMAKE=Alchemy 77.3
+WEIGHT=1
+DESCRIPTION=Gazer
+SUBSECTION=Potions adv
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+on=@create
+    more1=s_pot_gazer
+    more2={ 15.0 125.0 }
 
 
 //########################################################
-//##                            ##
-//##            Poções piada            ##
-//##                            ##
+//##                                                    ##
+//##                    Poções piada                    ##
+//##                                                    ##
 //########################################################
 
 // --- veneno roxo (envenena e deixa roxo) ---
@@ -781,9 +3328,11 @@ return 1
 ID=i_bottle_red
 NAME=pocao escarlate
 TYPE=T_POTION
+RESOURCES=i_bottle_empty, 1 i_r_musgo_sangue, 1 i_r_nightshade
+SKILLMAKE=Alchemy 45.3
 TDATA1=i_bottle_empty
 DESCRIPTION=Veneno roxo
-SUBSECTION=Potions
+SUBSECTION=Potions joke
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 on=@dclick
@@ -794,7 +3343,7 @@ src.newitem i_mry_veneno_roxo
 src.act.tag.ocolor=<src.color>
 src.color=0f
 src.act.equip
-src.act.timer={30 120}
+src.act.timer=60*60
 src.sysmessagered Voce esta roxo!!!
 src.sfx 040
 src.emotered quebrou a garrafa
@@ -821,10 +3370,10 @@ ID=i_bottle_white
 NAME=pocao alva
 TYPE=T_POTION
 TDATA1=i_bottle_empty
-RESOURCES=i_r_olho_morto_vivo, i_bottle_EMPTY
+RESOURCES=2 i_r_olho_morto_vivo, i_bottle_EMPTY
 SKILLMAKE=ALCHEMY 62.2
 DESCRIPTION=Poção galinha
-SUBSECTION=Potions
+SUBSECTION=Potions joke
 CATEGORY=MyT - Provisions - Alchemy & Magic
 
 ON=@DClick
@@ -832,168 +3381,10 @@ if <src.findlayer.layer_flag_potionused>
     return 0
 endif
 src.sysmessagered Grande coragem a sua!
-src.f_polymorph c_chicken,150,-30,-30,-30
-potion_consume
-return 1
-
-
-[ITEMDEF i_potion_poly_ancient_wyrm]
-//Polimorpha temporariamente para Ancient Wyrm e cospe fogo.
-ID=0f0a
-NAME=pocao verde
-TYPE=T_POTION
-TDATA1=i_bottle_empty
-RESOURCES=i_bottle_empty
-WEIGHT=1
-DESCRIPTION=Poção Wyrm ancião
-SUBSECTION=Potions
-CATEGORY=MyT - Provisions - Alchemy & Magic
-
-on=@create
-more2=2000
-
-on=@dclick
-if <src.findlayer.layer_flag_potionused>
-    return 0
-elif !(<attr>&attr_identified)
- src.sysmessageyellow Voce fica com muito medo de tomar esta pocao.
- src.emotegreen treme
- return 1
-else
- src.sysmessagegreen Clique duas vezes sobre personagens para cospir fogo!
- src.f_polymorph c_ancient_wyrm,60,50,40,20
- src.aid
- src.events +e_breath_o_fire
- src.timerf 61,hits,5
- src.timerf 60,events,-e_breath_o_fire
-endif
+src.f_polymorph c_chicken,0,300
 potion_consume
 return 1
 
 
 
-
-[EVENTS e_breath_o_fire]
-on=@CHARDCLICK
-IF (<serv.time> < <ctag0.no_breath>)
- sysmessageyellow Aguarde ate poder cospir fogo novamente.
- return 1
-ELIF (<act.flags>&01f)
- sysmessageyellow Voce nao pode afetar este alvo.
- return 1
-ELIF (!<CanSeeLOS <act>>)
- sysmessagered Voce nao consegue ver o alvo.
- return 1
-ELIF (<distance <act>> > 5)
- sysmessagered Muito longe...
- return 1
-endif
-anim 6
-emotered cospe fogo
-sfx 016A
-act.effect 3 i_fire_column 26 26 26
-act.damage <R20,50> DAM_FIRE|DAM_MAGIC <UID>
-ctag.no_breath=<eval <serv.time>+25>
-return 1
-
-
-[ITEMDEF i_potion_poly_gazer]
-//Polimorpha temporariamente para Gazer e paralysa
-ID=i_bottle_red
-NAME=pocao escarlate
-TYPE=T_POTION
-TDATA1=i_bottle_empty
-RESOURCES=i_bottle_empty
-WEIGHT=1
-DESCRIPTION=Poção Gazer
-SUBSECTION=Potions
-CATEGORY=MyT - Provisions - Alchemy & Magic
-
-on=@create
-more2=2000
-
-on=@dclick
-if <src.findlayer.layer_flag_potionused>
-    return 0
-elif !(<attr>&attr_identified)
- src.sysmessageyellow Voce fica com muito medo de tomar esta pocao.
- src.emotegreen treme
- return 1
-else
- src.sysmessagegreen Clique duas vezes sobre personagens para paraliza-lo!
- src.f_polymorph c_gazer,60,30,20,10
- src.aid
- src.events +e_breath_o_freeze
- src.timerf 61,hits,5
- src.timerf 60,events,-e_breath_o_freeze
-endif
-potion_consume
-return 1
-
-
-
-
-[EVENTS e_breath_o_freeze]
-on=@CHARDCLICK
-IF (<serv.time> < <ctag0.no_breath>)
- sysmessageyellow Aguarde ate poder petrificar novamente.
- return 1
-ELIF (<act.flags>&01f)
- sysmessageyellow Voce nao pode afetar este alvo.
- return 1
-ELIF (!<CanSeeLOS <act>>)
- sysmessagered Voce nao consegue ver o alvo.
- return 1
-ELIF (<distance <act>> > 5)
- sysmessagered Muito longe...
- return 1
-endif
-anim 6
-emotered olhar malvado
-sfx 0179
-act.petrify
-act.timerf 6,stone
-ctag.no_breath=<eval <serv.time>+85>
-return 1
-
-[FUNCTION petrify]
-sfx 05A9
-stone
-serv.newitem i_coin_copper
-new.color 1
-new.p=<p>
-new.nudgeup 20
-new.attr 012
-new.timer 3
-new.emoteyellow petrifica
-
-[EVENTS e_chardclick_effect]
-ON=@CHARDCLICK
-if <IsEmpty <tag.chardclickef>>
-    events -e_chardclick_effect
-    return 1
-elif (<serv.time> < <ctag0.no_cdeffct>)
-    sysmessageyellow Aguarde...
-    return 1
-elif (<act.flags>&01f)
-    sysmessageyellow Voce nao pode afetar este alvo.
-    return 1
-elif (!<canseelos <act>>)
-    sysmessagered Voce nao consegue ver o alvo.
-    return 1
-elif (<distance <act>> > 5)
-    sysmessagered Muito longe...
-    return 1
-endif
-ctag.no_cdeffct=<eval <serv.time>+100>
-call <tag.chardclickef>
-return 1
-
-[FUNCTION ef_apaixonado]
-anim 6
-emoteyellow charme
-sfx 0179
-act.petrify
-act.sysmessageyellow Voce se sente atraido
-act.timerf 10,stone
-return 1
+[EOF]
