@@ -151,6 +151,128 @@ cTAG.rentFlags=<DEF.RENT_VACANT>
 menu m_alugar
 return 1
 
+//#######################################################
+// aluguel [ ver | despejar | reset | new ]
+//#######################################################
+//Abre target para gerenciar um aluguel.
+[FUNCTION aluguel]
+if (STRMATCH(*ver*,<args>))
+    sysmessageyellow Selecione o item:
+    targetf rent_Info
+elif (STRMATCH(*despejar*,<args>))
+    sysmessagered QUER MESMO DESPEJAR?
+    sysmessageyellow Selecione o item:
+    targetf rent_Expurge
+elif (STRMATCH(*reset*,<args>))
+    sysmessagered QUER MESMO TIRAR DO SISTEMA DE ALUGUEL?
+    sysmessageyellow Selecione o item:
+    targetf rent_Unrent
+elif (STRMATCH(*new*,<args>))
+    alugar
+else
+    sysmessagered Use .aluguel [comando]
+    sysmessageyellow VER: Examina o aluguel.
+    sysmessageyellow DESPEJAR: Cancela o aluguel.
+    sysmessageyellow RESET: Tira do sistema de aluguel.
+    sysmessageyellow NEW: Novo aluguel.
+endif
+
+//#######################################################
+// rent_Info
+//#######################################################
+[FUNCTION rent_Info]
+//Informacoes sobre aluguel
+//Define objeto
+if (!0<argn>)
+    if (!<argo.IsItem>)
+        sysmessagered Huh?
+        return 1
+    else
+        obj=<argo>
+    endif
+else
+    obj=<argn>
+endif
+
+if (!<obj.tag0.timef>)
+    sysmessagered Nao esta alugado.
+    return 1
+elif (<obj.tag0.timef> < <serv.time>)
+    sysmessagegreen Esta vago. Ultimo contrato expirou.
+    return 1
+endif
+
+//Define se tem dono e quem eh
+ref1=<obj.tag0.owner>
+if (!<ref1.IsChar>)
+    sysmessagered O dono nao existe mais. Despejando.
+    rent_Expurge <obj.uid>
+    return 1
+endif
+sysmessageyellow Inquilino: <ref1.tag.name>, <ref1.name> (<ref1.account>)
+
+//Define os tempos de aluguel
+local.start=<f_timestring <eval (<serv.time>-<obj.tag.time0>)/10>>
+local.end=<f_timestring <eval (<obj.tag.timef>-<serv.time>)/10>>
+sysmessageorange Iniciado a <local.start>
+sysmessageorange Fim previso em <local.end> (total <f_timestring <eval (<obj.tag.timef>-<obj.tag.time0>)/10>>)
+sysmessageorange Diaria: <strtresure <obj.tag0.price>>
+
+//#######################################################
+// rent_Expurge
+//#######################################################
+[FUNCTION rent_Expurge]
+//Despeja um inquilino do aluguel
+//Define objeto
+if (!0<argn>)
+    if (!<argo.IsItem>)
+        sysmessagered Huh?
+        return 1
+    else
+        obj=<argo>
+    endif
+else
+    obj=<argn>
+endif
+
+if (!<obj.tag0.timef>)
+    sysmessagered Nao esta alugado.
+    return 1
+endif
+obj.rentReset
+Sysmessagered Despejo concluido!
+
+//#######################################################
+// rent_Unrent
+//#######################################################
+//Tira do sistema de aluguel
+[FUNCTION rent_Unrent]
+//Define objeto
+if (!0<argn>)
+    if (!<argo.IsItem>)
+        sysmessagered Huh?
+        return 1
+    else
+        obj=<argo>
+    endif
+else
+    obj=<argn>
+endif
+
+obj.rentSendMessage O aluguel de <name> expirou!
+ref1=<obj.tag.deed>
+ref1.name=Ordem de despejo
+ref1=<obj.tag.timer>
+ref1.remove
+obj.tag.friends=
+obj.tag.owner=
+obj.tag.time0=
+obj.tag.timef=
+obj.tag.deed=
+obj.tag.timer=
+obj.tag.subitens=
+obj.more1=0
+obj.attr=<obj.attr>^RENT_VACANT
 
 //#######################################################
 // RentUpdatePrice <valor>
@@ -1297,7 +1419,7 @@ return 1
 
 ON=2
 // Estatísticas da casa
-SRC.CustomH_SIGN	//Para o sistema de custom house
+SRC.CustomH_SIGN    //Para o sistema de custom house
 return 1
 
 [DIALOG d_sign_gump_2]
