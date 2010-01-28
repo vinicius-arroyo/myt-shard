@@ -951,6 +951,66 @@ return 1
 ON=@DClick
 return <f_weaponDclick>
 
+//use it for custom kindling haverhest
+ON=@TARGON_GROUND
+
+// check for distance to loggig point
+if <src.distance <src.targp>> > 3 
+    src.sysmessageyellow Muito longe!!
+    return 1
+// if not tree, use HC behavior
+elif <serv.map(<src.targp.x>,<src.targp.y>).statics>
+    for i 0 <eval <serv.map(<src.targp.x>,<src.targp.y>).statics>-1>
+        if (<serv.map(<src.targp.x>,<src.targp.y>).statics(<dlocal.i>).type>==t_tree)
+            local.can=1
+        endif
+    end
+    if (!<local.can>)
+        return 2
+    endif
+else
+    return 2
+endif
+
+//use gold trick to check nearby itens
+serv.newitem i_gold
+new.attr=090
+new.p=<src.targp>
+ref1=<new>
+
+//create kindling worldgem if necessary
+if (!<ref1.fHasKindlingWG>)
+    // no worldgem bits were found, so make one
+    serv.newitem i_worldgem_bit
+    new.attr=092
+    new.color=010A
+    new.p=<src.targp>
+    new.timer=<r35000,45000>
+    new.morex=<r50>
+    
+    //if faile, mine 0 rock
+    new.type=t_tree
+    new.more1=mr_nothing
+    new.amount=0
+    
+    // skilltest for mining
+    if (<src.belltest <new.morex>,<src.lumberjacking> >
+        new.more1=mr_kindling
+        new.amount=<r1,<r3,8>>//lesser than more
+    endif
+endif
+
+ref1.remove
+return 0
+
+[FUNCTION fHasKindlingWG]
+foritems 0
+    if (<baseid>==i_worldgem_bit) && (<type>==t_tree)
+        return 1
+    endif
+endfor
+return 0
+
 //*****************************************************************************
 // t_weapon_arrow
 //*****************************************************************************
