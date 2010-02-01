@@ -35,16 +35,12 @@ tempo_de_plantacao=60*60
 //Tempo total de crescimento de uma planta para que ela se torne madura.
 //No caso das árvores perenes, o valor será triplicado automaticamente.
 
-chance_colher_sementes=50
-//Porcentagem de chance que um player tem de retirar novas sementes quando 
-//terminam os frutos da planta.
-
 tempo_de_decay_planta=15
 //Tempo em segundos entre a colheita do ultimo fruto e a 'morte' da planta.
 //O player só poderá tentar colher sementes durante este intervalo de tempo.
 
-ferramenta_para_colher=3921
-//DispID Decimal da ferramente que deve estar na mão do player para ele conseguir colher
+ferramenta_para_colher=;3921;3922;11552;11564;11553;11565;5120;
+//DispID Decimal separados por ';' das ferramentas que devem estar na mão do player para ele conseguir colher
 //os frutos. Coloque 0 (zero) para desabilitar a necessidade de uma ferramenta.
 
 //*****************************************************************************
@@ -83,7 +79,15 @@ if (<src.targ.baseid>==i_terra_arada)
         return 1
     endif
 //-?-QUE TIPO DE SEMENTE É? QUE PLANTA VAI NASCER?
-    if (<more2>==0001)
+    if (!<IsEmpty <tag.planta>>)
+        serv.newitem <tag.planta>
+        
+    /////////////////////////////////
+    ///         ATENÇÃO!!         ///
+    /// Este bloco pode ser apaga-///
+    ///do depois de 1/03/2010.    ///
+    /////////////////////////////////
+    elseif (<more2>==0001)
         serv.newitem i_plan_batata1
     elseif (<more2>==0002)
         serv.newitem i_plan_milho1
@@ -110,7 +114,10 @@ if (<src.targ.baseid>==i_terra_arada)
     elseif (<more2>==0013)
         serv.newitem i_plan_banana1
     elseif (<more2>==0014)
-        serv.newitem i_plan_algodao1    //-?-PONHA AQUI O NOVOS TIPOS DE PLANTAS.
+        serv.newitem i_plan_algodao1
+    /////////////////////////////////
+    /// Apagar o bloco até aqui.  ///
+    /////////////////////////////////
     else
         //tipo indefinido
         src.sysmessageyellow Erro: Semente inexistente.
@@ -121,6 +128,7 @@ if (<src.targ.baseid>==i_terra_arada)
     new.link=<src.targ.uid>
     src.targ.link=<new.uid>
     new.timer=<EVAL <DEF.tempo_de_plantacao>/2>
+    new.moreX=<src.camping>
     more1=(<more1>-1)
     update
     src.act=0
@@ -144,57 +152,86 @@ src.sysmessageyellow Voce nao pode colher o broto.
 return 1
 
 [TYPEDEF t_planta]
+//TDATA1        = DISPID do broto
+//TDATA2        = DISPID do jovem
+//TDATA3        = DEIPID do maduro
+//TDATA4        = % chance de se pegar sementes
+//MORE1L        = Minimo de frutos que ela dará
+//MORE1H        = Máximo de frutos que ela dará
+//MORE2L        = Mínimo de sementes que ela poderá dar
+//MORE2H        = Máximo de sementes que ela poderá dar
+//MOREX         = Skill Camping do cara que plantou (scripter não preenche. Variável do sistema)
+//MOREY         = Que estágio está (0:broto 1:jovem 2:maduro 3:morto) (scripter não preenche. Variável do sistema)
+//MOREZ         = Quantidade de frutos que há na planta. (scripter não preenche. Variável do sistema)
+//TAG.FRUTO     = DEFNAME do fruto que será colhido.
+//TAG.SEMENTE   = DEFNAME da semente que poderá ser colhida.
 ON=@CLICK
-if (!<morex>)
-    MESSAGE <name> (morreu)
-    return 1
-else
-    MESSAGE <name> (<eval <morex>>)
-    return 1
-endif
+DOSWITCH <morey>
+    local.s = <name> (broto)
+    local.s = <name> (jovem)
+    local.s = <name> (<morez> frutos)
+    local.s = <name> (morreu)   //Mas ainda colhe sementes
+    local.s = <name> (morreu)   //Mas ainda colhe sementes
+ENDDO
+message <local.s>
+return 1
 
 ON=@CLIENTTOOLTIP
-f_sendTooltip <name>,<QVAL <morex> ? <eval <morex>> frutos:morreu>
+DOSWITCH <morey>
+    local.s = broto
+    local.s = jovem
+    local.s = <morez> frutos
+    local.s = morreu    //Mais ainda colhe sementes
+    local.s = morreu
+ENDDO
+f_sendTooltip <name>,<local.s>
 return 1
 
 ON=@DCLICK
-if (<src.distance <P>> > 1)
-    src.sysmessageyellow Voce esta muito longe.
-    return 1
-elif (<src.ctag0.busy> > <serv.time>)
-    src.sysmessageyellow Deve esperar antes de tentar novamente.
-    return 1
-elif (<morex>)
-    src.ctag.busy=<eval <serv.time>+20>
-    src.f_colhe <tag.fruto>
-    if (<morex>==1)
-        timer=<def.tempo_de_decay_planta>
-    endif
-    src.timerf 2 uid.<uid>.use
-    morex -= 1
-elif (!<isEmpty <tag.semente>>)
-    src.f_sementes <tag.semente>
-    timer=1
-    tag.semente=
+if (!<morem>)//Aída é colhivel?
+    DOSWITCH (0<morey>)
+        src.sysmessageyellow Nao ha frutos. Eh apenas um brotinho.
+        src.sysmessageyellow Nao ha frutos. A planta ainda esta jovem.
+        src.f_colhe <uid>
+        src.f_sementes <uid>
+    ENDDO
 endif
-update
-return 1
+RETURN 1
 
 ON=@TIMER
-if (!<morey>) && (!<morex>)
- EMOTERED morreu
- morey=1
- timer=2
-elif (!<morex>)
- if (<LINK>)
-  link.more1 -= 1
-  if (<link.more1> < 1)
-   link.timer 2
-  endif
-  link.link=-1
- endif
- remove
-endif
+DOSWITCH <morey>
+    BEGIN
+        morey += 1
+        DISPID=<TDATA2>
+        UPDATE
+        TIMER=<eval <DEF.tempo_de_plantacao>/2>
+    END
+    BEGIN
+        morey += 1
+        DISPID=<TDATA3>
+        TIMER=<eval <DEF.tempo_de_plantacao>/2>
+        morez=<R<more1l>,<BETWEEN <more1l>,<more1h>,<morex>,100.0>>
+        UPDATE
+    END
+    BEGIN
+        RETURN 1
+    END
+    BEGIN
+        emotered morreu
+        timer=4
+        morey += 1
+    END
+    BEGIN
+        if (<link>)
+            link.more1 -= 1
+            link.link=04fffffff
+            if (!<link.more1>)
+                link.remove
+            endif
+        endif
+        remove
+    END
+ENDDO
 return 1
 
 [TYPEDEF t_arvore]
@@ -206,7 +243,6 @@ more1=0
 more2=0
 
 ON=@TIMER
-more1=1
 more2=<R3,7>
 return 1
 
@@ -219,15 +255,17 @@ elif (<src.ctag0.busy> > <serv.time>)
     return 1
 elif (<more2>)
     src.ctag.busy=<eval <serv.time>+10>
-    src.f_colhe <tdata1>
+    src.f_colhe_arvore <uid>
     more2 -= 1
+    if (!<more2>)
+        timer=<def.tempo_de_plantacao>
+    endif
     update
 else
     src.sysmessageyellow Nao ha frutos nessa arvore.
-    if (<more1>==1)
+    if (!<more2>) && (<timer>== -1)
         timer=<def.tempo_de_plantacao>
-        more1=0
-    endif
+    endif    
 endif
 return 1
 
@@ -260,6 +298,9 @@ return 1
 ON=@TIMER
     sfx 0145
     cont.anim 12
+    if (<cont.IsGM>)
+        more1=5
+    endif
 if (<more1>==5)
     if (!<cont.isgm>)
         cont.flags ^= 000000004
@@ -278,42 +319,74 @@ src.act.equip
 RETURN 1
 
 [FUNCTION f_colhe]
-if (<eval <src.findlayer.layer_hand1.id>> == <DEF.ferramenta_para_colher> ) || (<DEF.ferramenta_para_colher>==0)
-    src.newitem=<args>
+obj=<argv0>
+if (<src.distance <obj.P>> > 1)
+    src.sysmessageyellow Voce esta muito longe.
+    return 1
+elif (<src.ctag0.busy> > <serv.time>)
+    src.sysmessageyellow Deve esperar antes de tentar novamente.
+    return 1
+elif (<IsEmpty <DEF.ferramenta_para_colher>>) || ( ( (STRMATCH(*<src.findlayer.layer_hand1.dispiddec>*,<DEF.ferramenta_para_colher>)) || (STRMATCH(*<src.findlayer.layer_hand2.dispiddec>*,<DEF.ferramenta_para_colher>)) ) && (<src.findlayer.layer_hand1.dispiddec>) )
+    src.newitem=<obj.tag.fruto>
     src.anim 12
-    src.act.bounce
+    src.bounce <new>
     src.sfx 004f
     src.emoteyellow colhendo <src.act.name>
     src.skill_gain SKILL_CAMPING
-    return 1
 else
-    src.sysmessagered Voce nao esta equipado com  ferramenta correta.
+    src.sysmessagered Voce nao esta equipado com ferramenta correta.
     src.emotered estragou um fruto
-    return 1
 endif
+obj.morez -= 1
+obj.timer=<DEF.tempo_de_decay_planta>
+if (!<obj.morez>)
+    obj.morey += 1
+endif
+src.timerf 2 uid.<obj>.use
+return 1
 
+[FUNCTION f_colhe_arvore]
+obj=<argv0>
+if (<IsEmpty <DEF.ferramenta_para_colher>>) || ( ( (STRMATCH(*<src.findlayer.layer_hand1.dispiddec>*,<DEF.ferramenta_para_colher>)) || (STRMATCH(*<src.findlayer.layer_hand2.dispiddec>*,<DEF.ferramenta_para_colher>)) ) && (<src.findlayer.layer_hand1.dispiddec>) )
+    src.newitem=<obj.TDATA1>
+    src.anim 12
+    src.bounce <new>
+    src.sfx 004f
+    src.emoteyellow colhendo <src.act.name>
+else
+    src.sysmessagered Voce nao esta equipado com ferramenta correta.
+    src.emotered estragou um fruto
+endif
+return 1
 
 [FUNCTION f_sementes]
-if ( chance_colher_sementes >= <r100>)
-    if (<eval <src.findlayer.layer_hand1.id>> == <DEF.ferramenta_para_colher> ) || (<DEF.ferramenta_para_colher> == 0)
-        serv.newitem=<args>
+obj=<argv0>
+if (<src.distance <obj.P>> > 1)
+    src.sysmessageyellow Voce esta muito longe.
+    return 1
+elif (<src.ctag0.busy> > <serv.time>)
+    src.sysmessageyellow Deve esperar antes de tentar novamente.
+    return 1
+elif ( <obj.TDATA4> >= <r100>)
+    if (<IsEmpty <DEF.ferramenta_para_colher>>) || ( ( (STRMATCH(*<src.findlayer.layer_hand1.dispiddec>*,<DEF.ferramenta_para_colher>)) || (STRMATCH(*<src.findlayer.layer_hand2.dispiddec>*,<DEF.ferramenta_para_colher>)) ) && (<src.findlayer.layer_hand1.dispiddec>) )
+        serv.newitem=<obj.tag.semente>
+        new.more1=<R<obj.more2l>,<BETWEEN <obj.more2l>,<obj.more2h>,<obj.morex>,100.0>>
         src.bounce <new>
         src.anim 12
         src.sfx 004f
         src.emoteyellow colhendo <new.name>
         src.sysmessageyellow Voce tirou algumas novas sementes da planta.
-        return 1
     else
-        src.sysmessagered Voce nao esta equipado com  ferramenta correta.
-        src.skill_gain SKILL_CAMPING
-        return 1
+        src.sysmessagered Voce nao esta equipado com ferramenta correta.
     endif
 else
     src.anim 12
     src.sfx 004f
     src.sysmessageyellow Voce nao tirou novas sementes da planta.
-    return 1
 endif
+obj.morem = 1
+obj.timerd=1
+return 1
 
 [FUNCTION plant_checkTile]
 sysmessageyellow Selecione aonde arar:
@@ -363,7 +436,11 @@ RETURN 1
 
 [FUNCTION plant_arar]
 cTAG.cp=<argn1>,<argn2>,<argn3>
-cTAG.ctimer=<BETWEEN2 1,10,<camping>,1000>
+if (<IsGM>)
+ cTAG.ctimer=1
+else
+ cTAG.ctimer=<BETWEEN2 1,10,<camping>,1000>
+endif
 cTAG.p.x=<p.x>
 cTAG.p.y=<p.y>
 _plant_arar
@@ -458,7 +535,7 @@ WEIGHT=8
 CATEGORY=MyT - Sistemas
 SUBSECTION=Plantacao
 DESCRIPTION=Arado
-TDATA4=60
+TDATA4=80
 
 ON=Create
 MAXHITS={10 40}
@@ -485,8 +562,12 @@ SUBSECTION=Plantacao
 DESCRIPTION=Semente de batata
 
 ON=@CREATE
-MORE1=<BETWEEN 1,6,<src.camping>,1000>
-MORE2=0001 //caracteriza que esta semente é de batata.
+IF (!<IsEmpty <src>>)
+    MORE1=<BETWEEN 1,6,<src.camping>,1000>
+ELSE
+    MORE1=<R1,6>
+ENDIF
+TAG.PLANTA=i_plan_batata1
 
 [ITEMDEF i_sem_milho]
 NAME=sementes de milho
@@ -498,8 +579,12 @@ SUBSECTION=Plantacao
 DESCRIPTION=Semente de milho
 
 ON=@CREATE
-MORE1=<BETWEEN 2,6,<src.camping>,1000>
-MORE2=0002 //caracteriza que esta semente é de milho.
+IF (!<IsEmpty <src>>)
+    MORE1=<BETWEEN 2,6,<src.camping>,1000>
+ELSE
+    MORE1=<R2,6>
+ENDIF
+TAG.PLANTA=i_plan_milho1
 
 
 [ITEMDEF i_sem_ervilha]
@@ -512,8 +597,12 @@ SUBSECTION=Plantacao
 DESCRIPTION=Semente de ervilha
 
 ON=@CREATE
-MORE1=<BETWEEN 2,6,<src.camping>,1000>
-MORE2=0003 //caracteriza que esta semente é de ervilha.
+IF (!<IsEmpty <src>>)
+    MORE1=<BETWEEN 2,6,<src.camping>,1000>
+ELSE
+    MORE1=<R2,6>
+ENDIF
+TAG.PLANTA=i_plan_ervilha1
 
 [ITEMDEF i_sem_trigo]
 NAME=sementes de trigo
@@ -526,7 +615,7 @@ DESCRIPTION=Semente de trigo
 
 ON=@CREATE
 MORE1=7
-MORE2=0004 //caracteriza que esta semente é de trigo.
+TAG.PLANTA=i_plan_trigo1
 
 [ITEMDEF i_sem_cenoura]
 NAME=sementes de cenoura
@@ -538,8 +627,12 @@ SUBSECTION=Plantacao
 DESCRIPTION=Semente de cenoura
 
 ON=@CREATE
-MORE1=<BETWEEN 2,6,<src.camping>,1000>
-MORE2=0005 //caracteriza que esta semente é de cenoura.
+IF (!<IsEmpty <src>>)
+    MORE1=<BETWEEN 2,6,<src.camping>,1000>
+ELSE
+    MORE1=<R2,6>
+ENDIF
+TAG.PLANTA=i_plan_cenoura1
 
 [ITEMDEF i_sem_alface]
 NAME=sementes de alface
@@ -551,8 +644,12 @@ SUBSECTION=Plantacao
 DESCRIPTION=Semente de alface
 
 ON=@CREATE
-MORE1=<BETWEEN 2,6,<src.camping>,1000>
-MORE2=0006 //caracteriza que esta semente é de alface.
+IF (!<IsEmpty <src>>)
+    MORE1=<BETWEEN 2,6,<src.camping>,1000>
+ELSE
+    MORE1=<R2,6>
+ENDIF
+TAG.PLANTA=i_plan_alface1
 
 
 //################################ Reagentes ##################################
@@ -567,8 +664,12 @@ SUBSECTION=Plantacao
 DESCRIPTION=Semente de Ginseng
 
 ON=@CREATE
-MORE1=<BETWEEN 4,8,<src.camping>,1000>
-MORE2=0007 //caracteriza que esta semente é de ginsen.
+IF (!<IsEmpty <src>>)
+    MORE1=<BETWEEN 4,8,<src.camping>,1000>
+ELSE
+    MORE1=<R4,8>
+ENDIF
+TAG.PLANTA=i_plan_ginsen1
 
 [ITEMDEF i_sem_mandrake]
 NAME=sementes de mandragora
@@ -580,8 +681,12 @@ SUBSECTION=Plantacao
 DESCRIPTION=Semente de mandrake
 
 ON=@CREATE
-MORE1=<BETWEEN 4,8,<src.camping>,1000>
-MORE2=0008 //caracteriza que esta semente é de mandrake root.
+IF (!<IsEmpty <src>>)
+    MORE1=<BETWEEN 4,8,<src.camping>,1000>
+ELSE
+    MORE1=<R4,8>
+ENDIF
+TAG.PLANTA=i_plan_mandrake1
 
 [ITEMDEF i_sem_alho]
 NAME=sementes de alho
@@ -593,8 +698,12 @@ SUBSECTION=Plantacao
 DESCRIPTION=Semente de alho
 
 ON=@CREATE
-MORE1=<BETWEEN 4,8,<src.camping>,1000>
-MORE2=0009 //caracteriza que esta semente é de alho.
+IF (!<IsEmpty <src>>)
+    MORE1=<BETWEEN 4,8,<src.camping>,1000>
+ELSE
+    MORE1=<R4,8>
+ENDIF
+TAG.PLANTA=i_plan_alho1
 
 [ITEMDEF i_sem_nightshade]
 NAME=sementes de sombradanoite
@@ -606,8 +715,12 @@ SUBSECTION=Plantacao
 DESCRIPTION=Semente de nightshade
 
 ON=@CREATE
-MORE1=<BETWEEN 4,8,<src.camping>,1000>
-MORE2=0010 //caracteriza que esta semente é de nightshade.
+IF (!<IsEmpty <src>>)
+    MORE1=<BETWEEN 4,8,<src.camping>,1000>
+ELSE
+    MORE1=<R4,8>
+ENDIF
+TAG.PLANTA=i_plan_nightshade1
 
 //########################### arvores persistentes ############################
 
@@ -622,7 +735,7 @@ DESCRIPTION=Semente de maçã
 
 ON=@CREATE
 MORE1=1
-MORE2=0011 //caracteriza que esta semente é de macieira.
+TAG.PLANTA=i_plan_maca1
 
 [ITEMDEF i_sem_uva]
 NAME=semente de parreira
@@ -635,7 +748,7 @@ DESCRIPTION=Semente de uva
 
 ON=@CREATE
 MORE1=<BETWEEN 1,6,<src.camping>,1000>
-MORE2=0012 //caracteriza que esta semente é de parreira.
+TAG.PLANTA=i_plan_uva1
 
 [ITEMDEF i_sem_banana]
 NAME=semente de bananeira
@@ -648,7 +761,7 @@ DESCRIPTION=Semente de banana
 
 ON=@CREATE
 MORE1=<BETWEEN 1,6,<src.camping>,1000>
-MORE2=0013 //caracteriza que esta semente é de bananeira.
+TAG.PLANTA=i_plan_banana1
 
 //################################### Outros #############################
 
@@ -663,8 +776,12 @@ SUBSECTION=Plantacao
 DESCRIPTION=Semente de algodão
 
 ON=@CREATE
-MORE1=<BETWEEN 1,6,<src.camping>,1000>
-MORE2=0014 //caracteriza que esta semente é de algodao.
+IF (!<IsEmpty <src>>)
+    MORE1=<BETWEEN 1,6,<src.camping>,1000>
+ELSE
+    MORE1=<R1,6>
+ENDIF
+TAG.PLANTA=i_plan_algodao1
 
 
 //*****************************************************************************
@@ -677,213 +794,124 @@ MORE2=0014 //caracteriza que esta semente é de algodao.
 
 [ITEMDEF i_plan_batata1]
 ID=0c5e
-TYPE=t_broto
-NAME=batata (broto)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_batata2
-
-[ITEMDEF i_plan_batata2]
-ID=0c5f
-TYPE=t_broto
-NAME=batata (jovem)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_batata3
-
-[ITEMDEF i_plan_batata3]
-ID=0c60
 TYPE=t_planta
-NAME=batata (madura)
-// por sections de menu
+NAME=batata
+TDATA1=0c5e //DISPID broto
+TDATA2=0c5f //DISPID jovem
+TDATA3=0c60 //DISPID maduro
+TDATA4=75   //% chance de colhe sêmem
 
-ON=@CREATE
+ON=@create
 attr=010
-MOREx=<R2,3>
-tag.fruto=I_BATATA
-tag.semente=i_sem_batata
+MORE1L = 2  //Mínimo de frutos
+MORE1H = 3  //Máximo de frutos
+MORE2L = 1  //Mínimo de sêmem
+MORE2H = 4  //Máximo de sêmem
+TAG.FRUTO   I_BATATA
+TAG.SEMENTE i_sem_batata 
 
 //****milho****
 
 [ITEMDEF i_plan_milho1]
 ID=0cb5
-TYPE=t_broto
-NAME=milho (broto)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_milho2
-
-[ITEMDEF i_plan_milho2]
-ID=0c7e
-TYPE=t_broto
-NAME=milho (jovem)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_milho3
-
-[ITEMDEF i_plan_milho3]
-ID=0c7d
 TYPE=t_planta
-NAME=milho (maduro)
-// por sections de menu
+NAME=milho
+TDATA1=0cb5 //DISPID broto
+TDATA2=0c7e //DISPID jovem
+TDATA3=0c7d //DISPID maduro
+TDATA4=75   //% chance de colhe sêmem
 
-ON=@CREATE
+ON=@create
 attr=010
-MOREX=1
-tag.fruto=I_FRUIT_CORN
-tag.semente=i_sem_milho
+MORE1L = 1  //Mínimo de frutos
+MORE1H = 1  //Máximo de frutos
+MORE2L = 1  //Mínimo de sêmem
+MORE2H = 4  //Máximo de sêmem
+TAG.FRUTO   I_FRUIT_CORN
+TAG.SEMENTE i_sem_milho
 
 
 //****ervilha****
 
 [ITEMDEF i_plan_ervilha1]
 ID=0cb5
-TYPE=t_broto
-NAME=ervilha (broto)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_ervilha2
-
-[ITEMDEF i_plan_ervilha2]
-ID=0cb0
-TYPE=t_broto
-NAME=ervilha (jovem)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_ervilha3
-
-[ITEMDEF i_plan_ervilha3]
-ID=0c8d
 TYPE=t_planta
-NAME=ervilha (madura)
-// por sections de menu
+NAME=ervilha
+TDATA1=0cb5 //DISPID broto
+TDATA2=0cb0 //DISPID jovem
+TDATA3=0c8d //DISPID maduro
+TDATA4=65   //% chance de colhe sêmem
 
-ON=@CREATE
+ON=@create
 attr=010
-MOREX=<R2,3>
-tag.fruto=I_ERVILHA
-tag.semente=i_sem_ervilha
+MORE1L = 2  //Mínimo de frutos
+MORE1H = 4  //Máximo de frutos
+MORE2L = 2  //Mínimo de sêmem
+MORE2H = 4  //Máximo de sêmem
+TAG.FRUTO   I_ERVILHA
+TAG.SEMENTE i_sem_ervilha
 
 
 //****trigo****
 
 [ITEMDEF i_plan_trigo1]
 ID=01EBF
-TYPE=t_broto
-NAME=trigo(broto)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_trigo2
-
-[ITEMDEF i_plan_trigo2]
-ID=0c59
-TYPE=t_broto
-NAME=trigo (jovem)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_trigo3
-
-ON=@DCLICK
-src.sysmessage Voce nao pode colher isso jovem.
-return 1
-
-[ITEMDEF i_plan_trigo3]
-ID=0c5a
 TYPE=t_planta
-NAME=trigo (maduro)
-// por sections de menu
+NAME=trigo
+TDATA1=01EBF //DISPID broto
+TDATA2=0c59  //DISPID jovem
+TDATA3=0c5a  //DISPID maduro
+TDATA4=95    //% chance de colhe sêmem
 
-ON=@CREATE
+ON=@create
 attr=010
-MOREX=1
-tag.fruto=i_wheat_sheaf
-tag.semente=i_sem_trigo
+MORE1L = 1  //Mínimo de frutos
+MORE1H = 1  //Máximo de frutos
+MORE2L = 1  //Mínimo de sêmem
+MORE2H = 3  //Máximo de sêmem
+TAG.FRUTO   i_wheat_sheaf
+TAG.SEMENTE i_sem_trigo
 
 
 //****cenoura****
 
 [ITEMDEF i_plan_cenoura1]
 ID=0c68
-TYPE=t_broto
-NAME=cenoura(broto)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_cenoura2
-
-[ITEMDEF i_plan_cenoura2]
-ID=0c69
-TYPE=t_broto
-NAME=cenoura (jovem)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_cenoura3
-
-[ITEMDEF i_plan_cenoura3]
-ID=0c76
 TYPE=t_planta
-NAME=cenoura (madura)
-// por sections de menu
+NAME=cenoura
+TDATA1=0c68 //DISPID broto
+TDATA2=0c69 //DISPID jovem
+TDATA3=0c76 //DISPID maduro
+TDATA4=50   //% chance de colhe sêmem
 
-ON=@CREATE
+ON=@create
 attr=010
-MOREX=<R5,6>
-tag.fruto=i_fruit_carrot
-tag.semente=i_sem_cenoura
-
+MORE1L = 3  //Mínimo de frutos
+MORE1H = 6  //Máximo de frutos
+MORE2L = 2  //Mínimo de sêmem
+MORE2H = 4  //Máximo de sêmem
+TAG.FRUTO   i_fruit_carrot
+TAG.SEMENTE i_sem_cenoura
 
 //****alface****
 
 [ITEMDEF i_plan_alface1]
 ID=0c71
-TYPE=t_broto
-NAME=alface(broto)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_alface2
-
-[ITEMDEF i_plan_alface2]
-ID=0c71
-TYPE=t_broto
-NAME=alface (jovem)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_alface3
-
-[ITEMDEF i_plan_alface3]
-ID=0c71
 TYPE=t_planta
-NAME=alface (madura)
-// por sections de menu
+NAME=alface
+TDATA1=0c71 //DISPID broto
+TDATA2=0c71 //DISPID jovem
+TDATA3=0c71 //DISPID maduro
+TDATA4=62   //% chance de colhe sêmem
 
-ON=@CREATE
+ON=@create
 attr=010
-MOREX=1
-tag.fruto=i_fruit_lettuce
-tag.semente=i_sem_alface
+MORE1L = 1  //Mínimo de frutos
+MORE1H = 1  //Máximo de frutos
+MORE2L = 2  //Mínimo de sêmem
+MORE2H = 4  //Máximo de sêmem
+TAG.FRUTO   i_fruit_lettuce
+TAG.SEMENTE i_sem_alface
 
 
 //################################ Reagentes ##################################
@@ -892,138 +920,83 @@ tag.semente=i_sem_alface
 
 [ITEMDEF i_plan_ginsen1]
 ID=0cb5
-TYPE=t_broto
-NAME=ginseng (broto)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_ginsen2
-
-[ITEMDEF i_plan_ginsen2]
-ID=0cb0
-TYPE=t_broto
-NAME=ginseng (jovem)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_ginsen3
-
-[ITEMDEF i_plan_ginsen3]
-ID=018e9
 TYPE=t_planta
-NAME=ginseng (maduro)
-// por sections de menu
+NAME=ginseng
+TDATA1=0cb5 //DISPID broto
+TDATA2=0cb0 //DISPID jovem
+TDATA3=018e9//DISPID maduro
+TDATA4=55   //% chance de colhe sêmem
 
-ON=@CREATE
+ON=@create
 attr=010
-MOREX=<R1,2>
-tag.fruto=i_r_ginseng
-tag.semente=i_sem_ginseng
+MORE1L = 1  //Mínimo de frutos
+MORE1H = 5  //Máximo de frutos
+MORE2L = 2  //Mínimo de sêmem
+MORE2H = 3  //Máximo de sêmem
+TAG.FRUTO   i_r_ginseng
+TAG.SEMENTE i_sem_ginseng
 
 //****mandrake root****
 
 [ITEMDEF i_plan_mandrake1]
 ID=018df
-TYPE=t_broto
-NAME=mandragora (broto)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_mandrake2
-
-[ITEMDEF i_plan_mandrake2]
-ID=018df
-TYPE=t_broto
-NAME=mandragora (jovem)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_mandrake3
-
-[ITEMDEF i_plan_mandrake3]
-ID=018df
 TYPE=t_planta
-NAME=mandragora (maduro)
-// por sections de menu
+NAME=mandragora
+TDATA1=018df//DISPID broto
+TDATA2=018df//DISPID jovem
+TDATA3=018df//DISPID maduro
+TDATA4=55   //% chance de colhe sêmem
 
-ON=@CREATE
+ON=@create
 attr=010
-MOREX=<R1,2>
-tag.fruto=i_r_raiz_de_mandrake
-tag.semente=i_sem_mandrake
+MORE1L = 1  //Mínimo de frutos
+MORE1H = 4  //Máximo de frutos
+MORE2L = 2  //Mínimo de sêmem
+MORE2H = 3  //Máximo de sêmem
+TAG.FRUTO   i_r_raiz_de_mandrake
+TAG.SEMENTE i_sem_mandrake
 
 
 //****alho****
 
 [ITEMDEF i_plan_alho1]
 ID=018e1
-TYPE=t_broto
-NAME=alho (broto)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_alho2
-
-[ITEMDEF i_plan_alho2]
-ID=018e1
-TYPE=t_broto
-NAME=alho (jovem)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_alho3
-
-[ITEMDEF i_plan_alho3]
-ID=018e1
 TYPE=t_planta
-NAME=alho (maduro)
-// por sections de menu
+NAME=alho
+TDATA1=018e1//DISPID broto
+TDATA2=018e1//DISPID jovem
+TDATA3=018e1//DISPID maduro
+TDATA4=67   //% chance de colhe sêmem
 
-ON=@CREATE
+ON=@create
 attr=010
-MOREX=<R1,2>
-tag.fruto=i_r_alho
-tag.semente=i_sem_alho
+MORE1L = 2  //Mínimo de frutos
+MORE1H = 6  //Máximo de frutos
+MORE2L = 2  //Mínimo de sêmem
+MORE2H = 3  //Máximo de sêmem
+TAG.FRUTO   i_r_alho
+TAG.SEMENTE i_sem_alho
 
 //****nightshade****
 
 [ITEMDEF i_plan_nightshade1]
 ID=0cb5
-TYPE=t_broto
-NAME=sombra da noite (broto)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_nightshade2
-
-[ITEMDEF i_plan_nightshade2]
-ID=018e5
-TYPE=t_broto
-NAME=sombra da noite (jovem)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_nightshade3
-
-[ITEMDEF i_plan_nightshade3]
-ID=018e5
 TYPE=t_planta
-NAME=sombra da noite (maduro)
-// por sections de menu
+NAME=sombra da noite
+TDATA1=0cb5 //DISPID broto
+TDATA2=018e5//DISPID jovem
+TDATA3=018e5//DISPID maduro
+TDATA4=80   //% chance de colhe sêmem
 
-ON=@CREATE
+ON=@create
 attr=010
-MOREX=<R1,2>
-tag.fruto=i_r_nightshade
-tag.semente=i_sem_nightshade
+MORE1L = 1  //Mínimo de frutos
+MORE1H = 2  //Máximo de frutos
+MORE2L = 1  //Mínimo de sêmem
+MORE2H = 6  //Máximo de sêmem
+TAG.FRUTO   i_r_nightshade
+TAG.SEMENTE i_sem_nightshade
+
 
 //################################### Arvores persistentes #############################
 
@@ -1138,35 +1111,21 @@ TDATA1=i_fruit_banana
 
 [ITEMDEF i_plan_algodao1]
 ID=0cb5
-TYPE=t_broto
-NAME=pe de algodao (broto)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_algodao2
-
-[ITEMDEF i_plan_algodao2]
-ID=0C51
-TYPE=t_broto
-NAME=pe de algodao (jovem)
-// por sections de menu
-
-ON=@create
-attr=010
-tag.planta=i_plan_algodao3
-
-[ITEMDEF i_plan_algodao3]
-ID=0C53
 TYPE=t_planta
-NAME=pe de algodao (maduro)
-// por sections de menu
+NAME=pe de algodao
+TDATA1=0cb5 //DISPID broto
+TDATA2=0c51 //DISPID jovem
+TDATA3=0c53//DISPID maduro
+TDATA4=60   //% chance de colhe sêmem
 
-ON=@CREATE
+ON=@create
 attr=010
-MOREX=<R5,6>
-tag.fruto=i_cotton
-tag.semente=i_sem_algodao
+MORE1L = 2  //Mínimo de frutos
+MORE1H = 6  //Máximo de frutos
+MORE2L = 2  //Mínimo de sêmem
+MORE2H = 6  //Máximo de sêmem
+TAG.FRUTO   i_cotton
+TAG.SEMENTE i_sem_algodao
 
 
 //*****************************************************************************
@@ -1368,6 +1327,34 @@ on=@dclick
   more1=<eval <SERV.TIME>/10>
   update
  endif
+
+[FUNCTION farming_migrate]
+serv.b Atencao! Onda de lag em 60 segundos
+timerf 5 b Migracao do sistema de plantacao em 55 segundos
+timerf 15 b Afastem-se dos NPCs para a onda de lag.
+timerf 30 serv.b Atencao! Onda de lag em 30 segundos
+timerf 35 b Migracao do sistema de plantacao em 25 segundos
+timerf 45 b Afastem-se dos NPCs para a onda de lag.
+timerf 60 _farming_migrate
+ 
+[FUNCTION _farming_migrate]
+b Iniciando migracao do sistema de plantacao: Aguarde
+local.i = 0
+FORITEMS 6144
+    IF (<TYPE> == t_planta)
+        serv.newitem <defname>
+        new.morex=55.0
+        new.morey=1
+        new.link=<link>
+        link.link=<new>
+        new.p=<p>
+        new.timer=<r1,60>
+        REMOVE
+        local.i += 1
+    ENDIF
+ENDFOR
+b Completo! <dlocal.i> plantas migradas.
+b Fim da onda de lag. Bom jogo!
 
 //**********************************************************************************************
 //**                    Script de plantação do Mystical Tales Shard v1.6                      ** 
