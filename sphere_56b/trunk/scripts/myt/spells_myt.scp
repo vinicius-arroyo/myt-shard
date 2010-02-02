@@ -47,6 +47,8 @@ IF (<tam_playerFreeSlots> >= <ref1.tam_animalSlots>)
  ref1.karma=<karma>
  ref1.events +e_pet
  ref1.tam_setPet <UID>
+ ref2=<new>//Memory do pet
+ ref2.attr=attr_blessed2
  ref1.flags |= 0c000000  //spawned e pet
 else
  ref1.FLAGS |= 04000000  //spawned
@@ -136,7 +138,7 @@ type=t_eq_script
 layer=layer_special
 
 on=@create
-attr=attr_magic|attr_decay
+attr=attr_magic|attr_decay|attr_cursed2
 
 on=@equip
 //remove capuz
@@ -407,7 +409,7 @@ TYPE=T_eq_script
 WEIGHT=0
 
 ON=@Create
-ATTR=attr_newbie | 080
+ATTR=attr_newbie | 080 | attr_cursed2
 timer=1
 more2={12 30}
 
@@ -936,7 +938,7 @@ TEVENTS=e_BuffStats
 
 on=@equip
 name=<name> (STR: <dtag0.modstr> DEX:<dtag0.modint> INT:<dtag0.modint>)
-timerf 5 f_memory_WatchDog
+ATTR=attr_cursed2
 
 on=@timer
 remove
@@ -967,7 +969,7 @@ TEVENTS=e_BuffMaxStats
 
 on=@equip
 name=<name> (HP: <dtag0.modhits> SP:<dtag0.modstam> MP:<dtag0.modmana>)
-timerf 5 f_memory_WatchDog
+ATTR=attr_cursed2
 
 on=@timer
 remove
@@ -982,7 +984,7 @@ TEVENTS=e_BuffRes
 
 on=@equip
 name=<name>(AR<dtag0.modar> F<dtag0.resfire> C<dtag0.rescold> P<dtag0.respoison> E<dtag0.resenergy>)
-timerf 5 f_memory_WatchDog
+ATTR=attr_blessed2
 
 on=@timer
 remove
@@ -1022,7 +1024,7 @@ TEVENTS=e_BuffSkill
 
 on=@equip
 name=<serv.skill.<tag.modskill>.name> +(<dtag.modskillval>)
-timerf 5 f_memory_WatchDog
+ATTR=attr_blessed2
 
 on=@timer
 remove
@@ -1049,6 +1051,7 @@ link.sysmessagegreen Voce se sente muito rapid<link.sex o/a>!
 link.speedmode=1
 //salva link, pois em alguns casos nao ha link em @destroy ou @unequip
 tag.link=<link>
+ATTR=attr_blessed2
 
 on=@unequip
 if <link>=04fffffff
@@ -1082,6 +1085,7 @@ link.sysmessageorange Voce se sente muito lent<link.sex o/a>!
 link.speedmode=2
 //salva link, pois em alguns casos nao ha link em @destroy ou @unequip
 tag.link=<link>
+ATTR=attr_cursed2
 
 on=@unequip
 if <link>=04fffffff
@@ -1115,24 +1119,23 @@ elif (0<argv2>)
 endif
 
 
-[FUNCTION f_memory_WatchDog]
-if (<cont.flags>&02)
- timerd 1
- return 1
-endif
-if (<link> != 04fffffff)
- if (!0<uid.<link>.instances>)
-  timerd 1
-  return 1
- elif (<link.IsPlayer>)
-  if (<link.flags>&040002) || (!<link.IsOnline>)
-   timerd 1
-   return 1
-  endif
- endif
-endif
-timerf <R3,5> f_memory_WatchDog
+[FUNCTION f_CleanDeBuffs]
+//Limpa todos os Buffs e Debuffs do char
+FORCHARLAYER layer_special
+    IF (<ATTR>&0A00)//blessed2 para buff, cursed2 para debuff
+        serv.log Removendo buff/debuff: <name>
+        REMOVE
+    ENDIF
+END
 
+[FUNCTION f_CleanBuffs]
+//Limpa todos os Buffs do char
+FORCHARLAYER layer_special
+    IF (<ATTR>&0800)//blessed2
+        serv.log Removendo buff: <name>
+        REMOVE
+    ENDIF
+END
 
 
 [EOF]
