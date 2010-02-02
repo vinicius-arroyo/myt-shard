@@ -27,10 +27,10 @@
 //c_galo
 //c_sheep_wooly
 //c_sheep_shorn
-//c_cow_bw / c_vaca2
-//c_cow_brown / c_vaca
-//c_bull_brown_dk / c_touro
-//c_bull_brown_lt / c_touro2
+//c_vaca / c_vaca2
+//c_vaca2 / c_vaca
+//c_touro2 / c_touro
+//c_touro / c_touro2
 //c_horse_tan / c_horse_brown_dk / c_horse_gray / c_horse_brown_lt / c_horse_white / c_horse_black
 //c_llama
 
@@ -42,9 +42,10 @@
 pastor
 
 [DEFNAME animais]
-minReprodAge    = 21600    //6 horas de tempo minimo antes de poder reproduzir
-minReprodDelay  = 7200     //2 horas de tempo minimo antes reproduzir novamente
-minRetryDelay   = 60      //1 minuto antes de tentar apos falha
+minReprodAge    = 2*24*60*60*10//48 horas de tempo minimo antes de poder reproduzir
+minReprodDelay  = 2*60*60*10   //2 horas de tempo minimo antes reproduzir novamente
+incReprodDelay  = 45*60*60*10  //45 minutos de acrécimo antes de reproduzir novamente
+minRetryDelay   = 3*60*10      //3 minutos antes de tentar apos falha
 
 //*****************************************************************************
 //*****************************************************************************
@@ -262,14 +263,17 @@ endif
 // anim_reprod
 //*****************************************************************************
 [FUNCTION anim_reprod]
-if (<src.animallore> <= 450) 
-    src.sysmessageyellow Voce nao possui conhecimento suficiente.
-elif (0<tag.sexo>==1)
+if (0<tag.sexo>==1)
     src.sysmessageyellow Voce deve selecionar uma femea...
-elif (<eval <serv.time>-<tag.born>> <= minReprodAge ) 
+elif ( <eval <serv.time>-<tag0.born>> <= minReprodAge ) 
     src.sysmessageyellow Muito jovem para reproduzir.
-elif ( <serv.time> < 0<tag.prenha> )
+elif ( <serv.time> < <tag0.prenha> )
     src.sysmessageyellow Deve esperar antes de reproduzir novamente.
+elif ( <tag0.births> > 4)
+    src.sysmessageyellow Essa femea ja saiu da idade fertil.
+elif ( !<src.belltest <src.herding>,<taming>> ) 
+    src.sysmessageyellow Voce falhou ao tentar incitar a reproducao.
+    tag.prenha=<eval <serv.time>+minRetryDelay>
 //so inicia acasalamento se for femea, com idade, nao prenha e com animallore suficiente
 else
     serv.newitem i_criador
@@ -486,17 +490,17 @@ elif (<link.id>==c_chicken)
 elif (<link.id>==c_sheep_woolly) || (<link.id>==c_sheep_shorn)
     LOCAL.c=1
     LOCAL.f=c_sheep_shorn
-elif (<link.id>==c_cow_bw)
+elif (<link.id>==c_vaca)
     LOCAL.c=1
     dorand 2
-        LOCAL.f=c_cow_bw
-        LOCAL.f=c_bull_brown_lt
+        LOCAL.f=c_vaca
+        LOCAL.f=c_touro
     enddo
-elif (<link.id>==c_cow_brown)
+elif (<link.id>==c_vaca2)
     LOCAL.c=1
     dorand 2
-        LOCAL.f=c_cow_brown
-        LOCAL.f=c_bull_brown_dk
+        LOCAL.f=c_vaca2
+        LOCAL.f=c_touro2
     enddo
 else
     LOCAL.c=1
@@ -539,6 +543,7 @@ if (!<R0,15>)
     link.suicide
 else
     link.anim 3
+    link.tag.births = <link.tag0.births>+1
 endif
 
 
@@ -606,7 +611,9 @@ ON=@TIMER
         endfor
     endif
 
-    serv.newitem i_ninho_vazio
+    serv.newitem i_ninho_ovo
+    new.attr=012
+    new.timer=3*24*60*60//3 dias
     new.p=<p>
     new.emotered os ovos chocaram
 
@@ -655,7 +662,7 @@ else
         LOCAL.do=1
     elif ( (<src.targ.id>==c_sheep_woolly) || (<src.targ.id>==c_sheep_shorn) ) && ( (<link.id>==c_sheep_woolly) || (<link.id>==c_sheep_shorn) )        
         LOCAL.do=1
-    elif ( (<src.targ.id>==c_bull_brown_dk) || (<src.targ.id>==c_bull_brown_lt) ) && ( (<link.id>==c_cow_bw) || (<link.id>==c_cow_brown) )
+    elif ( (<src.targ.id>==c_touro2) || (<src.targ.id>==c_touro) ) && ( (<link.id>==c_vaca) || (<link.id>==c_vaca2) )
         LOCAL.do=1
     elif (<src.targ.id>==c_galo) && (<link.id>==c_chicken)
         LOCAL.do=1
@@ -670,7 +677,7 @@ else
 
     if ( <src.anim_skillcheck <link.herding>> )
         morey=1     //vai sair filhote no final?
-        link.tag.prenha=<eval <serv.time>+minReprodDelay>
+        link.tag.prenha=<eval <serv.time>+(minReprodDelay*<link.tag0.births>)>
     else
         morey=0     //vai sair filhote no final?
         link.tag.prenha=<eval <serv.time>+minRetryDelay>
@@ -679,9 +686,6 @@ else
     cont=<src.targ> //move memory to father
     timer=1
     morex=15        //tempo de acasalamento (s)
-    cont.ctag.disturb=0
-	cont.tag.disturb=0 //fix this later
-    link.ctag.disturb=0
     return 1
 endif
 
@@ -724,7 +728,7 @@ else
         LOCAL.s=roooinc
     elif (<link.id>==c_sheep_woolly) || (<link.id>==c_sheep_shorn)
         LOCAL.s=beehhhh
-    elif (<link.id>==c_cow_brown) || (<link.id>==c_cow_bw) || (<link.id>==c_bull_brown_lt) || (<link.id>==c_bull_brown_dk)
+    elif (<link.id>==c_vaca2) || (<link.id>==c_vaca) || (<link.id>==c_touro) || (<link.id>==c_touro2)
         LOCAL.s=muhhhhh
     elif (<link.id>==c_chicken)
         LOCAL.s=cooohhh
