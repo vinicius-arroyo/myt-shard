@@ -103,11 +103,13 @@ if (<IsEmpty <args>>)
   return 0
  endif
 elif (<IsNum <argv0>>)
+ Say LoadLevel
  craft_loadLevel <argn>
 elif (<serv.itemdef.<args>>)
  ctag.craft_item=<args>
  ctag.craft_task=<DEF.CRAFT_PAGE_CRAFT>
- DIALOG d_crafting
+ Say Itemdef ARGS
+ SDIALOG d_crafting
 endif
 return 1
 
@@ -178,6 +180,10 @@ END
 return 1
 
 [FUNCTION craft_loadLevel]
+IF (!<argn>) && (!<IsGM>)
+    SDIALOG d_crafting
+    return 1
+ENDIF
 craft_clear
 ctag.craft_level=<argn>
 DB.QUERY="SELECT father, def FROM craftmenu WHERE id=<eval <argn>>;"
@@ -209,7 +215,7 @@ endif
 if (!<DB.ROW.NUMROWS>) || (!<local.i>)
  ctag.craft_task=<DEF.CRAFT_PAGE_EMPTY>
 endif
-DIALOG d_crafting
+SDIALOG d_crafting
 
 [FUNCTION craft_loadItem]
 craft_clear
@@ -218,7 +224,7 @@ DB.QUERY="SELECT father, def FROM craftmenu WHERE id=<eval <argn>>;"
 ctag.craft_father=<DB.ROW.0.father>
 ctag.craft_item=<DB.ROW.0.def>
 ctag.craft_task=<DEF.CRAFT_PAGE_CRAFT>
-DIALOG d_crafting
+SDIALOG d_crafting
 
 [FUNCTION craft_deleteItem]
 if !(STRCMP(s,<argv1>))
@@ -240,7 +246,7 @@ ctag.craft_item=<ARGTXT[0]>
 ctag.craft_restriction=<ARGTXT[1]>
 IF (<eval STRLEN(<argtxt[0]>)> < 2) || (<eval STRLEN(<argtxt[1]>)> < 3)
  sysmessagered Parametros invalidos. Tente novamente.
- DIALOG d_crafting
+ SDIALOG d_crafting
 ELSE
  sysmessagered Guardando funcao.
  DB.EXECUTE="INSERT INTO craftmenu SET def='<DB.ESCAPEDATA <argtxt[0]>>', type='function', father=<dctag0.craft_level>, code='<ARGTXT[1]>';"
@@ -264,13 +270,13 @@ if (<argo>) && (<argo.IsItem>)
 else
  sysmessagered Item invalido.
 ENDIF
-DIALOG d_crafting
+SDIALOG d_crafting
 
 [FUNCTION craft_ItemForgeListCatAdd]
 list_new "ItemForge -  Selecione a categoria"
 list_newDbCol 25,category,Categoria
 list_setAction craft_ItemForgeListSubAdd
-list_setActionBack DIALOG d_crafting
+list_setActionBack SDIALOG d_crafting
 list_loadFromDb "SELECT DISTINCT category FROM itemforge ORDER BY category"
 list_show 1
 
@@ -301,7 +307,7 @@ list_show 1
 [FUNCTION craft_ItemForgeListItemAddItem]
 LOCAL.id=<argn>
 ctag.craft_item=<cTAG.list_row<LOCAL.id>_01>
-DIALOG d_crafting
+SDIALOG d_crafting
 
 [FUNCTION craft_addRestrictionSkill]
 ctag.craft_addRestriction=
@@ -311,7 +317,7 @@ cTAG.list_numItems=55
 for s 0 54
  try cTAG.list_row<local.s>_01=<serv.skill.<local.s>.name>
 end
-list_setActionBack DIALOG d_crafting
+list_setActionBack SDIALOG d_crafting
 list_setAction craft_setRestrictionSkill
 cTAG.list_numPages=4
 list_show 1
@@ -325,7 +331,7 @@ prompt_show
 
 [FUNCTION craft_addRestrictionItem]
 prompt_new Entre com um valor de ITEMDEF para o item de restricao ou 't' para escolher um item no world:
-prompt_setActionBack DIALOG d_crafting
+prompt_setActionBack SDIALOG d_crafting
 prompt_setAction craft_setRestrictionItemVal
 prompt_show
 
@@ -364,7 +370,7 @@ if (<IsNum <argn>>)
   ctag.craft_Restriction .= ; restest <eval <argn>> <ctag.craft_RestictionItem>
  endif
  ctag.craft_RestictionItem=
- DIALOG d_crafting
+ SDIALOG d_crafting
 else
  sysmessagered valor invalido.
  craft_setRestrictionSkill <ctag.craft_addRestriction>
@@ -378,7 +384,7 @@ if (<IsNum <argn>>)
   ctag.craft_Restriction .= ; <ctag.craft_addRestriction> <fval <argn>>
  endif
  ctag.craft_addRestriction=
- DIALOG d_crafting
+ SDIALOG d_crafting
 else
  sysmessagered valor invalido.
  craft_setRestrictionSkill <ctag.craft_addRestriction>
@@ -387,7 +393,7 @@ endif
 [FUNCTION craft_addRestrictionCustom]
 IF (<IsEmpty <args>>)
  prompt_new Digite uma linha de scritp de teste que nao contenha ',' e nem ';':
- prompt_setActionBack DIALOG d_crafting
+ prompt_setActionBack SDIALOG d_crafting
  prompt_setAction craft_addRestrictionCustom
  prompt_show
 else
@@ -396,7 +402,7 @@ else
  else
   ctag.craft_Restriction .= ; <args>
  endif
- DIALOG d_crafting
+ SDIALOG d_crafting
 endif
 
 [FUNCTION craft_deleteRestriction]
@@ -809,12 +815,12 @@ call d_crafting_solve
 ON=1
 // -pg
 ctag.craft_page -= 1
-DIALOG d_crafting
+SDIALOG d_crafting
 
 ON=2
 // +pg
 ctag.craft_page += 1
-DIALOG d_crafting
+SDIALOG d_crafting
 
 ON=3
 // Back
@@ -824,36 +830,36 @@ craft_loadLevel <ctag.craft_father>
 ON=4
 // Info geral
 ctag.craft_task=<DEF.CRAFT_PAGE_INFO>
-DIALOG d_crafting
+SDIALOG d_crafting
 
 ON=5
 // info craft
 ctag.craft_task=<DEF.CRAFT_PAGE_CRAFT>
-DIALOG d_crafting
+SDIALOG d_crafting
 
 ON=6
 // Craft item
-src.craftItem <ctag.craft_item>,<argtxt[0]>
+craftItem <ctag.craft_item>,<argtxt[0]>
 
 ON=7
 //Add here
 ctag.craft_task=<DEF.CRAFT_PAGE_ADD>
-DIALOG d_crafting
+SDIALOG d_crafting
 
 ON=8
 //Add Menu here
 ctag.craft_task=<DEF.CRAFT_PAGE_ADD_MENU>
-DIALOG d_crafting
+SDIALOG d_crafting
 
 ON=9
 //Add Function here
 ctag.craft_task=<DEF.CRAFT_PAGE_ADD_FUNCTION>
-DIALOG d_crafting
+SDIALOG d_crafting
 
 ON=10
 //Add Item here
 ctag.craft_task=<DEF.CRAFT_PAGE_ADD_ITEM>
-DIALOG d_crafting
+SDIALOG d_crafting
 
 ON=11
 //Add restrição por skill
@@ -869,7 +875,7 @@ ON=13
 //Add restricao por projeto/recipe
 ctag.craft_item=<ARGTXT[0]>
 sysmessagered Nao implementado. PASSA AMANHA!
-DIALOG d_crafting
+SDIALOG d_crafting
 
 ON=14
 //Custom Restriction
@@ -918,12 +924,12 @@ IF (<ctag.craft_task>==<DEF.CRAFT_PAGE_ADD_FUNCTION>)||(<ctag.craft_task>==<DEF.
  //Remover uma restrição de TESTIF
  ctag.craft_item=<ARGTXT[0]>
  craft_deleteRestriction <local.b>
- DIALOG d_crafting
+ SDIALOG d_crafting
 ELIF (<ctag.craft_task>==<DEF.CRAFT_PAGE_ROOT>)||(<ctag.craft_task>==<DEF.CRAFT_PAGE_LIST>)
  //Remover item da lista de crafting
  prompt_new Apagar <ctag.craft_menu_name_<dlocal.b>> deste menu?<DEF.BR>(s/n)
  prompt_setAction craft_deleteItem <ctag.craft_menu_id_<dlocal.b>>,
- prompt_setActionBack DIALOG d_crafting
+ prompt_setActionBack SDIALOG d_crafting
  prompt_show
 ENDIF
 [EOF]
