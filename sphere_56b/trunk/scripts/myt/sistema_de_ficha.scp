@@ -25,6 +25,27 @@
 //  UNIQUE KEY `Index_2` USING BTREE (`charUid`,`gmAcct`)
 //) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
+[DEFNAME ficha_emote]
+f_emote1    vomitar
+f_emote2    arrotar
+f_emote3    tossir
+f_emote4    espirrar
+f_emote5    peidar
+f_emote6    rir
+f_emote7    observar
+f_emote8    gritar
+f_emote9    chamar
+f_emote10   afastar
+f_emote11   ola
+f_emote12   saudar
+f_emote13   comemorar
+f_emote14   susto
+f_emote15   confuso
+f_emote16   surpreso
+f_emote17   ops
+f_emote18   cospir
+f_emote19   erguer
+
 [PLEVEL 2]
 ficha
 prender
@@ -207,6 +228,39 @@ endif
 
 rp_updateGrade
 rp_getGmGrade <src.tag0.idAcct>
+
+//*****************************************************************************
+// virtue_bt
+//*****************************************************************************
+//Acionado quando usa o Virtue Button
+[FUNCTION virtue_bt]
+ficha_pc <uid>
+
+//*****************************************************************************
+// ficha_pc
+//*****************************************************************************
+//Ficha do seu proprio char
+[FUNCTION ficha_pc]
+ctag.ficha_uid=<argn>
+ctag.ficha_page=1
+SDIALOG d_ficha_pc
+
+//*****************************************************************************
+// ficha_pc_stats
+//*****************************************************************************
+//Elabora texto de estatísticas do char do DIALOG d_ficha_pc
+[FUNCTION ficha_pc_stats]
+obj=<argn>
+local.s = <DEF.BFONT_DCYAN>Idade real: <f_timestring <obj.age>><DEF.BR>
+local.s .= Tempo de jogo: <f_timestring <eval <obj.age>*minutos_por_tick>><DEF.BR>
+local.s .= <DEF.BFONT_DYELLOW>Dinheiro: <STRTRESURE <obj.bank_checkCash 0,1>><DEF.BR>
+local.s .= Peso no banco: <eval <obj.findlayer.layer_bankbox.weight>/10>/<eval <obj.findlayer.layer_bankbox.tag.OVERRIDE.MAXWEIGHT>/10><DEF.BR>
+local.s .= <DEF.BFONT_DPURPLE>Maximo de skill permitido: <fval <obj.TAG.skill_maxSkillValue>><DEF.BR>
+local.s .= Soma das skills: <fval <obj.skillsum>> (max: <fval <obj.TAG.skill_maxSkillSumValue>>)<DEF.BR>
+local.s .= <DEF.BFONT_RED>Pontos de alma: <obj.dtag.pontosdealma><DEF.BR>
+local.s .= Desmaios: <obj.dtag.morte_desmaios>/<dDEF.max_desmaios><DEF.BR>
+local.s .= <DEF.BFONT_DCYAN>Alimentacao: <obj.comida_msg>
+return <local.s>
 
 //*****************************************************************************
 //*****************************************************************************
@@ -876,6 +930,94 @@ on=6
 OBJ=<ctag0.prender_uid>
 obj.detem <obj.tag.ficha_jail_time>,<src>,"<argtxt[1]>"
 return 1
+
+//*****************************************************************************
+// d_ficha_pc
+//*****************************************************************************
+[DIALOG d_ficha_pc]
+//Ficha auxiliar de jogador
+100,75
+page 0
+obj=<ctag.ficha_uid>
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+gumppic 0 0 10400
+gumppic 0 160 10401
+gumppic 0 356 10402
+gumppic 518 0 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+gumppic 225 45 2501
+dtext 231 45 26 Mystical Tales Shard
+resizepic 92 87 2620 416 310
+dhtmlgump 105 100 391 52 0 0 <DEF.CENTER><DEF.BFONT_SIZE7><DEF.BFONT_DYELLOW><obj.tag.name> - <obj.tag.raca> - <obj.tag.classe><DEF.CENTERE><DEF.BFONTE>
+if (<ctag0.ficha_page>==1)
+    dhtmlgump 113 155 377 134 1 1 <ficha_pc_stats <obj>>
+    dorigin 115 280
+    button - *20 2224 2224 1 0 1
+    dtext +25 -4 62 Emotes
+    button - *20 2224 2224 1 0 2
+    dtext +25 -4 62 Estrategia de batalha
+    button - *20 2224 2224 1 0 3
+    dtext +25 -4 62 Comandar animais
+    button - *20 2224 2224 1 0 4
+    dtext +25 -4 62 Reconhecer uma pessoa
+    dorigin 315 280
+    button - *20 2224 2224 1 0 5
+    dtext +25 -4 62 Gerenciar moveis
+    button - *20 2224 2224 1 0 6
+    dtext +25 -4 62 Arremessar objeto
+    button - *20 2224 2224 1 0 7
+    dtext +25 -4 62 Tirar objeto de uma pilha
+elif (<ctag0.ficha_page>==10)
+    dorigin 115 100
+    local.i=1
+    local.j=14
+    WHILE (!<IsEmpty <DEF.f_emote<dlocal.i>>>)
+        if (<local.i>==<local.j>)
+            dorigin 215 100
+        endif
+        button - *20 2224 2224 1 0 <eval 100+<dlocal.i>>
+        dtext +25 -4 62 <DEF.f_emote<dlocal.i>>
+        local.i += 1
+    END
+endif    
+
+[DIALOG d_ficha_pc text]
+
+[DIALOG d_ficha_pc button]
+ON=1
+// Emotes
+ctag.ficha_page=10
+SDIALOG d_ficha_pc
+
+ON=2
+// .combate
+combate
+
+ON=3
+// .pastor
+pastor
+
+ON=4
+// .r
+r
+
+ON=5
+// .Moveis
+moveis
+
+ON=6
+// .arrecessar
+arremessar
+
+ON=7
+// .unstack
+unstack
+
+ON=100 199
+local.n=<eval <argn>-100>
+try <DEF.f_emote<dlocal.n>>
 
 //*****************************************************************************
 //*****************************************************************************
