@@ -7,7 +7,8 @@
 // more1 = 0 = sem fumo - 1 = com fumo
 // more2 = 0 = apagado - 1 = aceso
 // morex = quantidade de fumo (charges)
-// morey = tipo de fumo  : 0 = normal - 1 = halucinogico
+// morey = tipo de fumo  : 0 = normal > 1 = halucinogico - quantidade de tempo que ficará alucinado
+// morez = hits (default 120) - implantar depois com base na skill carpentry de quem faz
 
 
 [ITEMDEF i_cachimbo]
@@ -16,6 +17,7 @@ type=t_cachimbo
 ID=09c2
 Resources=2 i_cabo_madeira, 1 i_wire_iron
 SKILLMAKE=CARPENTRY 53.4, i_tool_carpentry
+value=28
 DUPELIST=09c3
 
 on=@create
@@ -25,7 +27,14 @@ more1=0
 more2=0
 morex=0
 morey=0
+morez=120
 
+//on=@dclick
+//if (<type> == t_script)
+//	src.sysmessagered seu cachimbo ressecou e se partiu ao meio
+//remove
+//return 1
+//endif		// não deu certo. bugou o cachimbo
 
 [typedef t_cachimbo]
 
@@ -44,13 +53,17 @@ return 1
 
 
 on=@dclick
-if (<cont.findlayer.(30).baseid> == i_mry_fumando) && (<more2>==0)
+if (<morez> < 1)
+	src.sysmessagered seu cachimbo ressecou e se partiu ao meio
+link.remove // apaga memory fumando
+remove
+return 1
+elif (<src.findlayer.(30).baseid> == i_mry_fumando) && (<more2>==0)
 	src.sysmessagered Voce ja esta fumando outro cachimbo. Apague ele primeiro antes de fumar este.
 return 1
 elif (<more2>==1)
 	attr=(<attr> &~ 010)
 	src.emote Apagando o cachimbo
-	//cont.cont.tag.doidao=
 	more2=0
 	link.remove  // mexer aqui
 	link=04fffffff
@@ -97,9 +110,10 @@ else
 							 src.act.more1=100.0  // buff de mana
 							 src.act.morex=3.0    // buff de mana
 							 src.act.update
+							 morez -= 1
 							 src.update
 						return 1
-						elif (<morey>==1) // se é fumo halucinógico
+						elif (<morey> > 0) // se é fumo halucinógico
 							 attr=(<attr> | 010)
 							 src.emote Acendendo cachimbo
 							 src.sfx 0228
@@ -118,7 +132,17 @@ else
 							 src.act.more1=100.0  // buff de mana
 							 src.act.morex=6.0    // buff de mana
 							 src.act.update
+							 morez -= 1
 							 src.update
+							 if <src.findid.i_mry_doidao>
+								src.findid.i_mry_doidao.more2=<morey>
+							 else
+							    	src.newitem=i_mry_doidao
+							    	src.new.more2=<morey>
+								src.new.equip
+								src.new.timer=8
+							    	src.new.update
+							 endif
 						return 1
 						endif
 					  return 1
@@ -163,7 +187,6 @@ if (<cont.findlayer.(06).baseid> == i_helm_closed) || (<cont.findlayer.(06).base
 	    remove				// remove a memory fumando
 return 1
 else
-if (<link.morey>==0)   ///////////////////////  não alucinógico
 	if (<link.morex> >= 1 )
 	    link.morex=<link.morex>+(-1)
 	    cont.anim 022
@@ -207,74 +230,9 @@ if (<link.morey>==0)   ///////////////////////  não alucinógico
 	    remove				// remove a memory fumando
 	return 1
 	endif
-return 1
-elif (<link.morey>==1)  ///////////////////////////////////////////////// hallucinogic aqui
-	if (<link.morex> >= 1 )
-		if ( <more1> <= 1 )
-		    more1=0
-		    cont.newitem=i_mry_doidao
-		    cont.act.equip
-		    cont.act.timer=100
-		    cont.act.update
-		    cont.flags=(<cont.flags> | 0400000)
-		    link.morex=<link.morex>+(-1)
-		    cont.anim 022
-		    cont.newitem=i_fumaca_cachimbo
-		    cont.act.timer=1
-		    cont.act.p=<cont.p>
-		    cont.act.z=<cont.z>+7
-	    	    timer=8
-		    cont.update
-			IF (<more1> < 1) 				// buff de mana começa aqui
-				 IF (<cont.mana> >= <cont.maxmana>)
-				  cont.mana = <cont.maxmana>
-				 ENDIF
-			ENDIF
-			MOREY += <MOREX>
-			WHILE (<morey> > 9) && (<more1> > 9)
-				 morey -= 10
-				 more1 -= 10
-				 cont.mana += 1
-				 if (<more1> < 0)
-					  cont.mana += <eval <more1>/10>
-				 endif
-			END
-			IF (<cont.mana> >= <cont.maxmana>)
-				 cont.mana = <cont.maxmana>
-			ENDIF	 					// buff de mana termina aqui
-		return 1
-		else
-		    more1=<more1>+(-1)
-		    link.morex=<link.morex>+(-1)
-		    cont.anim 022
-		    cont.newitem=i_fumaca_cachimbo
-		    cont.act.timer=1
-		    cont.act.p=<cont.p>
-		    cont.act.z=<cont.z>+7
-	    	    timer=8
-		    //solta_fumaca
-		return 1
-		endif
-	return 1
-	else
-	    link.more1=0
-	    link.more2=0
-	    link.morex=0
-	    link.morey=0
-	    link.attr=(<link.attr> &~ 010)
-	    cont.sfx 022a
-	    cont.sysmessagered Acabou o fumo do cachimbo
-	    cont.anim 022
-	    cont.newitem=i_fumaca_cachimbo
-	    cont.act.timer=1
-	    cont.act.p=<cont.p>
-	    cont.act.z=<cont.z>+7
-	    link=04fffffff 		// apaga o link do cachimbo
-	    remove				// remove a memory fumando
-	return 1
-	endif
-return 1
 endif
+return 1
+
 
 //////////////////////////////////////////////////////////////
 
@@ -284,17 +242,32 @@ NAME=hallucinogic
 TYPE=T_eq_script
 WEIGHT=0
 
+// more2 = quanto tempo o char vai ficar doidão
+
 ON=@Create
 	ATTR=attr_newbie
 	attr=(<attr> | 080 )
-	timer=100
+	timer=8
 
+on=@equip
+cont.flags=(<cont.flags> | 0400000)
+cont.sysmessageyellow Voce comeca a se sentir estranho...
 
 ON=@TIMER
-cont.flags=(<cont.flags> &~ 0400000)
-cont.sysmessageyellow Voce esta voltando a ficar lucido.
-cont.update
-remove
+if (<more2> > 1)
+	more2 -= 1
+	dorand 4
+		cont.update
+		cont.emote meio zonzo!
+		cont.anim 020
+	enddo
+	timer=8
+else
+	cont.flags=(<cont.flags> &~ 0400000)
+	cont.sysmessageyellow Voce esta voltando a ficar lucido.
+	//cont.update
+	remove
+endif
 return 1
 
 
@@ -449,7 +422,8 @@ PILE=1
 
 ON=@CREATE
 color=029b
-more1=0  // determina se o fumo é tratado (alucinógeno) - alterar poisoning para deixar a erva alucinógena
+more1=0  // determina se o fumo é tratado (alucinógeno) 
+more2=0  // determina a intensidade da alucinação que vai causar a erva tratada
 morex=0  // determina se o FUMO já está seco
 morey=0  // determina o loop do timer
 morez=0  // liga e desliga a fogueira
@@ -519,8 +493,7 @@ if (<morex> == 1) // se o fumo já tá pronto para ser usado.
 		return 1
 		else
 			src.targ.more1=1
-			src.targ.morex=40
-			src.targ.morey=<more1> // seta se é alucinógeno
+			src.targ.morep=40,<more2>,<src.targ.morez>
 			src.emote coloca fumo no cachimbo
 			consume 1
 		endif
