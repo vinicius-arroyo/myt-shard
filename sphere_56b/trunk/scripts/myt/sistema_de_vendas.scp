@@ -397,7 +397,9 @@ trysrc <src> OBJ.TRIGGER @Sell,<DEF.TAT_AS_ARGO>,<REF1>
 
 SRC.UPDATE
 
-REF1.SAY Obrigado. Seu produto esta a venda.
+IF (!<IsGM>)
+    REF1.SAY Obrigado. Seu produto esta a venda.
+ENDIF
 
 return 1
 
@@ -439,19 +441,19 @@ else
     LOCAL.amount = <argv[2]>
 endif
 
-//verifica se comprador tem dinheiro suficiente e recolhe
-LOCAL.totalPrice=<vendor_calcTotalPrice <argv1>,<LOCAL.amount>>
-
-if !( <vendor_getCash <LOCAL.totalPrice>> )
-    REF1.SAY Esta achando que vivo de caridade? Volte quando tiver dinheiro suficiente para a compra.
-    return 1
-endif
-
 //calcula peso do que sera retirado
 LOCAL.weight=<eval (<LOCAL.amount>*<OBJ.weight>)/<OBJ.amount>>
 
-if <LOCAL.weight> > <eval <SRC.maxweight>-<SRC.weight>>
+if (<LOCAL.weight> > <eval <SRC.maxweight>-<SRC.weight>>) && (!<IsGM>)
     REF1.SAY Voce nao tem como carregar isto. Esvazie sua mochila...
+    return 1
+endif
+
+//verifica se comprador tem dinheiro suficiente e recolhe
+LOCAL.totalPrice=<vendor_calcTotalPrice <argv1>,<LOCAL.amount>>
+
+if !( <vendor_getCash <LOCAL.totalPrice>> ) && (!<IsGM>)
+    REF1.SAY Esta achando que vivo de caridade? Volte quando tiver dinheiro suficiente para a compra.
     return 1
 endif
 
@@ -499,7 +501,9 @@ endif
 //Adiciona o imposto no tesouro da town
 REF1.TOWN_ADDCASH <LOCAL.fee>
 
-REF1.SAY Obrigado pela compra e volte sempre!
+IF (!<IsGM>)
+    REF1.SAY Obrigado pela compra e volte sempre!
+ENDIF
 
 //se for item do npc
 if <LOCAL.idVendor>==<LOCAL.idPlayer>
@@ -1425,7 +1429,9 @@ if <LOCAL.bt>==0
     if (<SRC.CTAG0.vendor_op>==3)
         vendor_takebackItem <SRC.CTAG.vendor_selectedItem>,<src>
         REF1=<SRC.CTAG0.vendor_selectedNpc>
-        REF1.SAY Aqui esta, volte sempre.
+        IF (!<IsGM>)
+            REF1.SAY Aqui esta, volte sempre.
+        ENDIF
         vendor_buySellTrigger
     else
         dialog d_vendor_item_detail
