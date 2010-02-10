@@ -2,203 +2,490 @@
 //Sistema de furniture e movelaria//
 //   MyT - Mystical Tales Shard   //
 //     Por: Galthar, o Errante    //
-//              V 0.5             //
+//              V 1.0             //
 ////////////////////////////////////
 
+[COMMENT furniture]
+Tabela na DB:
+
+DROP TABLE IF EXISTS `mytserver`.`furniture`;
+CREATE TABLE  `mytserver`.`furniture` (
+  `furniture` int(10) unsigned NOT NULL,
+  `player` int(10) unsigned NOT NULL,
+  `since` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+TAGs utilizadas:
+
+ctag.furn_UID
+ctag.furn_Donnor
+ctag.furn_Donation
+ctag.furn_Page
+tag.owner
 
   //////////////////////////////////////////////////////
  //               Sistema de Furniture               //
 //////////////////////////////////////////////////////
+[DEFNAME funriture]
+//Minimo de móveis para qq um
+furn_min  3
 
+//Maximo de móveis para qq um
+furn_max  40
+
+//Minimo de móveis por Carpentry
+furn_CPmin  0
+
+//Maximo de móveis por Carpentry
+furn_CPmax  15
+
+//Quantos moveis por casa
+furn_HouseRate  10
+
+//Quanto tempo de jogo um char deve ter para ganhar +1 slot
+furn_TimeRate 20*24*60*60   //20 dias
+
+//ATTR de fixo de um movel
+furn_fixed  08010
 
 [PLEVEL 0]
 moveis
 furniture
 
+
+
+//####################################################################################
+//                                  FUNCTIONS                                       ##
+//####################################################################################
+
+
+
+
+//*****************************************************
 [FUNCTION moveis]
-src.furniture
+//*****************************************************
+//Mime de .furniture
+furniture <args>
 
+//*****************************************************
 [FUNCTION furniture]
-newitem i_mry_furniture
-src.act.equip
-src.act.timer 15
-src.act.attr=02
-src.act.use
-src.startfurn
-src.sysmessageyellow Voce tem <eval 0<src.tag.furniact>-1> movel(is). Seu limite e de <eval 0<src.tag.furnimax>-1> moveis.
-return 1
-
-[FUNCTION startfurn]
-if (<tag0.furnimax>==0)
- tag0.furnimax=4
- tag0.furniact=1
- if (strmatch(<src.tag.classe>,artesao))||(strmatch(<src.tag.classe>,lenhador))||(strmatch(<src.tag.classe>,ferreiro))
-  src.tag0.furnimax=11
- endif
+//*****************************************************
+//Gerencia móveis.
+if (<IsGM>) && (STRMATCH(*info*,<args>))
+    furn_info
+    return 1
+elif (STRMATCH(*prender*,<args>))
+    furn_Fix
+    return 1
+elif (STRMATCH(*soltar*,<args>))
+    furn_UnFix
+    return 1
+elif (STRMATCH(*doar*,<args>))
+    furn_Donnate
+    return 1
+elif (STRMATCH(*remover*,<args>))
+    furn_Delete
+    return 1
 endif
-return 1
+ctag.furn_page=0
+DIALOGCLOSE d_furniture
+DIALOG d_furniture
 
-[FUNCTION TryAddFurn]
-if !( <tag0.furnimax> )
-    startfurn
-endif
-if (<eval 0<tag.furniact>> >= <eval 0<tag.furnimax>>)
- sysmessagered Voce nao pode ter mais moveis. (<eval 0<tag.furniact>-1>/<eval 0<tag.furnimax>-1>)
- return 0
+//*****************************************************
+[FUNCTION furn_showFurn]
+//*****************************************************
+//Gerencia móveis.
+ctag.furn_page=1
+ctag.furn_uid=<cTAG.list_id_<hval <argn>>>
+DIALOGCLOSE d_furniture
+DIALOG d_furniture
+
+//*****************************************************
+[FUNCTION furn_ByCP]
+//*****************************************************
+//Retorna quantos móveis um jogador pode ter em função de Carpentry
+return <BETWEEN <DEF.furn_CPmin>,<DEF.furn_CPmax>,<Carpentry>,125.0>
+
+//*****************************************************
+[FUNCTION furn_ByTime]
+//*****************************************************
+//Retorna quantos móveis um jogador pode ter em função do tempo de jogo
+return <eval <age>/<DEF.furn_TimeRate>>
+
+//*****************************************************
+[FUNCTION furn_ByHouse]
+//*****************************************************
+//Retorna quantos móveis um jogador pode ter em função de casas
+DB.QUERY="SELECT count(idhouse) AS cnt FROM houses WHERE owner='<DB.ESCAPEDATA <uid>>';"
+return <eval <DB.ROW.0.cnt>*<DEF.furn_HouseRate>>
+
+//*****************************************************
+[FUNCTION furn_max]
+//*****************************************************
+if (<IsGM>)
+    return 999
 else
- return 1
+    local.f=<DEF.furn_min>          //Mínimo de qq playa
+    local.f += <furn_ByCP>          //Bônus por Carpentry
+    local.f += <furn_ByTime>        //Bônus por tempo de jogo
+    local.f += <furn_ByHouse>       //Bônus por numero de casas
+    return <MINIMUMN <local.f>,<DEF.furn_max>>
 endif
 
-[FUNCTION AddFurn]
-if !( <tag0.furnimax> )
-    startfurn
-endif
-if (<src.TryAddFurn>==1)
- src.tag.furniact=(<src.tag.furniact> +1)
- src.sysmessageyellow Voce tem <eval 0<src.tag.furniact>-1)> movel(is). Seu limite e de <eval 0<src.tag.furnimax>-1)> moveis.
- return 1
-endif
-return 0
+//*****************************************************
+[FUNCTION furn_act]
+//*****************************************************
+//Retorna quantos moveis tem atualmente
+DB.QUERY="SELECT count(furniture) AS cnt FROM furniture WHERE player=<dUID>;"
+return <DB.ROW.0.cnt>
 
-
-[FUNCTION SubFurn]
-if !( <tag0.furnimax> )
-    startfurn
-endif
-if (<eval 0<src.tag.furniact>>!=0)
- src.tag.furniact=(<src.tag.furniact> +(-1))
- src.sysmessageyellow Voce tem <eval 0<tag.furniact>-1> movel(is).Seu  limite e de <eval 0<tag.furnimax>-1> moveis.
- return 1
-endif
-return 0
-
-
-
-[ITEMDEF i_mry_furniture]
-id=i_memory
-name=sistema de furniture
-type=t_eq_script
-layer=30
-
-on=@dclick
-if (<more1>==0)
- TARGET Selecione o seu movel:
- return 1
-elif (<more1>==1)
- TARGET Entregar o movel para quem?
- return 1
-endif
-
-on=@targon_ground
-cont.sysmessage Alvo invalido.
-remove
-return 1
-
-on=@targon_char
-if (<more1>==1) && (<cont.targ.brain>==0)
- cont.targ.startfurn
- if (<eval 0<cont.targ.tag.furniact>> >= <eval 0<cont.targ.tag.furnimax>>)
-  cont.sysmessage O jogador selecionado nao opde ter mais moveis.
-  remove
-  return 1
- endif
- link.tag.dono=<cont.targ.uid>
- try cont.targ.tag.furniact=(<eval 0<cont.targ.tag.furniact>> +1)
- cont.subfurn
- cont.targ.sysmessage <link.name> agora pertence a voce.
- cont.sysmessage <link.name> nao pertence mais a voce.
- remove
- return 1
-endif
-cont.sysmessage Alvo invalido.
-remove
-return 1
-
-on=@targon_item
-if (<cont.targ.tag.dono>!=<cont.uid>)
- src.sysmessage Este movel nao lhe pertence.
- remove
- return 1
-endif
-link=<cont.targ.uid>
-cont.menu m_furniture
-return 1
-
-on=@timer
-cont.consume 30 i_mry_furniture
-remove
-return 1
-
-[MENU m_furniture]
-(MyT) O que deseja fazer? (MyT)
-on=0 Fixar o movel no chao.
-src.findid(i_mry_furniture).link.attr=(<src.findid(i_mry_furniture).link.attr>|010)
-src.findid(i_mry_furniture).link.attr=(<src.findid(i_mry_furniture).link.attr>&~02)
-src.findid(i_mry_furniture).link.update
-src.findid(i_mry_furniture).link.timer=-1
-src.update
-src.sysmessageyellow Seu movel esta fixo.
-src.sysmessageyellow Nunca sera apagado.
-src.findid(i_mry_furniture).remove
-return 1
-
-on=0 Soltar o movel do chao.
-src.findid(i_mry_furniture).link.attr=(<src.findid(i_mry_furniture).link.attr>&~010)
-src.findid(i_mry_furniture).link.update
-src.update
-src.sysmessageyellow Seu movel NAO esta fixo.
-src.sysmessageyellow Ele PODERA ser apagado quando o servidor salvar.
-src.findid(i_mry_furniture).remove
-return 1
-
-on=0 Mudar a posicao do movel.
-src.findid(i_mry_furniture).link.flip
-src.sysmessage Seu movel foi virado.
-src.findid(i_mry_furniture).remove
-return 1
-
-on=0 Doar o movel.
-src.findid(i_mry_furniture).more1=1
-src.findid(i_mry_furniture).use
-//src.findid(i_mry_furniture).remove
-return 1
-
-on=0 DESTRUIR O MOVEL.
-if 0(<src.findid(i_mry_furniture).link.link.type>==t_multi)
- src.findid(i_mry_furniture).link.link.remove
+//*****************************************************
+[FUNCTION furn_owner]
+//*****************************************************
+//Retorna o dono do movel Default ou <argn> ou 0 se não houver
+if (<argn>)
+    local.uid=<argn>
 else
- src.findid(i_mry_furniture).link.remove
+    local.uid=<uid>
 endif
-src.findid(i_mry_furniture).remove
-src.sysmessagered Seu movel foi apagado.
-return 1
-
-
-[MENU m_furniture_own]
-(MyT) deseja ser proprietario deste movel? (MyT)
-on=0 Sim
-if (<TryAddFurn>==1)
-tag.furniact=(<eval 0<tag.furniact>>+1)
-try uid.<tag.furnuid>.tag.dono=<uid>
-try uid.<tag.furnuid>.tag.makefurn=
-try sysmessageyellow <uid.<tag.furnuid>.name> agora pertende a voce.
+DB.QUERY="SELECT player FROM furniture WHERE furniture=<dlocal.UID>;"
+ref1=<hval <DB.ROW.0.player>>
+if (<ref1.IsPlayer>)    //Tem dono e o dono existe
+    return <hval <DB.ROW.0.player>>
+elif <hval <DB.ROW.0.player>>   //Tem dono, mas ele nao existe mais
+    furn_RemFurn <local.uid>
+    return 0
+else            //Não tem dono
+    return 0
 endif
-tag.furnuid=
-return 1
 
-on=0 Nao
-tag.furnuid=
-Return 1
+//*****************************************************
+[FUNCTION furn_AskBelong]
+//*****************************************************
+//Pergunta se quer este móvel
+prompt_new Voce tem <dfurn_act> de <dfurn_max> moveis.<DEF.BR>Deseja fazer de <uid.<argn>.name> seu movel?<DEF.BR>Voce podera prende-lo no chao, entao solta-lo e ele nunca sumira enquanto for seu MAS NAO PODERA VENDE-LO NOS NPCs!
+prompt_setAction furn_AddFurn <argn>
+prompt_setActionBack=
+ynprompt_show
 
-  //////////////////////////////////////////////////////
- //                      MÓVEIS                      //
-//////////////////////////////////////////////////////
+//*****************************************************
+[FUNCTION furn_AddFurn]
+//*****************************************************
+//Testa possibilidade e adiciona um movel
+obj=<argn>
+if (<furn_act> >= <furn_max>)
+    sysmessagered Voce ja tem moveis de mais. Nao pode ter mais.
+elif (!<obj.IsEvent.t_furniture>) && (!<obj.IsTEvent.t_furniture>)
+    sysmessagered Isso nao eh um movel que voce possa ter.
+elif (<obj.furn_owner>)
+    sysmessagered Esse movel ja tem dono.
+else
+    serv.log [FURNITURE] <obj.name> (<argn>) novo dono: <uid>
+    DB.EXECUTE="INSERT INTO furniture SET furniture=<dargn>, player=<duid>, since=CURRENT_TIMESTAMP()";
+    sysmessagegreen <obj.name> agora pertence a voce.
+    obj.tag.owner=<uid>
+endif
 
-  ///////////////////
- //  ENCAIXOTADOS //
-///////////////////
+//*****************************************************
+[FUNCTION furn_RemFurn]
+//*****************************************************
+//Tira o dono do móvel DEFAULT ou <argn>
+if (<argn>)
+    local.uid=<argn>
+else
+    local.uid=<uid>
+endif
+DB.EXECUTE="DELETE FROM furniture WHERE furniture=<dlocal.UID>;"
+if (!<uid.<local.uid>.IsItem>)
+    serv.log [FURNITURE] <local.uid> :: Removido da DB. Nao existe mais.
+    return 1
+endif
+serv.log [FURNITURE] <obj.name> (<local.uid>) nao pertence mais a ninguem.
+ref1=<dlocal.uid>
+ref1.attr ^= furn_fixed
+ref1.attr |= 04002 //Decay
+ref1.timer <eval <serv.DecayTimer>*60>
+ref1.tag.owner=
 
+//*****************************************************
+[FUNCTION furn_DelFurn]
+//*****************************************************
+//Deleta um móvel. Da DB e do game
+if (<argn>)
+    local.uid=<argn>
+else
+    local.uid=<uid>
+endif
+obj=<local.uid>
+DB.EXECUTE="DELETE FROM furniture WHERE furniture=<dlocal.UID>;"
+serv.log [FURNITURE] <obj.name> (<obj>) deletado por <src.tag.name> [<src.account>]
+obj.remove
+
+//*****************************************************
+[FUNCTION furn_Delete]
+//*****************************************************
+//Player deletando móvel por gump
+if (!<argo>)
+    sysmessageyellow Selecione o movel a desfazer-se:
+    targetf furn_Delete
+else
+    if (!<argo.IsItem>)
+        sysmessagered Huh? E <argo.name> eh um movel, por acaso?
+    elif (<argo.furn_owner>!=<uid>)
+        sysmessagered <argo.name> nao te pertence.
+    else
+        local.s=Voce realmente edseja se desfazer de <argo.name>? Ele sera REMOVIDO DO JOGO e esta acao eh irreverssivel.
+        if (<argo.type>==t_container) || (<argo.type>==t_container_locked)
+            local.s .= "<DEF.BR>Existem <argo.fcount> itens dentro de <argo.name>."
+        endif
+        prompt_new <local.s>
+        prompt_setAction furn_DelFurn <argo.uid>
+        prompt_setActionBack=
+        ynprompt_show
+    endif
+endif
+
+//*****************************************************
+[FUNCTION furn_Fix]
+//*****************************************************
+//Prende um móvel no chão
+if (!<argo>)
+    sysmessageyellow Selecione o movel a fixar ao chao:
+    targetf furn_Fix
+else
+    if (!<argo.IsItem>)
+        sysmessagered Huh? E <argo.name> eh um movel, por acaso?
+    elif (<argo.furn_owner>!=<uid>)
+        sysmessagered <argo.name> nao te pertence.
+    else
+        argo.attr |= furn_fixed
+        argo.attr &= ~04002 //Não decay
+        argo.timer -1
+        sysmessagegreen <argo.name> esta fixo.
+        argo.update
+    endif
+endif
+
+//*****************************************************
+[FUNCTION furn_UnFix]
+//*****************************************************
+//Solta um móvel no chão
+if (!<argo>)
+    sysmessageyellow Selecione o movel a soltar do chao:
+    targetf furn_UnFix
+else
+    if (!<argo.IsItem>)
+        sysmessagered Huh? E <argo.name> eh um movel, por acaso?
+    elif (<argo.furn_owner>!=<uid>)
+        sysmessagered <argo.name> nao te pertence.
+    else
+        argo.attr ^= furn_fixed
+        argo.attr |= 04002 //Decay
+        argo.timer <eval <serv.DecayTimer>*60>
+        sysmessageorange <argo.name> esta solto! Pode ser levado e sumira em <serv.DecayTimer> minutos se nao for recolhido!
+        argo.update
+    endif
+endif
+
+//*****************************************************
+[FUNCTION furn_Transfer]
+//*****************************************************
+//Transfere o móvel <argv0> para DEFAULT.
+obj=<argv0>
+if (!<obj.IsItem>) || (!<IsPlayer>)
+    return 0
+elif (<furn_act> >= <furn_max>)
+    f_sendMessage <ref1>,<ref1.rec_fGetName <UID>> nao pode aceitar a doacao.,SM_ORANGE
+    f_sendMessage <UID>,Voce nao pode ter mais moveis.,SM_ORANGE
+    return 1
+endif
+ref1=<obj.furn_Owner>
+DB.EXECUTE="UPDATE furniture SET player=<dUID> WHERE furniture=<obj.dUID>;"
+
+//Rolou tranferencia?
+DB.QUERY="SELECT player FROM furniture WHERE furniture=<obj.dUID> AND player=<dUID>
+if (<DB.ROW.NUMROWS>)
+    f_sendMessage <ref1>,O movel '<obj.name>' nao pertence mais a voce. Agora pertence a <ref1.rec_fGetName <UID>>,SM_ORANGE
+    f_sendMessage <UID>,O movel '<obj.name>' pertence agora a voce.,SM_ORANGE
+    obj.tag.owner=<uid>
+    serv.log [FURNITURE] <obj.name> (<obj>) transferido: <ref1> -> <uid>
+    return 1
+endif
+serv.log [FURNITURE] <obj.name> (<obj>) TRANSFERENCIA FALHOU! <ref1> -> <uid>
+
+//*****************************************************
+[FUNCTION furn_Donnate]
+//*****************************************************
+//Doa um movel para outro player
+if (!<argo>)
+    sysmessageyellow Selecione o movel a doar:
+    targetf furn_Donnate
+else
+    if (!<argo.IsItem>)
+        sysmessagered Huh? E <argo.name> eh um movel, por acaso?
+    elif (<argo.furn_owner>!=<uid>)
+        sysmessagered <argo.name> nao te pertence.
+    else
+        ctag.furn_uid=<argo.uid>
+        sysmessageyellow Selecione o jogador para quem deseja doar:
+        targetf furn_DonSelectPlayer
+    endif
+endif
+
+//*****************************************************
+[FUNCTION furn_DonSelectPlayer]
+//*****************************************************
+//Seleciona player para doar móvel
+if (<argo.IsItem>)
+    sysmessagered <argo.name> permanece imovel e sem falar uma palavra. Voce comeca a desconfiar que nao aceitara seu movel.
+elif (!<argo.IsPlayer>)
+    sysmessagered Parece que <argo.name> nao tem interesse em seu movel.
+elif (!<argo.IsOnline>)
+    sysmessagered Parece que <argo.name> nao tem interesse em seu movel.
+elif (<argo>==<uid>)
+    sysmessagered Afff... JA EH SEU!!!
+elif (<argo.ctag0.furn_Donnor>)
+    sysmessagered <rec_fGetName <argo.uid>> esta no meio de outra transação.
+else
+    argo.ctag.furn_Donnor=<uid>
+    argo.ctag.furn_Donation=<ctag.furn_uid>
+    sysmessageyellow Aguarde a resposta de <rec_fGetName <argo.uid>>...
+    trysrc <argo> src.furn_AskDonnation
+endif
+
+//*****************************************************
+[FUNCTION furn_AskDonnation]
+//*****************************************************
+//Pergunta de Default quer o movel <ctag.furn_Donation> pertencente a <ctag.furn_Donnor>
+if (!<ctag0.furn_Donnor>) || (!<ctag0.furn_Donation>)
+    furn_CancelDonnation
+endif
+obj=<ctag0.furn_Donation>
+ref1=<ctag0.furn_Donnor>
+prompt_new <rec_fGetName <ref1>> deseja lhe dar o movel '<obj.name>'. Voce tem <dfurn_act>/<dfurn_max> moveis. Voce aceita o movel?
+prompt_setAction=furn_AcceptDonnation
+prompt_setActionBack=furn_CancelDonnation
+ynprompt_show
+
+//*****************************************************
+[FUNCTION furn_CancelDonnation]
+//*****************************************************
+//Cancela a doacao de <ctag.furn_Donation> feita por <ctag.furn_Donnor>
+if (<ctag0.furn_Donnor>)
+    uid.<ctag0.furn_Donnor>.sysmessageorange A doacao nao foi aceita.
+endif
+ctag.furn_Donation=
+ctag.furn_Donnor=
+
+//*****************************************************
+[FUNCTION furn_AcceptDonnation]
+//*****************************************************
+//Aceita a doacao de <ctag.furn_Donation> feita por <ctag.furn_Donnor>
+furn_Transfer <ctag.furn_Donation>
+ctag.furn_Donation=
+ctag.furn_Donnor=
+
+//*****************************************************
+[FUNCTION furn_show]
+//*****************************************************
+//Dá highlight nos moveis próximos.
+DB.QUERY="SELECT furniture AS furn FROM furniture WHERE player=<dUID>
+local.j=0
+for i 0 <eval <DB.ROW.NUMROWS>-1>
+    ref1=<hval <DB.ROW.<dlocal.i>.furn>>
+    if (!<ref1.IsItem>)//Auto prune. Tira do sistema se o item não existe mais.
+        furn_RemFurn <hval <DB.ROW.<dlocal.i>.furn>>
+        serv.log [FURNITURE] <DB.ROW.<dlocal.i>.furn> :: Movel de <uid> <tag.name> [<account>] Insexistente! Removido do sistema.
+    elif (<src.distance <ref1>> < 8)
+        blindItemMsg <ref1>, 044, [movel]
+        hilight <ref1>, 049
+        local.j += 1
+    endif
+end
+if (<local.j>)
+    sysmessagegreen <dlocal.j> moveis aqui perto.
+else
+    sysmessageyellow Nao ha moveis seus aqui perto
+endif
+
+//*****************************************************
+[FUNCTION furn_info]
+//*****************************************************
+//Mostra informacao de GM
+if (!<argo>)
+    sysmessageyellow Selecione o movel para obter a informacao:
+    targetf furn_info
+else
+    if (!<argo.IsItem>)
+        sysmessagered Huh? E <argo.name> eh um movel, por acaso?
+    else
+        ref1=<argo.furn_Owner>
+        sysmessagered <argo.name>
+        sysmessageorange Dono: <ref1.tag.name> [<ref1.account>]
+        sysmessageorange Moveis: <ref1.dfurn_act>/<ref1.dfurn_max>
+        sysmessageorange Ultimo login: <ref1.account.lastconnectdate>
+    endif
+endif
+
+//*****************************************************
+[FUNCTION furn_list]
+//*****************************************************
+//Lista todos os moveis de DEFAULT
+town_clearTable
+list_new "Seus moveis"
+list_newDbCol 25,furniture,Movel
+list_newCol 150,posicao
+list_newCol 350,imobilizado?
+list_setAction furn_showFurn
+list_setActionBack furniture
+list_loadFromDb SELECT furniture FROM furniture WHERE player=<dUID>
+//Montar tableta
+FOR t 1 <ctag.list_numitems>
+ obj=<ctag0.list_row<local.t>_01>
+ ctag.list_id_<local.t>=<obj>
+ ctag.list_row<local.t>_01=<obj.name>
+ if (<IsGM>)
+    ctag.list_row<local.t>_02=<obj.p>
+ else
+    ctag.list_row<local.t>_02=<SEXTANTP <obj.p>>
+ endif
+ if (<obj.attr>&furn_fixed)
+    ctag.list_row<local.t>_03=sim
+ else
+    ctag.list_row<local.t>_03=nao
+ endif
+end
+list_show 1
+
+//*****************************************************
+[FUNCTION furn_statistics]
+//*****************************************************
+//Monta HTML de estatisticas gerais de moveis
+local.s=<DEF.CENTER><DEF.BFONT_SIZE7><DEF.BFONT_DYELLOW>Moveis de <tag.name><DEF.CENTERE><DEF.BFONTE>
+local.s .= <DEF.BFONT_SIZE4><DEF.BFONT_LRED> Voce tem <dfurn_act>/<dfurn_max> moveis <DEF.BR><DEF.BFONT_WHITE>
+local.s .= " Minimo por personagem: <eval <DEF.furn_min>><DEF.BR>"
+local.s .= " Bonus por Carpentry: <dfurn_ByCP><DEF.BR>"
+local.s .= " Bonus por tempo de jogo: <dfurn_ByTime><DEF.BR>"
+local.s .= " Bonus por casas: <furn_ByHouse><DEF.BR>"
+local.s .= " Maximo por personagem: <eval <DEF.furn_max>><DEF.BR>"
+return <local.s>
+
+//*****************************************************
+[FUNCTION furn_StatInfo]
+//*****************************************************
+//Monta HTML de informações sobre um determinado móvel
+obj=<cTAG0.furn_UID>
+DB.QUERY="SELECT DATE_FORMAT(since,'%d/%m/%Y') AS date FROM furniture WHERE furniture=<dcTAG0.furn_UID>;"
+local.s=<DEF.CENTER><DEF.BFONT_SIZE7><DEF.BFONT_DYELLOW><obj.name><DEF.CENTERE><DEF.BFONTE>
+local.s .= "<DEF.BFONT_WHITE>Este movel esta em <obj.region.region.name> (<SEXTANTP <obj.p>>). "
+local.s .= "Foi adquirido no dia <DB.ROW.0.date> (REAL)."
+return <local.s>
+
+
+//*****************************************************
 [FUNCTION pack_unpack]
+//*****************************************************
+//Tenta desencaixotar uma caixa
 if (<src.region.flags>&<def.region_flag_nobuilding>) && (!<src.IsGM>)
     src.sysmessagered Nao eh possovel colocar este item aqui por ordens superiores.
     return 1
@@ -222,7 +509,10 @@ else
 endif
 src.dialog d_unpack
 
+//*****************************************************
 [FUNCTION unpackToEast]
+//*****************************************************
+//Desencaixota um multi voltado para o leste
 obj=<ctag.pack>
 if (<obj.topobj>!=<src>)
     src.sysmessagered Isso deve estar em sua posse.
@@ -232,7 +522,10 @@ obj.type=t_deed
 obj.more1=<obj.tag.east>
 obj.use
 
+//*****************************************************
 [FUNCTION unpackToSouth]
+//*****************************************************
+//Desencaixota um multi voltado para o sul
 obj=<ctag.pack>
 if (<obj.topobj>!=<src>)
     src.sysmessagered Isso deve estar em sua posse.
@@ -242,7 +535,55 @@ obj.type=t_deed
 obj.more1=<obj.tag.south>
 obj.use
 
+
+//####################################################################################
+//                                  TYPEDEFS                                        ##
+//####################################################################################
+
+
+
+
+
+//*****************************************************
+[TYPEDEF t_furniture]
+//*****************************************************
+ON=@DCLICK
+if (!<DB.connected>)    //Se cair a DB, ng abrira baús se não tiver isso.
+    return 0
+elif (<furn_owner>)     //Se já tem dono comportamento normal
+    return 0
+else
+    src.furn_AskBelong <uid>
+endif
+return 1
+
+ON=@Destroy
+local.owner=<furn_Owner>
+if (<local.owner>)
+    f_sendMessage <local.owner>,Seu movel '<name>' foi removido.,SM_RED
+endif
+DB.EXECUTE="DELETE FROM furniture WHERE furniture=<dUID>;"
+serv.log [FURNITURE] <name> (<UID>) foi apagado. ATTR=<attr> :: TIMER=<timer>
+
+ON=@ClientToolTip
+if (!<tag0.owner>)
+    f_sendTooltip Movel sem dono
+elif (<src.IsGM>)
+    ref1=<tag.owner>
+    f_sendTooltip Dono: <ref1.tag.name> [<ref1.account>]
+endif
+return 0
+
+ON=@Sell
+local.owner=<furn_Owner>
+if (<local.owner>)
+    f_sendMessage <local.owner>,<name> foi posto a venda e nao eh mais seu,SM_RED
+    furn_RemFurn
+endif
+
+//*****************************************************
 [TYPEDEF t_packed]
+//*****************************************************
 on=@Dclick
 if (<topobj>!=<src>)
     src.sysmessagered Isso deve estar em sua posse.
@@ -250,6 +591,31 @@ if (<topobj>!=<src>)
 endif
 pack_unpack
 return 1
+
+//*****************************************************
+[TYPEDEF t_bancada]
+//*****************************************************
+on=@dclick
+src.sysmessage Objeto nao funcional.
+return 1
+
+//*****************************************************
+[TYPEDEF t_escrivaninha]
+//*****************************************************
+
+
+
+//####################################################################################
+//                                  ITEMDEFS                                        ##
+//####################################################################################
+
+
+  ///////////////////
+ //  ENCAIXOTADOS //
+///////////////////
+
+
+
 
 [ITEMDEF i_bancada_encaixotada]
 ID=0e3c
@@ -276,7 +642,6 @@ return 1
   ///////////////////
  //     GERAL     //
 ///////////////////
-[TYPEDEF t_escrivaninha]
 
 [ITEMDEF 0b49]
 NAME=escrivaninha
@@ -287,10 +652,7 @@ TYPE=t_escrivaninha
  //  MULTI ITENS  //
 ///////////////////
 
-[TYPEDEF t_bancada]
-on=@dclick
-src.sysmessage Objeto nao funcional.
-return 1
+
 
 [ITEMDEF 019f1]
 Name=bancada
@@ -336,68 +698,96 @@ COMPONENT=6645 1,0,0,0
 COMPONENT=6646 0,0,0,0
 COMPONENT=6647 -1,0,0,0
 
-[TYPEDEF e_furniture]
-on=@dclick
-attr |= attr_move_always
-update
-if (!<tag0.dono>)
- if (<src.tryaddfurn>)
-  src.ctag.furn = <UID>
-  src.menu m_addfurn
- endif
-elif (<type>==t_chair) || (<type>==t_table) || (<type>==t_normal)
- if (<tag0.dono>==<src.uid>)
-  serv.newitem i_mry_furniture
-  new.cont=<src.uid>
-  new.link=<uid>
-  src.sysmessageyellow Voce tem <eval <src.tag0.furniact>-1> movel(is).Seu  limite e de <eval <src.tag0.furnimax>-1> moveis.
-  src.menu m_furniture
- else
-  src.sysmessagered Este movel nao te pertence!
- endif
-else
- if (<tag0.dono>==<src.uid>)
-  src.sysmessagegreen Use o comando .moveis para interagir com o movel.
- endif
- return 0
+//####################################################################################
+//                                  DIALOGS                                         ##
+//####################################################################################
+
+
+
+
+
+//*****************************************************
+[DIALOG d_furniture]
+//*****************************************************
+100,75
+page 0
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+gumppic 0 0 10400
+gumppic 0 160 10401
+gumppic 0 356 10402
+gumppic 518 0 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+gumppic 225 45 2501
+dtext 231 45 26 Mystical Tales Shard
+resizepic 92 87 2620 416 310
+
+if (!<ctag0.furn_page>)
+    resizepic 109 106 2620 380 145
+    dhtmlgump 114 113 368 130 0 0 <furn_statistics>
+    if (!<furn_act>)
+     dtext 185 300 38 Voce nao tem moveis para gerenciar
+    else
+     dorigin 115 230
+     button - *40 2151 2152 1 0 1
+     dtext +35 +3 67 Fixar no chao
+     button - *40 2151 2152 1 0 2
+     dtext +35 +3 67 Soltar
+     button - *40 2151 2152 1 0 3
+     dtext +35 +3 67 Mostrar moveis
+     dorigin 315 230
+     button - *40 2151 2152 1 0 4
+     dtext +35 +3 67 Doar
+     button - *40 2151 2152 1 0 5
+     dtext +35 +3 67 Desfazer-se
+     button - *40 2151 2152 1 0 6
+     dtext +35 +3 53 Listar todos
+    endif
+ 
+elif (<ctag0.furn_page>==1)
+    call furn_StatInfo
+    resizepic 109 106 2620 128 128
+    resizepic 270 106 2620 219 128
+    tilepichue 130 130 <obj.dispiddec> <obj.color> 
+    dhtmlgump 275 113 207 112 0 0 <local.s>
+    dorigin 115 230
+    button - *40 2151 2152 1 0 11
+    dtext +35 +3 67 Gerenciar moveis
+    button - *40 2151 2152 1 0 6
+    dtext +35 +3 67 Voltar a lista
 endif
-return 1
 
-on=@clienttooltip
-if (!<src.IsGM>)
- return 0
-endif
-f_sendTooltip <name>, Dono: <UID.<tag0.dono>.tag.name> [<UID.<tag0.dono>.account.name>] <DEF.BR> Moveis: <eval <UID.<tag0.dono>.tag.furniact>-1>/<eval <UID.<tag0.dono>.tag.furnimax>-1>
-//return 1
+[DIALOG d_furniture text]
 
-on=@destroy
-IF (<UID.<tag0.dono>.ISPLAYER>)
- obj=<UID.<tag0.dono>.UID>
- obj.tag.furniact -= 1 
-// obj.say <UID> -- <obj.tag.furnitures>
- obj.tag.furnitures=<obj.f_RemoveList <UID>,<obj.tag.furnitures>>
- f_sendMessage <obj.uid>,Seu movel (<name>) em <region.name> foi destruido!,024
- serv.log [furniture] <name> (<UID>) de dono <obj.tag.name> [<obj.account.name>] - DESTRUIDO!
-ENDIF
+[DIALOG d_furniture button]
+ON=1
+// Prende móvel
+furn_Fix
 
+ON=2
+// Soltar móvel
+furn_UnFix
 
-[MENU m_addfurn]
-Voce tem <eval <tag0.furniact>-1>  moveis e o maximo permitido eh <eval <tag0.furnimax>-1>. Deseja fazer de <UID.<ctag0.furn>.name> seu movel?
-on=0 Sim
-obj=<src.ctag.furn>
-IF (<src.AddFurn>)
- obj.tag.dono=<src.uid>
- IF (<ISEMPTY <src.tag.furnitures>>)
-  src.tag.furnitures=<obj.uid>
- ELSE
-  src.tag.furnitures=<obj.uid>;<src.tag.furnitures>
- obj.update
-ELSE
-    src.sysmessagered Voce nao pode ter mais moveis!
-ENDIF
-RETURN 1
+ON=3
+// Mostrar móveis próximos
+furn_show
 
-on=0 Nao
+ON=4
+// Doar móvel para outro player
+furn_Donnate
+
+ON=5
+//Deleta um móvel
+furn_Delete
+
+ON=6
+//Lista os móveis
+furn_list
+
+ON=11
+//Voltar ao geral
+furniture
 
 [DIALOG d_unpack]
 100,75
@@ -432,3 +822,5 @@ unpackToEast
 ON=2
 //ToSouth
 unpackToSouth
+
+[EOF]
