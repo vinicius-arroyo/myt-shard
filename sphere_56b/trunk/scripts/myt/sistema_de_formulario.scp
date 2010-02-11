@@ -158,20 +158,20 @@ return 1
 //Assim que um char for criado ou fizer login chama esta função para conhecer o stsus da conta
 //e então tomar a provicência correta
 
-src.form_cacheAccountInfo
-if (STRMATCH(active,<src.ctag.form_status>)) 
+form_cacheAccountInfo
+if (STRMATCH(active,<ctag.form_status>)) 
 
-    if !<serv.account.<src.account>.plevel>  //Conta recem aprovada
-        src.sfx 05a6
-        src.ctag.form.method=<DEF.FORM_ACCEPT>
-        src.ctag.form.class=<DEF.FORM_ACCOUNT>
-        src.DIALOG d_formulario 1
+    if !<serv.account.<account>.plevel>  //Conta recem aprovada
+        sfx 05a6
+        ctag.form.method=<DEF.FORM_ACCEPT>
+        ctag.form.class=<DEF.FORM_ACCOUNT>
+        TRYSRC <uid> DIALOG d_formulario 1
         
-        REF1=<src.findid.i_deed_form>
+        REF1=<findid.i_deed_form>
         REF1.color=0044 //green
     else //Jogador/GM antigo
     
-        if (<src.IsGM>) //GM cadastrado. Mostrar se tem contas para avaliar.
+        if (<IsGM>) //GM cadastrado. Mostrar se tem contas para avaliar.
             DB.QUERY=SELECT COUNT(idAcct) AS cnt FROM accounts WHERE status='waiting'
             if (<DB.ROW.0.cnt>)
                 timerf 7,sysmessageyellow,Existem <eval <DB.ROW.0.cnt>> formularios a serem avaliados.
@@ -185,56 +185,56 @@ if (STRMATCH(active,<src.ctag.form_status>))
 endif
 
 
-REF1=<src.findid.i_deed_form>
+REF1=<findid.i_deed_form>
 if !<REF1>
     SERV.NEWITEM i_deed_form
-    new.bounce 
+    new.cont=<uid>
     REF1=<new>
 endif
 REF1.color=0020 //red
 
-if (STRMATCH(,<src.ctag.form_mail>))
+if (STRMATCH(,<ctag.form_mail>))
 //        try src.go <DEF.FORM_NEWBIEPOINT>
-    serv.account.<src.account>.MAXCHARS=1
-    src.DIALOG d_form_new 1
-elif (STRMATCH(confirm,<src.ctag.form_status>))
+    serv.account.<account>.MAXCHARS=1
+    TRYSRC <uid> DIALOG d_form_new 1
+elif (STRMATCH(confirm,<ctag.form_status>))
     //para re-enviar key automaticamente
-    if !<src.tag0.actkey>
-        src.mail_key
-        src.timerf 7,sysmessageyellow Um novo email de confirmacao foi enviado, favor verificar!
+    if !<tag0.actkey>
+        mail_key
+        timerf 7,sysmessageyellow Um novo email de confirmacao foi enviado, favor verificar!
     else
-        src.timerf 7,sysmessageyellow Sua conta esta aguardando confirmacao de email.
-        src.timerf 14,sysmessageyellow Sua conta esta aguardando confirmacao de email.
-        src.timerf 22,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+        timerf 7,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+        timerf 14,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+        timerf 22,sysmessageyellow Sua conta esta aguardando confirmacao de email.
     endif
     REF1.color=00d4 //purple
-elif (STRMATCH(waiting,<src.ctag.form_status>))
-    src.timerf 7,sysmessageyellow Sua conta esta aguardando aprovacao.
-    src.timerf 14,sysmessageyellow Sua conta esta aguardando aprovacao.
-    src.timerf 22,sysmessageyellow Sua conta esta aguardando aprovacao.
+elif (STRMATCH(waiting,<ctag.form_status>))
+    timerf 7,sysmessageyellow Sua conta esta aguardando aprovacao.
+    timerf 14,sysmessageyellow Sua conta esta aguardando aprovacao.
+    timerf 22,sysmessageyellow Sua conta esta aguardando aprovacao.
     REF1.color=0020 //red
-elif (STRMATCH(form,<src.ctag.form_status>))
-    src.playerform
+elif (STRMATCH(form,<ctag.form_status>))
+    playerform
     REF1.color=0020 //red
-elif (STRMATCH(rejected,<src.ctag.form_status>))
-    src.sfx 05b3
-//        try src.go <DEF.FORM_NEWBIEPOINT>
-    src.ctag.form.method=<DEF.FORM_DENIED>
-    src.ctag.form.class=<DEF.FORM_ACCOUNT>
-    src.DIALOG d_formulario 1
+elif (STRMATCH(rejected,<ctag.form_status>))
+    sfx 05b3
+//        try go <DEF.FORM_NEWBIEPOINT>
+    ctag.form.method=<DEF.FORM_DENIED>
+    ctag.form.class=<DEF.FORM_ACCOUNT>
+    TRYSRC <uid> DIALOG d_formulario 1
     REF1.color=0020 //red
 endif
 
 
 
 [FUNCTION confirme]
-src.form_cacheAccountInfo
+form_cacheAccountInfo
 
-if (STRMATCH(confirm,<src.ctag.form_status>))        
+if (STRMATCH(confirm,<ctag.form_status>))        
     if <tag0.actkey>==<args>
         sysmessageyellow Email ativado com sucesso!
-        IF (<IsNum <src.account>>)
-            DB.EXECUTE=UPDATE accounts SET status='form' WHERE username='<DB.ESCAPEDATA <eval <src.account>>>'
+        IF (<IsNum <account>>)
+            DB.EXECUTE=UPDATE accounts SET status='form' WHERE username='<DB.ESCAPEDATA <eval <account>>>'
         ELSE
             DB.EXECUTE=UPDATE accounts SET status='form' WHERE username='<DB.ESCAPEDATA <account>>'
         ENDIF
@@ -250,7 +250,7 @@ endif
 [FUNCTION mail_key]
 form_cacheAccountInfo
 local.et=<eval <serv.time>-<tag0.actkeytime>>
-IF (<local.et> < 36000) && (!<src.isgm>)
+IF (<local.et> < 36000) && (!<src.isgm>) //eh SRC mesmo, pra validar gm dando .xmail_key
     sysmessagered Nao foi possivel re-enviar seu e-mail de confirmacao!
     sysmessageyellow Aguarde mais <f_timestring <eval 3600-(<local.et>/10)>>
 ELIF <ctag0.form_id>
@@ -292,7 +292,7 @@ if (STRMATCH(form,<ctag.form_status>)) || (STRMATCH(rejected,<ctag.form_status>)
     ctag.form.class=<DEF.FORM_ANSWER>
     ctag.form.page=0
     call form_loadAnswers
-    DIALOG d_formulario 1
+    TRYSRC <uid> DIALOG d_formulario 1
 elif (STRMATCH(active,<ctag.form_status>))     
     sysmessagered Voce ja eh um jogador aceito.
 else
@@ -443,10 +443,10 @@ IF (<IsGM>)
   try ctag.form.a_<dlocal.q>=<DB.ROW.<dlocal.q>.answer>
  ENDFOR
 ELSE
- IF (<IsNum <src.account>>)
-  DB.QUERY="SELECT t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<DB.ESCAPEDATA <eval <src.account>>>' AND t1.id=t2.questionid ORDER BY t1.ord;"
+ IF (<IsNum <account>>)
+  DB.QUERY="SELECT t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<DB.ESCAPEDATA <eval <account>>>' AND t1.id=t2.questionid ORDER BY t1.ord;"
  ELSE
-  DB.QUERY="SELECT t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<DB.ESCAPEDATA <src.account>>' AND t1.id=t2.questionid ORDER BY t1.ord;"
+  DB.QUERY="SELECT t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<DB.ESCAPEDATA <account>>' AND t1.id=t2.questionid ORDER BY t1.ord;"
  ENDIF
  FOR q 0 <DEF.FORM_QUESTIONS>
   try ctag.form.a_<eval <local.q>+1>=<DB.ROW.<eval <local.q>>.answer>
@@ -622,25 +622,25 @@ IF (<local.redo>)
 ENDIF
 
 //Checar conta errada ou fantasma
-src.form_cacheAccountInfo
-if (!<src.ctag0.form_id>) || !(STRMATCH(*@*.*,<src.ctag.form_mail>)) || !(STRMATCH(* *,<src.ctag.form_name>))
+form_cacheAccountInfo
+if (!<ctag0.form_id>) || !(STRMATCH(*@*.*,<ctag.form_mail>)) || !(STRMATCH(* *,<ctag.form_name>))
  sysmessagered Sua conta ainda nao foi efetivada. Preencha o formulario.
- src.dialog d_form_new 1
+ DIALOG d_form_new 1
  return 1
 endif
 
 //Tudo okay, pode enviar
 //Aumentar a contagem de tentativas se foi rejeitada
-IF (STRMATCH(rejected,<src.ctag.form_status>))
- src.account.tag.form.try = <src.account.tag0.form.try>+1
+IF (STRMATCH(rejected,<ctag.form_status>))
+ account.tag.form.try = <account.tag0.form.try>+1
 endif
 
 //As questões antigas serão deletadas pois se algum GM trocar a ordem das questões ou
 //alterar/adicionar alguma questão, pode dar conflito entre a DB e o gump.
-IF (<IsNum <src.account>>)
- DB.EXECUTE="DELETE FROM form_answers WHERE username='<DB.ESCAPEDATA <eval <src.account>>>';"
+IF (<IsNum <account>>)
+ DB.EXECUTE="DELETE FROM form_answers WHERE username='<DB.ESCAPEDATA <eval <account>>>';"
 ELSE
- DB.EXECUTE="DELETE FROM form_answers WHERE username='<DB.ESCAPEDATA <src.account>>';"
+ DB.EXECUTE="DELETE FROM form_answers WHERE username='<DB.ESCAPEDATA <account>>';"
 ENDIF
 
 //pegar ID das questões
@@ -652,23 +652,23 @@ endfor
 
 //Salva respostas
 FOR a 1 <DEF.FORM_QUESTIONS>
- IF (<IsNum <src.account>>)
-  DB.EXECUTE=INSERT INTO form_answers SET username='<DB.ESCAPEDATA <eval <src.account>>>', questionid=<dlocal.q_<eval <dlocal.a>>>, answer="<DB.ESCAPEDATA <local.a_<eval <dlocal.a>>>>";
+ IF (<IsNum <account>>)
+  DB.EXECUTE=INSERT INTO form_answers SET username='<DB.ESCAPEDATA <eval <account>>>', questionid=<dlocal.q_<eval <dlocal.a>>>, answer="<DB.ESCAPEDATA <local.a_<eval <dlocal.a>>>>";
  ELSE
-  DB.EXECUTE=INSERT INTO form_answers SET username='<DB.ESCAPEDATA <src.account>>', questionid=<dlocal.q_<eval <dlocal.a>>>, answer="<DB.ESCAPEDATA <local.a_<eval <dlocal.a>>>>";
+  DB.EXECUTE=INSERT INTO form_answers SET username='<DB.ESCAPEDATA <account>>', questionid=<dlocal.q_<eval <dlocal.a>>>, answer="<DB.ESCAPEDATA <local.a_<eval <dlocal.a>>>>";
  ENDIF
 ENDFOR
 
 //trocar status na DB
-IF (<IsNum <src.account>>)
- DB.EXECUTE="UPDATE accounts SET status='waiting' WHERE username='<DB.ESCAPEDATA <eval <src.account>>>';"
+IF (<IsNum <account>>)
+ DB.EXECUTE="UPDATE accounts SET status='waiting' WHERE username='<DB.ESCAPEDATA <eval <account>>>';"
 ELSE
- DB.EXECUTE="UPDATE accounts SET status='waiting' WHERE username='<DB.ESCAPEDATA <src.account>>';"
+ DB.EXECUTE="UPDATE accounts SET status='waiting' WHERE username='<DB.ESCAPEDATA <account>>';"
 ENDIF
 
 sysmessagered Excelente!!!
 sysmessageyellow Assim que possivel um membro da Staff avaliara seu formulario!
-timerf 7,sysmessageorange,Enquanto isso, podes explorar alguns sistemas da MyT aqui em <src.region.name>!
+timerf 7,sysmessageorange,Enquanto isso, podes explorar alguns sistemas da MyT aqui em <region.name>!
 timerf 14,sysmessageorange,Utilize o botao HELP na parte superior para alterar seu formulario ou ter dicas adicionais.
 timerf 22,sysmessageorange,Qualquer duvida, visite nosso forum!
 serv.allclients broadstaff FORMULARIO,"Ha um novo formulario para ser lido!"
@@ -705,14 +705,14 @@ ENDIF
 
 [FUNCTION dform_DeniedAccount]
 //Carrega o gump avisando ao player queo formulário foi recusado.
-dhtmlgump 20 107 598 329 8 1 Suas respostas ao formulario nao foram suficientes para certificar seus conhecimentos de representacao e sobre o ambiente do Mystical Tales Shard. Voce pode tentar novamente, quantas vezes forem necessarias.<DEF.BR>Se tiver duvidas sobre representacao ou se a conduta do seu personagem eh adequada ao ambiente da MyT, debata a questao no forum da MyT na secao de Rolaplay em forum.myt.com.br<DEF.BR>Se voce acha que seus conhecimentos sobre o ambiente da MyT sao insuficientes, leia os textos de ambientacao em www.myt.com.br<DEF.BR><DEF.BR>Apontamentos do avaliador:<DEF.BR><serv.account.<src.account>.tag.form.reason>
+dhtmlgump 20 107 598 329 8 1 Suas respostas ao formulario nao foram suficientes para certificar seus conhecimentos de representacao e sobre o ambiente do Mystical Tales Shard. Voce pode tentar novamente, quantas vezes forem necessarias.<DEF.BR>Se tiver duvidas sobre representacao ou se a conduta do seu personagem eh adequada ao ambiente da MyT, debata a questao no forum da MyT na secao de Rolaplay em forum.myt.com.br<DEF.BR>Se voce acha que seus conhecimentos sobre o ambiente da MyT sao insuficientes, leia os textos de ambientacao em www.myt.com.br<DEF.BR><DEF.BR>Apontamentos do avaliador:<DEF.BR><serv.account.<account>.tag.form.reason>
 resizepic 22 55 9250 599 40
 dtext 36 65 18 Respostas recusadas!
 button 562 441 247 248 1 0 13
 
 [FUNCTION dform_AcceptAccount]
 //Carrega o gump avisando ao player que ele passou na Fuvest da MyT.
-dhtmlgump 20 107 598 329 8 1 Obrigado! Voce foi promovido de convidado a jogador no Mystical Tales Shard! Agora voce pode participar da comunidade de jogadores sem restricoes! Aproveite!<DEF.BR>Se voce precisar de maiores informacoes sobre a extensa e profunda jogabilidade permitida pelo servidor pode ler os manuais dos sistemas em www.myt.com.br ou ainda discuti-las em nosso forum (forum.myt.com.br) ou ainda ler e produzir seus proprios textos sobre os sistemas em nosso Wiki (www.wiki.myt.com.br).<DEF.BR><DEF.BR>Apontamentos do avaliador:<DEF.BR><serv.account.<src.account>.tag.form.reason>
+dhtmlgump 20 107 598 329 8 1 Obrigado! Voce foi promovido de convidado a jogador no Mystical Tales Shard! Agora voce pode participar da comunidade de jogadores sem restricoes! Aproveite!<DEF.BR>Se voce precisar de maiores informacoes sobre a extensa e profunda jogabilidade permitida pelo servidor pode ler os manuais dos sistemas em www.myt.com.br ou ainda discuti-las em nosso forum (forum.myt.com.br) ou ainda ler e produzir seus proprios textos sobre os sistemas em nosso Wiki (www.wiki.myt.com.br).<DEF.BR><DEF.BR>Apontamentos do avaliador:<DEF.BR><serv.account.<account>.tag.form.reason>
 resizepic 22 55 9250 599 40
 dtext 36 65 18 Sua conta foi aceita!
 button 562 441 247 248 1 0 14
@@ -821,12 +821,12 @@ playerform
 
 ON=14
 //Okay no dialogo de 'Sua conta foi aceita'
-if !<serv.account.<src.account>.plevel>
-    serv.account.<src.account>.plevel=1
+if !<serv.account.<account>.plevel>
+    serv.account.<account>.plevel=1
 endif    
-serv.account.<src.account>.tag.try=
-serv.account.<src.account>.tag.reason=
-serv.account.<src.account>.MAXCHARS=
+serv.account.<account>.tag.try=
+serv.account.<account>.tag.reason=
+serv.account.<account>.MAXCHARS=
 //try src.go <DEF.STARTPOINT_<src.tag.raca>>
 
 ON=15
@@ -838,14 +838,14 @@ ELSE
  DB.EXECUTE="UPDATE accounts SET status='active' WHERE username='<ctag.form.account>';"
  DB.QUERY="SELECT mail FROM accounts WHERE username='<ctag.form.account>';"
 ENDIF
-src.sysmessagered Aprovado, enviando email: <sendmail <DB.ROW.0.mail>,<DEF.EMAIL_TYPE_ACCEPTED>,"<argtxt[0]>">
+sysmessagered Aprovado, enviando email: <sendmail <DB.ROW.0.mail>,<DEF.EMAIL_TYPE_ACCEPTED>,"<argtxt[0]>">
 serv.account.<ctag.form.account>.tag.form.reason=<argtxt[0]>
 serv.account.<ctag.form.account>.plevel=0
 obj=<serv.account.<ctag.form.account>.char.0>
 from_clearctags
 formulario
-if (<obj.isonline>)
- TRYSRC <obj.uid> src.form_checkAccStatus
+if <obj.isonline>
+ obj.form_checkAccStatus
 endif
 return 1
 
@@ -858,13 +858,13 @@ ELSE
  DB.EXECUTE="UPDATE accounts SET status='rejected' WHERE username='<ctag.form.account>';"
  DB.QUERY="SELECT mail FROM accounts WHERE username='<ctag.form.account>';"
 ENDIF
-src.sysmessagered Reprovado, enviando email: <sendmail <DB.ROW.0.mail>,<DEF.EMAIL_TYPE_REJECTED>,"<argtxt[0]>">
+sysmessagered Reprovado, enviando email: <sendmail <DB.ROW.0.mail>,<DEF.EMAIL_TYPE_REJECTED>,"<argtxt[0]>">
 serv.account.<ctag.form.account>.tag.form.reason=<argtxt[0]>
 obj=<serv.account.<ctag.form.account>.char.0>
 from_clearctags
 formulario
-if (<uid.<obj>.isonline>)
- TRYSRC <obj.uid> src.form_checkAccStatus
+if <obj.isonline>
+ obj.form_checkAccStatus
 endif
 return 1
 
@@ -885,7 +885,7 @@ DIALOG d_formulario 1
 
 ON=2500 99999
 //Ver respostas do Player
-IF (!<src.IsGM>) || (<serv.account.<src.account>.plevel> < 4)
+IF (!<IsGM>) || (<serv.account.<account>.plevel> < 4)
  sysmessagered Voce NAO TEM premissao para ver isso!
  return 0
 endif
@@ -958,11 +958,11 @@ ON=3
 ctag.name=<argtxt[0]>
 ctag.mail=<argtxt[1]>
 
-IF (<IsNum <src.account>>)
+IF (<IsNum <account>>)
  sysmessagered O username utilizado  parece um numero e nao deve ser utilizado. 
  sysmessagered Crie outra conta...
  DIALOG d_form_new
- SERV.LOG [FORMULARIO] conta <src.account> sera deletada por parecer numerica (<eval <src.account>>)
+ SERV.LOG [FORMULARIO] conta <account> sera deletada por parecer numerica (<eval <account>>)
  timerf 60,form_removeAccount
  return 0
 
@@ -983,13 +983,13 @@ ENDIF
 DB.QUERY=SELECT idAcct FROM accounts WHERE mail LIKE '<DB.ESCAPEDATA <ctag.mail>>'
 IF (<DB.ROW.NUMROWS>)
  sysmessagered O email <ctag.mail> ja esta sendo usado.
- SERV.LOG [FORMULARIO] IP:<src.account.lastip> Acc:<src.account> Tentando se inscrever com e-mail ja utilizado!!! (<ctag.mail>)
+ SERV.LOG [FORMULARIO] IP:<account.lastip> Acc:<account> Tentando se inscrever com e-mail ja utilizado!!! (<ctag.mail>)
  DIALOG d_form_new
  return 0
 ENDIF
 
 
-DB.QUERY=SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <src.account>>'
+DB.QUERY=SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <account>>'
 IF (<DB.ROW.NUMROWS>)   //jogador já cadastrado
  
  local.idAcct=<DB.ROW.0.idAcct>
@@ -997,15 +997,15 @@ IF (<DB.ROW.NUMROWS>)   //jogador já cadastrado
  
 ELSE                    //Jogador não cadastrado
 
- DB.EXECUTE=INSERT INTO accounts SET username='<DB.ESCAPEDATA <src.account>>', name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>', status='confirm'
+ DB.EXECUTE=INSERT INTO accounts SET username='<DB.ESCAPEDATA <account>>', name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>', status='confirm'
  
 ENDIF
 
 mail_key
 
 ON=0 //close/not accept
-SERV.LOG [FORMULARIO] conta <src.account> nao aceita Regras e TdS. Conta deletada.
-src.form_removeAccount
+SERV.LOG [FORMULARIO] conta <account> nao aceita Regras e TdS. Conta deletada.
+form_removeAccount
 
 
 [EOF]
