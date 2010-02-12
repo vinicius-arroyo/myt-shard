@@ -1,4 +1,4 @@
-//*****************************************************************************
+﻿//*****************************************************************************
 //*****************************************************************************
 //
 // SKILL CAMPING 
@@ -118,7 +118,9 @@ ATTR=attr_decay
 ON=@DCLICK
 
 if (<cont>)
-    src.sysmessageyellow Coloque o graveto no chao para usar.
+    //src.sysmessageyellow Coloque o graveto no chao para usar. //implantação de alimentação do fogo
+    src.sysmessageyellow escolha uma fogueira para usar estes gravetos ou coloque no chao para fazer uma fogueira nova.
+    target
     return 1
 endif
 
@@ -152,7 +154,13 @@ if (!<belltest <SRC.CAMPING>,700>)
     return 1
 endif
 
-SERV.NEWITEM i_campfire_tracker
+NEW.NUDGEUP 1
+SERV.newitem i_fire_pit  // implementação de fire pit como acampamento de cura
+NEW.morez=29
+NEW.p=<p>
+NEW.decay=<local.timer>  // fim da implementação de fire pit
+
+SERV.NEWITEM i_campfire_tracker 
 NEW.P=<P>
 NEW.LINK=<UID>
 //tempo total (max 300 segundos)
@@ -165,8 +173,47 @@ SRC.emotered faz uma bela fogueira
 remove
 return 1
 
+
+on=@TARGON_ITEM
+if (<src.targ.distance> > 1)
+	src.sysmessagered Muito longe.
+	return 1
+elif (<src.targ.type> == t_fire)
+	if (<src.targ.baseid>==i_campfire)
+		src.targ.timer=<src.targ.timer> + <eval (((<src.camping>/10)+1)*<amount>)> // aumenta o timer decay do fogo com base na skill camping dividida por 10, multiplicada pelo amount de gravetos)
+		src.anim 020
+		src.emote joga gravetos na fogueira
+		src.newitem=i_fire
+		src.act.p=<src.targ.p>
+		src.act.z=<src.targ.z>+2
+		src.act.timer=2
+		src.act.attr=012
+		src.targ.effect 2,i_fx_smoke,0,15,0
+		sfx 054
+		remove
+	else
+		src.sysmessagered Use gravetos apenas em fogueriras.
+	endif
+	return 1
+else
+	src.sysmessagered Escolha uma fogueira para usar isto
+endif
+return 1
+
+
+on=@TARGON_ground
+ src.sysmessagered Escolha uma fogueira para usar isto
+return 1
+
+
+on=@TARGON_char
+ src.sysmessagered Escolha uma fogueira para usar isto
+return 1
+
+
 [ITEMDEF 0de2]
 DUPEITEM=0de1
+
 
 //*****************************************************************************
 // i_campfire
