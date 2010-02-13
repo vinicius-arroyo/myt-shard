@@ -325,44 +325,45 @@ ON=@TIMER
             link.anim 19
         enddo
     
-        cont.hits=<cont.hits>+<r1,<more2>>
-        if (<cont.hits>>=<cont.maxhits>)
-            cont.hits=<cont.maxhits>
-        else
-            more1=<more1>-1
-            if ( <more1> )
-                timer=1
-                return 1
+        //nao da hits se player morto
+        if !(<cont.flags>&statf_dead)
+            cont.hits += <r1,<more2>>
+            if <cont.hits> >= <cont.maxhits>
+                cont.hits = <cont.maxhits>
+                more1 = 1 //fim
             endif
+        endif
+        
+        more1 -= 1
+        if <more1>
+            timer=1
+            return 1
         endif
     endif
 
-    if (!<more1>)
-    
-        //se alvo estiver envenenado e passar em um teste de healing
-        if (<cont.flags>&statf_poisoned)
-            if (<R600,1000> < <link.healing>)
-                //cura
-                cont.spelleffect s_cure,<link.healing>
-                if ( !<morey> )
-                    link.sysmessagegreen Voce retirou parte do veneno do paciente.
-                endif
-            else
-                if ( !<morey> )
-                    link.sysmessagegreen Voce falhou au tentar lidar com o veneno.
-                endif
+    //se alvo estiver envenenado e passar em um teste de healing
+    if (<cont.flags>&statf_poisoned)
+        if (<R600,1000> < <link.healing>)
+            //cura
+            cont.spelleffect s_cure,<link.healing>
+            if ( !<morey> )
+                link.sysmessagegreen Voce retirou parte do veneno do paciente.
             endif
         else
             if ( !<morey> )
-                link.sysmessagegreen Voce termina de tratar o paciente.
+                link.sysmessagegreen Voce falhou au tentar lidar com o veneno.
             endif
-            cont.sysmessagegreen Voce nao esta mais sendo tratado.      
         endif
-        
-        //remove desmaio
-        cont.morte_decrementaDesmaios 1        
-        cont.findid.i_mry_desmaio.more1 = 0  
-        cont.findid.i_mry_desmaio.timerd = 1
+    else
+        if ( !<morey> )
+            link.sysmessagegreen Voce termina de tratar o paciente.
+        endif
+        cont.sysmessagegreen Voce nao esta mais sendo tratado.      
+    endif
+
+    //retorna a vida se morto
+    if <cont.flags>&statf_dead
+        cont.f_returnToLife
     endif
     
     link.events -e_bandagem
