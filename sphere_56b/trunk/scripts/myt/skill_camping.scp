@@ -1,4 +1,4 @@
-﻿//*****************************************************************************
+//*****************************************************************************
 //*****************************************************************************
 //
 // SKILL CAMPING 
@@ -27,26 +27,26 @@ i_gravetos      i_kindling
 //*****************************************************************************
 [FUNCTION campheal]
 
-//cancela efeito do camping se alguem em warmode
-IF (<FLAGS> & statf_war) 
-    OBJ=<argv1>
-    REF1=<UID>
-    FORCLIENTS 2
-     SYSMESSAGERED <rec_fGetName <ref1>> perturbou o acampamento!
-    END
-    //OBJ.LINK.REMOVE
-    OBJ.REMOVE
+//faz efeito do healing
+IF <HITS> < <STR>
+    HITS += <argv0>
+    IF <HITS> > <STR>
+        HITS = <STR>
+    ENDIF
 ENDIF
 
-//faz efeito do healing
-IF (<HITS> < <STR>)
-    HITS=<HITS>+<argv[0]>
+IF <MANA> < <INT>
+    MANA += <argv0>
+    IF <MANA> > <INT>
+        MANA = <INT>
+    ENDIF
 ENDIF
-IF (<MANA> < <INT>)
-    MANA=<MANA>+<argv[0]>
-ENDIF
-IF (<STAM> < <DEX>)
-    STAM=<STAM>+<argv[0]>
+
+IF <STAM> < <DEX>
+    STAM += <argv0>
+    IF <STAM> > <DEX>
+        STAM = <DEX>
+    ENDIF
 ENDIF
 
 //*****************************************************************************
@@ -80,19 +80,26 @@ ATTR=attr_move_never|attr_invis
 ON=@TIMER
 //remove tracker e campfire se acabou o tempo
 IF (<MORE2> < 1)
-    LINK.REMOVE
     REMOVE
     RETURN 1
 ENDIF
 
 //cura quem estiver na regiao
-obj=<UID>
 FORCLIENTS 1
- CAMPHEAL <R1,2>,<obj>
+    //cancela efeito do camping se alguem em warmode
+    IF (<FLAGS> & statf_war) 
+        FORCLIENTS 1
+            SYSMESSAGERED <rec_fGetName <uid>> perturbou o acampamento!
+        END
+        REMOVE  
+        RETURN 1
+    ENDIF
+
+    CAMPHEAL <R1,2>
 ENDFOR
 
 //subtrai tempo percorrido
-MORE2=<MORE2>-<MORE1>
+MORE2 -= <MORE1>
 TIMER=<MORE1>
 RETURN 1
 
@@ -118,7 +125,7 @@ ATTR=attr_decay
 ON=@DCLICK
 if (<distance> > 1)
 	src.sysmessagered Voce esta muito longe. Chegue mais perto. 
-return 1
+    return 1
 elif (<cont>)
     src.sysmessageyellow escolha uma fogueira para usar estes gravetos ou coloque no chao para fazer uma fogueira nova.
     target
@@ -130,9 +137,6 @@ src.skill_gain skill_camping
 if (!<belltest <SRC.CAMPING>,<R40.0>>) && (<R5>) && (!<src.IsGm>)
     SRC.emotered falhou ao acender a fogueira
     src.anim 020
-    if (<amount> > 1)
-        decrement
-    endif
     return 1
 endif
 
@@ -166,7 +170,6 @@ NEW.decay=<local.timer>  // fim da implementação de fire pit
 
 SERV.NEWITEM i_campfire_tracker 
 NEW.P=<P>
-NEW.LINK=<UID>
 //tempo total (max 300 segundos)
 NEW.MORE2=<EVAL (<SRC.CAMPING>*3)/10>
 //healing interval (de 2 a 12 segundos)
@@ -184,22 +187,18 @@ on=@TARGON_ITEM
 if (<src.targ.distance> > 1)
 	src.sysmessagered Muito longe.
 	return 1
-elif (<src.targ.type> == t_fire)
-	if (<src.targ.baseid>==i_campfire)
-		src.targ.timer=<src.targ.timer> + <eval (((<src.camping>/10)+1)*<amount>)> // aumenta o timer decay do fogo com base na skill camping dividida por 10, multiplicada pelo amount de gravetos)
-		src.anim 020
-		src.emote joga gravetos na fogueira
-		src.newitem=i_fire
-		src.act.p=<src.targ.p>
-		src.act.z=<src.targ.z>+2
-		src.act.timer=2
-		src.act.attr=012
-		src.targ.effect 2,i_fx_smoke,0,15,0
-		sfx 054
-		remove
-	else
-		src.sysmessagered Use gravetos apenas em fogueriras.
-	endif
+elif (<src.targ.baseid>==i_campfire)
+    src.targ.timer=<src.targ.timer> + <eval (((<src.camping>/10)+1)*<amount>)> // aumenta o timer decay do fogo com base na skill camping dividida por 10, multiplicada pelo amount de gravetos)
+    src.anim 020
+    src.emote joga gravetos na fogueira
+    src.newitem=i_fire
+    src.act.p=<src.targ.p>
+    src.act.z=<src.targ.z>+2
+    src.act.timer=2
+    src.act.attr=012
+    src.targ.effect 2,i_fx_smoke,0,15,0
+    sfx 054
+    remove
 	return 1
 else
 	src.sysmessagered Escolha uma fogueira para usar isto
