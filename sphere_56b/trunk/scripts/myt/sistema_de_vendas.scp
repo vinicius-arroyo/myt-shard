@@ -245,7 +245,7 @@ if ( <DB.connected> )
 //                local.removedPlayer=<DB.ROW.<eval <LOCAL.R>>.idPlayer>
             if (!<REF3>)
                 local.removedItem=<DB.ROW.<eval <LOCAL.R>>.idItem>
-                serv.log [VENDOR] INVALID ITEM A: <local.removedItem>
+                serv.log [VENDOR] INVALID ITEM: <local.removedItem>
             else
                 SRC.CTAG.vendor_numItems += 1
                 TRY SRC.CTAG.vendor_items<eval  (<SRC.CTAG.vendor_numItems>)>=<REF3>
@@ -341,14 +341,12 @@ if !(<DB.connected>)
 endif
 
 //nao verifica limites se for venda do reino
-if <SRC.CTAG0.vendor_op>==1
-    if !<SRC.isgm>
-        DB.QUERY "SELECT COUNT(id) AS CNT FROM vendorItems WHERE idPlayer=<eval <SRC>> AND defName='<OBJ.baseid>'"
-        if <DB.ROW.0.CNT> >= <DEF.vendor_itemsPerId>
-            src.sysmessageyellow Voce nao pode colocar o item a venda. 
-            src.sysmessageyellow O limite e de <eval <DEF.vendor_itemsPerId>> items do mesmo tipo.
-            return 0
-        endif
+if ( <SRC.CTAG0.vendor_op>==1 )
+    DB.QUERY "SELECT COUNT(id) AS CNT FROM vendorItems WHERE idPlayer=<eval <SRC>> AND defName='<OBJ.baseid>'"
+    if <DB.ROW.0.CNT> >= <DEF.vendor_itemsPerId>
+        src.sysmessageyellow Voce nao pode colocar o item a venda. 
+        src.sysmessageyellow O limite e de <eval <DEF.vendor_itemsPerId>> items do mesmo tipo.
+        return 0
     endif
     OBJ.tag.guildItem=
 else
@@ -379,6 +377,7 @@ SERV.NEWITEM i_bag
 NEW.cont=<REF2>
 NEW.name=<OBJ.name>
 OBJ.cont=<NEW>
+OBJ.events +t_neverDie
 OBJ.removefromview
 
 //insert item into DB
@@ -466,6 +465,7 @@ REF2=<OBJ.cont>
 
 //entrega item ao player comprador
 REF3.bounce
+REF3.events -t_neverDie
 
 trysrc <src> OBJ.TRIGGER @Buy,<DEF.TAT_AS_ARGO>,<REF1>
 
@@ -478,17 +478,13 @@ if ( <OBJ> != <REF3> )
 else
     //se bag de protecao foi pro comprador (assumindo comprador diferente do vendedor)
     if (<REF2.topobj>==<src>) && (<src>!=<LOCAL.idPlayer>)
-        serv.log [VENDAS] ERRO AO REMOVER BAG A: <argv0>/<OBJ>/<src>/<LOCAL.totalPrice>
+        serv.log [VENDAS] ERRO AO REMOVER BAG: <argv0>/<OBJ>/<src>/<LOCAL.totalPrice>
         src.sysmessageyellow [VENDAS] ERRO: <argv0>/<OBJ>/<src>/<LOCAL.totalPrice>. Avise a staff.
         return 1
     endif
 
-    if <REF2.baseid> == i_bag
-        //remove bag de 'protecao'
-        REF2.remove
-    else
-        serv.log [VENDAS] ERRO AO REMOVER BAG B: <argv0>/<OBJ>/<src>/<LOCAL.totalPrice>
-    endif
+    //remove bag de 'protecao'
+    REF2.remove
     
     //remove item da lista de vendas (e duplicatas caso haja... nunca se sabe)
     DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>>"
@@ -564,32 +560,21 @@ DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>>"
 
 //salva bag de 'protecao'
 REF1=<OBJ.cont>
-//destino, pode ser char (vai pra backpack), container (dentro) ou outro item (mesma posicao)
-REF2=<argv1>
 
+//entrega item ao player ou põe no container
+if (<uid.<argv1>.isChar>)
+        OBJ.cont=<uid.<argv1>.findlayer.layer_pack>
+        trysrc <argv1> OBJ.TRIGGER @Buy
+elif (<uid.<argv1>.isCont>
+        OBJ.cont=<argv1>
+else
+        OBJ.p=<uid.<argv1>.p>
+endif
 OBJ.sfx 87
 OBJ.tag.guildItem=
 
-if !<REF2>
-    serv.log [VENDAS][takeback] Destino <argv1> nao encontrado. Removendo <OBJ> (<OBJ.name>)
-    OBJ.remove
-    
-//entrega item ao player ou põe no container
-elif <REF2.isChar>
-    OBJ.cont=<REF2.findlayer.layer_pack>
-    TRYSRC <REF2> OBJ.TRIGGER @Buy
-elif <REF2.isCont>
-    OBJ.cont=<REF2>
-else
-    OBJ.p=<REF2.p>
-endif
-
 //remove bag de 'protecao'
-if <REF1.baseid>==i_bag
-    REF1.remove
-else
-    serv.log [VENDAS][takeback] Erro, bag invalida: <REF1> (<REF1.name>)
-endif
+REF1.remove
 
 return 1
 
@@ -943,7 +928,7 @@ if ( <DB.connected> )
                     LOCAL.ri=<dLOCAL.ri>,<dLOCAL.r>
                 endif
                 LOCAL.i += 1
-                serv.log [VENDOR] INVALID ITEM B: <LOCAL.r>
+                serv.log [VENDOR] INVALID ITEM: <LOCAL.r>
             endif
         end
     endif
@@ -994,7 +979,7 @@ if ( <DB.connected> )
                     LOCAL.ri=<dLOCAL.ri>,<dLOCAL.r>
                 endif
                 LOCAL.i += 1
-                serv.log [VENDOR] INVALID ITEM C: <LOCAL.r>
+                serv.log [VENDOR] INVALID ITEM: <LOCAL.r>
             else
                 LOCAL.b += 1
                 vendor_takebackItem <REF2>,<REF3>,<DB.ROW.<eval <LOCAL.R>>.id>
@@ -1098,9 +1083,8 @@ if <src.has_merchant_priv> && (<SRC.CTAG0.vendor_op>==2)
                 vendor_takebackItem <SRC.CTAG.vendor_selectedItem>,<local.vault>
                 src.sysmessagegreen Item encaminhado para o cofre de <src.region.name>.
         else
-                serv.log [VENDAS]vendor_bt_remove: removendo item <SRC.CTAG.vendor_selectedItem>==<CTAG.vendor_selectedItem>
                 vendor_takebackItem <SRC.CTAG.vendor_selectedItem>,<SRC>
-                uid.<SRC.CTAG.vendor_selectedItem>.remove
+                uid.<CTAG.vendor_selectedItem>.remove
                 src.sysmessagegreen Item removido. Nao ha cofre em <src.region.name>.
         endif
     endif
@@ -1164,6 +1148,21 @@ elif <SRC.CTAG.vendor_page> > <SRC.CTAG0.vendor_numPages>
 endif
 
 dialog <argv0>
+
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_neverDie
+//*****************************************************************************
+//Event para o item nunca sofrer @Destroy
+[TYPEDEF t_neverDie]
+on=@Destroy
+return 1
 
 //*****************************************************************************
 //*****************************************************************************
@@ -1546,7 +1545,7 @@ if (<SRC.CTAG0.vendor_op>==1) || (<SRC.CTAG0.vendor_op>==4)
     vendor_buySellTrigger
 else
     //quantidade deve estar correta
-    if !(<isnum <argtxt[2]>>) || (<argtxt[2]> == 0) || (<argtxt[2]> > <OBJ.amount>)
+    if !(<isnum <argtxt[2]>>) || (<argtxt[2]> < 1) || (<argtxt[2]> > <OBJ.amount>)
         src.sysmessage Campos invalidos. Entre com os dados novamente.
         dialog d_vendor_item_detail
         return 1
