@@ -788,8 +788,68 @@ else
  return 0
 endif
 
+[FUNCTION town_donateTresure]
+//DEFAULT tenta doar <argn2> cobres para a town onde ele está. <argn1> é o NPC que esta falando com ele.
+if (!<town_IsTown>)
+    sysmessagered Este lugar nao tem administracao.
+elif (<argn2> < 1)
+    sysmessagered Valor incorreto
+else
+    local.cash=<bank_checkCash <argn2>,0>
+    if (!<local.cash>)
+     uid.<argn1>.timerf 1 say Eh melhor arranjar algum dinheiro antes...
+     return 1
+    endif
+    bank_getCash <argn2>,0
+    town_addcash <argn2>
+    uid.<argn1>.timerf 1 say A transacao foi feita. Seu dinheiro agora eh publico. Algo mais?
+endif
+
+[FUNCTION town_getTresure]
+//DEFAULT tenta sacar <argn2> cobres da town onde ele está. <argn1> é o NPC que esta falando com ele.
+if (!<town_IsTown>)
+    sysmessagered Este lugar nao tem administracao.
+elif (<argn2> < 1)
+    sysmessagered Valor incorreto
+else
+    local.cash=<town_getCash>
+    if (<local.cash> < <argn2>)
+     uid.<argn1>.timerf 1 say Nao temos todo este dinheiro!
+     return 1
+    endif
+    local.g=0
+    local.s=0
+    local.c=<argn2>
+    WHILE (<local.c> > 100)
+     local.g += 1
+     local.c -= 100
+    ENDWHILE
+    WHILE (<local.c> > 10)
+     local.s += 1
+     local.c -= 10
+    ENDWHILE
+    if (<local.g>)
+        newitem i_gold
+        new.amount=<local.g>
+        new.bounce
+    endif
+    if (<local.s>)
+        newitem i_coin_silver
+        new.amount=<local.s>
+        new.bounce
+    endif
+    if (<local.c>)
+        newitem i_coin_copper
+        new.amount=<local.c>
+        new.bounce
+    endif
+    town_addcash -<argn2>
+    uid.<argn1>.timerf 1 say Aqui esta. Use com sabedoria. Algo mais?
+endif
+
 
 [FUNCTION town_getCash]
+//Retorna a quantidade de dinheiro que a town <args> ou da region de DAFAULT tem nos cofres.
 if (!<IsEmpty <args>>)
  local.town=<args>
 else
@@ -996,13 +1056,13 @@ if (STRMATCH(a_*,<args>))
   return 0
  endif
 else
- local.region=<region.defname>
+ local.region=<region.region.defname>
 endif
 
 if (<local.region>==a_world) || (<local.region>==a_dungeons) || (!<local.region>)
  return 0
 endif
-DB.QUERY=SELECT region FROM towns WHERE region="<DB.ESCAPEDATA <local.region>>"
+DB.QUERY="SELECT region FROM towns WHERE region='<DB.ESCAPEDATA <local.region>>';"
 if (<DB.ROW.NUMROWS>)
  return 1
 else
