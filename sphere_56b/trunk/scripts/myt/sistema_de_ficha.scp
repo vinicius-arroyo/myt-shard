@@ -132,6 +132,88 @@ else
     sysmessageyellow Nao eh um jogador valido.
 endif
 
+//***********************************************************
+[FUNCTION macroer]
+//***********************************************************
+//Prende e penaliza um jogador por macro
+if (!<argo>)
+    sysmessageyellow Selecione o delinquente:
+    targetf macroer
+//elif (!<argo.IsPlayer>)
+//    sysmessagered Jogador invalido.
+else
+    ctag.macroer_hours=<eval 4+<argo.account.tag.macro_count>>
+    ctag.macroer_minutes=0
+    ctag.macroer_penalty=-100
+    ctag.macroer=<argo.uid>
+    dialog d_macroer
+endif
+
+//***********************************************************
+[FUNCTION macroer_Resume]
+//***********************************************************
+// Cria resumo do dialog de macroer
+ref1=<ctag.macroer>
+local.t = <ref1.tag.name> [<ref1.account>] ja foi preso e penalizado por macro <ref1.account.dtag0.macro_count> vezes.<DEF.BR>
+local.t .= Isso fara ele ficar preso pelo tempo descrito abaixo, ganhar uma anotacao na ficha e perder skill, na quantidade descrita abaixo e das skills escolhidas abaixo.
+return <local.t>
+
+//***********************************************************
+[FUNCTION macroer_skill]
+//***********************************************************
+//Lista skills para descer no macroer
+ref1=<ctag.macroer>
+list_new Escolha uma skill para penalizar o macroer
+list_newCol 20,Skill
+list_newCol 200,valor atual
+cTAG.list_action=macroer_addSkill
+cTAG.list_numItems=54
+cTAG.list_numPages=4
+for s 0 54
+ try cTAG.list_row<hval <local.s>+1>_01=<serv.skill.<dlocal.s>.name>
+ try cTAG.list_row<hval <local.s>+1>_02=<ref1.<dlocal.s>>
+end
+list_show 1
+
+//***********************************************************
+[FUNCTION macroer_addSkill]
+//***********************************************************
+// Adiciona a skill <argn> no dialog do macroer
+local.i=0
+WHILE (!<IsEmpty <cTAG.macroer_skill_<dlocal.i>>>)
+    local.i += 1
+ENDWHILE
+TRY cTAG.macroer_skill_<dlocal.i>=<eval <ARGN>-1>
+dialogclose d_macroer
+dialog d_macroer
+
+//***********************************************************
+[FUNCTION macroer_DeleteSkill]
+//***********************************************************
+//Remove a skill de indice <argn> da lista de skills de um macroer
+local.n=<argn>
+
+//Grava cash excluindo o item
+local.i=0
+local.j=0
+WHILE (!<IsEmpty <cTAG.macroer_skill_<dlocal.i>>>)
+    IF (<local.i>!=<local.n>)
+        TRY local.skill_<dlocal.j>=<cTAG.macroer_skill_<dlocal.i>>
+        local.j += 1
+    ENDIF
+    TRY cTAG.macroer_skill_<dlocal.i>=
+    local.i += 1
+ENDWHILE
+
+//Joga o cash nas cTAGS
+if (<local.j>)
+    FOR i 0 <eval <local.j>-1>
+        TRY cTAG.macroer_skill_<dlocal.i>=<local.skill_<dlocal.i>>
+    ENDFOR
+ENDIF
+dialogclose d_macroer
+dialog d_macroer
+
 //*****************************************************************************
 // detem(tempo,jailer,motivo)
 //*****************************************************************************
@@ -1043,6 +1125,116 @@ ON=100 199
 obj=<ctag.ficha_uid>
 local.n=<eval <argn>-100>
 try obj.<DEF.f_emote<dlocal.n>>
+
+
+// Created 23/2/2010 20:10:00, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+//*****************************************************************************
+[DIALOG d_macroer]
+//*****************************************************************************
+// Comando .macroer para prender macroers.
+100,75
+page 0
+ref1=<ctag.macroer>
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+gumppic 0 0 10400
+gumppic -1 157 10401
+gumppic 0 356 10402
+gumppic 518 0 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+gumppic 225 45 2501
+dtext 231 45 26 Mystical Tales Shard
+resizepic 92 87 2620 416 310
+dtext 207 94 48 Prender e penalizar por macro
+dhtmlgump 115 118 370 64 2 1 <macroer_Resume>
+dtext 117 190 166 Prender por
+resizepic 196 187 9350 40 25
+dtextentry 206 190 25 20 0 0 <dctag.macroer_hours>
+dtext 239 190 166 horas
+resizepic 279 187 9350 40 25
+dtextentry 288 189 25 20 0 1 <dctag.macroer_minutes>
+dtext 322 189 166 7 minutos
+dtext 117 220 166 Penalidade de skills
+resizepic 239 218 9350 49 25
+dtextentry 243 221 36 20 0 2 <fval <ctag.macroer_penalty>>
+dtext 118 247 166 (-10.0 eh igual a -100, mas eh diferente de -10)
+dorigin 119 253
+IF (!<IsEmpty <cTAG.macroer_skill_0>>)
+    local.i=0
+    WHILE (!<IsEmpty <cTAG.macroer_skill_<dlocal.i>>>)
+        button - *20 1209 1210 1 0 <eval 10+<local.i>>
+        dtext +20 -3 2100 <serv.skill.<cTAG.macroer_skill_<dlocal.i>>.name> (<REF1.<cTAG.macroer_skill_<dlocal.i>>>)
+        local.i += 1
+    ENDWHILE
+ENDIF
+IF (<IsEmpty <cTAG.macroer_skill_4>>)
+    button +20 *20 2224 2223 1 0 2
+    dtext +40 -3 32 Adicionar skill
+ENDIF
+button 439 397 247 248 1 0 1//prender
+button 96 397 241 242 1 0 0//cancelar
+
+[DIALOG d_macroer text]
+
+
+[DIALOG d_macroer button]
+ON=0
+// Fechar/cancelar
+ctag.macroer_hours=
+ctag.macroer_minutes=
+ctag.macroer_penalty=
+ctag.macroer=
+IF (!<IsEmpty <cTAG.macroer_skill_0>>)
+    local.i=0
+    WHILE (!<IsEmpty <cTAG.macroer_skill_<dlocal.i>>>)
+        TRY cTAG.macroer_skill_<dlocal.i>=
+        local.i += 1
+    ENDWHILE
+ENDIF
+sysmessagered Miou. Deixa o meliante ai.
+
+ON=1
+// Nome do botao
+obj=<ctag.macroer>
+ctag.macroer_hours=
+ctag.macroer_minutes=
+ctag.macroer_penalty=
+ctag.macroer=
+local.time=<eval ((<ARGTXT[0]>*60)+<ARGTXT[1]>)*60>
+local.s=":"
+IF (!<IsEmpty <cTAG.macroer_skill_0>>)
+    local.i=0
+    WHILE (!<IsEmpty <cTAG.macroer_skill_<dlocal.i>>>)
+        local.s .= <serv.skill.<cTAG.macroer_skill_<dlocal.i>>.name>;
+        TRY obj.<dcTAG0.macroer_skill_<dlocal.i>> = <eval <obj.<dcTAG0.macroer_skill_<dlocal.i>>>+<ARGTXT[2]>>
+        TRY cTAG.macroer_skill_<dlocal.i>=
+        local.i += 1
+    ENDWHILE
+ENDIF
+if <DB.CONNECTED>
+    DB.QUERY "INSERT INTO eventsLog SET timestamp=NOW(), eventType='GM Note',charUid=<dUID>,charAcct=<dtag.idAcct>,x=<eval <obj.p.x>>,y=<eval <obj.p.y>>,z=<eval <obj.p.z>>,char2Uid=<eval <obj>>,char2Acct=<obj.dtag.idAcct>,message='<DB.ESCAPEDATA Preso por macro<local.s>>'"
+endif
+obj.detem <local.time>,<uid>,Preso por macro<local.s>
+obj.account.tag.macro_count=<eval <obj.account.tag0.macro_count>+1>
+sysmessageyellow DONE! MUAHUAUHAUHAUHAUHAUH!!!
+
+ON=2
+// Adicionar skill
+ctag.macroer_hours=<ARGTXT[0]>
+ctag.macroer_minutes=<ARGTXT[1]>
+ctag.macroer_penalty=<ARGTXT[2]>
+macroer_skill
+
+ON=10 14
+// Remove uma skill
+ctag.macroer_hours=<ARGTXT[0]>
+ctag.macroer_minutes=<ARGTXT[1]>
+ctag.macroer_penalty=<ARGTXT[2]>
+macroer_DeleteSkill <eval <argn>-10>
+
 
 //*****************************************************************************
 //*****************************************************************************
