@@ -110,7 +110,7 @@ SKILLREQ=NECROMANCY 10.0
 INTERRUPT=15.0,100.0
 
 on=@Effect
-local.modnec=<eval (<argn2>*<src.int>)/150>
+local.modnec=<eval ((<argn2>*<src.int>)/150)+<MULDIV <src.SpiritSpeak>,25,100>>
 local.str=<EFFECTSPELL s_cansar_musculos,<local.modnec>,<src.uid>>
 local.str=<maximum 20-<str>,-<local.str>>
 
@@ -122,9 +122,15 @@ local.time=<DURATIONSPELL s_cansar_musculos,<argn2>,<src.uid>>
 Buff_STR <local.str>,<local.time>
 Buff_DEX <local.dex>,<local.time>
 
-IF (<stam> > <dex>)
- stam=<dex>
+local.max=<eval <maxstam>-<muldiv <src.necromancy>,<maxstam>,125.0>>
+
+IF (<stam> > <maxstam>)
+    stam=<maxstam>
+    IF (<stam> > <local.max>)
+        stam=<local.max>
+    ENDIF
 ENDIF
+
 return 1
 
 //***********************************************************
@@ -302,7 +308,7 @@ RUNE_ITEM=2247
 SCROLL_ITEM=i_scroll_envelhecer
 FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_resist
 EFFECT=0,100
-DURATION=5,18
+DURATION=5,25
 MANAUSE=12
 SKILLREQ=NECROMANCY 30.0
 INTERRUPT=35.0,100.0
@@ -447,7 +453,7 @@ SKILLREQ=NECROMANCY 40.0
 INTERRUPT=45.0,100.0
 
 on=@Effect
-local.crit=<MAXIMUM <eval <src.EvaluatingIntel>/200>,2>
+local.crit=<MAXIMUM <eval <src.SpiritSpeak>/200>,2>
 local.time=<DURATIONSPELL s_infestation,<argn2>,<src.uid>>
 for i 1 <local.crit>
  obj=<f_conjure_creature c_rato_sepultura_sum,<local.time>>
@@ -600,16 +606,17 @@ RESOURCES=i_r_raiz_de_mandrake,i_r_nightshade,i_r_musgo_sangue
 RUNE_ITEM=05000
 SCROLL_ITEM=i_scroll_summon_undead_lo
 FLAGS=SPELLFLAG_GOOD | spellflag_scripted | spellflag_summon
-DURATION=20,120
+DURATION=120,360
 MANAUSE=22
 SKILLREQ=NECROMANCY 50.0
 INTERRUPT=55.0,100.0
 
 on=@Effect
 f_summon_undead_lo <argn2>,<src.uid>
-if (<BELLTEST <argn2>,80.0>)
+f_summon_undead_lo <argn2>,<src.uid>
+if (<BELLTEST <argn2>,75.0,16.5>) || (<argn2> > 80.0)
  f_summon_undead_lo <argn2>,<src.uid>
- if (<BELLTEST <argn2>,95.0>)
+ if (<BELLTEST <argn2>,95.0>16.5)
   f_summon_undead_lo <argn2>,<src.uid>
  endif
 endif
@@ -861,15 +868,21 @@ RESOURCES=i_r_raiz_de_mandrake,i_r_nightshade,i_r_perola_negra
 RUNE_ITEM=20495
 SCROLL_ITEM=i_scroll_summon_undead_re
 FLAGS=SPELLFLAG_GOOD | spellflag_scripted | spellflag_summon
-DURATION=20,120
+DURATION=90,300
 MANAUSE=28
 SKILLREQ=NECROMANCY 70.0
 INTERRUPT=75.0,100.0
 
 on=@Effect
 obj=<f_summon_undead_re <argn2>,<src.uid>>
-if if (<BELLTEST <argn2>,80.0>)
+if (<BELLTEST <argn2>,72.5,15.0>)
  f_summon_undead_lo <argn2>,<src.uid>
+ if (<BELLTEST <argn2>,80.0,15.0>)
+  f_summon_undead_lo <argn2>,<src.uid>
+ endif
+ if (<BELLTEST <argn2>,90.0,15.0>)
+  f_summon_undead_re <argn2>,<src.uid>
+ endif
  src.sysmessagegreen <obj.name> trouxe um lacaio.
 endif
 return 1
@@ -961,7 +974,7 @@ CAST_TIME=25
 RESOURCES=i_r_nightshade,i_r_musgo_sangue,i_r_teia_de_aranha,i_r_cinza_sulfurosa
 RUNE_ITEM=2276
 SCROLL_ITEM=i_scroll_choque_mental
-FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_dir_anim | SPELLFLAG_RESIST | spellflag_eval_boosts
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_dir_anim | SPELLFLAG_RESIST
 EFFECT=15,42
 MANAUSE=12
 SKILLREQ=NECROMANCY 80.0
@@ -969,7 +982,7 @@ INTERRUPT=85.0,100.0
 
 on=@Effect
 EFFECT 3 i_fx_vortex 0 43 0 0B53 5
-local.dam=<EFFECTSPELL s_choque_mental,<argn2>,<src.uid>>
+local.dam=<MULDIV <EFFECTSPELL s_choque_mental,<argn2>,<src.uid>> + <MULDIV <src.SpiritSpeak>,13,10>,<R80,110>,100>
 DAMAGE <local.dam>,DAM_POISON,<src.uid>
 f_consumemana <eval <maxmana>/5>
 return 1
@@ -1195,14 +1208,14 @@ RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_nightshade,i_r_perola_negra,i_r_olho_
 RUNE_ITEM=20485
 SCROLL_ITEM=i_scroll_summon_undead_hi
 FLAGS=SPELLFLAG_GOOD | spellflag_scripted | spellflag_summon
-DURATION=20,120
+DURATION=60,240
 MANAUSE=35
 SKILLREQ=NECROMANCY 100.0
 INTERRUPT=100.0,100.0
 
 on=@Effect
 obj=<f_summon_undead_hi <argn2>,<src.uid>>
-if (<R0,<argn2>> > 35.0)
+if (<belltest <argn2>,50.0,25.0>)
  f_summon_undead_re <argn2>,<src.uid>
  if (<belltest <argn2>,98.5,20.0>)
   f_summon_undead_lo <argn2>,<src.uid>
@@ -1215,8 +1228,8 @@ endif
 return 1
 
 [FUNCTION f_summon_undead_hi]
-local.crit={c_zumbi_quadrupide_sum 6 c_cavaleiro_sombras_sum 3 c_mummy_sum 3}
-local.time=<DURATIONSPELL s_summon_undead_re,<argv0>,<argv1>>
+local.crit={c_senhor_sombras 1 c_cavaleiro_sombras_sum 3 c_mummy_sum 3}
+local.time=<DURATIONSPELL s_summon_undead_hi,<argv0>,<argv1>>
 local.ret=<f_summon_creature <local.crit>,<local.time>>
 return <local.ret>
 
