@@ -342,12 +342,14 @@ if !(<DB.connected>)
 endif
 
 //nao verifica limites se for venda do reino
-if ( <SRC.CTAG0.vendor_op>==1 )
-    DB.QUERY "SELECT COUNT(id) AS CNT FROM vendorItems WHERE idPlayer=<eval <SRC>> AND defName='<OBJ.baseid>'"
-    if <DB.ROW.0.CNT> >= <DEF.vendor_itemsPerId>
-        src.sysmessageyellow Voce nao pode colocar o item a venda. 
-        src.sysmessageyellow O limite e de <eval <DEF.vendor_itemsPerId>> items do mesmo tipo.
-        return 0
+if <SRC.CTAG0.vendor_op>==1
+    if !<SRC.isgm>
+        DB.QUERY "SELECT COUNT(id) AS CNT FROM vendorItems WHERE idPlayer=<eval <SRC>> AND defName='<OBJ.baseid>'"
+        if <DB.ROW.0.CNT> >= <DEF.vendor_itemsPerId>
+            src.sysmessageyellow Voce nao pode colocar o item a venda.
+            src.sysmessageyellow O limite e de <eval <DEF.vendor_itemsPerId>> items do mesmo tipo.
+            return 0
+        endif
     endif
     OBJ.tag.guildItem=
 else
@@ -487,8 +489,12 @@ else
         return 1
     endif
 
-    //remove bag de 'protecao'
-    REF2.remove
+    if <REF2.baseid> == i_bag
+        //remove bag de 'protecao'
+        REF2.remove
+    else
+        serv.log [VENDAS] ERRO AO REMOVER BAG B: <argv0>/<OBJ>/<src>/<LOCAL.totalPrice>
+    endif
     
     //remove item da lista de vendas (e duplicatas caso haja... nunca se sabe)
     DB.EXECUTE "DELETE FROM vendorItems WHERE id=<eval <LOCAL.id>>"
@@ -567,20 +573,31 @@ REF1=<OBJ.cont>
 
 OBJ.events -t_neverDie
 
-//entrega item ao player ou põe no container
-if (<uid.<argv1>.isChar>)
-        OBJ.cont=<uid.<argv1>.findlayer.layer_pack>
-        trysrc <argv1> OBJ.TRIGGER @Buy
-elif (<uid.<argv1>.isCont>
-        OBJ.cont=<argv1>
-else
-        OBJ.p=<uid.<argv1>.p>
-endif
+//destino, pode ser char (vai pra backpack), container (dentro) ou outro item (mesma posicao)
+REF2=<argv1>
+
 OBJ.sfx 87
 OBJ.tag.guildItem=
 
+if !<REF2>
+    serv.log [VENDAS][takeback] Destino <argv1> nao encontrado. Removendo <OBJ> (<OBJ.name>)
+    OBJ.remove
+//entrega item ao player ou põe no container
+elif <REF2.isChar>
+    OBJ.cont=<REF2.findlayer.layer_pack>
+    TRYSRC <REF2> OBJ.TRIGGER @Buy
+elif <REF2.isCont>
+    OBJ.cont=<REF2>
+else
+    OBJ.p=<REF2.p>
+endif
+
 //remove bag de 'protecao'
-REF1.remove
+if <REF1.baseid>==i_bag
+    REF1.remove
+else
+    serv.log [VENDAS][takeback] Erro, bag invalida: <REF1> (<REF1.name>)
+endif
 
 return 1
 
@@ -1090,7 +1107,7 @@ if <src.has_merchant_priv> && (<SRC.CTAG0.vendor_op>==2)
                 src.sysmessagegreen Item encaminhado para o cofre de <src.region.name>.
         else
                 vendor_takebackItem <SRC.CTAG.vendor_selectedItem>,<SRC>
-                uid.<CTAG.vendor_selectedItem>.remove
+                uid.<SRC.CTAG.vendor_selectedItem>.remove
                 src.sysmessagegreen Item removido. Nao ha cofre em <src.region.name>.
         endif
     endif
