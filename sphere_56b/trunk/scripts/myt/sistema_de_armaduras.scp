@@ -99,6 +99,12 @@ ON=@CLIENTTOOLTIP
 tooltip_armors
 return 1
 
+//*****************************************************************************
+// t_attune_armor
+//*****************************************************************************
+[TYPEDEF t_attune_armor]
+//Inicialmente não tem uso. Então funciona como um 'flag' para saber de a armadura
+//esta attunada ou não. O script usa. Não remover.
 
 //*****************************************************************************
 // t_shield
@@ -128,7 +134,7 @@ ref3=<argn>
 moddex -= <local.moddex>
 
 //salva morep em TAG e ZERA, para evitar efeitos de spell ao equipar item
-if !<ref3.tag0.resmod>
+if <IsEmpty <ref3.tag0.resmod>>
     ref3.tag.resmod = <ref3.morex>,<ref3.morey>,<ref3.morez>,<ref3.morem>
     ref3.morex=0
     ref3.morey=0
@@ -226,4 +232,70 @@ else
     return <argv[3]>
 endif
 
+[FUNCTION ATTUNEARMOR]
+//Adiciona <argn1> de resistencia durante <argn2> na armadura DEFAULT.
+//Opcionalmente, <argn3> pode ser o tipo de dano DAM_*
+serv.log <name>.ATTUNEARMOR <args>
+IF (!<IsArmor>) || ( (<argn2> < 1)
+    return 0
+ELIF (<tag0.ATTUNEARMOR_TYPE>)
+    UNATTUNEARMOR
+ENDIF
+
+if (<IsEmpty <argv2>>)
+    local.type=0
+elif (<argv2>&dam_fire)
+    local.type=1
+elif (<argv2>&dam_cold)
+    local.type=2
+elif (<argv2>&dam_poison)
+    local.type=3
+elif (<argv2>&dam_energy)
+    local.type=4
+else
+    local.type=0
+endif
+
+tag.ATTUNEARMOR_TYPE=<local.type>
+tag.ATTUNEARMOR_MOD=<argn1>
+
+DOSWITCH (<local.type>)
+    MODAR = <eval <MODAR>+<argn1>>
+    RES_FIRE = <eval <RES_FIRE>+<argn1>>
+    RES_COLD = <eval <RES_COLD>+<argn1>>
+    RES_POISON = <eval <RES_POISON>+<argn1>>
+    RES_ENERGY = <eval <RES_ENERGY>+<argn1>>
+ENDDO
+
+TIMERF <argn2> UNATTUNEARMOR
+
+EVENTS +t_attune_armor
+
+UPDATE
+
+[FUNCTION UNATTUNEARMOR]
+//Desliga o ATTUNEARMOR
+DOSWITCH (<tag0.ATTUNEARMOR_TYPE>)
+    MODAR = <eval <MODAR>-<tag0.ATTUNEARMOR_MOD>>
+    RES_FIRE = <eval <RES_FIRE>-<tag0.ATTUNEARMOR_MOD>>
+    RES_COLD = <eval <RES_COLD>-<tag0.ATTUNEARMOR_MOD>>
+    RES_POISON = <eval <RES_POISON>-<tag0.ATTUNEARMOR_MOD>>
+    RES_ENERGY = <eval <RES_ENERGY>-<tag0.ATTUNEARMOR_MOD>>
+ENDDO
+
+//Está equipada? Precisa tirar o buff do char.
+IF (<cont.IsChar>)
+    DOSWITCH (<tag0.ATTUNEARMOR_TYPE>)
+        local.0
+        cont.resfiremod -<tag0.ATTUNEARMOR_MOD>
+        cont.rescoldmod -<tag0.ATTUNEARMOR_MOD>
+        cont.respoisonmod -<tag0.ATTUNEARMOR_MOD>
+        cont.resenergymod -<tag0.ATTUNEARMOR_MOD>
+    ENDDO
+ENDIF
+tag.ATTUNEARMOR_TYPE=
+tag.ATTUNEARMOR_MOD=
+EVENTS -t_attune_armor
+topobj.sysmessagered <name> peddeu sua resistencia extra.
+UPDATE
 [EOF]

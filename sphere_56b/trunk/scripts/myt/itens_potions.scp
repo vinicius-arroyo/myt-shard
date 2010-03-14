@@ -76,6 +76,44 @@ else
 endif
 return 1
 
+[TYPEDEF t_plaster]
+//Emplastro. Melhora armas e asmaduras por um período de tempo
+ON=@DClick
+src.sysmessageyellow Selecione a arma ou armadura:
+TARGET
+return 1
+
+ON=@Targon_Item
+if (<src.targ.topobj>!=<src>)
+    src.sysmessagered <src.targ.name> deve estar sem seu poder.
+elif (!<src.targ.IsWeapon>) && (!<src.targ.IsArmor>)
+    src.sysmessagered Somente armas e armaduras.
+elif (<src.targ.isevent.t_attune_weapon>) || (<src.targ.isevent.t_attune_armor>)
+    src.sysmessagered <src.targ.name> ja tem um tratamento especial.
+elif (<src.targ.IsArmor>) && (<src.targ.cont.Ischar>)
+    src.sysmessagered Voce nao pode fazer isso vestindo a armadura.
+elif (<src.targ.IsWeapon>) || (<src.targ.IsArmor>)
+    if (<morex>)
+        more2=dam_fire
+        more1=<morex>
+    elif (<morey>)
+        more2=dam_cold
+        more1=<morey>
+    elif (<morez>)
+        more2=dam_poison
+        more1=<morez>
+    elif (<morem>)
+        more2=dam_energy
+        more1=<morem>
+    else
+        src.sysmessagered Esse emplastro nao funciona mais,
+        decrement
+        return 1
+    endif
+    src.f_plast_item <src.targ>,<uid>
+endif
+return 1
+
 //######################################################################
 //######################################################################
 //
@@ -304,7 +342,53 @@ if (<local.done>)
     sfx 011E
 endif
     
-
+[FUNCTION f_plast_item]
+//Passando um t_plaster (emplastro) em um item.
+//<argv0> o item, <argv1> o emplastro. <argv2> variavel interna de timer
+IF (<IsEmpty <argv2>>)
+    ctag.p.x=<p.x>
+    ctag.p.y=<p.y>
+    ctag.disturb=0
+    sfx 05ad
+    emoteyellow abre um frasco
+    timerf 1 f_plast_item,<argv0>,<argv1>,1
+ELIF (<argv2> < 15)
+    if (<ctag0.disturb>) || (<dctag0.p.x>!=<p.x>) || (<dctag0.p.y>!=<p.y>) || (<uid.<argv0>.topobj>!=<UID>) || (<uid.<argv1>.topobj>!=<UID>) || ( (<uid.<argv0>.IsArmor>) && (<uid.<argv0>.cont.IsChar>) )
+        sysmessagered Voce nao esta mais passando <uid.<argv1>.name> em <uid.<argv0>.name>.
+        return 1
+    else
+        DOSWITCH <argv2>
+            local.0
+            sfx 02d6
+            emoteyellow derrama um pouco
+            anim 6
+            sfx 01c5
+            emoteyellow esfrega <uid.<argv0>.name>
+            sfx 0247
+            anim 6
+            anim 6
+            sfx 02d6
+            emoteyellow derrama uma pouco
+            anim 6
+            sfx 01c5
+            emoteyellow esfrega <uid.<argv0>.name>
+            sfx 0247
+        ENDDO
+        timerf 1 f_plast_item,<argv0>,<argv1>,<eval <argv2>+1>
+    endif
+ELSE
+    ref1=<argv0>
+    ref2=<argv1>
+    if (<ref1.IsWeapon>)
+        ref1.ATTUNEWEAPON <ref2.more1>,1800,200,<ref2.more2>
+    elif (<ref1.IsArmor>) && (<ref1.cont.IsPlayer>)
+        sysmessagered Nao da para tratar <ref1.name> vestindo!
+        return 1
+    elif (<ref1.IsArmor>)
+        ref1.ATTUNEARMOR <ref2.more1>,10800,<ref2.more2>
+    endif
+    ref2.decrement
+ENDIF
 
 
 //######################################################################
@@ -3711,6 +3795,145 @@ src.f_polymorph c_chicken,0,300
 potion_consume
 return 1
 
+[ITEMDEF i_potion_7_bat]
+// Conjura 7 morcegos para lutar contra quem toma
+ID=i_bottle_yellow
+NAME=pocao amarela
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=7 i_r_asa_morcego, i_bottle_EMPTY
+SKILLMAKE=ALCHEMY 92.2
+DESCRIPTION=Poção 7 morcegos
+SUBSECTION=Potions joke
+CATEGORY=MyT - Provisions - Alchemy & Magic
 
+ON=@DClick
+if <src.findlayer.layer_flag_potionused>
+    return 0
+endif
+potion_consume
+FOR i 1 7
+    serv.newnpc c_vampire_bat
+    new.movenear <src> 3
+    new.timerf 120 remove
+    new.flags |= statf_conjured
+    new.attack <src>
+ENDFOR
+remove
+return 1
+
+[ITEMDEF i_potion_swamp]
+// Vomitar sapos
+ID=i_bottle_black
+NAME=pocao negra
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=1 i_r_asa_morcego, 4 i_r_musgo_sangue, i_bottle_EMPTY
+SKILLMAKE=ALCHEMY 92.2
+DESCRIPTION=Poção do pantano
+SUBSECTION=Potions joke
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@CREATE
+    more1=205
+    more2=125.0
+
+[ITEMDEF i_potion_poly_snake]
+// Polymorpha temporariamente pra serpente diminuindo stats.
+ID=i_bottle_orange
+NAME=pocao alaranjada
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=2 i_r_olho_morto_vivo, i_bottle_EMPTY
+SKILLMAKE=ALCHEMY 62.2
+DESCRIPTION=Poção serpente
+SUBSECTION=Potions joke
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@DClick
+if <src.findlayer.layer_flag_potionused>
+    return 0
+endif
+potion_consume
+src.sysmessagered Pronto! Agora voce tem olhos de serpente!
+src.f_polymorph c_snake,colors_green,300
+return 1
+
+[ITEMDEF i_potion_blindness]
+// Deixa quem toma com VISUALRANGE=1 durante 5 minutos
+ID=i_bottle_purple
+NAME=pocao rosea
+TYPE=T_POTION
+TDATA1=i_bottle_empty
+RESOURCES=4 i_r_olho_morto_vivo, i_bottle_EMPTY
+SKILLMAKE=ALCHEMY 92.2
+DESCRIPTION=Poção cegueira
+SUBSECTION=Potions joke
+CATEGORY=MyT - Provisions - Alchemy & Magic
+
+ON=@DClick
+if <src.findlayer.layer_flag_potionused>
+    return 0
+endif
+potion_consume
+src.sysmessagered Pronto! Agora voce tem uma visao como se fosse noite SEMPRE!
+src.blind 1,300
+return 1
+
+
+//########################################################
+//##                                                    ##
+//##                     Emplastros                     ##
+//##                                                    ##
+//########################################################
+
+
+[ITEMDEF i_emplastro_chamas]
+ID=021FE
+NAME=emplastro das chamas
+TYPE=t_plaster
+SKILLMAKE=80.0 Alchemy
+RESOURCES=20 i_r_cinza_sulfurosa, 8 i_r_enxofre, 4 i_r_cinza_vulcanica, 1 i_tubo
+
+ON=@Create
+morex={2 8 3 6 4 4 5 2 6 1}
+NAME=<NAME> +<dmorex>
+COLOR=08c5
+
+[ITEMDEF i_emplastro_glacial]
+ID=021FE
+NAME=emplastro glacial
+TYPE=t_plaster
+SKILLMAKE=80.0 Alchemy
+RESOURCES=20 i_r_perola_negra, 8 i_r_ectoplasma, 4 i_r_sangue_invocado, 1 i_tubo
+
+ON=@Create
+morey={2 8 3 6 4 4 5 2 6 1}
+NAME=<NAME> +<dmorey>
+COLOR=08CA
+
+[ITEMDEF i_emplastro_pestilencia]
+ID=021FE
+NAME=emplastro da pestilencia
+TYPE=t_plaster
+SKILLMAKE=80.0 Alchemy
+RESOURCES=20 i_r_nightshade, 8 i_r_sangue_invocado, 4 i_r_frasco_sangue, 1 i_tubo
+
+ON=@Create
+morez={2 8 3 6 4 4 5 2 6 1}
+NAME=<NAME> +<dmorez>
+COLOR=0AFA
+
+[ITEMDEF i_emplastro_tempestades]
+ID=021FE
+NAME=emplastro das tempestades
+TYPE=t_plaster
+SKILLMAKE=80.0 Alchemy
+RESOURCES=20 i_r_raiz_de_mandrake, 8 i_r_ferro_guza, 4 i_r_vidro_vulcanico, 1 i_tubo
+
+ON=@Create
+morem={2 8 3 6 4 4 5 2 6 1}
+NAME=<NAME> +<dmorem>
+COLOR=0A20
 
 [EOF]
