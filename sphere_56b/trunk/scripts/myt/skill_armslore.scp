@@ -799,6 +799,67 @@ if <LOCAL.x>
     return <LOCAL.tm>
 endif
 
+[FUNCTION ATTUNEWEAPON]
+//Adiciona <argn1> de dano durante <argn2> segundos ou <argn3> hits a arma DEFAULT.
+//Opcionalmente, <argn4> pode ser o tipo de dano DAM_*
+IF (!<IsWeapon>) || ( (<argn2> < 1) && (<argn3> == 0) )
+    return 0
+ELIF (<tag0.ATTUNEWEAPON_TYPE>)
+    UNATTUNEWEAPON
+ENDIF
+
+if (<IsEmpty <argv3>>)
+    local.type=0
+elif (<argv3>&dam_fire)
+    local.type=1
+elif (<argv3>&dam_cold)
+    local.type=2
+elif (<argv3>&dam_poison)
+    local.type=3
+elif (<argv3>&dam_energy)
+    local.type=4
+else
+    local.type=0
+endif
+
+tag.ATTUNEWEAPON_TYPE=<local.type>
+tag.ATTUNEWEAPON_MOD=<argn1>
+if (0<argn3>)
+    tag.ATTUNEWEAPON_HITS=<argn3>
+else
+    tag.ATTUNEWEAPON_HITS
+endif
+
+DOSWITCH (<local.type>)
+    MODAR = <eval <MODAR>+<argn1>>
+    DMGFIRE = <eval <DMGFIRE>+<argn1>>
+    DMGCOLD = <eval <DMGCOLD>+<argn1>>
+    DMGPOISON = <eval <DMGPOISON>+<argn1>>
+    DMGENERGY = <eval <DMGENERGY>+<argn1>>
+ENDDO
+
+TIMERF <argn2> UNATTUNEWEAPON
+
+EVENTS +t_attune_weapon
+
+UPDATE
+
+[FUNCTION UNATTUNEWEAPON]
+//Desliga o ATTUNEWEAPON
+DOSWITCH (<tag0.ATTUNEWEAPON_TYPE>)
+    MODAR = <eval <MODAR>-<tag0.ATTUNEWEAPON_MOD>>
+    DMGFIRE = <eval <DMGFIRE>-<tag0.ATTUNEWEAPON_MOD>>
+    DMGCOLD = <eval <DMGCOLD>-<tag0.ATTUNEWEAPON_MOD>>
+    DMGPOISON = <eval <DMGPOISON>-<tag0.ATTUNEWEAPON_MOD>>
+    DMGENERGY = <eval <DMGENERGY>-<tag0.ATTUNEWEAPON_MOD>>
+ENDDO
+tag.ATTUNEWEAPON_TYPE=
+tag.ATTUNEWEAPON_MOD=
+EVENTS -t_attune_weapon
+tag.ATTUNEWEAPON_HITS=
+topobj.sysmessagered <name> peddeu seu dano extra.
+UPDATE
+
 //*****************************************************************************
 //*****************************************************************************
 // TYPEDEFs - ARMAS
@@ -1058,6 +1119,20 @@ ON=@EQUIPTEST
 ON=@CLIENTTOOLTIP
 tooltip_weapons
 return 1
+
+//*****************************************************************************
+// t_attune_weapon
+//*****************************************************************************
+[TYPEDEF t_attune_weapon]
+//Arma melhorada artificialmente. Pedra de amolar, emplastros (t_plaster) e etc.
+ON=@CDAMAGE
+if (<tag0.ATTUNEWEAPON_HITS>)
+    tag0.ATTUNEWEAPON_HITS -= 1
+    serv.log tag0.ATTUNEWEAPON_HITS=<dtag0.ATTUNEWEAPON_HITS>
+    if !(<tag0.ATTUNEWEAPON_HITS>)
+        UNATTUNEWEAPON
+    endif
+endif
 
 //*****************************************************************************
 //*****************************************************************************

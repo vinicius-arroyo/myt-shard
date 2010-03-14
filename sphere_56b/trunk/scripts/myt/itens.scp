@@ -43,6 +43,89 @@ IF (<argo.type>!=t_weapon_arrow) && (<argo.type>!=t_weapon_bolt)
  return 1
 ENDIF
 
+[TYPEDEF t_wheting_stone]
+//Pedra de amolar lâminas
+ON=@DClick
+src.sysmessageyellow Selecione a arma:
+TARGET
+return 1
+
+ON=@Targon_Item
+if (<src.targ.type>!=t_weapon_sword) && (<src.targ.type>!=t_weapon_fence)
+    src.sysmessagered Isso nao eh uma arma com lamina.
+elif (<src.targ.topobj>!=<src>)
+    src.sysmessagered A arma deve estar em seu poder.
+elif (<src.targ.IsEvent.t_attune_weapon>)
+    src.sysmessagered Essa arma ja foi amolada.
+else
+    src.emoteyellow amolando <src.targ.name>
+    src.f_wheat_weapon <src.targ>,<uid>
+endif
+return 1
+
+[FUNCTION f_wheat_weapon]
+//Tenta amolar a arma <argn1> usando a pedra <argn2>
+ref1=<argn1>
+obj=<findid.i_faz_item>
+obj.cleartags
+obj.tag.abort=1
+obj.tag.item=1
+obj.tag.weapon=<argn1>
+obj.tag.stone=<argn2>
+obj.tag.skill=ArmsLore
+obj.tag.dif=<eval <serv.itemdef.<ref1.defname>.skillmake.0.val>/10>
+obj.tag.delay=15
+obj.tag.f_step=f_wheat_weapon_step
+obj.tag.f_done=f_wheat_weapon_done
+fazitem
+
+[FUNCTION f_wheat_weapon_step]
+DOSWITCH <cTAG0.step>
+ sfx 0524
+ emoteyellow amolando <uid.<findid.i_faz_item.tag0.weapon>.name>
+ local.0
+ sfx 0247
+ENDDO
+cTAG0.step += 1
+if (<cTAG0.step> > 5)
+    cTAG.step=0
+endif
+anim 6
+
+[FUNCTION f_wheat_weapon_done]
+ref1=<findid.i_faz_item.tag0.weapon>
+ref2=<findid.i_faz_item.tag0.stone>
+
+if (<ref1.topobj>!=<uid>) || (<ref2.topobj>!=<uid>)
+    sysmessagered Andaram te roubando...
+    confuso
+    return 1
+endif
+
+if (<argn1>)    //Passou no teste de Armslore. Reparar.
+     //Determina quantos HITS da arma vai devolver.
+    local.percent=<BETWEEN 5,50,<ArmsLore>,100.0>
+    local.hits=<MULDIV <ref1.MAXHITS>,5,100>
+    local.oHits=<ref1.hits>
+    if (<eval <local.hits>+<ref1.HITS>> > <ref1.MAXHITS>)
+        ref1.HITS=<ref1.MAXHITS>
+    else
+        ref1.HITS += <local.hits>
+    endif
+    if (<local.oHits> > <ref1.HITS>)
+        src.sysmessageyellow Para receber o tratamento sua arma perdeu <eval <local.oHits>-<ref1.hits>> hits.
+    else
+        src.sysmessagegreen <ref1.name> foi reparada em <eval <ref1.hits>-<local.oHits>> hits!
+    endif
+    
+else
+    src.sysmessageyellow Voce nao conseguiu reparar <ref1.name>.
+endif
+
+ref1.ATTUNEWEAPON <ref2.more1>,600,100
+
+ref2.decrement
+
 //*****************************************************************************
 //*****************************************************************************
 // ITEMDEFs - Reagentes
@@ -1148,6 +1231,18 @@ else
 endif
 return 1
 
+[ITEMDEF 12246]
+DEFNAME=i_pedra_amolar
+NAME=pedra de amolar lamina
+TYPE=t_wheting_stone
+SKILLMAKE=125.0 Tinkering
+RESOURCES=10 i_r_pomis, 10 i_r_rocha_negra
+
+ON=@create
+COLOR=0338
+more1={2 8 3 6 4 4 5 2 6 1}
+NAME=<NAME> +<more1>
+
 [ITEMDEF i_coin_copper]
 //copper coin
 name=moeda%s% de cobre
@@ -1391,95 +1486,6 @@ DESCRIPTION=Areia
 
 on=@create
 color=070a
-
-
-
-
-[ITEMDEF I_boleadera]
-DEFNAME=I_boleadera
-ID=I_Cannon_Ball
-NAME=Boleadera
-RESOURCES=i_hides_cut 50,i_cannon_ball
-SKILLMAKE=TAILORING 60.0
-
-
-ON=@CREATE
-    color=colors_brown
-    attr attr_decay|attr_can_decay
-
-
-ON=@dclick
-    IF !(<TOPOBJ.UID>==<SRC.UID>)
-        SRC.SYSMESSAGE A boleadera deve estar em sua mochila!
-    RETURN 1
-    END IF
-    IF (<TIMER> >=1)
-        SRC.SYSMESSAGE Voce ainda nao tem forcas para tacar novamente!
-    RETURN 1
-    ENDIF
-    IF (<SRC.RESTEST 2 i_bola>)
-        src.sysmessage voce so pode possuir uma boleadera em sua mochila por vez!
-    RETURN 1
-    ENDIF
-    if <src.STR> < 90
-        src.sysmessage Voce nao e forte o suficiente para usar a boleadera!
-    return 1
-    else
-        TARGET quem voce deseja desmontar?
-    ENDIF
-    RETURN 1
-
-
-on=@targon_item
-    src.sysmessage Voce nao pode usar isso em itens!
-RETURN 1
-
-on=@targon_ground
-    src.sysmessage Voce acerta no solo!
-return 1
-
-
-on=@targon_char
-    IF <SRC.TARG>=<src.uid>
-        src.sysmessage Voce tenta usar a boleadera em voce mesmo ,mas , descobre que e impossivel!
-    return 1
-    elIF <SRC.TARG.NPC>
-        src.sysmessage Voce nao pode usar isso em npcs!
-    return 1
-    elIF <SRC.TARG.ISGM>
-        src.sysmessage Voce nao pode desmontar GMS!
-    return 1
-    elIF <src.TARG.DISTANCE> > 9 // 9 blocks away..
-        src.sysmessage Voce esta muito longe do seu alvo!
-    return 1
-    else
-    if (<src.targ.findlayer.25.uid> )
-        SRC.TARG.DAMAGE 1 01 <SRC.UID>
-        SRC.TARG.HITPOINTS=<SRC.TARG.HITPOINTS>+1
-        src.anim 9
-        src.act=<src.targ.findlayer.25.more2>
-        src.act.p=<src.targ.p>
-        src.targ.findlayer.25.remove
-        src.targ.update
-        src.update
-        src.targ.emote Voce foi desmontado por <src.name>
-        src.targ.ANIM 22
-        REGION.ALLCLIENTS FIX
-        update
-        TIMER 20
-    else
-        src.sysmessage O alvo deve estar montado!
-    endif
-    return 1
-    ENDIF
-
-
-
-
-
-
-
-
 
 
 
