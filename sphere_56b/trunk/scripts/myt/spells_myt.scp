@@ -1015,6 +1015,68 @@ if !(<IsEmpty <tag.modskill>>) && !(<IsEmpty <tag.modskillval>>)
 endif
 link=04fffffff
 
+[TYPEDEF t_jewelry]
+on=@equip
+if (<link>==04fffffff)
+ link=<cont.uid>
+endif
+if !(<IsEmpty <tag.modskill>>) && !(<IsEmpty <tag.modskillval>>) && (<attr>&attr_identified)
+ local.maxincrease=<eval 125.0-<link.<DEF.Skill_<tag.modskill>>>>
+ local.maxdecrease=-<link.<DEF.Skill_<tag.modskill>>>
+ tag.modskilltrue=<maximum <local.maxdecrease>,<minimum <tag.modskillval>,<local.maxincrease>>>
+ link.<DEF.Skill_<tag.modskill>> += <tag.modskilltrue>
+endif
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+if !(<IsEmpty <tag.modskilltrue>>) && (<attr>&attr_identified)
+ link.<DEF.Skill_<tag.modskill>> -= <tag0.modskilltrue>
+ tag.modskilltrue=
+endif
+link=04fffffff
+
+ON=@ClientTooltip
+local.t=<CHR 31>
+IF (<attr>&01) || (<src.IsGM>)
+    local.c=1
+ENDIF
+
+IF !(<attr>&01)
+    local.t =<DEF.BFONT_YELLOW>(não identificado)<DEF.BR>
+ENDIF
+IF !(<IsEmpty <tag.modskill>>) && !(<IsEmpty <tag.modskillval>>) && (<local.c>)
+    local.t .=<DEF.BFONT_CYAN><tag.modskill> +<fval <tag.modskillval>><DEF.BR>
+ENDIF
+IF (<attr>&attr_magic) && (<local.c>)
+    local.t .=<DEF.BFONT_CYAN>mágico<DEF.BR>
+ENDIF
+IF (<attr>&0100) && (<local.c>)
+    local.t .=<DEF.BFONT_CYAN>amaldiçoado<DEF.BR>
+ENDIF
+IF (<attr>&0200) && (<local.c>)
+    local.t .=<DEF.BFONT_CYAN>maldito<DEF.BR>
+ENDIF
+IF (<attr>&0400) && (<local.c>)
+    local.t .=<DEF.BFONT_CYAN>abençoado<DEF.BR>
+ENDIF
+IF (<attr>&0800) && (<local.c>)
+    local.t .=<DEF.BFONT_CYAN>sagrado
+ENDIF
+
+src.addcliloc 1042971,<NAME>
+src.addcliloc 1070722,<LOCAL.t>
+return 1
+
+
+ON=@Identify
+if (!<IsEmpty <tag.modskill>>)
+    NAME=<NAME> de <tag.modskill> +<fval <tag0.modskillval>>
+endif
+
 [ITEMDEF i_mry_buffskill]
 ID=0208F
 NAME=BuffSkill
@@ -1102,11 +1164,12 @@ RETURN 1
 [FUNCTION BuffSkill]
 //ARGV0=skill, ARGV1=valor, ARGV3=tempo
 if (!<serv.skill.<argv0>>) || (!<eval <argv1>>)
- say <args>
  return 0
 endif
 if (<IsItem>)
- events +e_BuffSkill
+ if (<type>!=t_jewelry)
+     events +e_BuffSkill
+ endif
  tag.modskill=<argv0>
  tag.modskillval=<fval <argv1>>
 elif (0<argv2>)
@@ -1136,6 +1199,42 @@ FORCHARLAYER layer_special
         REMOVE
     ENDIF
 END
+
+[FUNCTION blind]
+//Diminui o campo de visao para <argn1> tiles durante <argn2> segundos
+if (<argn1> < 0) || (<argn2> < 1) || (<restest 1 i_mry_blind>)
+ return 1
+endif
+newitem=i_mry_blind
+new.more1=<visualrange>
+visualrange=<argn1>
+new.link=<UID>
+trysrc <uid> new.equip
+new.timer <argn2>
+
+[ITEMDEF i_mry_blind]
+ID=02088
+NAME=Cegueira
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@equip
+link.sysmessageorange Ah algo de errado com sua visao!
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+ATTR=attr_cursed2
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+link.sysmessagegreen Sua visao voltou ao normal
+link.visualrange=<more1>
+link.update
+
+on=@timer
+remove
+RETURN 1
 
 
 [EOF]
