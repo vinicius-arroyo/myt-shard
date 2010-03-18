@@ -382,7 +382,6 @@ color=00a24
 attr=080
 more2=10800          // a cada -3- horas da reset nos uids de quem ja entrou na multiregion
 TIMERF 1,region.events,r_msg
-TIMERF 1,f_mreset_timer
 
 ON=@CLIENTTOOLTIP
 f_sendTooltip O texto abaixo aparecera aos players quando andarem a 3 tiles de distancia deste Item:, *-*-*-* EDITE O TEXTO C/ 2 CLICK *-*-*-* <DEF.BR> TEXTO : <name> 
@@ -395,22 +394,29 @@ return 1
 
 [REGIONTYPE r_msg]
 
-ON=@enter
+ON=@ENTER
+
+//NPCs nao precisam disparar mensagem
+if <src.npc>
+    return 0
+endif
+
+//passou mais de 3 horas da ultima mensagem? (ou lista muito grande)
 obj=<uid>
-if (<isempty <obj.tag.entrou_hoje>>)        //Só gera TIMERF caso ngm tenha entrado nas ultimas (<more2>/3600) horas
- obj.timerf <obj.more2>,f_mreset_timer
-endif
+LOCAL.l=<eval STRLEN(<obj.tag.entrou_hoje>)>
+if (<obj.timer>==-1) || ( <LOCAL.l> > 1000 )
+    //limpa lista
+    obj.tag.entrou_hoje=
+endif    
 
-if (STRMATCH(*<src.uid>*,<obj.tag.entrou_hoje>))
- return 0  // ja entrou
-else
- src.sysmessageyellow <obj.name>
- obj.tag.entrou_hoje .= ;<src.uid>
- return 1
-endif
+//recarrega tempo para limpar lista
+obj.timer=<obj.more2>
 
-ON=@exit
-//src.message SAIu
+//se player ainda nao recebeu a msg, mostra
+if !(STRMATCH(*<src>*,<obj.tag.entrou_hoje>))
+    src.sysmessageyellow <obj.name>
+    obj.tag.entrou_hoje .= ;<src>
+endif
 
 [DIALOG d_digitar_msg]
 200, 300
@@ -438,10 +444,6 @@ return 1
 ON=2
 src.sysmessageyellow Nada foi alterado !
 return 1
-
-[FUNCTION f_mreset_timer]
- tag.entrou_hoje=        // reseta uids de quem entrou
-endif
 
    //////////////////////////////////////////////
   //        BARREIRAS PARA DUNGEONS       //
