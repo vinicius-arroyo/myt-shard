@@ -1,3 +1,49 @@
+[COMMENT TRESURES]
+-=   Mystical Tales Shard   =-
+Sistema de tesouros unificado v1.1      18/03/2010
+Galthar, o Errante
+
+
+-=TAGS ULTILIZADAS=-
+    obj.tag.tresure_create
+    obj.tag.tresure_last
+    obj.tag.tresure_uses
+    obj.tag.tresure_found
+    obj.tag.users
+    obj.tag.user_<UID>
+    obj.tag.tresure_timer
+    obj.tag.tresure_create
+    obj.tag.tresure_creator
+    obj.tag.tresure_lastGM
+    obj.tag.tresure_loot
+    obj.tag.tresure_link
+    obj.tag.tresure_text
+    obj.tag.tresure_only1
+    obj.tag.tresure_users
+    obj.tag.tresure_guard
+    obj.tag.Detecting_Hidden
+    obj.tag.tresure_found
+
+    ctag.tresure_UID
+    ctag.tresure_text
+    ctag.tresure_expires
+    ctag.tresure_link
+    ctag.tresure_key
+    ctag.tresure_loot
+    ctag.tresure_d
+    ctag.tresure_h
+    ctag.tresure_hide
+    ctag.tresure_DH
+    ctag.tresure_only1
+    ctag.tresure_guard
+
+-=Página do sistema=-
+http://wiki.myt.com.br/index.php/Sistema_de_tesouros
+
+-=Regras de uso=-
+http://forum.myt.com.br/index.php?topic=3037.0
+
+
 [FUNCTION tesouro]
 // Configura o tesouro de um container
 if (!<argo>)
@@ -120,6 +166,7 @@ if (<argn>)
     obj.tag.tresure_create=<serv.time>
     obj.tag.tresure_last=
     obj.tag.tresure_uses=
+    obj.tag.tresure_found=
     if (!<IsEmpty <obj.tag.tresure_only1>>)
         prompt_new Limpar tambem a lista de jogadores que ja utilizaram este tesouro?
         prompt_setAction tresure_ResetUsers
@@ -174,7 +221,9 @@ obj.events +t_tresure
 obj.tag.tresure_timer=<eval (<ctag.tresure_d>*24*60*60*10)+(<ctag.tresure_h>*60*60*10)>
 if (<IsEmpty <obj.tag.tresure_create>>)
     obj.tag.tresure_create=<serv.time>
+    obj.tag.tresure_creator=<src.account>
 endif
+obj.tag.tresure_lastGM=<src.account>
 obj.tag.tresure_loot=<ctag.tresure_loot>
 //Guardar chave?
 if (STRMATCH(Chave para*,<obj.tag.tresure_loot>))
@@ -224,16 +273,18 @@ else
     obj.tag.tresure_found=
 endif
 //Cuidados com fechaduras
-DOSWITCH <eval <obj.tag0.fechadura>-5>
-    obj.tag.chars=3     //Tranca com 3 caracteres
-    obj.tag.chars=4     //Tranca com 4 caracteres
-    obj.tag.chars=5     //Tranca com 5 caracteres
-    obj.tag.chars=6     //Tranca com 6 caracteres
-ENDIF
-if (<IsEmpty <obj.tag.code>>)
-    lockc_OpenSet <obj>
-elif (<eval STRLEN(<obj.tag.code>)>!=<obj.tag.chars>)
-    lockc_OpenSet <obj>
+if (<obj.tag0.fechadura> > 4)
+    DOSWITCH <eval <obj.tag0.fechadura>-5>
+        obj.tag.chars=3     //Tranca com 3 caracteres
+        obj.tag.chars=4     //Tranca com 4 caracteres
+        obj.tag.chars=5     //Tranca com 5 caracteres
+        obj.tag.chars=6     //Tranca com 6 caracteres
+    ENDIF
+    if (<IsEmpty <obj.tag.code>>)
+        lockc_OpenSet <obj>
+    elif (<eval STRLEN(<obj.tag.code>)>!=<obj.tag.chars>)
+        lockc_OpenSet <obj>
+    endif
 endif
 //Anti-GM descuidado
 IF (<obj.tag0.tresure_timer> < 600)
@@ -329,7 +380,9 @@ endif
 
 if (<eval <tag0.tresure_last>+<tag0.tresure_timer>> < <serv.time>)
     tag0.tresure_last=<serv.time>
-    tag0.tresure_uses += 1
+    if (!<src.IsGM>)
+        tag0.tresure_uses += 1
+    endif
     tresure_Generate
 endif
     
@@ -341,11 +394,23 @@ timerf 1800 objinvis,1
 [FUNCTION tresure_Info]
 //HTML informativo sobre o tesouro.
 obj=<ctag.tresure_uid>
-local.create=<f_timestring <eval (<serv.time>-<obj.tag.tresure_create>)/10>>
-local.t=Ultimo reset ha <local.create>.<DEF.BR>
-local.last=<f_timestring <eval (<serv.time>-<obj.tag.tresure_last>)/10>>
-local.t .= Ultimo uso ha <local.last>.<DEF.BR>
-local.t .= Total de usos: <obj.dtag0.tresure_uses>
+IF (<obj.tag0.tresure_create>
+    local.t=Criado por <obj.tag.tresure_creator>. Ultima mudanca por <obj.tag.tresure_lastGM>.<DEF.BR>
+    local.create=<f_timestring <eval (<serv.time>-<obj.tag.tresure_create>)/10>>
+    local.t .= Ultimo reset ha <local.create>.<DEF.BR>
+ELSE
+    local.t=Sem registro de criacao.<DEF.BR>
+ENDIF
+IF (<obj.tag0.tresure_last>)
+    local.last=<f_timestring <eval (<serv.time>-<obj.tag.tresure_last>)/10>>
+    local.t .= Ultimo uso ha <local.last>.<DEF.BR>
+    local.t .= Total de usos: <obj.dtag0.tresure_uses><DEF.br>
+    IF (!<IsEmpty <obj.tag.tresure_found>>)
+        local.t .= Invis descoberto <obj.dtag0.tresure_found> vezes.
+    ENDIF
+ELSE
+    local.t .= Nunca foi usado.<DEF.BR>
+ENDIF
 return <local.t>
 
 [DIALOG d_tresures]
@@ -486,6 +551,7 @@ ON=7
 ctag.tresure_d=<argtxt[0]>
 ctag.tresure_h=<argtxt[1]>
 tresure_openDialog
+weblink forum.myt.com.br/index.php?topic=3037.0
 
 ON=8
 //Resetar contadores
