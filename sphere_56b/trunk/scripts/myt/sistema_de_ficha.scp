@@ -61,8 +61,17 @@ prender
 //*****************************************************************************
 //usado pelos GMs
 [FUNCTION ficha]
-sysmessageyellow Selecione o Jogador:
-targetfg ficha_
+IF (!<argo>)
+    sysmessageyellow Selecione o Jogador:
+    targetf ficha
+ELIF (!<argo.IsPlayer>)
+    sysmessagered Jogador invalido!
+ELSE
+    ctag.admin_player=<argo>
+    ctag0.admin_action=ADMIN_PAGE_CHAR
+    dialogclose d_sphereadmin
+    dialog d_sphereadmin
+ENDIF
 
 [FUNCTION ficha_]
 if (<argo.isplayer>)
@@ -117,6 +126,51 @@ else
 endif
 
 //*****************************************************************************
+[FUNCTION admin_banAccount]
+//*****************************************************************************
+//Function para banir player
+obj=<ctag0.admin_player>
+if (<argn>==<ctag0.chalenge>)
+    if (<obj.account.plevel> < <account.plevel>)
+        if (!<obj.account.block>)
+            trysrv obj.kick
+            sb Conta <obj.account> banida!
+            serv.log [BANIMENTO] Conta <obj.account.name> banida por '<src.account.name>'!!!
+        else
+            obj.account.block=0
+            sb Conta '<obj.account>' reincluida!
+            serv.log [BANIMENTO] Conta '<obj.account.name>' DESbanida por '<src.account.name>'!!!
+    else
+        sysmessagered Voce nao tem privilegio para isso.
+    endif
+else
+    sysmessagered Codigo errado.
+    dialog d_sphereadmin
+endif
+
+//*****************************************************************************
+[FUNCTION admin_RPnote]
+//*****************************************************************************
+//Adiciona uma nota <args> ao RP do char <ctag.admin_player>
+if (<eval strlen(<args>)> < 6)
+    sysmessagered Nota muito curta!
+else
+    event_RPnote <ctag.admin_player>,<args>
+endif
+DIALOG d_sphereadmin
+
+//*****************************************************************************
+[FUNCTION admin_GMnote]
+//*****************************************************************************
+//Adiciona uma nota <args> à conta do char <ctag.admin_player>
+if (<eval strlen(<args>)> < 6)
+    sysmessagered Nota muito curta!
+else
+    event_note <ctag.admin_player>,<args>
+endif
+DIALOG d_sphereadmin
+
+//*****************************************************************************
 // prender ([motivo])
 //*****************************************************************************
 //usado pelos GMs
@@ -126,26 +180,49 @@ targetfg prender_
 
 [FUNCTION prender_]
 if (<argo.isplayer>)
-    ctag.prender_uid=<argo>
+    ctag.admin_player=<argo>
+    DB.QUERY "SELECT count(uidJailed) AS cnt FROM jail WHERE uidJailed=<eval <argo>>"
+    ctag.admin_jail_h=<MAXIMUM <DB.ROW.0.cnt>,1>
     dialog d_prender
 else
     sysmessageyellow Nao eh um jogador valido.
 endif
 
+//*****************************************************************************
+// jail_Prompt (UID)
+//*****************************************************************************
+[FUNCTION jail_Prompt]
+//Dialog para prender o jogador <argn>
+obj=<argn>
+if (!<obj.IsPlayer>)
+    return
+elif (!<obj.IsOnline>)
+    return
+endif
+ctag.admin_player=<obj>
+DB.QUERY "SELECT count(uidJailed) AS cnt FROM jail WHERE uidJailed=<eval <obj>>"
+ctag.admin_jail_h=<MAXIMUM <DB.ROW.0.cnt>,1>
+dialog d_prender
+
 //***********************************************************
 [FUNCTION macroer]
 //***********************************************************
 //Prende e penaliza um jogador por macro
-if (!<argo>)
+if (!<argo>) && (!<argn>)
     sysmessageyellow Selecione o delinquente:
     targetf macroer
-//elif (!<argo.IsPlayer>)
-//    sysmessagered Jogador invalido.
+elif (!<argo.IsPlayer>) && (!<uid.<argn>.IsPlayer>)
+    sysmessagered Jogador invalido.
 else
-    ctag.macroer_hours=<eval 4+<argo.account.tag.macro_count>>
+    if (<argo>)
+        obj=<argo>
+    else
+        obj=<argn>
+    endif
+    ctag.macroer_hours=<eval 4+<obj.account.tag0.macro_count>>
     ctag.macroer_minutes=0
     ctag.macroer_penalty=-100
-    ctag.macroer=<argo.uid>
+    ctag.macroer=<obj>
     dialog d_macroer
 endif
 
@@ -268,6 +345,7 @@ if (<DB.connected>)
         CTAG.rp_grade=0
     endif
 endif
+skill_init
 
 //*****************************************************************************
 // rp_getGmGrade(gmDbId)
@@ -956,86 +1034,61 @@ return 1
 //*****************************************************************************
 // d_prender
 //*****************************************************************************
+
 [DIALOG d_prender]
-100, 200
-PAGE 0
-OBJ=<ctag0.prender_uid>
-gumppic 0 0 1140
-dtext 115 38 152 Prender <obj.tag.name> (<obj.account>)
-gumppic 64 146 1143
-dtext 72 126 162 Motivo
-dtextentry 74 147 250 250 455 1 <obj.tag0.jail_motivo>
-dtext 267 94 32 <eval <obj.tag0.ficha_jail_time>/60>
-dtext 252 73 1345 Minutos
-button 223 84 250 251 1 0 1
-button 223 64 250 251 1 0 2
-button 223 103 252 253 1 0 3
-button 223 123 252 253 1 0 4
-button 62 199 243 241 1 0 5
-button 260 199 249 248 1 0 6
-tilepic 96 76 7029
-tilepic 86 84 5049
+100,75
+page 0
+resizepic 0 0 9270 403 173
+dhtmlgump 16 15 371 34 0 0 <DEF.CENTER><DEF.BFONT_RED>Prender fulano<DEF.DIV_E>
+dtext 20 57 53 Prender durante
+gumppic 127 53 2444
+dtext 196 57 53 horas e
+gumppic 245 53 2444
+dtext 313 57 53 minutos
+dtext 21 81 53 Motivo:
+resizepic 72 84 9300 310 48
+dtextentry 134 54 45 20 0 0 <dctag0.admin_jail_h>
+dtextentry 255 54 45 20 0 1 0
+dtextentry 78 89 294 43 0 2
+button 272 136 247 248 1 0 1
+button 69 136 241 242 1 0 0
 
-[DIALOG d_prender TEXT]
+[DIALOG d_prender text]
 
-[DIALOG d_prender BUTTON]
-//+1
-on=1
-OBJ=<ctag0.prender_uid>
-obj.tag.ficha_jail_time=<eval <obj.tag0.ficha_jail_time>+60>
-if (<obj.tag0.ficha_jail_time> <= 0)
-    src.sysmessageyellow Muito pouco tempo.
-    obj.tag.ficha_jail_time=0
+[DIALOG d_prender button]
+ON=0
+// Cancel
+if (<ctag0.admin_player>)
+    DIALOG d_sphereadmin
 endif
-obj.tag.jail_motivo=<argtxt[1]>
-src.dialog d_prender
-return 1
 
-//+10
-on=2
-OBJ=<ctag0.prender_uid>
-obj.tag.ficha_jail_time=<eval <obj.tag0.ficha_jail_time>+600>
-if (<obj.tag0.ficha_jail_time> <= 0)
-    src.sysmessageyellow Muito pouco tempo.
-    obj.tag.ficha_jail_time=0
+
+ON=1
+// Okay
+obj=<ctag.admin_player>
+local.t=<eval ((<argtxt[0]>*60)+<argtxt[1]>)*60>
+if (<restest 1 i_mry_GM_jail>)
+    obj.sysmessagered Infracao detectada. Prisao aumentada em <f_timestring <local.t>>.
+    obj.findid.i_mry_gm_jail.more1=<obj.findid.i_mry_gm_jail.more1>+<local.t>
+    return 1
 endif
-obj.tag.jail_motivo=<argtxt[1]>
-src.dialog d_prender
-return 1
 
-//-1
-on=3
-OBJ=<ctag0.prender_uid>
-obj.tag.ficha_jail_time=<eval <obj.tag0.ficha_jail_time>-60>
-if (<obj.tag0.ficha_jail_time> <= 0)
- src.sysmessageyellow Muito pouco tempo.
- obj.tag.ficha_jail_time=0
+obj.sysmessagered Preso por <f_timestring <local.t>>.
+obj.sysmessagered Motivo: <argtxt[2]>
+
+serv.newitem i_mry_gm_jail
+new.cont=<obj>
+new.morep=<obj.p>
+new.more1=<LOCAL.t>
+new.timer=1
+obj.tag.prisao_total=<eval <obj.tag0.prisao_total>+<local.t>>
+obj.go 5275,1164
+
+if (<DB.connected>)
+    DB.EXECUTE "INSERT INTO jail SET timestamp=NOW(),uidJailed=<eval <obj>>,jailed='<obj.account>',duration=<dlocal.t>,reason='<argtxt[2]>',uidJailer=<duid>,jailer='<tag0.idAcct>'"
+    DB.EXECUTE "INSERT INTO eventsLog SET timestamp=NOW(), eventType='Jail',charUid=<eval <obj>>,charAcct=<eval <obj.tag.idAcct>>,x=<eval <obj.p.x>>,y=<eval <obj.p.y>>,z=<eval <obj.p.z>>,char2Uid=<eval <uid>>,char2Acct=<eval <tag0.idAcct>>,message='<DB.ESCAPEDATA <f_timestring <local.t>>: <argtxt[2]>>'"
 endif
-obj.tag.jail_motivo=<argtxt[1]>
-src.dialog d_prender
-return 1
-
-//-10
-on=4
-OBJ=<ctag0.prender_uid>
-obj.tag.ficha_jail_time=<eval <obj.tag0.ficha_jail_time>-600>
-if (<obj.tag0.ficha_jail_time> <= 0)
- src.sysmessageyellow Muito pouco tempo.
- obj.tag.ficha_jail_time=0
-endif
-obj.tag.jail_motivo=<argtxt[1]>
-src.dialog d_prender
-return 1
-
-//close
-on=5
-return 1
-
-//prende
-on=6
-OBJ=<ctag0.prender_uid>
-obj.detem <obj.tag.ficha_jail_time>,<src>,"<argtxt[1]>"
-return 1
+DIALOG d_sphereadmin
 
 //*****************************************************************************
 // d_ficha_pc
@@ -1235,6 +1288,108 @@ ctag.macroer_minutes=<ARGTXT[1]>
 ctag.macroer_penalty=<ARGTXT[2]>
 macroer_DeleteSkill <eval <argn>-10>
 
+[FUNCTION admin_suspendPages]
+obj=<cTAG0.admin_player>
+if (<argn> < 1)
+    obj.tag.noPagesTil=
+else
+    obj.tag.noPagesTil=<eval <serv.time>+(<argn>*60*10)>
+endif
+DIALOG d_sphereadmin
+
+[FUNCTION admin_removeChar]
+if (<argn>==<ctag0.chalenge>)
+    trysrv uid.<ctag.admin_player>.remove 1
+else
+    sysmessagered Numero incorreto.
+    DIALOG d_sphereadmin
+endif
+
+[DEFNAME IM]
+IM_RECIVE       1
+IM_SEND         2
+
+[FUNCTION InstantMessage]
+//Abre o diálogo de mensagem instantanea para player <argn>
+if (!<argv>)
+    return
+endif
+clearctags IM_
+ctag.IM_to=<argn>
+ctag.IM_task=IM_SEND
+DIALOGCLOSE d_messenger
+DIALOG d_messenger
+
+[DIALOG d_messenger]
+75,75
+page 0
+resizepic 0 0 9270 491 238
+IF (<ctag0.IM_TASK>==IM_SEND)
+    dhtmlgump 17 16 451 22 0 0 <DEF.BFONT_LRED><DEF.CENTER>Sistema de mensagens online: <uid.<ctag.IM_to>.tag.name><DEF.DIV_E>
+    dtext 21 42 52 Mensagem:
+    resizepic 93 44 9350 378 64
+    dtextentry 98 49 367 55 0 0
+    dtext 58 112 52 Link:
+    dtext 27 129 52 (opcional)
+    resizepic 92 114 9350 378 49
+    dtextentry 97 119 367 40 0 1 
+    IF (<IsGM>)
+        checkbox 97 167 210 211 0 0
+        dtext 124 167 4 Permitir responder mensagem
+    ENDIF
+    button 412 200 247 248 1 0 1
+    button 14 200 241 242 1 0 0
+    page 2
+ELSE
+    dhtmlgump 17 16 451 22 0 0 <DEF.BFONT_LRED><DEF.CENTER>Sistema de mensagens online: <uid.<ctag.IM_Sender>.tag.name><DEF.DIV_E>
+    dhtmlgump 19 43 448 72 7 1 <ctag.IM_Text>
+    if (!<IsEmpty <ctag.IM_link>>)
+        dhtmlgump 99 125 372 47 1 0 <ctag.IM_link>
+        button 25 126 2224 2224 1 0 2
+        dtext 47 122 52 Visitar
+    endif
+    button 451 206 4017 4018 1 0 0
+    if (<ctag0.IM_CanReply>) || (<IsGM>)
+        button 183 191 2445 2445 1 0 3
+        dtext 209 192 52 Responder
+    endif
+ENDIF
+
+[DIALOG d_messenger text]
+
+[DIALOG d_messenger button]
+ON=0
+clearctags IM_
+
+ON=1
+//Send
+obj=<ctag0.IM_to>
+obj.ctag.IM_Sender=<uid>
+obj.ctag.IM_Text=<argtxt[0]>
+if (<eval strlen(<argtxt[1]>)> > 7 )
+    obj.ctag.IM_Link=<argtxt[1]>
+endif
+obj.ctag.IM_CanReply=<eval <argchk[0]>>
+obj.ctag.IM_task=IM_RECIVE
+trysrc <obj> src.DIALOG d_messenger
+
+ON=2
+//Open Link
+if (!<IsEmpty <ctag.IM_link>>)
+    if (STRMATCH(http*,<ctag.IM_link>))
+        local.link=<STRSUB 7 <eval strlen(<ctag.IM_link>)> <ctag.IM_link>>
+    else
+        local.link=<ctag.IM_link>
+    endif
+    WEBLINK=<local.link>
+else
+    sysmessagered Link invalido. Expirou.
+endif
+DIALOG d_messenger
+
+ON=3
+//Repty
+InstantMessage <ctag.IM_sender>
 
 //*****************************************************************************
 //*****************************************************************************
