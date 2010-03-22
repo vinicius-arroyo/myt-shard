@@ -106,6 +106,7 @@ ADMIN_PAGE_ACC          6
 ADMIN_PAGE_NOTES        7
 ADMIN_PAGE_KILLS        8
 ADMIN_PAGE_DEATHS       9
+ADMIN_PAGE_JAILS        10
 
 ADMIN_ACTION_0          Listando
 ADMIN_ACTION_1          Acoes
@@ -117,6 +118,7 @@ ADMIN_ACTION_6          Informacoes sobre a conta
 ADMIN_ACTION_7          Notas sobre o jogador e sua conta
 ADMIN_ACTION_8          Quem ele assassinou
 ADMIN_ACTION_9          Quem ja matou ele
+ADMIN_ACTION_10         Registros de prisao nao-RP
 
 ACCOUNT_CAN_DROW        1
 ACCOUNT_CAN_ORC         2
@@ -160,14 +162,16 @@ button - *20 4005 4006 1 1 104
 dtext +35 +2 <QVAL <ctag.admin_action>==ADMIN_PAGE_COMMENTS?035:0480> Comentarios RP
 button - *20 4005 4006 1 1 105
 dtext +35 +2 <QVAL <ctag.admin_action>==ADMIN_PAGE_FLAGS?035:0480> Flags
-button - *40 4005 4006 1 1 106
-dtext +35 +2 <QVAL <ctag.admin_action>==ADMIN_PAGE_ACC?035:0480> Info da conta
-button - *20 4005 4006 1 1 107
-dtext +35 +2 <QVAL <ctag.admin_action>==ADMIN_PAGE_NOTES?035:0480> Notas da conta
 button - *20 4005 4006 1 1 108
 dtext +35 +2 <QVAL <ctag.admin_action>==ADMIN_PAGE_KILLS?035:0480> Assassinatos
 button - *20 4005 4006 1 1 109
 dtext +35 +2 <QVAL <ctag.admin_action>==ADMIN_PAGE_DEATHS?035:0480> Mortes
+button - *40 4005 4006 1 1 106
+dtext +35 +2 <QVAL <ctag.admin_action>==ADMIN_PAGE_ACC?035:0480> Info da conta
+button - *20 4005 4006 1 1 107
+dtext +35 +2 <QVAL <ctag.admin_action>==ADMIN_PAGE_NOTES?035:0480> Notas da conta
+button - *20 4005 4006 1 1 110
+dtext +35 +2 <QVAL <ctag.admin_action>==ADMIN_PAGE_JAILS?035:0480> Prisoes da conta
 
 [DIALOG d_sphereadmin]
 75,75
@@ -261,7 +265,7 @@ ELIF (<ctag0.admin_action>==ADMIN_PAGE_CHAR)
     else
         local.mynote=Sua nota: <eval (<DB.ROW.0.grade>+10)/2>
     endif
-    DB.QUERY "SELECT count(uidJailed) AS cnt FROM jail WHERE uidJailed=<eval <obj>>"
+    DB.QUERY "SELECT count(idEvent) AS cnt FROM eventsLog WHERE char2Uid=<obj.duid> AND eventtype='Jail'"
     local.jails=<DB.ROW.0.cnt>
     DB.QUERY "SELECT count(idEvent) AS cnt FROM eventsLog WHERE charUID=<obj.duid> AND eventtype='Kill PC'" 
     local.pklling=<DB.ROW.0.cnt>
@@ -373,7 +377,7 @@ ELIF (<ctag0.admin_action>==ADMIN_PAGE_COMMENTS)
     else
         ctag.admin_RP_numpages=<eval (<DB.ROW.0.cnt>/9)+1>
         local.min=<eval (<ctag0.admin_RP_page>-1)*9>
-        DB.QUERY="SELECT DATE_FORMAT(t1.timestamp,'%d/%m/%Y %H:%i') AS timestamp, t1.charAcct, t1.message, t2.name FROM eventsLog AS t1, accounts AS t2 WHERE t1.char2Uid=<dctag0.admin_player> AND t1.eventType='RP note' AND t2.idAcct=t1.charAcct LIMIT <dlocal.min>,9;" 
+        DB.QUERY="SELECT DATE_FORMAT(t1.timestamp,'%d/%m/%Y %H:%i') AS timestamp, t1.charAcct, t1.message, t2.name FROM eventsLog AS t1, accounts AS t2 WHERE t1.char2Uid=<dctag0.admin_player> AND t1.eventType='RP note' AND t2.idAcct=t1.charAcct ORDER BY timestamp DESC LIMIT <dlocal.min>,9;" 
         FOR m 0 <eval <DB.ROW.NUMROWS>-1>
             dtext - *23 025 GM <DB.ROW.<dlocal.m>.name>
             dtext +200 - 0c1 DATA: <DB.ROW.<dlocal.m>.timestamp>
@@ -455,7 +459,7 @@ ELIF (<ctag0.admin_action>==ADMIN_PAGE_NOTES)
     else
         ctag.admin_note_numpages=<eval (<DB.ROW.0.cnt>/9)+1>
         local.min=<eval (<ctag0.admin_note_page>-1)*9>
-        DB.QUERY="SELECT DATE_FORMAT(t1.timestamp,'%d/%m/%Y %H:%i') AS timestamp, t1.charAcct, t1.message, t2.name FROM eventsLog AS t1, accounts AS t2 WHERE t1.char2Acct=<obj.dtag.idAcct> AND t1.eventType='GM note' AND t2.idAcct=t1.charAcct LIMIT <dlocal.min>,9;" 
+        DB.QUERY="SELECT DATE_FORMAT(t1.timestamp,'%d/%m/%Y %H:%i') AS timestamp, t1.charAcct, t1.message, t2.name FROM eventsLog AS t1, accounts AS t2 WHERE t1.char2Acct=<obj.dtag.idAcct> AND t1.eventType='GM note' AND t2.idAcct=t1.charAcct ORDER BY timestamp DESC LIMIT <dlocal.min>,9;" 
         FOR m 0 <eval <DB.ROW.NUMROWS>-1>
             dtext - *23 025 GM <DB.ROW.<dlocal.m>.name>
             dtext +200 - 0c1 DATA: <DB.ROW.<dlocal.m>.timestamp>
@@ -484,7 +488,7 @@ ELIF (<ctag0.admin_action>==ADMIN_PAGE_KILLS)
     else
         ctag.admin_kills_numpages=<eval (<DB.ROW.0.cnt>/8)+1>
         local.min=<eval (<ctag0.admin_kills_page>-1)*8>
-        DB.QUERY="SELECT DATE_FORMAT(t1.timestamp,'%d/%m/%Y %H:%i') AS timestamp, t1.char2Uid, t1.char2Acct, t1.x, t1.y, t1.z, t2.username FROM eventsLog AS t1, accounts AS t2 WHERE t1.charUid=<eval <obj>> AND t1.eventType='Kill PC' AND t2.idAcct=t1.char2Acct LIMIT <dlocal.min>,8;" 
+        DB.QUERY="SELECT DATE_FORMAT(t1.timestamp,'%d/%m/%Y %H:%i') AS timestamp, t1.char2Uid, t1.char2Acct, t1.x, t1.y, t1.z, t2.username FROM eventsLog AS t1, accounts AS t2 WHERE t1.charUid=<eval <obj>> AND t1.eventType='Kill PC' AND t2.idAcct=t1.char2Acct ORDER BY timestamp DESC LIMIT <dlocal.min>,8;" 
         FOR m 0 <eval <DB.ROW.NUMROWS>-1>
             dtext - *23 0c1 Vitima:
             dtext +45 - 0480 <uid.<DB.ROW.<dlocal.m>.char2Uid>.tag.name> [<DB.ROW.<dlocal.m>.username>] (UID:<DB.ROW.<dlocal.m>.char2Uid>)
@@ -516,7 +520,7 @@ ELIF (<ctag0.admin_action>==ADMIN_PAGE_DEATHS)
     else
         ctag.admin_deaths_numpages=<eval (<DB.ROW.0.cnt>/8)+1>
         local.min=<eval (<ctag0.admin_deaths_page>-1)*8>
-        DB.QUERY="SELECT DATE_FORMAT(t1.timestamp,'%d/%m/%Y %H:%i') AS timestamp, t1.charUid, t1.charAcct, t1.x, t1.y, t1.z, t2.username FROM eventsLog AS t1, accounts AS t2 WHERE t1.char2Uid=<eval <obj>> AND t1.eventType='Kill PC' AND t2.idAcct=t1.charAcct LIMIT <dlocal.min>,8;" 
+        DB.QUERY="SELECT DATE_FORMAT(t1.timestamp,'%d/%m/%Y %H:%i') AS timestamp, t1.charUid, t1.charAcct, t1.x, t1.y, t1.z, t2.username FROM eventsLog AS t1, accounts AS t2 WHERE t1.char2Uid=<eval <obj>> AND t1.eventType='Kill PC' AND t2.idAcct=t1.charAcct ORDER BY timestamp DESC LIMIT <dlocal.min>,8;" 
         FOR m 0 <eval <DB.ROW.NUMROWS>-1>
             dtext - *23 0c1 Assassino:
             dtext +60 - 0480 <uid.<DB.ROW.<dlocal.m>.charUid>.tag.name> [<DB.ROW.<dlocal.m>.username>] (UID:<DB.ROW.<dlocal.m>.charUid>)
@@ -537,7 +541,41 @@ ELIF (<ctag0.admin_action>==ADMIN_PAGE_DEATHS)
     endif
     dtext 325 370 0c1 Pagina <eval <ctag0.admin_deaths_page>> / <eval <ctag0.admin_deaths_numpages>>      
 
-
+ELIF (<ctag0.admin_action>==ADMIN_PAGE_JAILS)
+    obj=<ctag0.admin_player>
+    admin_RenderButtons
+    ctag.admin_jails_page=<MAXIMUM 1,<ctag0.admin_jails_page>>
+    DB.QUERY "SELECT count(idEvent) AS cnt FROM eventsLog WHERE char2Acct=<obj.dtag0.idAcct> AND eventtype='Jail'"
+    dorigin 160 20
+    if (!<DB.ROW.0.cnt>)
+        dtext - *26 0c1 Sem registro. <obj.sex Ele/Ela> nunca foi pres<obj.sex o/a> por mau comportamento.
+    else
+        ctag.admin_jails_numpages=<eval (<DB.ROW.0.cnt>/6)+1>
+        local.min=<eval (<ctag0.admin_jails_page>-1)*6>
+        DB.QUERY="SELECT DATE_FORMAT(timestamp,'%d/%m/%Y %H:%i') AS timestamp, charUid, charAcct, x, y, z, message FROM eventsLog WHERE char2Acct=<obj.dtag0.idAcct> AND eventType='Jail' ORDER BY timestamp DESC LIMIT <dlocal.min>,6;" //AND t2.idAcct=t1.charAcct 
+        FOR m 0 <eval <DB.ROW.NUMROWS>-1>
+            if (<uid.<DB.ROW.<dlocal.m>.charUid>.IsChar>)
+                dtext - *23 035 <uid.<DB.ROW.<dlocal.m>.charUid>.tag.name> [<uid.<DB.ROW.<dlocal.m>.charUid>.account>]
+            else
+                dtext - *23 025 Servidor ou char de GM deletado
+            endif
+            dtext +300 - 0c1 Data:
+            dtext +345 - 0480 <DB.ROW.<dlocal.m>.timestamp>
+            dtext - *16 0c1 Local:
+            dtext +45 - 0480 <serv.map(<DB.ROW.<dlocal.m>.x>,<DB.ROW.<dlocal.m>.y>,0).region.name> (<DB.ROW.<dlocal.m>.x>,<DB.ROW.<dlocal.m>.y>,<DB.ROW.<dlocal.m>.z>)
+            dtext - *16 0480 <DB.ROW.<dlocal.m>.message>
+        ENDFOR
+        if (<ctag0.admin_jails_page> > 1)
+            // Back button
+            button 150 370 4014 4015 1 0 960
+        endif
+        if (<ctag0.admin_jails_page> < <ctag0.admin_jails_numpages>)
+            // Forward button
+            button 615 370 4005 4006 1 0 961
+        endif
+    endif
+    dtext 325 370 0c1 Pagina <eval <ctag0.admin_jails_page>> / <eval <ctag0.admin_jails_numpages>>   
+    
 ENDIF
 
 [FUNCTION admin_renderdialog]
@@ -651,7 +689,7 @@ on=131//Jail
 jail_Prompt <ctag0.admin_player>
 
 on=132//Jail macroer
-macroer <uid.<ctag0.admin_player>.uid>
+src.macroer <ctag0.admin_player>
 
 on=133//Disconnect
 obj=<ctag0.admin_player>
@@ -779,6 +817,14 @@ DIALOG d_sphereadmin
 
 on=951//Avança página de Deaths
 ctag.admin_deaths_page += 1
+DIALOG d_sphereadmin
+
+on=960//Volta página de Jails
+ctag.admin_jails_page -= 1
+DIALOG d_sphereadmin
+
+on=961//Avança página de Jails
+ctag.admin_jails_page += 1
 DIALOG d_sphereadmin
 
 on=1001,65535 // Player buttons

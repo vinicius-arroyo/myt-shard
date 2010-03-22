@@ -181,7 +181,7 @@ targetfg prender_
 [FUNCTION prender_]
 if (<argo.isplayer>)
     ctag.admin_player=<argo>
-    DB.QUERY "SELECT count(uidJailed) AS cnt FROM jail WHERE uidJailed=<eval <argo>>"
+    DB.QUERY "SELECT count(idEvent) AS cnt FROM eventsLog WHERE char2Acct=<argo.dtag0.idAcct> AND eventType='Jail'"
     ctag.admin_jail_h=<MAXIMUM <DB.ROW.0.cnt>,1>
     dialog d_prender
 else
@@ -200,7 +200,7 @@ elif (!<obj.IsOnline>)
     return
 endif
 ctag.admin_player=<obj>
-DB.QUERY "SELECT count(uidJailed) AS cnt FROM jail WHERE uidJailed=<eval <obj>>"
+DB.QUERY "SELECT count(idEvent) AS cnt FROM eventsLog WHERE char2Acct=<obj.dtag0.idAcct> AND eventType='Jail'"
 ctag.admin_jail_h=<MAXIMUM <DB.ROW.0.cnt>,1>
 dialog d_prender
 
@@ -302,7 +302,7 @@ if (<restest 1 i_mry_GM_jail>)
     return 1
 endif
 LOCAL.t=<eval (<tag0.prisao_total>/2)+<argv0>>
-sysmessagered Preso por <eval <LOCAL.t>/60> minutos.
+sysmessagered Preso por <f_timestring <LOCAL.t>>.
 sysmessagered Motivo: <argv2>
 
 serv.newitem i_mry_gm_jail
@@ -327,8 +327,8 @@ if (<DB.connected>)
         LOCAL.u=0
         LOCAL.n=Servidor
     endif
-    DB.EXECUTE "INSERT INTO jail SET timestamp=NOW(),uidJailed=<eval <uid>>,jailed='<account>',duration=<eval <argv0>>,reason='<argv2>',uidJailer=<eval <LOCAL.u>>,jailer='<LOCAL.n>'"
-    DB.EXECUTE "INSERT INTO eventsLog SET timestamp=NOW(), eventType='Jail',charUid=<eval <REF1>>,charAcct=<eval <REF1.tag0.idAcct>>,x=<eval <p.x>>,y=<eval <p.y>>,z=<eval <p.z>>,char2Uid=<eval <uid>>,char2Acct=<eval <tag0.idAcct>>,message='<DB.ESCAPEDATA <eval <argv0>/60> minutos: <argv2>>'"
+    //DB.EXECUTE "INSERT INTO jail SET timestamp=NOW(),uidJailed=<eval <uid>>,jailed='<account>',duration=<eval <argv0>>,reason='<argv2>',uidJailer=<eval <LOCAL.u>>,jailer='<LOCAL.n>'"
+    DB.EXECUTE "INSERT INTO eventsLog SET timestamp=NOW(), eventType='Jail',charUid=<eval <REF1>>,charAcct=<eval <REF1.tag0.idAcct>>,x=<eval <p.x>>,y=<eval <p.y>>,z=<eval <p.z>>,char2Uid=<eval <uid>>,char2Acct=<eval <tag0.idAcct>>,message='<DB.ESCAPEDATA <f_timestring <argv0>>: <argv2>>'"
 endif
 
 //*****************************************************************************
@@ -445,6 +445,26 @@ local.s .= <DEF.BFONT_RED>Pontos de alma: <obj.dtag.pontosdealma><DEF.BR>
 local.s .= Desmaios: <obj.dtag.morte_desmaios>/<dDEF.max_desmaios><DEF.BR>
 local.s .= <DEF.BFONT_DCYAN>Alimentacao: <obj.comida_msg>
 return <local.s>
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+[TYPEDEF t_jail_stone]
+on=@dclick
+src.clearctags list_
+local.t=<f_timestring <src.findid.i_mry_GM_jail.more1>>
+src.sysmessagegreen Faltam <local.t> para que voce seja solto.
+src.timerf 3 sysmessageyellow Voce deve permanecer online para que o tempo conte.
+src.list_new Tempo de prisao restante: <local.t>. Prisoes que sua conta ja sofreu:
+src.list_setAction clearctags list_
+src.list_setActionBack clearctags list_
+src.list_newDbCol 25,timestamp,Data
+src.list_newDbCol 150,message,Tempo: Motivo
+src.list_loadFromDb SELECT DATE_FORMAT(timestamp,'%d/%m/%Y %H:%i') AS timestamp, message FROM eventsLog WHERE char2Acct=<src.dtag0.idAcct> AND eventType='Jail' ORDER BY timestamp DESC;
+src.list_show 1
+return 1
 
 //*****************************************************************************
 //*****************************************************************************
@@ -1039,7 +1059,7 @@ return 1
 100,75
 page 0
 resizepic 0 0 9270 403 173
-dhtmlgump 16 15 371 34 0 0 <DEF.CENTER><DEF.BFONT_RED>Prender fulano<DEF.DIV_E>
+dhtmlgump 16 15 371 34 0 0 <DEF.CENTER><DEF.BFONT_LRED>Prender <uid.<ctag.admin_player>.tag.name> [<uid.<ctag.admin_player>.account>]<DEF.DIV_E>
 dtext 20 57 53 Prender durante
 gumppic 127 53 2444
 dtext 196 57 53 horas e
@@ -1073,8 +1093,15 @@ if (<restest 1 i_mry_GM_jail>)
     return 1
 endif
 
+if (<DB.connected>)
+    DB.EXECUTE "INSERT INTO eventsLog SET timestamp=NOW(), eventType='Jail', char2Uid=<eval <obj.uid>>,char2Acct=<eval <obj.tag.idAcct>>,x=<eval <obj.p.x>>,y=<eval <obj.p.y>>,z=<eval <obj.p.z>>,charUid=<eval <src.uid>>,charAcct=<eval <src.tag0.idAcct>>,message='<DB.ESCAPEDATA <f_timestring <local.t>>: <argtxt[2]>>'"
+endif
+
 obj.sysmessagered Preso por <f_timestring <local.t>>.
 obj.sysmessagered Motivo: <argtxt[2]>
+
+sysmessagered Preso por <f_timestring <local.t>>.
+sysmessagered Motivo: <argtxt[2]>
 
 serv.newitem i_mry_gm_jail
 new.cont=<obj>
@@ -1084,10 +1111,6 @@ new.timer=1
 obj.tag.prisao_total=<eval <obj.tag0.prisao_total>+<local.t>>
 obj.go 5275,1164
 
-if (<DB.connected>)
-    DB.EXECUTE "INSERT INTO jail SET timestamp=NOW(),uidJailed=<eval <obj>>,jailed='<obj.account>',duration=<dlocal.t>,reason='<argtxt[2]>',uidJailer=<duid>,jailer='<tag0.idAcct>'"
-    DB.EXECUTE "INSERT INTO eventsLog SET timestamp=NOW(), eventType='Jail',charUid=<eval <obj>>,charAcct=<eval <obj.tag.idAcct>>,x=<eval <obj.p.x>>,y=<eval <obj.p.y>>,z=<eval <obj.p.z>>,char2Uid=<eval <uid>>,char2Acct=<eval <tag0.idAcct>>,message='<DB.ESCAPEDATA <f_timestring <local.t>>: <argtxt[2]>>'"
-endif
 DIALOG d_sphereadmin
 
 //*****************************************************************************
@@ -1209,7 +1232,7 @@ dtextentry 206 190 25 20 0 0 <dctag.macroer_hours>
 dtext 239 190 166 horas
 resizepic 279 187 9350 40 25
 dtextentry 288 189 25 20 0 1 <dctag.macroer_minutes>
-dtext 322 189 166 7 minutos
+dtext 322 189 166 minutos
 dtext 117 220 166 Penalidade de skills
 resizepic 239 218 9350 49 25
 dtextentry 243 221 36 20 0 2 <fval <ctag.macroer_penalty>>
@@ -1250,29 +1273,37 @@ ENDIF
 sysmessagered Miou. Deixa o meliante ai.
 
 ON=1
-// Nome do botao
+// Prender agora
 obj=<ctag.macroer>
-ctag.macroer_hours=
-ctag.macroer_minutes=
-ctag.macroer_penalty=
-ctag.macroer=
 local.time=<eval ((<ARGTXT[0]>*60)+<ARGTXT[1]>)*60>
 local.s=":"
 IF (!<IsEmpty <cTAG.macroer_skill_0>>)
     local.i=0
     WHILE (!<IsEmpty <cTAG.macroer_skill_<dlocal.i>>>)
-        local.s .= <serv.skill.<cTAG.macroer_skill_<dlocal.i>>.name>;
+        local.s .= " <serv.skill.<cTAG.macroer_skill_<dlocal.i>>.name>;"
         TRY obj.<dcTAG0.macroer_skill_<dlocal.i>> = <eval <obj.<dcTAG0.macroer_skill_<dlocal.i>>>+<ARGTXT[2]>>
         TRY cTAG.macroer_skill_<dlocal.i>=
         local.i += 1
     ENDWHILE
 ENDIF
-if <DB.CONNECTED>
-    DB.QUERY "INSERT INTO eventsLog SET timestamp=NOW(), eventType='GM Note',charUid=<dUID>,charAcct=<dtag.idAcct>,x=<eval <obj.p.x>>,y=<eval <obj.p.y>>,z=<eval <obj.p.z>>,char2Uid=<eval <obj>>,char2Acct=<obj.dtag.idAcct>,message='<DB.ESCAPEDATA Preso por macro<local.s>>'"
-endif
-obj.detem <local.time>,<uid>,Preso por macro<local.s>
+IF <DB.CONNECTED>
+    DB.EXECUTE "INSERT INTO eventsLog SET timestamp=NOW(), eventType='Jail',char2Uid=<eval <obj>>,char2Acct=<eval <obj.tag.idAcct>>,x=<eval <obj.p.x>>,y=<eval <obj.p.y>>,z=<eval <obj.p.z>>,charUid=<eval <uid>>,charAcct=<eval <tag0.idAcct>>,message='<DB.ESCAPEDATA <f_timestring <local.time>>: Macroando<local.s> longe do PC ou fora de contexto RP.>'"
+ENDIF
+
+obj.sysmessagered Preso por <f_timestring <local.time>>
+obj.sysmessagered Motivo: Macroando <local.s> fora do PC ou fora de contexto RP.
+
+serv.newitem i_mry_gm_jail
+new.cont=<obj>
+new.morep=<obj.p>
+new.more1=<LOCAL.time>
+new.timer=1
+obj.tag.prisao_total=<eval <obj.tag0.prisao_total>+<local.time>>
+obj.go 5275,1164
 obj.account.tag.macro_count=<eval <obj.account.tag0.macro_count>+1>
+
 sysmessageyellow DONE! MUAHUAUHAUHAUHAUHAUH!!!
+clearctags macroer_
 
 ON=2
 // Adicionar skill
