@@ -705,6 +705,147 @@ fazitem <argv[1]>
 return 1
 
 //*****************************************************************************
+// repairItem
+//*****************************************************************************
+[FUNCTION repairItem]
+//Função target para reparar um item.
+if (!<argo>)
+    sysmessageyellow O que voce gostaria de reparar?
+    targetf repairItem
+elif (!<argo.IsWeapon>) && (!<argo.IsArmor>) && (<argo.type>!=t_crafting_tool) && (!<argo.IsTEvent.t_crafting_tool>) && (!<argo.IsEvent.t_crafting_tool>)
+    sysmessagered Este item nao pode ser reparado.
+else
+    clearctags repair_
+
+    //Define necessidades para reparar
+    //Skill: Skillmake -25%
+    local.skill = <MULDIV <argo.skillmake.0.val>,75,100>
+    if (<src.<def.<argo.skillmake.0.key>>> < <local.skill>)
+        sysmessagered Voce precisa de pelo menos <fval <local.skill>> em <serv.skill.<argo.skillmake.0.key>.name> para reparar <argo.name>.
+        return 1
+    endif
+    //Qualidade do reparo
+    local.Quality=<MAXIMUM <MULDIV <src.<def.<argo.skillmake.0.key>>>,100,125>,750>
+    //sysmessageyellow Qualidade do reparo: <fval <local.Quality>>
+    local.newMaxHits=<MULDIV <argo.maxhits>,<local.Quality>,1000>
+    //sysmessageyellow Novo maxhits: <dlocal.newMaxHits> (antigo: <argo.maxhits>)
+    //Quantos % dos recursos serão necessários
+    local.Demand=<MULDIV <eval <local.newMaxhits>-<argo.hits>>,100.0,<local.newMaxhits>>
+    //sysmessageyellow Demanda: <fval <local.Demand>>
+    if (<local.Demand> < 0)// || (<local.newMaxHits> < <obj.hits>)
+        sysmessagered No estado em que o item esta e com seu nivel de conhecimento, se voce reparar este item ele ficara pior do que esta agora.
+        return 1
+    endif
+    //Calcular recursos
+    local.rescount=0
+    local.rescache_amt=0
+    local.rescache_res=0
+    FOR r 1 <argo.resources.count>
+        local.amt=<EVAL (<argo.resources.<dlocal.r>.val>*<local.Demand>)/100.0>
+        if (<local.amt> > 0)    //Haverá demanda neste item? Inclua.
+            try ctag.repair_res<dlocal.rescount>=<argo.resources.<dlocal.r>.key>
+            try ctag.repair_amt<dlocal.rescount>=<local.amt>
+            local.rescount += 1
+        elif (<argo.resources.<dlocal.r>.val> > <local.rescache_amt>)
+            //Não haverá demanda deste item. Mas salve em cash o resource de maior amount para
+            //o caso de não haver demanda em nenhum.
+            local.rescache_amt=1
+            local.rescache_res=<argo.resources.<dlocal.r>.key>
+        endif
+    END
+
+    IF (!<local.rescount>)//Não houve nenhum item cuja demanda foi > 0. Escolha o que precise de mais amt.
+        try ctag.repair_res0=<local.rescache_res>
+        try ctag.repair_amt0=1
+        local.rescount=1
+    ENDIF
+
+    ctag.repair_message=Para reparar <argo.name> voce precisara de
+
+    //sysmessagegreen Materiais:
+    FOR r 0 <eval <local.rescount>-1>
+    //    sysmessageyellow + <dctag.repair_amt<dlocal.r>> <serv.itemdef.<ctag.repair_res<dlocal.r>>.name>
+        ctag.repair_message .= " + <dctag.repair_amt<dlocal.r>> <serv.itemdef.<ctag.repair_res<dlocal.r>>.name>"
+    END
+
+    if (<IsGM>) || (<argo.attr>&attr_identified)
+        ctag.repair_message .= " No final do processo <argo.name> tera <dlocal.newMaxHits> hitpoints."
+    endif
+    ctag.repair_message .= " Deseja continuar?"
+    
+    //Salvar ultimas variáveis
+    ctag.repair_item=<argo>
+    ctag.repair_maxhits=<local.newMaxHits>
+    
+    prompt_new <ctag.repair_message>
+    prompt_setAction repair_Start
+    prompt_setActionBack clearctags rapair_
+    ynprompt_show
+    
+endif
+
+//*****************************************************************************
+// repair_Start
+//*****************************************************************************
+[FUNCTION repair_Start]
+//Inicia o reparo de um item já carregado em cache.
+obj=<ctag.repair_item>
+if (<obj.topobj>!=<uid>)
+    sysmessagered Cade o item?
+else
+    local.item=<obj.defname>
+    obj=<findid.i_faz_item>
+    obj.cleartags
+    local.r=0
+    WHILE (!<IsEmpty <ctag.repair_res<dlocal.r>>>)
+        try obj.tag.res<eval <local.r>+1>=<ctag.repair_res<dlocal.r>>
+        try obj.tag.amt<eval <local.r>+1>=<ctag.repair_amt<dlocal.r>>
+        local.r += 1
+    ENDWHILE
+    
+    //Carrega behaviors
+    call craft_<serv.itemdef.<local.item>.baseid>
+    if (!<local.craftable>)
+        call craft_<serv.itemdef.<local.item>.type> <local.item>
+    endif
+    if (!<local.craftable>)
+        call craft_<serv.itemdef.<local.item>.skillmake.0.key> <local.item>
+    endif
+    if (!<local.craftable>)
+        obj.tag.delay=<eval <serv.itemdef.<local.item>.SKILLMAKE.0.val>/22>
+        obj.tag.anim=6
+        obj.tag.emote=trabalhando
+    endif
+    
+    obj.tag.dif=0
+    obj.tag.nofail=1
+    obj.tag.abort=1
+    obj.tag.delay=<MAXIMUM 5,<eval <obj.tag.delay>/3>>
+    obj.tag.repair=<ctag.repair_item>
+    obj.tag.repair_hits=<ctag.repair_maxhits>
+    obj.tag.item=1
+    obj.tag.f_Done=rapair_End
+    fazitem
+endif
+
+//*****************************************************************************
+// rapair_End
+//*****************************************************************************
+[FUNCTION rapair_End]
+//Termina o loop de reparar item
+ref1=<findid.i_faz_item>
+ref2=<ref1.tag.repair>
+if (<ref2.topobj>!=<uid>)
+    sysmessagered Cade o item?// REF1=<ref1.name> REF2=<REF2>
+    return 1
+endif
+ref2.maxhits=<ref1.tag0.repair_hits>
+ref2.hits=<ref2.maxhits>
+ref2.update
+sysmessagegreen O reparo em <ref2.name> esta completo.
+clearctags repair_
+
+//*****************************************************************************
 //*****************************************************************************
 // ITEMDEFs
 //*****************************************************************************
@@ -812,7 +953,7 @@ else
         cont.consumeResources
         //ganha skill e verifica sucesso
         cont.skill_gain skill_<tag.skill>
-        if (<cont.skillcheck <tag.skill> <tag.dif>> == 1)
+        if (<cont.skillcheck <tag.skill> <tag.dif>> == 1) || (<tag0.nofail>)
             generateItem
             LOCAL.u=1,<new>
         else
