@@ -2936,4 +2936,77 @@ OBJ=<ctag.garg_uid>
 obj.more2=<local.face>
 DIALOG d_gen_gargoyle
 
+
+
+
+[FUNCTION necrodoor]
+//Abre target para fazer com que uma porta se torne necromante, dando passagem
+//apenas para quem está sob efeito da magia Máscara da Morte.
+if !(<argo>)
+    sysmessageyellow Selecione a porta:
+    targetf necrodoor
+    return 1
+elif (<argo.type>!=t_door) && (<argo.type>!=t_door_locked)
+    sysmessagered Porta kd/
+    return 1
+elif (<argo.IsEvent.t_door_necro>)
+    prompt_new Deseja tirar a funcao necromante desta porta e seu link?
+else
+    prompt_new Deseja habilitar funcao necromante desta porta e seu link?
+endif
+prompt_setAction necrodor_toggle <argo>
+prompt_setActionBack
+ynprompt_show
+
+[FUNCTION necrodor_toggle]
+//Habilita ou desabilita a função de necromantica de uma porta, fazendo
+//com que ela possa ser acessada por alguém que esteja sob efeito
+//da magia Máscara da Morte.
+obj=<argn>
+if (<obj.IsEvent.t_door_necro>)
+    obj.events -t_door_necro
+    sysmessageyellow A porta deixou de ser necromantica.
+    if (<obj.link>!=04fffffff)
+        obj.link.events -t_door_necro
+        sysmessageyellow O objeto link da porta deixou de ser necromantica.
+    endif
+else
+    obj.events +t_door_necro
+    sysmessageyellow A porta se tornou necromantica.
+    if (<obj.link>!=04fffffff)
+        if (<obj.link.type>!=t_door) && (<obj.link.type>!=t_door_locked)
+            obj.link.events +t_door_necro
+            sysmessageyellow O objeto link da porta se tornou necromantica.
+        endif
+    endif
+endif
+
+[TYPEDEF t_door_necro]
+//Função necromantica de uma porta, fazendo
+//com que ela possa ser acessada por alguém que esteja sob efeito
+//da magia Máscara da Morte.
+ON=@DClick
+IF (<src.restest 1 i_spl_death_mask>)
+    if (!<src.ctag0.door_necro>)
+        src.ctag.door_necro=1
+        src.timerf 10 ctag.door_necro=
+        src.sysmessagegreen Voce sente a presensa de Min'Gorad.
+        src.psfx 0246
+        src.effect 3 i_fx_sparkle 0 32 0 0174
+    endif        
+    if (<link>!=04fffffff)
+        if (<link.type>==t_door_locked)
+            if (<link.timerd> < 1)
+                link.timerf 1 timer=5
+            endif
+            link.timerd=1
+        endif
+    endif
+    if (<timerd> < 1)
+        timerf 1 timer=5
+    endif
+    timerd=1
+    return 1
+ENDIF
+
 [EOF]
