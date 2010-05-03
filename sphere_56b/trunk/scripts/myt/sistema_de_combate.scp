@@ -593,6 +593,28 @@ else
 endif 
 
 //*****************************************************************************
+// cmb_damageSrcCloth
+//*****************************************************************************
+[FUNCTION cmb_damageSrcCloth]
+//serv.log [cmb_damageSrcCloth] <src.account> sofre hit em <argv0> de <argv1>
+REF1=<src.findlayer.<argv0>>
+if !<REF1>
+    return 1
+endif
+REF1.more1l -= 1//<eval <argv1>/5>
+if <REF1.more1l> > 08000
+    if !<npc> // se não for NPC...
+        sysmessageorange <REF1.name> de <src.name> foi totalmente arruinada!
+    endif
+    if !<src.npc> // Se o defensor não for NPC...
+        src.sysmessageorange <REF1.name> foi totalmente arruinada!
+    endif
+    REF1.remove
+else
+    REF1.update
+endif 
+
+//*****************************************************************************
 // cmb_getActSkill
 //*****************************************************************************
 [FUNCTION cmb_getActSkill]
@@ -979,12 +1001,30 @@ return 6
 if !<SRC.NPC>
     doswitch <cmb_hitLocation>
         src.emotered 1
-        cmb_damageSrcArmor layer_chest,<argn1>
-        cmb_damageSrcArmor layer_gloves,<argn1>
-        cmb_damageSrcArmor layer_pants,<argn1>
-        cmb_damageSrcArmor layer_arms,<argn1>
-        cmb_damageSrcArmor layer_collar,<argn1>
-        cmb_damageSrcArmor layer_helm,<argn1>
+        BEGIN
+            cmb_damageSrcArmor layer_chest,<argn1>
+            cmb_damageSrcCloth { layer_shirt layer_tunic layer_robe },<argn1>
+        END
+        BEGIN
+            cmb_damageSrcArmor layer_gloves,<argn1>
+            cmb_damageSrcCloth layer_wrist,<argn1>
+        END
+        BEGIN
+            cmb_damageSrcArmor layer_pants,<argn1>
+            cmb_damageSrcArmor layer_legs,<argn1>//Só para plate, que é outra layer
+            cmb_damageSrcCloth { layer_skirt layer_robe },<argn1>
+        END
+        BEGIN
+            cmb_damageSrcArmor layer_arms,<argn1>
+            cmb_damageSrcCloth { layer_shirt layer_tunic layer_robe },<argn1>
+        END
+        BEGIN
+            cmb_damageSrcArmor layer_collar,<argn1>
+        END
+        BEGIN
+            cmb_damageSrcArmor layer_helm,<argn1>
+            cmb_damageSrcCloth layer_ears,<argn1>
+        END
     enddo        
 endif 
 
@@ -1097,10 +1137,12 @@ if (<weapon.dmgpoison>)
     src.damage <weapon.dmgpoison> dam_poison <uid>
 endif
 
-///// Double strike? Double shot?
-if (<TAG0.specialmove_active>==7) || (<TAG0.specialmove_active>==22)
+///// Double strike? Double shot? Dual Yeld?
+if (<TAG0.specialmove_active>==7) || (<TAG0.specialmove_active>==22) || (<TAG0.specialmove_active>==21)
     //src.timerf 1,damage,<argn1>,<LOCAL.tipo>,<uid>
-    src.damage <argn1>,<LOCAL.tipo>,<uid>
+    local.dam=<R<weapon.dam>>
+    local.dam=<muldiv <local.dam>,100,<src.armor>+100>
+    src.damage <local.dam>,<LOCAL.tipo>,<uid>
 endif
 
 
