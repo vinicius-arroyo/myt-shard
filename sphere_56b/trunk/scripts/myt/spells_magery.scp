@@ -99,16 +99,21 @@ CAST_TIME=7
 RESOURCES=i_r_perola_negra,i_r_cinza_sulfurosa
 RUNE_ITEM=2244
 SCROLL_ITEM=i_scroll_firedarts
-FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_eval_boosts | spellflag_dir_anim | spellflag_fx_bolt | spellflag_fx_targ
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_dir_anim | spellflag_fx_bolt | spellflag_fx_targ 
 EFFECT_ID=i_fx_fireball_small
-EFFECT=5,12
-MANAUSE=3
+EFFECT=5,10
+MANAUSE=5
 SKILLREQ=MAGERY 10.0
 INTERRUPT=25.0,100.0
 
 on=@Effect
 EFFECT 0 i_fx_fireball_small 6 16 1
-DAMAGESPELL s_firedarts,dam_fire,<argn2>,<src.uid>
+local.dam=<EFFECTSPELL s_firedarts,<argn2>,<src.uid>>
+local.dam += <eval <src.evaluatingintel>/200>
+DAMAGE <local.dam>,DAM_FIRE,<src.uid>
+
+
+skill_gain skill_evaluatingintel
 return 1
 
 //***********************************************************
@@ -141,7 +146,7 @@ RUNE_ITEM=2282
 SCROLL_ITEM=i_scroll_fireworks
 FLAGS=spellflag_scripted
 EFFECT_ID=
-EFFECT=3,20
+EFFECT=5,20
 MANAUSE=10
 SKILLREQ=MAGERY 10.0
 INTERRUPT=100.0,100.0
@@ -151,6 +156,8 @@ sfx 0357
 
 on=@Effect
 src.f_Fireworks <EFFECTSPELL s_fireworks,<src.magery>,<uid>>
+
+skill_gain skill_evaluatingintel
 return 1
 
 [FUNCTION f_Fireworks]
@@ -193,22 +200,75 @@ DEFNAME=s_queimadura
 NAME=Queimadura
 SOUND=0359
 RUNES=VED
-CAST_TIME=5
+CAST_TIME=20
 RESOURCES=i_r_perola_negra,i_r_cinza_sulfurosa,i_r_musgo_sangue
 RUNE_ITEM=2267
 SCROLL_ITEM=i_scroll_queimadura
 FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_harm
 EFFECT_ID=
-EFFECT=35,50
-DURATION=12,30
-MANAUSE=3
+EFFECT=5,10
+DURATION=60,2*60
+MANAUSE=10
 SKILLREQ=MAGERY 20.0
 INTERRUPT=100.0,100.0
 
-on=@Effect
-DAMAGE <R1,3>,DAM_FIRE,<src.uid>
-EFFECT 3 i_fx_smoke_small 0 16 0 032
+on=@START
+if <act.restest i_mry_queimadura>
+src.sysmessageyellow Esse alvo ja tem esse efeito. Espere <act.FINDID.i_mry_queimadura.TIMER> segundos.
 return 1
+endif
+
+
+on=@SUCCESS
+serv.newitem i_fx_smoke
+new.attr = attr_static|attr_decay
+new.timer = 1
+new.p = <act.p>
+
+
+on=@Effect
+local.effect=<EFFECTSPELL s_queimadura,<argn2>,<src.uid>>
+local.effect += <eval <src.evaluatingintel>/200>
+
+
+local.time=<DURATIONSPELL s_queimadura,<argn2>,<src.uid>>
+
+newitem=i_mry_queimadura
+new.tag.modstr=-<local.effect>
+new.link <uid>
+trysrc <uid> src.new.equip
+new.timer=<local.time>
+
+IF (<hits> > <maxhits>)
+     hits=<maxhits>
+
+
+skill_gain skill_evaluatingintel
+return 0 
+
+
+
+[ITEMDEF i_mry_queimadura]
+NAME=Queimadura
+ID=2267
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffStats
+
+ON=@Create
+ATTR=attr_cursed2
+
+on=@equip
+cont.sysmessagegreen A queimadura doi muito!
+
+on=@unequip
+cont.sysmessagegreen A dor comeca a aliviar.
+
+on=@timer
+remove
+return 1
+
+
 
 //***********************************************************
 //      SPELL Fire Weakness
@@ -241,7 +301,7 @@ cont.tag0.aggravate |= <DEF.DAM_FIRE>
 ATTR=attr_cursed2
 
 on=@unequip
-cont.sysmessageblue Sua sensibilidade ao fogo passou.
+cont.sysmessagered Sua sensibilidade ao fogo passou.
 cont.sfx 0208
 cont.tag0.aggravate &= ~<DEF.DAM_FIRE>
 
@@ -257,12 +317,12 @@ CAST_TIME=15
 SOUND=0349
 RESOURCES=i_r_teia_de_aranha,i_r_raiz_de_mandrake,i_r_cinza_sulfurosa
 RUNE_ITEM=2283
-FLAGS=spellflag_targ_char | spellflag_scripted | spellflag_eval_boosts | spellflag_harm | spellflag_scripted
+FLAGS=spellflag_targ_char | spellflag_scripted | spellflag_harm | spellflag_scripted
 SCROLL_ITEM=i_scroll_fire_weakness
 RESOURCES=i_r_teia_de_aranha,i_r_raiz_de_mandrake,i_r_asa_morcego,i_r_cinza_sulfurosa
 EFFECT_ID=0
-EFFECT=0,66
-DURATION=1,45
+EFFECT=
+DURATION=30,60
 MANAUSE=14
 SKILLREQ=MAGERY 20.0
 INTERRUPT=20.0,100.0
@@ -280,6 +340,8 @@ ELSE //Ele ainda não tem agravamento de dano para fogo, não é imune e nem se reg
  new.timer=<DURATIONSPELL 103,<argn2>,<src.uid>>
  effect 3 i_fx_curse 0 33 0
 ENDIF
+
+skill_gain skill_evaluatingintel
 return 1
 
 
@@ -311,15 +373,19 @@ CAST_TIME=11
 RESOURCES=i_r_raiz_de_mandrake,i_r_perola_negra,i_r_cinza_sulfurosa
 RUNE_ITEM=2257
 SCROLL_ITEM=i_scroll_FIRE_BALL
-FLAGS=SPELLFLAG_TARG_OBJ | SPELLFLAG_DIR_ANIM | SPELLFLAG_HARM | SPELLFLAG_EVAL_BOOSTS
-EFFECT=16,25
-MANAUSE=7
+FLAGS=SPELLFLAG_TARG_OBJ | SPELLFLAG_DIR_ANIM | SPELLFLAG_HARM
+EFFECT=10,15
+MANAUSE=10
 SKILLREQ=MAGERY 30.0
 INTERRUPT=100.0,100.0
 
 on=@Effect
 EFFECT 0 i_fx_fireball 6 16 1
-DAMAGESPELL s_fireball,dam_fire,<src.magery>,<src.uid>
+local.dam=<EFFECTSPELL s_fire_ball,<argn2>,<src.uid>>
+local.dam += <eval <src.evaluatingintel>/150>
+DAMAGE <local.dam>,DAM_FIRE|DAM_PHYSICAL,<src.uid>
+
+skill_gain skill_evaluatingintel
 return 1
 
 //***********************************************************
@@ -350,11 +416,11 @@ CAST_TIME=30
 RESOURCES=i_r_ginseng,i_r_cinza_sulfurosa
 RUNE_ITEM=2273
 SCROLL_ITEM=i_scroll_cauterizar
-FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_GOOD | spellflag_eval_boosts
+FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_GOOD 
 EFFECT_ID=0
-EFFECT=8,18
+EFFECT=10,20
 DURATION=0.0
-MANAUSE=4
+MANAUSE=5
 SKILLREQ=MAGERY 30.0
 INTERRUPT=100.0,100.0
 
@@ -369,9 +435,14 @@ endif
 sfx 0227
 
 on=@Effect
-EFFECT 3 i_fx_smoke_small 0 64 0
+EFFECT 3 i_fx_smoke 0 64 0
 hits += <EFFECTSPELL s_cauterizar,<src.magery>>
+IF (<hits> > <eval <maxhits>/2>)
+hits = <eval <maxhits>/2>
+ENDIF
 cry
+
+skill_gain skill_evaluatingintel
 return 1
 
 //***********************************************************
@@ -404,8 +475,8 @@ SCROLL_ITEM=i_scroll_fire_wall
 RESOURCES=i_r_teia_de_aranha,i_r_asa_morcego,i_r_cinza_sulfurosa
 FLAGS=SPELLFLAG_TARG_XYZ | SPELLFLAG_HARM | spellflag_scripted
 EFFECT_ID=0
-DURATION=15,60
-EFFECT=2,9
+DURATION=45,90
+EFFECT=5,10
 MANAUSE=14
 SKILLREQ=MAGERY 40.0
 INTERRUPT=25.0,100.0
@@ -415,13 +486,14 @@ sfx snd_spell_fire_field
 
 on=@Success
 if (<belltest <magery>,100.0>) && !(<R0,3>)
- LOCAL.CREATEOBJECT1 = <eval i_fire_column>
- LOCAL.CREATEOBJECT2 = <eval i_fire_column>
+ LOCAL.CREATEOBJECT1 = <eval i_coluna_fogo_armadilha>
+ LOCAL.CREATEOBJECT2 = <eval i_coluna_fogo_armadilha>
 else
- LOCAL.CREATEOBJECT1 = <eval i_fx_field_fire>
- LOCAL.CREATEOBJECT2 = <eval i_fx_field_fire_ns>
-endif
+ LOCAL.CREATEOBJECT1 = <eval i_fogo_armadilha_lo>
+ LOCAL.CREATEOBJECT2 = <eval i_fogo_armadilha_ns>
+ endif
 call src.f_line_field <src.EFFECTSPELL 106,<argn2>,<src.uid>>,<src.DURATIONSPELL 106,<argn2>,<src.uid>>
+
 
 
 //***********************************************************
@@ -455,16 +527,24 @@ SCROLL_ITEM=i_scroll_mysticFlame
 FLAGS=SPELLFLAG_TARG_ITEM | spellflag_good | spellflag_eval_boosts
 EFFECT_ID=0
 EFFECT=2,10
-DURATION=2,60
-MANAUSE=12
+DURATION=5*60,15*60
+MANAUSE=25
 SKILLREQ=MAGERY 60.0
 INTERRUPT=100.0,100.0
 
 on=@start
 sfx 05c1
 
+on=@SUCCESS
+if (<act.type>==t_wand)
+src.sysmessageyellow Itens de foco magico, como varinhas, nao podem receber esse efeito.
+return 1
+endif
+
+//soh consegui fazer ele checar aqui (se achar que é melhor lá embaixo pode mudar. Evita colocar carga de flamestrike na t_wand.
+
 on=@Effect
-if (!<IsWeapon <UID>>) || !(STRMATCH(*ingot*,<serv.itemdef.<baseid>.resources>))
+if (!<IsWeapon <UID>>) || !(STRMATCH(*ingot*,<serv.itemdef.<baseid>.resources>)
  src.sysmessageyellow Apenas armas de metal.
  return 1
 ELIF (<more2>)
@@ -476,6 +556,8 @@ ELIF (<src.distance <topobj>> > 1)
 endif
 src.sfx 0356
 f_mysticFlame <EFFECTSPELL s_mysticFlame,<src.magery>>
+
+skill_gain skill_evaluatingintel
 return 1
 
 [FUNCTION f_mysticFlame]
@@ -523,14 +605,14 @@ NAME=Combustao
 SOUND=snd_SPELL_FIRE_BOLT
 RUNES=WV
 RESOURCES=i_r_cinza_sulfurosa
-CAST_TIME=7
+CAST_TIME=2.5
 RUNE_ITEM=20736
 SCROLL_ITEM=i_scroll_combustion
 FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_DIR_ANIM | SPELLFLAG_HARM 
 EFFECT_ID=0
-EFFECT=5,12
-DURATION=5,12
-MANAUSE=2
+EFFECT=5,15
+DURATION=
+MANAUSE=15
 SKILLREQ=MAGERY 50.0
 INTERRUPT=25.0,100.0
 
@@ -540,9 +622,21 @@ if (<src.act.distance <UID>> > 3)
  return 1
 endif
 
+on=@SUCCESS
+serv.newitem i_fx_glow
+new.color = 00152
+new.attr = attr_static|attr_decay
+new.timer = 2
+new.p = <act.p>
+
+
 on=@Effect
-src.act.f_pega_fogo <EFFECTSPELL s_combustion,<src.magery>,<src.uid>>
+src.act.f_pega_fogo, <EFFECTSPELL s_combustion,<src.magery>,<src.uid>>
+
+skill_gain skill_evaluatingintel
 return 1
+
+
 
 
 //***********************************************************
@@ -575,7 +669,7 @@ RUNE_ITEM=2245
 SCROLL_ITEM=i_scroll_magictorch
 FLAGS=SPELLFLAG_GOOD | spellflag_scripted
 EFFECT_ID=0
-DURATION=5,300
+DURATION=5*60,10*60
 MANAUSE=12
 SKILLREQ=MAGERY 50.0
 INTERRUPT=100.0,100.0
@@ -592,6 +686,9 @@ new.attr=08030
 local.t=<DURATIONSPELL s_magicTorch,<argn2>>
 new.timerf <LOCAL.t>,remove
 src.timerf <local.t>,sfx,04b8
+
+
+skill_gain skill_evaluatingintel
 return 1
 
 
@@ -625,13 +722,15 @@ RUNE_ITEM=2267
 SCROLL_ITEM=i_scroll_fire_cell
 FLAGS=SPELLFLAG_HARM | spellflag_scripted | spellflag_targ_char
 EFFECT_ID=0
-DURATION=5,12
+DURATION=60,2*60
 MANAUSE=25
 SKILLREQ=MAGERY 60.0
 INTERRUPT=100.0,100.0
 
 on=@Effect
 f_cela_fogo <DURATIONSPELL s_CelaFogo,<src.Magery>>
+
+skill_gain skill_evaluatingintel
 return 1
 
 
@@ -659,14 +758,14 @@ DEFNAME=s_polymorph_fogo_fatuo
 NAME=Forma Elemental
 SOUND=snd_spell_fire_field
 RUNES=WIHR
-CAST_TIME=35
+CAST_TIME=30
 RESOURCES=i_r_perola_negra,i_r_cinza_sulfurosa,i_r_musgo_sangue
 RUNE_ITEM=2280
 SCROLL_ITEM=i_scroll_poly_fogo_fatuo
 FLAGS=spellflag_scripted | spellflag_playeronly
 EFFECT_ID=
-EFFECT=35,50
-DURATION=12,90
+EFFECT=
+DURATION=60,2*60,
 MANAUSE=25
 SKILLREQ=MAGERY 60.0
 INTERRUPT=100.0,100.0
@@ -677,15 +776,10 @@ sfx snd_spell_fire_field
 on=@Effect
 LOCAL.timer=<DURATIONSPELL s_polymorph_fogo_fatuo,<magery>,<UID>>
 src.f_polymorph c_fogo_fatuo_poly,04EC,<LOCAL.timer>
-src.Buff_STR <MAXIMUM <eval 30-<str>>,-30>,<LOCAL.timer>
-src.Buff_DEX 50,<LOCAL.timer>
 src.haste <local.timer>
-if (!<tag0.resitenteaoclima>)
- tag.resitenteaoclima=1
- timerf <local.time>,tag.resitenteaoclima=
-endif
-return 1
 
+skill_gain skill_evaluatingintel
+return 1
 
 //***********************************************************
 //      SPELL FIRE Flamestrike
@@ -711,23 +805,28 @@ DEFNAME=s_flame_strike
 NAME=Jato de chamas
 SOUND=snd_SPELL_FLAMESTRIKE
 RUNES=TV
-CAST_TIME=18
+CAST_TIME=2.0
 RESOURCES=i_r_musgo_sangue,i_r_nightshade,i_r_cinza_sulfurosa
 RUNE_ITEM=2290
 SCROLL_ITEM=i_scroll_flame_strike
-FLAGS=SPELLFLAG_TARG_OBJ|SPELLFLAG_HARM| SPELLFLAG_FX_TARG| SPELLFLAG_RESIST | spellflag_eval_boosts
+FLAGS=SPELLFLAG_TARG_OBJ|SPELLFLAG_HARM| SPELLFLAG_FX_TARG| SPELLFLAG_RESIST 
+//| spellflag_eval_boosts
 EFFECT_ID=03709
-EFFECT=16,42
+EFFECT=35,45
 DURATION=0.0
-MANAUSE=12
+MANAUSE=15
 SKILLREQ=MAGERY 70.0
 INTERRUPT=100.0,50.0
 
+
 on=@Effect
 EFFECT 3 i_fire_column 0 16 0
-DAMAGE <EFFECTSPELL 112,<argn2>,<src.uid>>,dam_fire,<src.uid>
-return 1
+local.dam=<EFFECTSPELL s_flame_strike,<argn2>,<src.uid>>
+local.dam += <eval <src.evaluatingintel>/100>
+DAMAGE <local.dam>,DAM_FIRE,<src.uid>
 
+skill_gain skill_evaluatingintel
+return 1
 
 
 //***********************************************************
@@ -754,13 +853,13 @@ DEFNAME=s_heatWeapon
 NAME=Esquentar arma
 SOUND=snd_SPELL_FIREBALL
 RUNES=HWC
-CAST_TIME=30
+CAST_TIME=40
 RESOURCES=i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_cinza_sulfurosa
 RUNE_ITEM=23002
 SCROLL_ITEM=i_scroll_heatWeapon
 FLAGS=SPELLFLAG_TARG_OBJ | SPELLFLAG_HARM | SPELLFLAG_RESIST
 EFFECT_ID=i_fire
-EFFECT=3,12
+EFFECT=3,10
 DURATION=0.0
 MANAUSE=22
 SKILLREQ=MAGERY 70.0
@@ -774,11 +873,14 @@ if (<weapon>)
   f_heatWeapon <eval <EFFECTSPELL s_heatWeapon,<argn2>>*3>
   sysmessagered Sua arma esta muito quente para segurar!
  else
-  src.sysmessagered A arma do seu oponente nao esquenta!
+  src.sysmessagered A arma do seu oponente nao pode ser esquentada!
  endif
 else
  src.sysmessagered Seu oponente nao esta armado!
 endif
+
+
+skill_gain skill_evaluatingintel
 return 1
 
 [FUNCTION f_heatWeapon]
@@ -832,24 +934,26 @@ CAST_TIME=20
 RESOURCES=i_r_perola_negra,i_r_cinza_sulfurosa,i_r_musgo_sangue,i_r_raiz_de_mandrake,i_r_teia_de_aranha
 RUNE_ITEM=23008
 SCROLL_ITEM=i_scroll_horror_abismo
-FLAGS=spellflag_targ_xyz | spellflag_scripted | spellflag_eval_boosts
+FLAGS=spellflag_targ_xyz | spellflag_scripted 
 EFFECT_ID=0
-EFFECT=35,50
-DURATION=12,90
+EFFECT=
+DURATION=60,2*60
 MANAUSE=25
 SKILLREQ=MAGERY 80.0
 INTERRUPT=100.0,100.0
 
-on=@start
-sfx snd_spell_fire_field
+on=@Start
+SFX 0215
 
-on=@Success
-LOCAL.timer=<EFFECTSPELL s_horror_abismo,<src.magery>,<UID>>
-obj=<src.f_summon_creature c_horror_abismo_sum,<LOCAL.timer>>
-obj.p=<actp>
-obj.update
+on=@Effect
+LOCAL.TIME=<DURATIONSPELL s_horror_abismo,<argn2>,<UID>>
+LOCAL.EFFECT=<EFFECTSPELL s_horror_abismo,<argn2>,<UID>>
+obj=<src.f_summon_creature c_horror_abismo_sum,<LOCAL.TIME>>
+obj.Wrestling= <eval(<local.effect>*5)>
+obj.tag0.moddam += <eval <local.effect>/10>
 
-ON=@Effect
+
+skill_gain skill_evaluatingintel
 return 1
 
 
@@ -882,10 +986,10 @@ CAST_TIME=80
 RESOURCES=i_r_perola_negra,i_r_cinza_sulfurosa,i_r_musgo_sangue
 RUNE_ITEM=21019
 SCROLL_ITEM=i_scroll_poly_cobra
-FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_harm | spellflag_eval_boosts
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_harm | SPELLFLAG_RESIST 
 EFFECT_ID=
-EFFECT=35,50
-DURATION=12,30
+EFFECT=
+DURATION=10,30
 MANAUSE=40
 SKILLREQ=MAGERY 80.0
 INTERRUPT=100.0,100.0
@@ -895,8 +999,12 @@ sfx snd_spell_fire_field
 
 on=@Effect
 LOCAL.timer=<DURATIONSPELL s_polymorph_cobra,<src.magery>,<src.UID>>
-f_polymorph c_snake,colors_green,<LOCAL.timer>
+f_polymorph c_snake_poly,0,<LOCAL.timer>
+
+skill_gain skill_evaluatingintel
 return 1
+
+
 
 //***********************************************************
 //      SPELL FIRE Explosion
@@ -922,15 +1030,15 @@ DEFNAME=s_explosao
 NAME=Explosao
 SOUND=snd_SPELL_EXPLOSION
 RUNES=VOF
-CAST_TIME=25
+CAST_TIME=30
 RESOURCES=i_r_perola_negra,i_r_cinza_sulfurosa,i_r_musgo_sangue
 RUNE_ITEM=2282
 SCROLL_ITEM=i_scroll_explosao
 FLAGS=SPELLFLAG_TARG_CHAR |SPELLFLAG_DIR_ANIM| SPELLFLAG_HARM |SPELLFLAG_FX_TARG| SPELLFLAG_RESIST | SPELLFLAG_SCRIPTED
 EFFECT_ID=i_fx_explode
-EFFECT=32,55
-DURATION=0.0
-MANAUSE=14
+EFFECT=35,45
+DURATION=
+MANAUSE=25
 SKILLREQ=MAGERY 90.0
 INTERRUPT=100.0,100.0
 
@@ -947,6 +1055,8 @@ forchars <eval <local.dam>/20>
  endif
 end
 sfx snd_SPELL_EXPLOSION
+
+skill_gain skill_evaluatingintel
 return 1
 
 
@@ -964,7 +1074,7 @@ WEIGHT=1
 //CIRCLE=1
 CATEGORY=MyT - Provisions - Alchemy & Magic
 SUBSECTION=Scrolls - Magery
-DESCRIPTION=Homem Lagarto
+DESCRIPTION=Horda das Chamas
 
 ON=@Create
         ATTR=ATTR_MAGIC
@@ -975,14 +1085,14 @@ DEFNAME=s_homem_lagarto
 NAME=Horda das Chamas
 SOUND=
 RUNES=YAR
-CAST_TIME=40
+CAST_TIME=30
 RESOURCES=i_r_perola_negra,i_r_cinza_sulfurosa,i_r_musgo_sangue,i_r_raiz_de_mandrake,i_r_teia_de_aranha
 RUNE_ITEM=2302
 SCROLL_ITEM=i_scroll_homem_lagarto
-FLAGS=spellflag_targ_xyz | spellflag_scripted | spellflag_eval_boosts
+FLAGS=spellflag_scripted|SPELLFLAG_HARM | spellflag_targ_char |
 EFFECT_ID=0
-EFFECT=35,50
-DURATION=12,90
+EFFECT=
+DURATION=30,60
 MANAUSE=30
 SKILLREQ=MAGERY 90.0
 INTERRUPT=100.0,100.0
@@ -990,11 +1100,23 @@ INTERRUPT=100.0,100.0
 on=@start
 sfx snd_spell_fire_field
 
-on=@Success
-LOCAL.timer=<src.DURATIONSPELL s_homem_lagarto,<src.magery>,<UID>>
-obj=<src.f_summon_creature <hval {c_horror_abismo_sum 3 c_lizardman_sum 2 c_elem_fire_sum 1}>,<LOCAL.timer>>
-obj.p=<src.targp>
-obj.update
+
+on=@Select
+if (<argn3>==3)
+ sysmessageyellow Para atacar quem?
+endif
+
+on=@Effect
+local.crit=<MAXIMUM <eval <src.evaluatingintel>/200>,2>
+local.time=<DURATIONSPELL s_homem_lagarto,<argn2>,<src.uid>>
+for i 1 <local.crit>
+ obj=<src.f_summon_creature <hval {c_wisp_sum 2, c_fogo_fatuo_sum 1}>, <local.time>>
+ obj.attack <uid>
+end
+
+
+skill_gain skill_evaluatingintel
+return 1
 
 
 //***********************************************************
@@ -1060,7 +1182,7 @@ FLAGS=SPELLFLAG_TARG_XYZ | SPELLFLAG_HARM | spellflag_scripted
 EFFECT_ID=0
 EFFECT=25,65
 DURATION=0.0
-MANAUSE=24
+MANAUSE=30
 SKILLREQ=MAGERY 100.0
 INTERRUPT=100.0,100.0
 
@@ -1121,11 +1243,11 @@ RUNES=YRV
 CAST_TIME=50
 RESOURCES=i_r_teia_de_aranha,i_r_asa_morcego,i_r_cinza_sulfurosa
 RUNE_ITEM=2302
-FLAGS=spellflag_targ_xyz | spellflag_scripted | spellflag_eval_boosts
+FLAGS=spellflag_targ_xyz | spellflag_scripted 
 SCROLL_ITEM=i_scroll_conj_elem_fire
 RESOURCES=i_r_teia_de_aranha,i_r_raiz_de_mandrake,i_r_asa_morcego,i_r_cinza_sulfurosa
 EFFECT_ID=0
-EFFECT=12,90
+EFFECT=2*60,3*60
 MANAUSE=30
 SKILLREQ=MAGERY 100.0
 INTERRUPT=25.0,100.0
@@ -1133,10 +1255,19 @@ INTERRUPT=25.0,100.0
 on=@start
 sfx snd_spell_fire_field
 
-on=@Success
-LOCAL.timer=<src.EFFECTSPELL s_conj_elem_fire,<src.magery>,<src>>
-obj=<src.f_summon_creature c_elem_fire_sum,<LOCAL.timer>>
-obj.p=<src.targp>
-obj.update
-//return 1
+on=@Effect
+LOCAL.TIME=<DURATIONSPELL s_conj_elem_fire,<argn2>,<src.UID>>
+LOCAL.EFFECT=<EFFECTSPELL s_conj_elem_fire,<argn2>,<src.UID>>
+obj=<src.f_summon_creature c_elem_fire_sum,<LOCAL.TIME>>
+obj.Wrestling = <eval(<local.effect>*20)>
+obj.tag0.moddam += <eval <local.effect>/5>
+obj.respoison = <eval<local.effect>*2>
+obj.resenergy = <eval<local.effect>*2>
+obj.modar += <eval<local.effect>>
+
+skill_gain skill_evaluatingintel
+return 0
+
+
+
 [EOF]
