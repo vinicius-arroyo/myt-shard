@@ -118,7 +118,7 @@ RUNE_ITEM=2245
 SCROLL_ITEM=i_scroll_luz
 FLAGS=spellflag_targ_char | spellflag_scripted
 MANAUSE=10
-DURATION=7,250
+DURATION=3*60,15*60
 SKILLREQ=FOCUS 10.0
 INTERRUPT=15.0,100.0
  
@@ -133,6 +133,10 @@ new.link=<UID>
 trysrc <uid> new.equip
 new.timer=<DURATIONSPELL 150,<argn2>,<src.uid>>
 serv.log <eval <new.timer>>,<eval <argn2>>
+
+
+
+skill_gain skill_spiritspeak
 return 1
 
 //***********************************************************
@@ -179,6 +183,10 @@ obj=<uid>
 forplayers <findid.i_rune_ampli_voz.more1>
  blindItemMsg <obj>, 026, <args>
 end
+
+
+
+skill_gain skill_spiritspeak
 return 1
 
 [SPELL 151]
@@ -208,6 +216,8 @@ trysrc <uid> new.equip
 new.timer=<DURATIONSPELL 151,<argn2>,<src.uid>>
 new.more1=<EFFECTSPELL 151,<argn2>,<src.uid>>
 return 1
+
+
 
 
 //***********************************************************
@@ -246,14 +256,14 @@ DEFNAME=s_exorcizar
 NAME=Exorcizar
 SOUND=0201
 RUNES=ECX
-CAST_TIME=20
+CAST_TIME=25
 RESOURCES=i_r_ginseng,i_r_alho
 RUNE_ITEM=20496
 SCROLL_ITEM=i_scroll_exorcizar
-FLAGS=spellflag_scripted | spellflag_targ_char// | spellflag_resist
-MANAUSE=10
+FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_resist
+MANAUSE=15
 EFFECT=0,5000
-DURATION=10,60
+DURATION=20,60
 SKILLREQ=FOCUS 20.0
 INTERRUPT=25.0,100.0
  
@@ -276,7 +286,8 @@ if (<npc>==brain_undead)
   src.sfx 29
   remove
   
- //falha
+//falha
+ 
  elif (!<restest 3 i_rune_exorcizar>)
   local.effect = <eval <local.effect>/166>//Tranforma effect em 30% abs
   local.duration = <DURATIONSPELL 152,<src.focus>,<src.uid>>
@@ -300,6 +311,10 @@ if (<npc>==brain_undead)
 else
  src.sysmessagered <name> nao eh um morto-vivo!
 endif
+
+
+
+skill_gain skill_spiritspeak
 return 1
 
 
@@ -335,9 +350,16 @@ RUNE_ITEM=2283
 SCROLL_ITEM=i_scroll_forma_eterea
 FLAGS=spellflag_scripted
 MANAUSE=20
-DURATION=1,45
+DURATION=15,45
 SKILLREQ=FOCUS 20.0
 INTERRUPT=25.0,100.0
+
+on=@SUCCESS
+serv.newitem i_fx_smoke
+new.attr = attr_static|attr_decay
+new.timer = 1
+new.p = <act.p>
+
 
 on=@Effect
 newitem i_mry_invis
@@ -345,7 +367,13 @@ new.more2=<DURATIONSPELL 153,<src.focus>,<src.uid>>
 new.equip
 new.timer 1
 invis_enter
+
+
+
+skill_gain skill_spiritspeak
 return 1
+
+//verificar se da pra castar invisivel
 
 
 //***********************************************************
@@ -388,6 +416,10 @@ if (<restest 1 i_veneno>)
  findid.i_veneno.more2 -= <EFFECTSPELL 154,<src.focus>,<src.uid>>
 endif
 effect 3 i_fx_heal_effect 0 16 0
+
+
+
+skill_gain skill_spiritspeak
 return 1
 
 //***********************************************************
@@ -420,14 +452,31 @@ RESOURCES=i_r_ginseng,i_r_cinza_sulfurosa
 RUNE_ITEM=2269
 SCROLL_ITEM=i_scroll_trovao
 FLAGS=spellflag_scripted
+DURATION=5,10
 MANAUSE=9
 SKILLREQ=FOCUS 30.0
 INTERRUPT=35.0,100.0
  
 on=@Effect
+ forchars 4
+ IF (<NPC>==brain_animal)
+ f_spl_trovao <argn2>,<src.uid>
+ endif
+ end
+
 effect 4 2
 timerf 1,effect,4,2
+
+
+
+skill_gain skill_spiritspeak
 return 1
+
+[FUNCTION f_spl_trovao]
+local.time=<DURATIONSPELL s_trovao,<argv0>,<argv1>>
+events +e_scared
+timerf <local.time> events,-e_scared
+
 
 
 //***********************************************************
@@ -455,18 +504,19 @@ DEFNAME=s_cura_leve
 NAME=Cura
 SOUND=snd_SPELL_HEAL
 RUNES=IM
-CAST_TIME=28
+CAST_TIME=25
 RESOURCES=i_r_ginseng
 RUNE_ITEM=2256
 SCROLL_ITEM=i_scroll_cura_leve
 FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good | spellflag_dir_anim
 MANAUSE=12
-EFFECT=7,45
+EFFECT=7,42
 SKILLREQ=FOCUS 40.0
 INTERRUPT=45.0,100.0
  
 on=@Effect
-local.effect=<EFFECTSPELL 156,<argn2>,<src.uid>>
+local.effect =<EFFECTSPELL 156,<argn2>,<src.uid>>
+local.effect += <eval<spiritspeak>/100>
 if (<NPC>==brain_undead)
  local.effect=<minimumN <local.effect>,<eval <hits>-6>>
  damage <eval <local.effect>/3>,<DEF.dam_energy>,<src>
@@ -475,6 +525,9 @@ else
  hits += <local.effect>
 endif
 effect 3 i_fx_heal_effect 0 16 0
+
+
+skill_gain skill_spiritspeak
 return 1
 
 
@@ -509,18 +562,73 @@ RESOURCES=i_r_ginseng,i_r_raiz_de_mandrake
 RUNE_ITEM=23001
 SCROLL_ITEM=i_scroll_forca_divina
 FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good | spellflag_dir_anim
-MANAUSE=12
-EFFECT=4,20
-DURATION=10,200
+MANAUSE=20
+EFFECT=
+DURATION=5*60,15*60
 SKILLREQ=FOCUS 40.0
 INTERRUPT=45.0,100.0
  
-on=@Effect
-local.effect=<minimumN <EFFECTSPELL 157,<argn2>,<src.uid>>,<eval 120-<str>>>
-local.time=<durationspell 157,<argn2>,<src.uid>>
-Buff_STR <local.effect>,<local.time>
-effect 3 i_fx_sparkle_2 0 16 0
+//on=@Effect
+//local.effect=<minimumN <EFFECTSPELL 157,<argn2>,<src.uid>>,<eval 120-<str>>>
+//local.time=<durationspell 157,<argn2>,<src.uid>>
+//Buff_STR <local.effect>,<local.time>
+//effect 3 i_fx_sparkle_2 0 16 0
+//return 1
+
+on=@START
+if <act.restest i_rune_forca_divina>
+src.sysmessageyellow Esse alvo ja tem esse efeito.
 return 1
+endif
+
+on=@SUCCESS
+serv.newitem = i_fx_sparkle_2
+new.attr=attr_static|attr_decay
+new.timer=1
+new.p=<act.p>
+
+on=@Effect
+LOCAL.EFFECT=<eval (<src.focus>+<src.spiritspeak>+750)/150> //5,18(21)
+LOCAL.DURATION=<DURATIONSPELL s_forca_divina,<argn2>,<src.uid>>
+newitem=i_rune_forca_divina
+new.tag.modstr=<minimumN 125-<str>,<LOCAL.EFFECT>>
+IF (<src.spiritspeak> > 80.0>)
+ new.tag.modskill=Parrying
+ new.tag.modskillval=<eval <LOCAL.EFFECT>*5>
+ENDIF
+new.link <uid>
+trysrc <uid> src.new.equip
+new.timer=<local.duration>
+
+
+
+skill_gain skill_spiritspeak
+return 0
+
+
+[ITEMDEF i_rune_forca_divina]
+NAME=Forca Divina
+ID=02088
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffSkill,e_BuffStats
+
+ON=@Create
+ATTR=attr_blessed2
+
+on=@equip
+cont.sysmessagegreen Voce se sente mais forte e confiante!
+
+on=@unequip
+cont.sysmessagegreen Sua forca comeca a passar.
+cont.sfx snd_SPELL_CLUMSY
+
+on=@timer
+remove
+return 1
+
+
+
 
 //***********************************************************
 //              SPELL RESTORATION Raio divino
@@ -547,20 +655,27 @@ DEFNAME=s_raio_divino
 NAME=Raio Divino
 SOUND=05C3
 RUNES=IOJ
-CAST_TIME=6
+CAST_TIME=10
 RESOURCES=i_r_ginseng,i_r_raiz_de_mandrake,i_r_cinza_sulfurosa
 RUNE_ITEM=2281
 SCROLL_ITEM=i_scroll_raio_divino
 FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_harm | spellflag_dir_anim
-MANAUSE=4
-EFFECT=5,13
+MANAUSE=7
+EFFECT=8,12
 SKILLREQ=FOCUS 50.0
 INTERRUPT=55.0,100.0
  
 on=@Effect
-DAMAGESPELL 157,dam_energy,<src.spiritspeak>,<src.uid>
 EFFECT 0 i_fx_energy_ray 6 16 0
+local.dam=<EFFECTSPELL s_raio_divino,<argn2>,<src.uid>>
+local.dam += <eval <src.spiritspeak>/200>
+DAMAGE <local.dam>,DAM_ENERGY,<src.uid>
+
+
+
+skill_gain skill_spiritspeak
 return 1
+
 
 //***********************************************************
 //              SPELL RESTORATION Conj Servo Etereo
@@ -593,8 +708,8 @@ RUNE_ITEM=2280
 SCROLL_ITEM=i_scroll_servo_etereo
 FLAGS=spellflag_scripted | spellflag_good | spellflag_summon
 MANAUSE=25
-EFFECT=12,90
-DURATION=30,90
+EFFECT=30,75
+DURATION=90,3*60
 SKILLREQ=FOCUS 50.0
 INTERRUPT=55.0,100.0
  
@@ -605,12 +720,11 @@ obj.str=<EFFECTSPELL 159,<argn2>,<uid>>
 obj.dex=<EFFECTSPELL 159,<argn2>,<uid>>
 obj.int=<EFFECTSPELL 159,<argn2>,<uid>>
 obj.aid
-obj.Magery=<eval <EFFECTSPELL 159,<argn2>,<uid>>*10>
-obj.focus=<obj.magery>
-obj.events +e_caster_restoration
-obj.MagicResistance=<eval <EFFECTSPELL 159,<argn2>,<uid>>*10>
-obj.EvaluatingIntel=<eval <EFFECTSPELL 159,<argn2>,<uid>>*10>
-obj.name=Servo
+
+
+
+
+skill_gain skill_spiritspeak
 return 1
 
 
@@ -653,30 +767,72 @@ DEFNAME=s_armadura_sagrada
 NAME=Armadura sagrada
 SOUND=01ED
 RUNES=UOS
-CAST_TIME=11
+CAST_TIME=40
 RESOURCES=i_r_ginseng,i_r_alho
 RUNE_ITEM=23003
 SCROLL_ITEM=i_scroll_armadura_sagrada
 FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good
-MANAUSE=13
-EFFECT=0,33
-DURATION=20,200
+MANAUSE=20
+EFFECT=10,60
+DURATION=5*60,15*60
 SKILLREQ=FOCUS 60.0
 INTERRUPT=65.0,100.0
  
-on=@Effect
-local.effect = <EFFECTSPELL 160,<src.spiritspeak>,<src.uid>>
-local.duration = <DURATIONSPELL 160,<src.focus>,<src.uid>>
-newitem i_rune_arm_sagrada
-new.tag.rescold <minimumN <local.effect>,<eval 66-<rescold>>>
-new.tag.respoison <minimumN <local.effect>,<eval 66-<respoison>>>
-if (<restest 1 i_rune_arm_sagrada>)
- new.tag.modar=<minimumN <eval (<local.effect>*2)/3>,<eval 66-<ar>>>
+ON=@Success
+if <restest i_mry_RESBUFF>
+src.sysmessageyellow Voce pode ter apenas um buff de protecao ativo num determinado momento. 
+return 1
 endif
-new.link=<UID>
-trysrc <uid> equip <new>
-new.timer=<local.duration>
-effect 3 i_fx_sparkle 0 16 0
+
+serv.newitem i_fx_sparkle
+new.attr = attr_static|attr_decay
+new.timer = 2
+new.p = <act.p>
+
+on=@Effect
+local.time=<DURATIONSPELL s_armadura_sagrada,<argn2>,<src.uid>>
+
+local.prot= <EFFECTSPELL s_armadura_sagrada,<argn2>,<src.uid>>
+local.prot=<minimumN <eval 60-<RESENERGY>>,<local.prot>>
+  IF (<argn2> > 500)
+  local.protpoison = <eval(<local.prot>/2)>
+  Buff_respoison <local.protpoison>,<local.time>
+     IF (<argn2> > 750)
+     local.buffar=<eval(<local.prot>/3)>
+     local.buffar=<minimumN <eval 30-<AR>>,<local.buffar>>
+     Buff_Armor <local.buffar>,<local.time>
+     ENDIF
+  ENDIF
+Buff_resenergy <local.prot>,<local.time>
+        
+
+
+newitem i_mry_RESBUFF
+new.equip
+new.timer <local.time>
+new.link=<uid>
+
+
+skill_gain skill_spiritspeak
+return 1
+    
+    
+[ITEMDEF i_mry_RESBUFF]
+ID=i_rune_poison
+name=memory buff de resistencia
+type=t_eq_script
+layer=layer_special
+    
+ON=@Create
+ATTR=attr_blessed2
+    
+on=@equip
+timer 1
+cont.sysmessagegreen As resistencias do alvo foram aumentadas.
+    
+on=@timer
+cont.sysmessagegreen O efeito de sua magia protetora acabou.
+remove
 return 1
 
 
@@ -705,7 +861,7 @@ DEFNAME=s_julgamento
 NAME=Julgamento
 SOUND=051A
 RUNES=ACL
-CAST_TIME=35
+CAST_TIME=40
 RESOURCES=i_r_ginseng,i_r_musgo_sangue,i_r_olho_morto_vivo
 RUNE_ITEM=23004
 SCROLL_ITEM=i_scroll_julgamento
@@ -716,18 +872,23 @@ INTERRUPT=65.0,100.0
  
 on=@Effect
 effect 3 i_fx_heal_effect 0 16 0
-if (<IsPlayer>) && (<necromancy>)
- timerf 1 damage,<eval <necromancy>/30>,dam_energy,<src.uid>
+if (<IsPlayer> && (<src.act.necromancy> > 100) && ((<src.act.necromancy> - 100) < <src.focus>))
+ timerf 1 damage,<eval (<src.act.necromancy>/10)>,dam_energy,<src.uid>
  timerf 1 EFFECT 1 0
-elif (<karma> < 0)
+elif (<npc>=brain_undead && <karma> > -2000)
  timerf 1 damage,<R25,<eval (-<karma>/40)>>,dam_energy,<src.uid>
  timerf 1 EFFECT 1 0
 else
  src.timerf 1 src.EFFECT 1 0
- src.timerf 1 src.damage,<R13,23>,dam_energy,<src.uid>
- src.buffskill Focus,-<focus>,3600
+ src.timerf 1 damage,<eval (<src.focus>/20)>,dam_energy,<src.uid>
+ src.buffskill Focus,-<src.focus>,3600 
+ src.sysmessagered Mond fica furioso com voce por seu descaso a Seu poder. Use o julgamento com parcimonia e apenas em situacoes nas quais tem certeza que seu inimigo e mau.
 endif
+
+
+skill_gain skill_spiritspeak
 return 1
+
 
 
 //***********************************************************
@@ -769,31 +930,65 @@ DEFNAME=s_bencao
 NAME=Bencao
 SOUND=01EA
 RUNES=UVM
-CAST_TIME=28
+CAST_TIME=40
 RESOURCES=i_r_ginseng,i_r_ginseng,i_r_raiz_de_mandrake,i_r_musgo_sangue,i_r_teia_de_aranha
 RUNE_ITEM=23014
 SCROLL_ITEM=i_scroll_bencao
 FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good
-MANAUSE=12
-EFFECT=1,18
-DURATION=10,200
+MANAUSE=20
+EFFECT=
+DURATION=5*60,15*60
 SKILLREQ=FOCUS 70.0
 INTERRUPT=75.0,100.0
  
-on=@Effect
-if (<restest 1 i_rune_bencao>)
- findid.i_rune_bencao.timerd 1
- sysmessagered Sua bencao foi retirada!
-else
- newitem i_rune_bencao
- local.bonus=<eval (<src.focus>+<src.spiritspeak>+750)/150>
- new.tag.modstr=<MINIMUMN <local.bonus>,<eval 125-<str>>>
- new.tag.moddex=<MINIMUMN <local.bonus>,<eval 125-<dex>>>
- new.tag.modint=<MINIMUMN <local.bonus>,<eval 125-<int>>>
- new.link=<UID>
- trysrc <uid> equip <new>
- new.timer=<DURATIONSPELL 162,<argn2>,<UID>>
+
+on=@START
+if <act.restest i_rune_bencao>
+src.sysmessageyellow Esse alvo ja tem esse efeito.
+return 1
 endif
+
+on=@SUCCESS
+serv.newitem = i_fx_bless
+new.attr=attr_static|attr_decay
+new.timer=1
+new.p=<act.p>
+
+on=@Effect
+LOCAL.EFFECT=<eval (<src.focus>+<src.spiritspeak>+500)/170>//3 a 14(17)
+LOCAL.DURATION=<DURATIONSPELL s_bencao,<argn2>,<src.uid>>
+newitem=i_rune_bencao
+new.tag.modstr=<MINIMUMN <LOCAL.EFFECT>,<eval 125-<str>>>
+new.tag.moddex=<MINIMUMN <LOCAL.EFFECT>,<eval 125-<dex>>>
+new.tag.modint=<MINIMUMN <LOCAL.EFFECT>,<eval 125-<int>>>
+new.link <uid>
+trysrc <uid> src.new.equip
+new.timer=<local.duration>
+
+
+skill_gain skill_spiritspeak
+return 0
+
+        
+[ITEMDEF i_rune_bencao]
+NAME=Bencao
+ID=02088
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffStats
+
+ON=@Create
+ATTR=attr_blessed2
+
+on=@equip
+cont.sysmessagegreen Voce recebe os efeitos da bencao divina!
+
+on=@unequip
+cont.sysmessagegreen Os efeitos da bencao se extinguem.
+cont.sfx snd_SPELL_CLUMSY
+
+on=@timer
+remove
 return 1
 
 
@@ -822,33 +1017,50 @@ DEFNAME=s_forma_nefelibata
 NAME=Avatar da Luz
 SOUND=0
 RUNES=RVOX
-CAST_TIME=26
+CAST_TIME=50
 RESOURCES=i_r_raiz_de_mandrake,i_r_ginseng,i_r_teia_de_aranha,i_r_raiz_de_mandrake
 RUNE_ITEM=20740
 SCROLL_ITEM=i_scroll_poly_nefelibata
 FLAGS=spellflag_scripted | spellflag_good
 MANAUSE=30
-DURATION=30,90
-EFFECT=1,45
+DURATION=3*60,10*60
+EFFECT=25,50
 SKILLREQ=FOCUS 70.0
 INTERRUPT=75.0,100.0
 
 on=@Effect
-LOCAL.str=<EFFECTSPELL s_forma_nefelibata,<argn2>,<src.uid>>
-LOCAL.dex=<eval (<EFFECTSPELL s_forma_nefelibata,<argn2>,<src.uid>>*60)/100>
-local.str=<minimumN <eval 100-<str>>,<local.str>>
-local.dex=<minimumN <eval 120-<dex>>,<local.dex>>
-local.tactics=<eval (<EFFECTSPELL s_forma_nefelibata,<argn2>,<src.uid>>*6)+20.0>
-local.wrestling=<eval (<EFFECTSPELL s_forma_nefelibata,<argn2>,<src.uid>>*5)+10.0>
+//Determina se pode morphar (anti-exploit)
+if (<restest 1 i_spl_polymorph>)
+ sysmessayellow voce ja possui um efeito desses ativo.
+ return 1
+endif
+
+//Determina corpo
+local.body=c_celestial_poly
+
+
+//Determina o tempo de duração e bonus de int e skills
 local.time=<DURATIONSPELL s_forma_nefelibata,<argn2>,<src.uid>>
-src.f_polymorph c_celestial_poly,0,<local.time>
-src.Buff_STR <local.str>,<local.time>
-src.Buff_DEX <local.dex>,<local.time>
-src.BuffSkill Wrestling,<local.wrestling>,<local.time>
-src.BuffSkill Tactics,<local.tactics>,<local.time>
-hits=<maxhits>
-stam=<maxstam>
+
+local.int=<EFFECTSPELL s_forma_nefelibata,<argn2>,<src.uid>>
+local.int=<minimumN 150-<int>,<local.int>>
+
+Buff_INT <local.int>,<local.time>
+
+BuffSkill Meditation,<local.int>*5,<local.time>
+BuffSkill Spiritspeak,<local.int>*5,<local.time>
+
+mana += <local.int>
+
+
+//Polimorpha
+src.f_polymorph <local.body>,0,<local.time>
+
+
+skill_gain skill_spiritspeak
 return 1
+
+
 
 //***********************************************************
 //              SPELL RESTORATION Purificação
@@ -892,6 +1104,9 @@ forchars 5
   spelleffect s_remover_doenca,<argn2>,<obj.uid>
  endif
 end
+
+
+skill_gain skill_spiritspeak
 return 1
 
 
@@ -910,7 +1125,7 @@ WEIGHT=1
 //CIRCLE=1
 CATEGORY=MyT - Provisions - Alchemy & Magic
 SUBSECTION=Scrolls - Focus
-DESCRIPTION=Conj. nefelibata
+DESCRIPTION=Mensageiro Celestial
 
 ON=@Create
         ATTR=ATTR_MAGIC
@@ -921,29 +1136,26 @@ DEFNAME=s_conj_nefelibata
 NAME=Invocar Mensageiro
 SOUND=01A9
 RUNES=KOX
-CAST_TIME=40
+CAST_TIME=60
 RESOURCES=i_r_ginseng,i_r_raiz_de_mandrake,i_r_perola_negra,i_r_teia_de_aranha
 RUNE_ITEM=2254
 SCROLL_ITEM=i_scroll_conj_nefelibata
 FLAGS=spellflag_scripted | spellflag_good | spellflag_summon
 MANAUSE=35
-EFFECT=30,80
-DURATION=45,90
+EFFECT=10,40
+DURATION=2*60,3*60
 SKILLREQ=FOCUS 80.0
 INTERRUPT=85.0,100.0
  
 on=@Effect
-LOCAL.timer=<DURATIONSPELL 165,<argn2>,<UID>>
-obj=<src.f_summon_creature c_warrior_ethereal_sum,<LOCAL.timer>>
-obj.str=<EFFECTSPELL 165,<argn2>,<uid>>
-obj.dex=<EFFECTSPELL 165,<argn2>,<uid>>
-obj.int=<EFFECTSPELL 165,<argn2>,<uid>>
-obj.aid
-obj.Anatomy=<eval <EFFECTSPELL 165,<argn2>,<uid>>*4>
-obj.MagicResistance=<eval <EFFECTSPELL 165,<argn2>,<uid>>*10>
-obj.Wrestling=<eval <EFFECTSPELL 165,<argn2>,<uid>>*8>
-obj.Tactics=<eval <EFFECTSPELL 165,<argn2>,<uid>>*5>
-obj.name=Nefelibata
+LOCAL.TIME=<DURATIONSPELL 165,<argn2>,<UID>>
+LOCAL.EFFECT=<EFFECTSPELL 165,<argn2>,<UID>>
+obj=<src.f_summon_creature c_warrior_ethereal_sum,<LOCAL.TIME>>
+obj.Wrestling= <eval(<local.effect>*15)>
+obj.tag0.moddam += <eval <local.effect>/5>
+
+
+skill_gain skill_spiritspeak
 return 1
 
 
@@ -997,12 +1209,12 @@ DEFNAME=s_tempestade_divina
 NAME=Furia de Mond
 SOUND=05CE
 RUNES=KOJ
-CAST_TIME=21
+CAST_TIME=30
 RESOURCES=i_r_ginseng,i_r_raiz_de_mandrake,i_r_cinza_sulfurosa,i_r_perola_negra
 RUNE_ITEM=2288
 SCROLL_ITEM=i_scroll_tempestade_divina
 FLAGS=spellflag_scripted | spellflag_targ_xyz | spellflag_harm | spellflag_dir_anim
-MANAUSE=14
+MANAUSE=20
 EFFECT=18,33
 SKILLREQ=FOCUS 90.0
 INTERRUPT=95.0,100.0
@@ -1020,7 +1232,7 @@ new.tag.caster=<src.uid>
 new.timerd 1
 
 
-
+//verificar direito, eventualmente aumentar dano, castime e mana
 
 //***********************************************************
 //              SPELL RESTORATION Conj Mensageiro
@@ -1036,7 +1248,7 @@ WEIGHT=1
 //CIRCLE=1
 CATEGORY=MyT - Provisions - Alchemy & Magic
 SUBSECTION=Scrolls - Focus
-DESCRIPTION=Conj. mensageiro
+DESCRIPTION=Celestial Maior
 
 ON=@Create
         ATTR=ATTR_MAGIC
@@ -1044,34 +1256,34 @@ ON=@Create
 
 [SPELL 167]
 DEFNAME=s_conj_mensageiro
-NAME=Invocar Celestial
+NAME=Invocar Celestial Maior
 SOUND=01A9
 RUNES=KVOX
-CAST_TIME=60
+CAST_TIME=80
 RESOURCES=i_r_ginseng,i_r_raiz_de_mandrake,i_r_perola_negra,i_r_teia_de_aranha,i_r_asa_morcego
 RUNE_ITEM=20742
 SCROLL_ITEM=i_scroll_conj_mensageiro
 FLAGS=spellflag_scripted | spellflag_good | spellflag_summon
 MANAUSE=50
-EFFECT=1,120
-DURATION=12,90
+EFFECT=10,40
+DURATION=60,3*60
 SKILLREQ=FOCUS 90.0
 INTERRUPT=95.0,100.0
  
 on=@Effect
-LOCAL.timer=<DURATIONSPELL 167,<argn2>,<UID>>
-obj=<src.f_summon_creature c_Ethereal_Warrior_sum,<LOCAL.timer>>
-obj.str=<EFFECTSPELL 167,<argn2>,<uid>>
-obj.dex=<EFFECTSPELL 167,<argn2>,<uid>>
-obj.int=<EFFECTSPELL 167,<argn2>,<uid>>
-obj.Anatomy=<eval <EFFECTSPELL 167,<argn2>,<uid>>*4>
-obj.MagicResistance=<eval <EFFECTSPELL 167,<argn2>,<uid>>*8>
-obj.Wrestling=<eval <EFFECTSPELL 167,<argn2>,<uid>>*8>
-obj.Tactics=<eval <EFFECTSPELL 167,<argn2>,<uid>>*5>
-obj.aid
-obj.name=Mensageiro
-return 1
+LOCAL.TIME=<DURATIONSPELL 167,<argn2>,<UID>>
+LOCAL.EFFECT=<EFFECTSPELL 167,<argn2>,<UID>>
+obj=<src.f_summon_creature c_Ethereal_Warrior_sum,<LOCAL.TIME>>
+obj.Wrestling = <eval(<local.effect>*20)>
+obj.tag0.moddam += <eval <local.effect>/5>
+obj.respoison = <eval<local.effect>*2>
+obj.resenergy = <eval<local.effect>*2>
+obj.resfire = <eval<local.effect>*2>
+obj.modar += <eval<local.effect>>
 
+
+skill_gain skill_spiritspeak
+return 1
 
 
 //***********************************************************
@@ -1115,6 +1327,8 @@ forchars 5
   spelleffect s_cura_leve,<argn2>,<obj.uid>
  endif
 end
+
+skill_gain skill_spiritspeak
 return 1
 
 
@@ -1184,6 +1398,8 @@ elif <IsChar>
     hits=<maxhits>
 endif
 timerf 1 EFFECT,3,i_fx_heal_effect,0,16,0
+
+skill_gain skill_spiritspeak
 return 1
 
 //////////////////////////////////////////////////
