@@ -488,7 +488,7 @@ DEFNAME=s_vomitar_sapos
 NAME=Maldicao de Kali Naj
 SOUND=01E6
 RUNES=CSR
-CAST_TIME=70
+CAST_TIME=50
 RESOURCES=i_r_nightshade,i_r_musgo_sangue
 RUNE_ITEM=2266
 SCROLL_ITEM=i_scroll_vomitar_sapos
@@ -584,6 +584,12 @@ MANAUSE=16
 SKILLREQ=NECROMANCY 40.0
 INTERRUPT=45.0,100.0
 
+ON=@Success
+if <restest i_mry_infestacao>
+src.sysmessageyellow Voce deve esperar antes de usar essa magia novamente. 
+return 1
+endif
+
 on=@Select
 if (<argn3>==3)
  sysmessageyellow Para atacar quem?
@@ -591,14 +597,34 @@ endif
 
 
 on=@Effect
-local.crit=<MAXIMUM <eval <src.SpiritSpeak>/200>,2>
+local.crit=<MAXIMUM <eval ((<src.Necromancy>+<src.SpiritSpeak>)/250>,2>
 local.time=<DURATIONSPELL s_infestation,<argn2>,<src.uid>>
 for i 1 <local.crit>
- obj=<src.f_summon_creature c_rato_sepultura_sum,<local.time>>
+ obj=<f_conjure_creature c_rato_sepultura_sum,<local.time>>
  obj.attack <uid>
 end
 
+newitem i_mry_infestacao
+new.equip
+new.timer <local.time>
+new.link=<uid>
+
 skill_gain skill_spiritspeak
+return 1
+
+    
+[ITEMDEF i_mry_infestacao]
+ID=i_rune_poison
+name=memory infestacao
+type=t_eq_script
+layer=layer_special
+    
+ON=@Create
+ATTR=attr_blessed2
+    
+on=@timer
+cont.sysmessagegreen Voce e capaz de invocar ratos novamente.
+remove
 return 1
 
 
