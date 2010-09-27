@@ -30,15 +30,29 @@ patch_clean
 //*****************************************************************************
 [FUNCTION patch_clean]
 b Iniciando limpeza do patch, pode demorar e gerar lag!
-DB.QUERY SELECT uid_hex FROM myt_patch.world
-if <DB.ROW.NUMROWS>
-    LOCAL.x=<DB.ROW.NUMROWS>-1
-    FOR R <LOCAL.x>
-        TRY uid.<DB.ROW.<eval <LOCAL.R>>.uid_hex>.remove
-    ENDFOR
-endif
+LOCAL.loop=1
+LOCAL.off=<argn>
+while <LOCAL.loop>
+	DB.QUERY SELECT uid_hex FROM myt_patch.world LIMIT <dLOCAL.off>, 10000
+	LOCAL.loop=0
+	LOCAL.off += <DB.ROW.NUMROWS>
+	serv.log [PATCH] Iteracao ate <dLOCAL.off>...
+	if <DB.ROW.NUMROWS>
+		if <DB.ROW.NUMROWS> >= 10000
+			LOCAL.loop=1
+		endif
+		LOCAL.x=<DB.ROW.NUMROWS>-1
+		FOR R <LOCAL.x>
+			if ! <DB.ROW.<dLOCAL.R>.uid_hex>
+				serv.log Erro apagando <dLOCAL.R> <DB.ROW.<dLOCAL.R>.uid_hex>	
+				return
+			endif
+			TRY uid.<DB.ROW.<dLOCAL.R>.uid_hex>.remove
+		ENDFOR
+	endif
+end
 b Scan finalizado
-serv.log [PATCH] <eval <DB.ROW.NUMROWS>> items removidos do world.
+serv.log [PATCH] <dLOCAL.off> items removidos do world.
 
 //*****************************************************************************
 // patch_scan <tiles>
