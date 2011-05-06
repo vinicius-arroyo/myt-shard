@@ -21,6 +21,19 @@
 //  0012        parreira    i_sem_uva
 //  0013        bananeira   i_sem_banana
 //  0014        algodoeiro  i_sem_algodao
+//  0015        fumo        i_sem_fumo
+
+
+//Tabela Pra Cores por tipo de reagente
+//----------------------------------------
+//Comidas   = 433
+//Reagentes = 510
+//Arvores   = 568
+//Etc       = 343 (algodão, fumo, etc)
+//----------------------------------------------
+
+[PLEVEL 1]
+tirarsemente 
 
 //*****************************************************************************
 //**                        Configurações do sistema                         **
@@ -43,6 +56,9 @@ ferramenta_para_colher=;3921;3922;11552;11564;11553;11565;5120;
 //DispID Decimal separados por ';' das ferramentas que devem estar na mão do player para ele conseguir colher
 //os frutos. Coloque 0 (zero) para desabilitar a necessidade de uma ferramenta.
 
+//Quantas sementes podem ter em uma sacola
+sementes_limite=20
+
 //*****************************************************************************
 //**                                TYPEDEF                                  **
 //*****************************************************************************
@@ -52,7 +68,7 @@ ferramenta_para_colher=;3921;3922;11552;11564;11553;11565;5120;
 //*********************
 //Sementes plantáveis
 ON=@CLICK
-MESSAGE <name> (<more1>)
+MESSAGE <name> (<eval <more1>>)
 return 1
 
 ON=@CLIENTTOOLTIP
@@ -144,6 +160,23 @@ else
     src.sysmessagered Voce nao pode plantar nisso.
     return 1
 endif
+
+
+//////////////////////////////
+//tornando as bags stackaveis
+//////////////////////////////
+ON=@DropOn_Self
+if (<argo.tag.planta> == <I.tag.planta>)
+   if (<eval <I.more1> + <argo.more1>> > <DEF.sementes_limite>)
+      argo.more1 = (<eval <I.more1> + <argo.more1>>) - <DEF.sementes_limite>
+      I.more1 = <DEF.sementes_limite>
+   else
+      I.more1 += <argo.more1>
+      argo.remove
+   endif
+endif
+return 1
+
 
 //*********************
 [TYPEDEF t_broto]
@@ -400,7 +433,26 @@ elif ( <obj.TDATA4> >= <r100>)
         src.anim 12
         src.sfx 004f
         src.emoteyellow colhendo <new.name>
-        src.sysmessageyellow Voce tirou algumas novas sementes da planta.
+        src.sysmessageyellow Voce retirou <new.more1> sementes da planta.
+
+//-------------------[Verificando se player ja tem essa semente e adicionando a sacola]---------------------
+
+        FORCONTID <obj.tag.semente> 10
+            if (<uid> != <new>)
+                if (<eval <new.more1> + <more1> > < <DEF.sementes_limite>)
+                    more1 += <eval <new.more1>>
+        //          new.more1 = 0
+                    new.remove
+                else
+                    new.more1 = <eval <more1> + <new.more1>> - <DEF.sementes_limite>
+                    more1 = <DEF.sementes_limite>
+                    if (<new.more1> == 0)
+                        new.remove
+                    endif
+                endif
+            endif
+        ENDFOR
+
     else
         src.sysmessagered Voce nao esta equipado com ferramenta correta.
     endif
@@ -517,6 +569,47 @@ if (!<IsEmpty <tag.planta>>)
  remove
 endif
 
+
+
+//===========================[Função pra separar as sementes das bags]============================
+
+//------------------[Target]
+//******************
+[FUNCTION tirarsemente]
+//******************
+//Usado pelo player pra retirar semente das bags
+Targetf f_tirarsemente <argn1>
+return 1
+
+//-------------------[Função]
+//******************
+[FUNCTION f_tirarsemente]
+//******************
+if (<argo.tag0.planta> != 0)
+  if (<argo.more1> < <argn1>
+     src.sysmessage a sacola nao tem tantas sementes assim.
+     return 1
+  else
+     argo.more1 -= <argn>
+     Serv.newitem <argo.id>, 1, <Src.Findlayer.21>
+     new.name = <argo.name>
+     new.type = <argo.type>
+     new.tag.planta = <argo.tag.planta>
+     new.more1 = <argn1>
+     new.color = <argo.color>
+
+     if (<new.more1> == 0)
+        new.remove
+     endif
+  endif 
+else
+  src.sysmessage selecione uma sacola de sementes para fazer isso.
+endif
+return 1
+
+//==============================[Fim da função]
+
+
 //*****************************************************************************
 //**                             Terra e Arado                               **
 //*****************************************************************************
@@ -603,6 +696,7 @@ ELSE
     MORE1=<R1,6>
 ENDIF
 TAG.PLANTA=i_plan_batata1
+COLOR=433
 
 
 [ITEMDEF i_sem_milho]
@@ -621,6 +715,7 @@ ELSE
     MORE1=<R2,6>
 ENDIF
 TAG.PLANTA=i_plan_milho1
+COLOR=433
 
 
 [ITEMDEF i_sem_ervilha]
@@ -639,6 +734,7 @@ ELSE
     MORE1=<R2,6>
 ENDIF
 TAG.PLANTA=i_plan_ervilha1
+COLOR=433
 
 
 [ITEMDEF i_sem_trigo]
@@ -653,6 +749,7 @@ DESCRIPTION=Semente de trigo
 ON=@CREATE
 MORE1=7
 TAG.PLANTA=i_plan_trigo1
+COLOR=433
 
 
 [ITEMDEF i_sem_cenoura]
@@ -671,6 +768,7 @@ ELSE
     MORE1=<R2,6>
 ENDIF
 TAG.PLANTA=i_plan_cenoura1
+COLOR=433
 
 
 [ITEMDEF i_sem_alface]
@@ -689,6 +787,7 @@ ELSE
     MORE1=<R2,6>
 ENDIF
 TAG.PLANTA=i_plan_alface1
+COLOR=433
 
 
 //################################ Reagentes ##################################
@@ -709,6 +808,7 @@ ELSE
     MORE1=<R4,8>
 ENDIF
 TAG.PLANTA=i_plan_ginsen1
+COLOR=510
 
 
 [ITEMDEF i_sem_mandrake]
@@ -727,6 +827,7 @@ ELSE
     MORE1=<R4,8>
 ENDIF
 TAG.PLANTA=i_plan_mandrake1
+COLOR=510
 
 
 [ITEMDEF i_sem_alho]
@@ -745,6 +846,7 @@ ELSE
     MORE1=<R4,8>
 ENDIF
 TAG.PLANTA=i_plan_alho1
+COLOR=510
 
 
 [ITEMDEF i_sem_nightshade]
@@ -763,6 +865,7 @@ ELSE
     MORE1=<R4,8>
 ENDIF
 TAG.PLANTA=i_plan_nightshade1
+COLOR=510
 
 //########################### arvores persistentes ############################
 
@@ -778,6 +881,7 @@ DESCRIPTION=Semente de maçã
 ON=@CREATE
 MORE1=1
 TAG.PLANTA=i_plan_maca1
+COLOR=568
 
 
 [ITEMDEF i_sem_uva]
@@ -792,6 +896,7 @@ DESCRIPTION=Semente de uva
 ON=@CREATE
 MORE1=<BETWEEN 1,6,<src.camping>,1000>
 TAG.PLANTA=i_plan_uva1
+COLOR=568
 
 
 [ITEMDEF i_sem_banana]
@@ -806,6 +911,7 @@ DESCRIPTION=Semente de banana
 ON=@CREATE
 MORE1=<BETWEEN 1,6,<src.camping>,1000>
 TAG.PLANTA=i_plan_banana1
+COLOR=568
 
 //################################### Outros #############################
 
@@ -826,6 +932,7 @@ ELSE
     MORE1=<R1,6>
 ENDIF
 TAG.PLANTA=i_plan_algodao1
+COLOR=343
 
 //*** fumo ***
 
@@ -845,6 +952,7 @@ ELSE                             //Ng criou. Spawn ou loot
     MORE1=<R2,4>
 ENDIF
 TAG.PLANTA=i_plan_fumo1
+COLOR=343
 
 
 //*****************************************************************************
