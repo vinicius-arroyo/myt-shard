@@ -33,21 +33,28 @@ b Iniciando limpeza do patch, pode demorar e gerar lag!
 LOCAL.loop=1
 LOCAL.off=<argn>
 while <LOCAL.loop>
-	DB.QUERY SELECT uid_hex FROM myt_patch.world LIMIT <dLOCAL.off>, 10000
+	DB.QUERY SELECT uid_hex FROM myt_patch.world LIMIT <dLOCAL.off>, 1000
 	LOCAL.loop=0
-	LOCAL.off += <DB.ROW.NUMROWS>
-	serv.log [PATCH] Iteracao ate <dLOCAL.off>...
+	serv.log [PATCH] Iteracao ate <eval <LOCAL.off>+1000>...
 	if <DB.ROW.NUMROWS>
-		if <DB.ROW.NUMROWS> >= 10000
+		if <DB.ROW.NUMROWS> >= 1000
 			LOCAL.loop=1
 		endif
-		LOCAL.x=<DB.ROW.NUMROWS>-1
-		FOR R <LOCAL.x>
+		LOCAL.x=<DB.ROW.NUMROWS>
+		LOCAL.R=0
+		//for every item...remove
+		WHILE  <LOCAL.R> < <LOCAL.x>
+			//error (sometimes, erasing an object triggers some DB changes that invalidade this query (furniture for ex)
+			//if it happens, start query again at current position
 			if ! <DB.ROW.<dLOCAL.R>.uid_hex>
-				serv.log Erro apagando <dLOCAL.R> <DB.ROW.<dLOCAL.R>.uid_hex>	
-				return
+				serv.log Erro apagando <dLOCAL.off> <DB.ROW.<dLOCAL.R>.uid_hex>
+				LOCAL.x=0
+				LOCAL.off -= 1
+			else
+				TRY uid.<DB.ROW.<dLOCAL.R>.uid_hex>.remove
 			endif
-			TRY uid.<DB.ROW.<dLOCAL.R>.uid_hex>.remove
+			LOCAL.R += 1
+			LOCAL.off += 1
 		ENDFOR
 	endif
 end
