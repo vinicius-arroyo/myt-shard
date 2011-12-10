@@ -374,31 +374,109 @@ argn1       += <LOCAL.sm>           //ate 30
 
 //
 
-LOCAL.bonus = 0
-LOCAL.bonus += <cmb_bonusStr>       //0 a 33%
-LOCAL.bonus += <cmb_bonusAnatomy>   //0 a 50%
-LOCAL.bonus += <cmb_bonusTactics>   //0 a 50%
-LOCAL.bonus += <tag0.moddam>        //?
-LOCAL.bonus += <TRIGGER @Hitting,<DEF.TAT_AS_ARGN>,<ARGN1>,<ARGN2>>
 
-LOCAL.penal = 0
-//LOCAL.penal += <cmb_penalPoison>    //REVER
-LOCAL.penal += <cmb_penalStam>      //0 a 50%
-LOCAL.penal += <cmb_penalWeight>    //0 a 50%
-LOCAL.penal += <cmb_penalWeaponQuality> //0 a 50%
+if (<Eval <Var.CombatSystem>> || <Eval <src.tag0.combatenovo>>) //==========================[se o sistema de combate novo está ativado
 
-cmb_npcUsePoison
-cmb_gainSkill <argn1>
-cmb_damageArmor <argn1>
-cmb_damageWeapon
-cmb_doSounds
+  LOCAL.A_CS = <Eval <cmb_getActSkill>>     //Atacante Combat Skill
+  LOCAL.D_CS = <Eval <src.cmb_getActSkill>> //Defensor Combat Skill
 
-///// APLICA Modificadores de dano em %
-LOCAL.bonus -= <LOCAL.penal>
+  LOCAL.CombatDmg = ((<Eval <LOCAL.A_CS> > / 10) / 1) - 50 //skill -50, varia o dano do atacante entre -50% e +50% de bonus imutavel.
 
-//serv.log [COMBAT] BonusTotal%:<dLOCAL.bonus>
+//testes se a skill do defensor passa do limite, evita diminuir demais o dano, mas permite que aumente além do maximo
 
-argn1 += <eval (<argn1>*<LOCAL.bonus>)/100>
+  //teste de força
+  if (<Src.Str> <= 100)
+    LOCAL.StrDif = ((<I.Str> - <SRC.Str>) / 2) 
+  else
+    LOCAL.StrDif = ((<I.Str> - 100) / 2) //100
+  endif
+
+
+  //teste de tactics
+  if (<Src.Tactics> <= 1250)  
+     LOCAL.TacticsDif  = (<Eval <I.Tactics> - <SRC.Tactics>> / 10) / 2  //adiciona até 60% de bonus de dano e penalidade
+  else
+     LOCAL.TacticsDif  = (<Eval <I.Tactics> - 1250> / 10) / 2
+  endif
+
+
+  //teste de anatomy
+  if (<Src.Anatomy> <= 1250) 
+    LOCAL.AnatoDif  = (<Eval <I.Anatomy> - <SRC.Anatomy>> / 10) / 2    //adiciona até 60% de bonus de dano e penalidade
+  else
+    LOCAL.AnatoDif  = (<Eval <I.Anatomy> - 1250> / 10) / 2
+  endif
+
+
+
+  LOCAL.DmgPercent = 100 //setando a porcentagem pra 100% (dano normal)
+
+
+  LOCAL.DmgPercent += <Eval <LOCAL.StrDif> + <LOCAL.CombatDif> + <LOCAL.TacticsDif> + <LOCAL.AnatoDif> > //calculando a porcentagem
+
+  if (<LOCAL.DmgPercent> < 50) //cap minimo de 50% do dano atual (no caso 50% = redução de 50% do dano, 100% seria o dano normal)
+     LOCAL.DmgPercent = 50
+  endif
+
+
+  if (<Eval <Var.CombatSystemPVP>>)        //se o dano pela metade estiver ligado
+     if (<I.isplayer>)       //se atacante for jogador
+        if (<src.isplayer>)  //se defensor for jogador
+          ARGN1 = <Eval (<ARGN1> * <LOCAL.DmgPercent>) / 150> //calculando o dano //quebrando o dano pela metade
+        endif
+      endif
+  else
+     ARGN1 = <Eval (<ARGN1> * <LOCAL.DmgPercent>) / 100> //calculando o dano //dando o dano normal
+  endif
+
+
+  If (<Eval <ARGN1>> < 1) //se dano for menor que 1, torna ele 1
+     ARGN1 = 1
+  ENDIF
+
+
+else //===================================================================================[se for o antigo
+
+  LOCAL.bonus = 0
+  LOCAL.bonus += <cmb_bonusStr>       //0 a 33%
+  LOCAL.bonus += <cmb_bonusAnatomy>   //0 a 50%
+  LOCAL.bonus += <cmb_bonusTactics>   //0 a 50%
+  LOCAL.bonus += <tag0.moddam>        //?
+  LOCAL.bonus += <TRIGGER @Hitting,<DEF.TAT_AS_ARGN>,<ARGN1>,<ARGN2>>
+
+  LOCAL.penal = 0
+  //LOCAL.penal += <cmb_penalPoison>    //REVER
+  LOCAL.penal += <cmb_penalStam>      //0 a 50%
+  LOCAL.penal += <cmb_penalWeight>    //0 a 50%
+  LOCAL.penal += <cmb_penalWeaponQuality> //0 a 50%
+
+  cmb_npcUsePoison
+  cmb_gainSkill <argn1>
+  cmb_damageArmor <argn1>
+  cmb_damageWeapon
+  cmb_doSounds
+
+  ///// APLICA Modificadores de dano em %
+  LOCAL.bonus -= <LOCAL.penal>
+
+  //serv.log [COMBAT] BonusTotal%:<dLOCAL.bonus>
+
+  
+
+
+if (<Eval <Var.CombatSystemPVP>>)        //se o dano pela metade estiver ligado
+     if (<I.isplayer>)       //se atacante for jogador
+        if (<src.isplayer>)  //se defensor for jogador
+          argn1 += <eval (<argn1>*<LOCAL.bonus>)/150> //calculando o dano //quebrando o dano pela metade
+        endif
+      endif
+  else
+     argn1 += <eval (<argn1>*<LOCAL.bonus>)/100> //calculando o dano //dando o dano normal
+  endif
+
+
+endif //===================================[terminando de verificar se é o combate novo ou antigo
+
 
 cmb_doDamage <argn1>,<cmb_damType>
 
@@ -660,13 +738,59 @@ return <LOCAL.d>
 //LOCAL.ga=<eval (<tag0.agr>/2)+10>     //10 - 15
 //LOCAL.gd=<eval 15-(<src.tag0.agr>/2)>    //15 - 10
 
-LOCAL.a=<eval <cmb_getActSkill>*50>
-LOCAL.d=<eval <LOCAL.a>/(<src.cmb_getActSkill>+1)>
-LOCAL.c=<eval <LOCAL.d>+<tag0.agr>+<src.tag0.agr>+10>
 
-if <R100> <= <LOCAL.c>
-    return 1
-endif
+if (!<Eval <Var.CombatSystem>>) //se o sistema de combate novo está desativado
+
+//====[calculo antigo]====
+  LOCAL.a=<eval <cmb_getActSkill>*50>
+  LOCAL.d=<eval <LOCAL.a>/(<src.cmb_getActSkill>+1)>
+  LOCAL.c=<eval <LOCAL.d>+<tag0.agr>+<src.tag0.agr>+10>
+
+  if <R100> <= <LOCAL.c>
+      return 1
+  endif
+
+else
+
+//calculo novo
+
+  LOCAL.A_CS = <Eval <cmb_getActSkill>>     //Atacante Combat Skill
+  LOCAL.D_CS = <Eval <src.cmb_getActSkill>> //Defensor Combat Skill
+
+  LOCAL.DexDif    = ((<I.Dex> - <SRC.Dex>) / 2)
+  LOCAL.CombatDif = (<Eval <LOCAL.A_CS> - <LOCAL.D_CS>> / 10) / 2
+  LOCAL.WrestDif  = (<Eval <I.Wrestling> - <SRC.Wrestling>> / 10) / 2
+
+  
+//impedir que o mob tenha esquiva demais se a dex dele passar de 100 (skill de combate e wrest não tem hardcap)
+
+  if (<Eval <LOCAL.DexDif>> > 50)
+    LOCAL.DexDif = 50
+  elseif (<Eval <LOCAL.DexDif>> < -50)
+    LOCAL.DexDif = -50
+  ENDIF
+
+//calculando o acerto usando uma base de 50% de chance de acertar
+  Local.Acerto = 50 + <Local.DexDif> + <Local.CombatDif> + <Local.WrestDif>
+
+
+//criando um cap minimo e maximo de acerto
+  IF (<Eval <Local.Acerto>> < 20)      //porcentagem minima = 20
+     Local.Acerto = 20
+  ELSEIF (<Eval <Local.Acerto>> > 80)  //porcentagem maxima = 80
+     Local.Acerto = 80
+  ENDIF
+ 
+
+//verificando se acertou
+  if ( <Eval Rand(0, 101)> > <Local.Acerto> ) //se errar o ataque
+      src.emoteyellow Esquivou
+      Return 1
+  ENDIF
+
+
+endif //verificação se o sistema de combate novo está ligado
+
 
 if !<npc>
     sysmessageyellow <src.name> esquiva-se de seu golpe!
@@ -715,6 +839,8 @@ endif
 if <R1000> > <LOCAL.p>
     return 0
 endif
+
+I.emoteyellow Apara
 
 if !<npc>
     sysmessageyellow <src.name> apara seu golpe!
