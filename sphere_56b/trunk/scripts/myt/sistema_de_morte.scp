@@ -19,7 +19,7 @@
 
 //Apos morto pode-se ressucitar em qualquer ank, desde que tenha pontos de alma
 //positivos. Esses pontos tambem influenciam no tempo minimo em que o player
-//permanece como fantasma. Ao dar ress o player È transportado ao corpo.
+//permanece como fantasma. Ao dar ress o player √© transportado ao corpo.
 
 //A cada morte o player perde 1 ponto de alma. Ao serem esgotados todos os pontos
 //o char nao pode mais ressucitar.
@@ -161,7 +161,7 @@ ON=@DCLICK
  endif
  
 ON=@CLICK
-  //indica se corpo est· morto ou inconsciente
+  //indica se corpo est√° morto ou inconsciente
   if (<link>!=04fffffff)
    if (<link.flags>&statf_dead)
     message <link.name> morto
@@ -288,6 +288,8 @@ new.sangrar
 //body de morto
 IF (<isplayer>)
  body=<body>+2
+ Visualrange=0
+ update
  serv.newitem i_deathshroud
  new.cont=<uid>
 endif
@@ -324,6 +326,8 @@ flags &= ~(statf_invisible|statf_invul|statf_insubstantial)
 
 if <flags>&statf_dead
     hits=1
+    visualrange=18
+    update
     findid.i_mry_invul.remove
 
     serv.log [MORTE] INVUL CRIADO <uid>
@@ -425,13 +429,22 @@ endif
 //*****************************************************************************
 [FUNCTION morte_corta]
  if (<findlayer(layer_hand1).type>==t_weapon_fence) || (<findlayer(layer_hand1).type>==t_weapon_axe) || (<findlayer(layer_hand1).type>==t_weapon_sword) || (<findlayer(layer_hand2).type>==t_weapon_sword) || (<findlayer(layer_hand2).type>==t_weapon_axe) || (<findlayer(layer_hand2).type>==t_weapon_fence)
-  OBJ=<argn>
-  OBJ.emotered assassinado
+
+  if (<eval <OBJ.link.age>> < <eval <5184000>>) //se o assassino n√£o tiver 2 meses de vida
+     sysmessagered Uma intervencao divina segura sua mao impedindo-o de completar o ato
+  else
+     OBJ=<argn>
+     OBJ.emotered assassinado
   
-  OBJ.link.f_morre
-  OBJ.link.tag.lastkillname=<tag.name>
-  OBJ.link.tag.lastkillUID=<act.uid>
-  tag.fpk=<eval (<tag0.fpk>+1)>
+     OBJ.link.tag.pontosdealma=0
+     OBJ.link.tag.morte_desmaios=0
+
+     OBJ.link.f_morre
+     OBJ.link.tag.lastkillname=<tag.name>
+     OBJ.link.tag.lastkillUID=<act.uid>
+     tag.fpk=<eval (<tag0.fpk>+1)>
+  endif
+
  else 
     sysmessageyellow Precisa de algo cortante na mao.
  endif
