@@ -38,9 +38,9 @@ function writeFileHeader(){
 	writeln("//*****************************************************************************");
 	writeln("// ITEMFORGE - DATA");
 	writeln("//");
-	writeln("// Arquivo gerado automaticamente, n„o modifique!");
+	writeln("// Arquivo gerado automaticamente, n√£o modifique!");
 	writeln("//");
-	writeln("// Gerado em: ".date("d/m/Y H:i")." pelo script vers„o 1");
+	writeln("// Gerado em: ".date("d/m/Y H:i")." pelo script vers√£o 1");
 	writeln("//*****************************************************************************");
 }
 
