@@ -157,7 +157,7 @@ ATTR=attr_cursed2
   
 on=@equip
 timer=1
-cont.sysmessagegreen Voce perde se sente extremamente cansado, como se nao dormisse a dias.
+cont.sysmessagered Voce se sente extremamente cansado, como se nao dormisse a dias.
 
 on=@unequip
 cont.sysmessagegreen O cansaco dissipa-se.
@@ -802,7 +802,7 @@ MANAUSE=22
 SKILLREQ=NECROMANCY 50.0
 INTERRUPT=55.0,100.0
 
-on=@Effect
+on=@SUCCESS //on=@Effect
 f_summon_undead_lo <argn2>,<src.uid>
 f_summon_undead_lo <argn2>,<src.uid>
 if (<BELLTEST <argn2>,75.0,16.5>) || (<argn2> > 80.0)
@@ -811,7 +811,7 @@ if (<BELLTEST <argn2>,75.0,16.5>) || (<argn2> > 80.0)
   f_summon_undead_lo <argn2>,<src.uid>
  endif
 endif
-return 1
+return 0
 
 [FUNCTION f_summon_undead_lo]
 local.crit={c_zombie_sum 4 c_skeleton_sum 3 c_skeleton_w_axe_sum 2 c_spectre_sum 1}
@@ -979,8 +979,8 @@ IF (!<link.isplayer>)
  return 1
 ENDIF
 
-IF (!<link.flags>&012)
- DORAND 5
+IF (!(<link.flags>&012))
+  DORAND 5
   link.msay louco
   link.stun 3
   link.msay louco
@@ -1076,7 +1076,7 @@ MANAUSE=28
 SKILLREQ=NECROMANCY 70.0
 INTERRUPT=75.0,100.0
 
-on=@Effect
+on=@SUCCESS  //on=@Effect
 obj=<f_summon_undead_re <argn2>,<src.uid>>
 if (<BELLTEST <argn2>,72.5,15.0>)
  f_summon_undead_lo <argn2>,<src.uid>
@@ -1090,7 +1090,7 @@ if (<BELLTEST <argn2>,72.5,15.0>)
 endif
 
 skill_gain skill_spiritspeak
-return 1
+return 0
 
 [FUNCTION f_summon_undead_re]
 local.crit={c_grim_reaper_sum 3 c_skeleton_w_sword_sum 3 c_zumbi_quadrupide_sum 2 c_massa_carne_sum 1}
@@ -1277,25 +1277,25 @@ local.time=<DURATIONSPELL s_polymorph_esqueleto,<argn2>,<src.uid>>
 //buffa stats
 local.str=<EFFECTSPELL s_polymorph_esqueleto,<argn2>,<src.uid>>
 local.str=<minimumN 75-<str>,<local.str>>
-	Buff_STR,<local.str>,<local.time>
-	
+    Buff_STR,<local.str>,<local.time>
+    
 local.dex=<EFFECTSPELL s_polymorph_esqueleto,<argn2>,<src.uid>>
 local.dex=<minimumN 75-<dex>,<local.dex>>
-	Buff_DEX,<local.dex>,<local.time>
-	
+    Buff_DEX,<local.dex>,<local.time>
+    
 
 //buffa skills
 local.wrestling=<eval(<EFFECTSPELL s_polymorph_esqueleto,<argn2>,<src.uid>>) *20>
 local.wrestling=<minimumN 750-<wrestling>,<local.wrestling>>
-	BuffSkill Wrestling,<local.wrestling>,<local.time>
-	
+    BuffSkill Wrestling,<local.wrestling>,<local.time>
+    
 
 stam += <local.dex>
 hits += <local.str>
 
 
 //Determina corpo e itens se tiver.
-if (<argn2>> > 90.0)
+if (<argn2> > 90.0)
  if (<argn2> > 100.0)
   local.body=c_demonio_ossos_poly
  else
@@ -1306,9 +1306,15 @@ endif
 //Polimorpha
 src.f_polymorph <local.body>,0,<local.time>
 src.timerf <local.time> tag.immune=<tag0.immune>
+src.timerf <local.time> tag.aggravate=<tag0.aggravate>
 src.tag.immune=<src.tag0.immune>|DAM_PIERCE
+src.tag.aggravate=<src.tag0.aggravate>|02
 local.i=0
 
+newitem i_mry_spkmage
+new.equip
+new.timer <local.time>
+new.link=<uid>
 
 skill_gain skill_spiritspeak
 return 1
@@ -1531,7 +1537,7 @@ MANAUSE=35
 SKILLREQ=NECROMANCY 100.0
 INTERRUPT=100.0,100.0
 
-on=@Effect
+on=@SUCCESS  //on=@Effect
 obj=<f_summon_undead_hi <argn2>,<src.uid>>
 if (<belltest <argn2>,50.0,25.0>)
  f_summon_undead_re <argn2>,<src.uid>
@@ -1547,7 +1553,7 @@ endif
 
 
 skill_gain skill_spiritspeak
-return 1
+return 0
 
 [FUNCTION f_summon_undead_hi]
 local.crit={c_senhor_sombras_sum 1 c_cavaleiro_sombras_sum 3 c_mummy_sum 3}
@@ -1604,22 +1610,31 @@ endif
 //Determina o tempo de duração e bonus de int
 local.time=<DURATIONSPELL s_polymorph_liche,<argn2>,<src.uid>>
 local.int=<EFFECTSPELL s_polymorph_liche,<argn2>,<src.uid>>
-local.body=c_liche_poly
+local.body=c_lich_poly
 
 //Determina corpo e itens se tiver.
 if (<belltest <argn2>,125.0,20.0>)
  local.int += 20
- BuffSkill Necromancy,<R10,125>,<local.time>
 endif
+
+//Buffa skils
+local.necromancy=<eval(<EFFECTSPELL s_polymorph_liche,<argn2>,<src.uid>>) *20>
+    BuffSkill Necromancy,<local.necromancy>,<local.time>
+local.spiritspeak=<eval(<EFFECTSPELL s_polymorph_liche,<argn2>,<src.uid>>) *20>
+    BuffSkill Spiritspeak,<local.spiritspeak>,<local.time>
 
 //Polimorpha
 src.f_polymorph <local.body>,0,<local.time>
-timerf <local.time> tag.immune=<tag0.immune>
-tag.immune=<tag0.immune>|DAM_PIERCE
+// timerf <local.time> tag.immune=<tag0.immune>
+// tag.immune=<tag0.immune>|DAM_PIERCE
 Buff_INT <local.int>,<local.time>
 MANA=<INT>
 
-
+// Adiciona caster
+newitem i_mry_spkmage
+new.equip
+new.timer <local.time>
+new.link=<uid>
 
 skill_gain skill_spiritspeak
 return 1

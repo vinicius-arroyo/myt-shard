@@ -482,15 +482,15 @@ SKILLREQ=MAGERY 40.0
 INTERRUPT=25.0,100.0
 
 on=@start
-sfx snd_spell_fire_field
+sfx snd_elec_2
 
 on=@Success
 if (<belltest <magery>,100.0>) && !(<R0,3>)
- LOCAL.CREATEOBJECT1 = <eval i_coluna_fogo_armadilha>
- LOCAL.CREATEOBJECT2 = <eval i_coluna_fogo_armadilha>
-else
  LOCAL.CREATEOBJECT1 = <eval i_fogo_armadilha_lo>
  LOCAL.CREATEOBJECT2 = <eval i_fogo_armadilha_ns>
+else
+ LOCAL.CREATEOBJECT1 = <eval i_fx_field_fire>
+ LOCAL.CREATEOBJECT2 = <eval i_fx_field_fire_ns>
  endif
 call src.f_line_field <src.EFFECTSPELL 106,<argn2>,<src.uid>>,<src.DURATIONSPELL 106,<argn2>,<src.uid>>
 
@@ -564,10 +564,10 @@ return 1
 tag.hcolor=<color>
 more2=1
 morex=51
-dmgfire += <SRC.EFFECTSPELL s_mysticflame, <src.magery>, <src.uid>>
+damfire += <SRC.EFFECTSPELL s_mysticflame, <src.magery>, <src.uid>>
 color=04ec
 attr=<attr>|020
-timerf <SRC.DURATIONSPELL s_mysticflame, <src.magery>, <src.uid>>,_f_mysticFlame,<dmgfire>
+timerf <SRC.DURATIONSPELL s_mysticflame, <src.magery>, <src.uid>>,_f_mysticFlame,<damfire>
 updatex
 
 [FUNCTION _f_mysticFlame]
@@ -575,7 +575,7 @@ color=<tag.hcolor>
 tag.hcolor
 more2=0
 morex=0
-dmgfire -= <argn>
+damfire -= <argn>
 attr &= ~020
 sfx 0208
 updatex
@@ -675,6 +675,10 @@ SKILLREQ=MAGERY 50.0
 INTERRUPT=100.0,100.0
 
 on=@start
+if <src.restest i_torch_lit>
+    src.sysmessageyellow Essa magia ja esta ativa.
+    return 1
+endif
 sfx 05c1
 
 on=@Effect
@@ -949,12 +953,13 @@ on=@success
 LOCAL.TIME=<DURATIONSPELL s_horror_abismo,<argn2>,<UID>>
 LOCAL.EFFECT=<EFFECTSPELL s_horror_abismo,<argn2>,<UID>>
 obj=<src.f_summon_creature c_horror_abismo_sum,<LOCAL.TIME>>
-obj.Wrestling= <eval(<local.effect>*5)>
+obj.Wrestling += <eval(<local.effect>*5)>
 obj.tag0.moddam += <eval <local.effect>/10>
+obj.resfire = <eval(<local.effect>*5)/4>
 
 
 skill_gain skill_evalint
-return 1
+return 0
 
 
 
@@ -1098,7 +1103,7 @@ SKILLREQ=MAGERY 90.0
 INTERRUPT=100.0,100.0
 
 on=@start
-sfx snd_spell_fire_field
+sfx snd_elec_2
 
 
 on=@Select
@@ -1110,7 +1115,7 @@ on=@Effect
 local.crit=<MAXIMUM <eval <src.evaluatingintel>/200>,2>
 local.time=<DURATIONSPELL s_homem_lagarto,<argn2>,<src.uid>>
 for i 1 <local.crit>
- obj=<src.f_summon_creature <hval {c_lizardman_sum 2, c_elem_fire_sum 1}>, <local.time>>
+ obj=<src.f_summon_creature <hval {c_lizardman_sum 3, c_elem_fire_sum 1}>, <local.time>>
  obj.attack <uid>
 end
 
@@ -1201,7 +1206,7 @@ new.f_spl_chuva_meteoros <argn2>
 local.rad=<eval <src.EFFECTSPELL 118,<argn1>,<src.uid>>/6>
 local.dam=<eval <src.EFFECTSPELL 118,<argn1>,<src.uid>>+6>
 morex=<local.dam>
-morey=dam_fire
+morey=(DAM_PHYSICAL|DAM_FIRE)
 morez=3
 timerd <R2,6>
 src.effect 4 2
@@ -1209,7 +1214,7 @@ local.ii=<eval <src.EFFECTSPELL 118,<argn1>,<src.uid>>/5>
 for i 1 <local.ii>
  newitem <DEFNAME>
  new.morex <R<eval <local.dam>/2>,<local.dam>>
- new.morey=<DEF.dam_fire>
+ new.morey=(<DEF.DAM_PHYSICAL>|<DEF.DAM_FIRE>)
  new.morez=<R2,3>
  new.link=<src>
  new.movenear <uid>,<R1,<local.rad>>
@@ -1254,7 +1259,7 @@ SKILLREQ=MAGERY 100.0
 INTERRUPT=25.0,100.0
 
 on=@start
-sfx snd_spell_fire_field
+sfx snd_elec_2
 
 on=@success
 LOCAL.TIME=<DURATIONSPELL s_conj_elem_fire,<argn2>,<src.UID>>
@@ -1262,9 +1267,9 @@ LOCAL.EFFECT=<EFFECTSPELL s_conj_elem_fire,<argn2>,<src.UID>>
 obj=<src.f_summon_creature c_elem_fire_sum,<LOCAL.TIME>>
 obj.Wrestling = <eval(<local.effect>*20)>
 obj.tag0.moddam += <eval <local.effect>/5>
-obj.respoison = <eval<local.effect>*2>
-obj.resenergy = <eval<local.effect>*2>
-obj.modar += <eval<local.effect>>
+obj.respoison = <eval <local.effect>*2>
+obj.resenergy = <eval <local.effect>*2>
+obj.modar += <eval <local.effect>>
 
 skill_gain skill_evalint
 return 0
