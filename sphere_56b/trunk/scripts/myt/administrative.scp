@@ -1286,21 +1286,16 @@ return 0
 //*****************************************************************************
 //retorna uma string ##d##h##m##s
 [FUNCTION f_timestring]
-if (<ISEMPTY <argn>>)
+if (<ISEMPTY <args>>)
  return 0
 endif
-WHILE (<argn> >= 86400)
- argn -= 86400
- LOCAL.d += 1
-END
-WHILE (<argn> >= 3600)
- argn -= 3600
- LOCAL.h += 1
-END
-WHILE (<argn> >= 60)
- argn -= 60
- LOCAL.m += 1
-END
+
+LOCAL.d = <eval <args>/86400>
+args = <eval <args>-(<LOCAL.d>*86400)>
+LOCAL.h = <eval <args>/3600>
+args = <eval <args>-(<LOCAL.h>*3600)>
+LOCAL.m = <eval <args>/60>
+args = <eval <args>-(<LOCAL.m>*60)>
 
 if (<local.d>)
  local.t = "<dlocal.d>dias"
@@ -1312,24 +1307,24 @@ if (<local.d>)
  elif (<local.m>)
   local.t .= " <dlocal.m>min"
  endif
- if (<argn>)
-  local.t .= " e <eval <argn>>s"
+ if (<args>)
+  local.t .= " e <eval <args>>s"
  endif
 elif (<local.h>)
  local.t = <dlocal.h>h
  if (<dlocal.m>)
   local.t .= "<dlocal.m>min"
  endif
- if (<argn>)
-  local.t .= " e <eval <argn>>s"
+ if (<args>)
+  local.t .= " e <eval <args>>s"
  endif
 elif (<local.m>)
  local.t=<dlocal.m>min
- if (<argn>)
-  local.t .= " e <eval <argn>>s"
+ if (<args>)
+  local.t .= " e <eval <args>>s"
  endif
-elif (<argn>)
- local.t = <eval <argn>>s
+elif (<args>)
+ local.t = <eval <args>>s
 else
  local.t=0s
 endif
@@ -2243,11 +2238,15 @@ ON=10
 //Formulário
 playerform
 
-//replace server version with custom one. atempt to fix negative age issue
+//replace server version with custom one. fix negative age issue with some
+//chars that were created before the tick overflow problem.
 [FUNCTION f_age]
-//LOCAL.age=<eval <serv.time>-<create>>
-//serv.log age <obj> <serv.time> <create> <LOCAL.age>
-return <age> //<LOCAL.age>
+//no need to touch if not affected
+if <create> >= 0
+	return <create>
+endif
+//fix age applying 2^32 tick offset
+return <eval <create>+429496729>
 
 //convert a number to 32bits
 [FUNCTION to32]
