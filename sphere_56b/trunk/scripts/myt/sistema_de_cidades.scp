@@ -1813,6 +1813,11 @@ list_newDbCol 200,flags,Estado
 list_setAction town_showCriminal
 list_setActionBack town_PrisionMenu
 list_loadFromDb SELECT uid, flags FROM towns_members WHERE region='<DB.ESCAPEDATA <ctag.town_region>>' AND flags&<EVAL <DEF.TOWN_FLAG_JAILED>>
+if (!<ctag0.list_numitems>)
+ sysmessageyellow Nada para mostrar.
+ town
+ return 1
+endif
 //Transformar em decimal as posições deve você, Anakyn.
 FOR t 1 <ctag.list_numitems>
  ctag.list_id_<local.t>=<DB.ROW.<eval <LOCAL.t>-1>.UID>
@@ -1845,6 +1850,11 @@ list_setAction town_showFriend
 list_setActionBack town
 list_loadFromDb SELECT uid FROM towns_members WHERE region='<DB.ESCAPEDATA <ctag.town_region>>' AND flags&16
 //Transformar em decimal as posições deve você, Anakyn.
+if (!<ctag0.list_numitems>)
+ sysmessageyellow Nada para mostrar.
+ town
+ return 1
+endif
 FOR t 1 <ctag.list_numitems>
  try ctag.list_id_<local.t>=<DB.ROW.<eval <LOCAL.t>-1>.UID>
  try ctag.list_row<local.t>_01=<UID.<DB.ROW.<eval <LOCAL.t>-1>.UID>.tag.name>
@@ -2049,7 +2059,11 @@ if (!<IsNum <argv0>>)
  list_setAction town_listOpenPetitions
  list_setActionBack town_petitionsMenu
  list_loadFromDb SELECT title, UID, id FROM towns_petitions WHERE region='<DB.ESCAPEDATA <local.town>>' AND flags=0 ORDER BY time DESC
- 
+ if (!<ctag0.list_numitems>)
+   sysmessageyellow Nao ha novas peticoes.
+   town_petitionsMenu
+   return 1
+ endif
  //Apurar os itens para melhor identificação
  for i <ctag.list_numitems>
   //Salvar id das petições
@@ -2107,7 +2121,7 @@ if (0<argn>)
 else
  local.flags=<DEF.TOWN_PET_FLAG_AGAINST>
 endif
-DB.EXECUTE=INSERT INTO towns_petitions SET UID=<eval <uid>>, type=1, father=<dctag.town_petitionID>, flags=<dlocal.flags>, time=CURRENT_TIMESTAMP()
+DB.EXECUTE=INSERT INTO towns_petitions SET UID=<eval <uid>>, region="<DB.ESCAPEDATA <local.town>>", title = "none", text="none", type=1, father=<dctag.town_petitionID>, gtime='<dvar.tDay>/<dvar.tMonth>/<dvar.tYear>', flags=<dlocal.flags>, time=CURRENT_TIMESTAMP()
 SDIALOG d_town
 
 
@@ -2183,7 +2197,7 @@ if (<IsEmpty <args>>)
  ctag.town_lawID=0
  prompt_new Digite um titulo para o decreto
  prompt_setAction town_NewLaw <args>
- prompt_setActionBack town <ctag.town_region>
+ prompt_setActionBack SDIALOG d_town
  prompt_show
 else
  ctag.town_lawTitle=<args>
@@ -2200,7 +2214,7 @@ if (<EVAL STRLEN(<ARGS>)> < 19)
  SDIALOG d_town
  return 1
 endif
-DB.EXECUTE=INSERT INTO towns_laws SET sign="<DB.ESCAPEDATA <tag.name>>", title="<DB.ESCAPEDATA <ctag.town_lawTitle>", time=CURRENT_TIMESTAMP(), gtime='<dvar.tDay>/<dvar.tMonth>/<dvar.tYear>', text="<DB.ESCAPEDATA <args>>", region="<ctag.town_region>", flags=1
+DB.EXECUTE=INSERT INTO towns_laws SET sign="<DB.ESCAPEDATA <tag.name>>", title="<DB.ESCAPEDATA <ctag.town_lawTitle>>", time=CURRENT_TIMESTAMP(), gtime='<dvar.tDay>/<dvar.tMonth>/<dvar.tYear>', text="<DB.ESCAPEDATA <args>>", region="<ctag.town_region>", flags=1
 SYSMESSAGEGREEN Novo decreto promulgado!
 town_Laws
 
@@ -2440,7 +2454,7 @@ if (strmatch(*<local.race>*,<local.races>))
  if (<town_getCash> < <DEF.TOWN_SERVANT_3_HIRE>)
   sysmessageyellow <serv.area.<local.town>.name> nao tem dinheiro para pagar por um senescal.
   town_PageNPCs
-  retuen 1
+  return 1
  endif
  town_AddCash -<DEF.TOWN_SERVANT_3_HIRE>
  DOSWITCH <local.racen>
@@ -3444,7 +3458,7 @@ END
 FOR s 0 <eval <DB.ROW.NUMROWS>-1>
  obj=<local.servant_<dlocal.s>>
  //Silent prune
- if (!<obj.ischar>)
+ if (!<obj.ischar>) && (<local.i> < 20)//Foi limitado a 20 jogadores fantasma por vez para não exceder o tamanho da string. O Sphere não gostou de 757 jogadores sairem da TOWN.
   if (<eval strlen(<local.prunes>)> < 2)
    local.prunes = "UID=<dlocal.servant_<dlocal.s>>"
    local.pruneN=1
@@ -3471,27 +3485,13 @@ endif
 DB.QUERY=SELECT ID, UID, father FROM towns_petitions
 local.n = 0
 for p 0 <eval <DB.ROW.NUMROWS>-1>
-
  //Char existe?
  obj=<DB.ROW.<local.p>.uid>
- if (!<obj.IsChar>)
-  serv.log <obj.name>
-  //É uma petição ou voto?
-  if (<DB.ROW.<dlocal.p>.father>==0)
-  
-   //É uma petição. Remover os votos também.
-   if (<eval STRLEN(<local.q>)> < 3)
-    local.q = "WHERE (id = <eval <DB.ROW.<dlocal.p>.id>> OR father=<eval <DB.ROW.<dlocal.p>.id>>)"
-   else
-    local.q .= " OR (id = <eval <DB.ROW.<dlocal.p>.id>> OR father=<eval <DB.ROW.<dlocal.p>.id>>)"
-   endif
+ if (!<obj.IsPlayer>) && (<local.n> < 20)//Foi limitado a 20 jogadores fantasma por vez para não exceder o tamanho da string. O Sphere não gostou de 757 jogadores sairem da TOWN.
+  if (<eval STRLEN(<local.q>)> < 3)
+   local.q = "WHERE (uid = <eval <DB.ROW.<dlocal.p>.uid>>"
   else
-   //É um voto. Remover só o voto.
-   if (<eval STRLEN(<local.q>)> < 3)
-    local.q = "WHERE id = <eval <DB.ROW.<dlocal.p>.id>>"
-   else
-    local.q .= " OR id = <eval <DB.ROW.<dlocal.p>.id>>"
-   endif
+   local.q .= " OR uid = <eval <DB.ROW.<dlocal.p>.uid>>"
   endif
   local.n += 1
  endif
@@ -3502,20 +3502,20 @@ if (!<local.n>)
 endif
 
 DB.EXECUTE=DELETE FROM towns_petitions <local.q>
-
+serv.log [TOWNS] PRUNE :: <dlocal.n> petições e votos retirados do sistema por <topobj.tag.name>-<topobj.name>.
 return <local.n>
 
 
 [FUNCTION town_pruneCitzens]
 //Remove jogadores inválidos da town <args>. Se ARGS for vazia, remove geral.
 if (<IsEmpty <args>>)
- DB.QUERY=SELECT DISTICT uid FROM towns_members
+ DB.QUERY=SELECT DISTINCT uid FROM towns_members
 else
  DB.QUERY=SELECT DISTINCT uid FROM towns_members WHERE region="<DB.ESCAPEDATA <args>>"
 endif
 local.i=0
 FOR p 0 <eval <DB.ROW.NUMROWS>-1>
- if (!<uid.<db.row.<dlocal.p>.uid>.IsPlayer>)
+ if (!<uid.<db.row.<dlocal.p>.uid>.IsPlayer>) && (<local.i> < 20)//Foi limitado a 20 jogadores fantasma por vez para não exceder o tamanho da string. O Sphere não gostou de 757 jogadores sairem da TOWN.
   if (<eval STRLEN(<local.q>)> < 3)
    local.q = " uid=<eval <db.row.<dlocal.p>.uid>>"
   else
@@ -3525,9 +3525,9 @@ FOR p 0 <eval <DB.ROW.NUMROWS>-1>
  endif
 END
 if (<local.i>)
- DB.EXECUTE=DELETE FROM towns_members WHERE<local.q>
+ try DB.EXECUTE=DELETE FROM towns_members WHERE<local.q>
  if (<IsEmpty <args>>)
-  serv.log [TOWNS] PRUNE :: <dlocal.i> jogadores retirados do sistema por <topobj.name> (<args>).
+  serv.log [TOWNS] PRUNE :: <dlocal.i> jogadores retirados do sistema por <topobj.tag.name>-<topobj.name>.
  else
   return <local.i>
  endif
@@ -3568,7 +3568,7 @@ obj.tag.TOWN_DOORS =<f_RemoveList <argo.uid>,<obj.tag.TOWN_DOORS>>
 [FUNCTION TOWN_OPEN_DOOR]
 //Abre as portas da lista de portas do NPC porteiro
 LOCAL.doors=<EXPLODE ;,<tag.TOWN_DOORS>>
-LOCAL.doors=<STRSUB 1 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
+LOCAL.doors=<STRSUB 0 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
 _TOWN_OPEN_DOOR <LOCAL.doors>
 
 [FUNCTION _TOWN_OPEN_DOOR]
@@ -3591,7 +3591,7 @@ endfor
 [FUNCTION TOWN_RELEASE_DOORS]
 //Abre as portas da lista de portas do NPC porteiro para sempre.
 LOCAL.doors=<EXPLODE ;,<tag.TOWN_DOORS>>
-LOCAL.doors=<STRSUB 1 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
+LOCAL.doors=<STRSUB 0 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
 _TOWN_RELEASE_DOOR <LOCAL.doors>
 
 
@@ -3613,7 +3613,7 @@ endfor
 [FUNCTION TOWN_CLOSE_DOOR]
 //Fecha as portas da lista de portas do NPC porteiro
 LOCAL.doors=<EXPLODE ;,<tag.TOWN_DOORS>>
-LOCAL.doors=<STRSUB 1 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
+LOCAL.doors=<STRSUB 0 <eval STRLEN(<LOCAL.doors>)> <LOCAL.doors>>
 _TOWN_CLOSE_DOOR <LOCAL.doors>
 
 [FUNCTION _TOWN_CLOSE_DOOR]
@@ -3922,7 +3922,9 @@ elif (<ctag.town_page>==<DEF.TOWN_PAGE_REPORT>)
         resizepic 92 241 2620 416 82
         resizepic 92 332 2620 416 82
         dhtmlgump 98 110 403 115 0 1 <addspace>   <local.html>
-        button 101 251 30008 30009 1 0 2
+        if (<town_canMember 0>)
+          button 101 251 30008 30009 1 0 2
+        endif
         button 101 267 30008 30009 1 0 3
         button 101 283 30008 30009 1 0 4
         button 101 299 30008 30009 1 0 5
