@@ -30,6 +30,7 @@
 //TAGS usadas:
 //src.ctag.quest_numPages   //numero de paginas do dialog do vendedor
 //src.ctag.quest_page       //pagina atual
+//src.ctag.quest_listType	//0 para lista de quests abertas, 1 para quests concluidas.
 //src.ctag.quest_numQuests  //numero total de itens disponiveis para compra/venda
 //src.ctag.quest_names      //array com nomes das quests
 //src.ctag.quest_ids        //array com os ids das quests
@@ -263,7 +264,7 @@ if ( <OBJ.amount> > 0 ) && (<eval <OBJ.tag.param1>>)
 
                 //sell it
                 LOCAL.totalPrice=<vendor_calcTotalPrice <LOCAL.v>,<REF1.amount>>
-
+				
                 OBJ.link.vendor_sellNpcItem <REF1>,<LOCAL.totalPrice>
                 
             endwhile
@@ -405,6 +406,7 @@ return 1
 [FUNCTION quest_createPlayerQuestList]
 CTAG.quest_page=1
 CTAG.quest_numQuests=0
+CTAG.quest_listType=0
 
 //varre o banco
 if ( <DB.connected> )
@@ -430,6 +432,7 @@ return 1
 [FUNCTION quest_createPlayerDoneList]
 CTAG.quest_page=1
 CTAG.quest_numQuests=0
+CTAG.quest_listType=1
 
 //varre o banco
 if ( <DB.connected> )
@@ -623,7 +626,15 @@ return 1
 //*****************************************************************************
 //esta funcao eh chamada qndo o player aperta o botao "quest" do paperdoll
 [FUNCTION quest_userQuests]
-menu m_quest_button
+//menu m_quest_button
+if (<src.IsGM>) && (!<argv>)	//Se for GM, chama menu de GM. Se <argn>, está vindo do menu de GM. Abre o dialog normal de player.
+	menu m_quest
+	return 1
+endif
+src.ctag.quest_selectedNpc=0	//Força que não há NPC neste processo.
+quest_closeDialogs
+quest_createPlayerQuestList
+dialog d_quest_list 
 return 1
 
 //*****************************************************************************
@@ -639,6 +650,121 @@ else
     SRC.sysmessageyellow Onde deseja colocar o NPC?
 endif
 return 1
+
+//*****************************************************************************
+// quest_setQuestNPC( npcUID )
+//*****************************************************************************
+//Seta ou reseta um NPC como quest giver
+[FUNCTION quest_setQuestNPC]
+//Se não há argumento, abrir target.
+if (!<argo>)
+	sysmessageyellow Selecione o NPC:
+	targetf quest_setQuestNPC
+	return 0
+endif
+
+//Se o argumento não é char, cancele.
+if (<IsEmpty <argo.brain>>) || (<argo.brain>==0)
+	sysmessagered O alvo nao eh um NPC.
+	MENU m_quest
+	return 0
+endif
+
+//Testa se o NPC já tem os events
+if (STRMATCH(*e_quest_npc*,<argo.events>))
+	argo.events=-e_quest_npc
+	argo.speech=-jobQUEST_SYSTEM
+	argo.message Nao participo mais do sistema de quests.
+	sysmessagered !!!ATENCAO!!!
+	sysmessageblue Isso NAO remove as quests do banco de dados. Setar esse NPC devolve as quests a ele.
+	serv.log [QUEST] Retirando NPC do sistema <argo.name> (<argo>) - P:<tag.name> (ACC:<account>)
+else
+	argo.events=+e_quest_npc
+	serv.log [QUEST] Instalando event e_quest_npc em <argo.name> (<argo>) - P:<tag.name> (ACC:<account>)
+	//Não instalar em vendor, senescal, guarda e porteiro
+	if !(<argo.tag0.vendor_type>) && !(STRMATCH(*e_town_guard*,<argo.tevents>)) && !(STRMATCH(*e_town_gatekeeper*,<argo.tevents>)) && !(STRMATCH(*e_town_seneschal*,<argo.tevents>))
+		argo.speech=+jobQUEST_SYSTEM
+		serv.log [QUEST] Instalando speech jobQUEST_SYSTEM em <argo.name> (<argo>) - P:<tag.name> (ACC:<account>)
+	endif
+	sysmessage Agora <argo.name> dah quests.
+	//Configurar e abrir o dialog
+	quest_closeDialogs
+	CTAG.quest_selectedNpc=<argo>
+	quest_createNpcQuestList
+	dialog d_quest_list
+endif
+
+//*****************************************************************************
+// quest_manageQuestNPC( npcUID )
+//*****************************************************************************
+//Gerencia as quests de um NPC
+[FUNCTION quest_manageQuestNPC]
+//Se não há argumento, abrir target.
+if (!<argo>)
+	sysmessageyellow Selecione o NPC:
+	targetf quest_manageQuestNPC
+	return 0
+endif
+
+//Se o argumento não é char, cancele.
+if (<IsEmpty <argo.brain>>) || (<argo.brain>==0)
+	sysmessagered O alvo nao eh um NPC.
+	MENU m_quest
+	return 0
+endif
+
+//Testar se esse NPC é quester
+if !(STRMATCH(*e_quest_npc*,<argo.events>))
+	sysmessagered Esse NPC nao dah quests.
+	MENU m_quest
+	return 0
+endif
+
+//Configurar e abrir o dialog
+quest_closeDialogs
+CTAG.quest_selectedNpc=<argo>
+quest_createNpcQuestList
+dialog d_quest_list
+
+//*****************************************************************************
+// quest_targCleanupPC( pcUID )
+//*****************************************************************************
+[FUNCTION quest_targCleanupPC]
+//Apaga todos os registros de quests de um jogador
+//Se não há argumento, abrir target.
+if (<account.plevel> < 4)
+	sysmessage Voce nao tem privilegio para isso.
+	MENU m_quest
+	return 0
+endif
+if (!<argo>)
+	sysmessageyellow Selecione o jogador:
+	targetf quest_targCleanupPC
+	return 0
+endif
+
+//Se o argumento não é char, cancele.
+if (<IsEmpty <argo.brain>>) || (<argo.brain> > 0)
+	sysmessagered O alvo nao eh um jogador.
+	MENU m_quest
+	return 0
+endif
+
+DB.QUERY="SELECT count(*) as n FROM queststate WHERE idPlayer=<eval <argo>>"
+local.n=<DB.ROW.0.n>
+prompt_new <argo.tag.name> completou <DB.ROW.n> quests.<DEF.BR>Apagar TODAS (okay) / Voltar (cancel)
+prompt_setAction _quest_targCleanupPC <argo.uid>
+prompt_setActionBack MENU m_quest
+prompt_show
+
+[FUNCTION _quest_targCleanupPC]
+OBJ=<argv[0]>
+if (<OBJ.quest_cleanup>)
+	sysmessage Quests de <obj.tag.name> removidas!
+	return 1
+endif
+sysmessagered ERRO! Nao conectado ao banco de dados.
+return 0
 
 //*****************************************************************************
 // quest_placeNpc( npcId )
@@ -665,7 +791,9 @@ endfor
 
 if ( <DB.connected> )
     DB.EXECUTE "DELETE FROM questState WHERE idPlayer=<eval <uid>>"
+	return 1
 endif
+return 0
 
 //*****************************************************************************
 // quest_assign( idQuest )
@@ -712,9 +840,9 @@ endif
 //*****************************************************************************
 //return id step
 [FUNCTION quest_createStep]
-serv.log heyheyhey idQuest=<eval <argv0>>, idStep=<eval <LOCAL.idstep>>,type=<eval <argv1>>
+//serv.log heyheyhey idQuest=<eval <argv0>>, idStep=<eval <LOCAL.idstep>>,type=<eval <argv1>>
 DB.QUERY "SELECT MAX(idStep)+1 AS mstep FROM questSteps WHERE idQuest=<eval <argv0>>"
-serv.log heyheyhey <DB.ROW.NUMROWS>
+//serv.log heyheyhey <DB.ROW.NUMROWS>
 if (<DB.ROW.NUMROWS> <= 0)
     LOCAL.idstep=0
 else
@@ -814,19 +942,22 @@ src.dialog d_quest_step_editor
 //*****************************************************************************
 // m_quest_button
 //*****************************************************************************
-[MENU m_quest_button]
+[MENU m_quest]
+                -=Sistema de quests=-
+ON=0 Criar NPC quest giver
+quest_addNpc
 
-O que deseja ver?
+ON=0 Setar/resetar um NPC como quest giver (vendor, banker...)
+quest_setQuestNPC
 
-ON=0 Quests em andamento
-    quest_closeDialogs
-    quest_createPlayerQuestList
-    dialog d_quest_list 
+ON=0 Gerenciar quests de um NPC
+quest_manageQuestNPC
 
-ON=0 Quests terminadas
-    quest_closeDialogs
-    quest_createPlayerDoneList
-    dialog d_quest_list 
+ON=0 Zerar quests feitas por um PC
+quest_targCleanupPC
+
+ON=0 Ver as suas quests
+quest_userQuests 1
     
 //*****************************************************************************
 // m_quest_addNpc
@@ -872,7 +1003,7 @@ on=0 Anao
 [MENU quest_addstep]
 Criar qual tipo de step
 
-on=0 Matar NPC
+on=0 Mandar matar um NPC
     src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_kill_mob>
     src.dialog d_quest_step_editor
 
@@ -892,7 +1023,7 @@ on=0 Matar NPC
 //    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_find_item>
 //    src.dialog d_quest_step_editor    
     
-on=0 Escoltar
+on=0 Escoltar um NPC ate um ponto
     src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_escort>
     src.dialog d_quest_step_editor
     
@@ -900,19 +1031,19 @@ on=0 Escoltar
 //    src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_delivery>
 //    src.dialog d_quest_step_editor
  
-on=0 Fala (mensagem)
+on=0 NPC da uma mensagem (outros PC nao veem)
     src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_text>
     src.dialog d_quest_step_editor
 
-on=0 Falar com NPC
+on=0 Falar com NPC/cobrar um item
     src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_talkto>
     src.dialog d_quest_step_editor
 
-on=0 Dar item
+on=0 Dar item ao jogador
     src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_reward>
     src.dialog d_quest_step_editor
 
-on=0 Custom step
+on=0 Custom step (depende de script)
     src.ctag.quest_selectedStep=<quest_createStep <SRC.CTAG0.quest_selectedQuest>,quest_type_custom>
     src.dialog d_quest_step_editor
 
@@ -923,7 +1054,19 @@ on=0 Custom step
 [DIALOG d_quest_list]
 100, 100
 quest_drawGumps
-dtext 150 60 1152 Quests
+if (!<SRC.CTAG0.quest_listType>)
+	if (!<SRC.CTAG0.quest_selectedNpc>)	//Não permitir trocar terminadas/atuais se for um dialog de NPC para pegar quests novas. Somente via botão.
+		dtext 320 45 1152 Ver terminadas
+		button 420 42 9720 9722 1 0 5	//Ver quests antigas
+	endif
+	dtext 150 60 1152 Quests ativas
+else
+	if (!<SRC.CTAG0.quest_selectedNpc>)	//Não permitir trocar terminadas/atuais se for um dialog de NPC para pegar quests novas. Somente via botão.
+		dtext 320 45 1152 Ver ativas
+		button 420 42 9723 9722 1 0 6	//Ver quests antigas
+	endif
+	dtext 150 60 1152 Quests terminadas
+endif
 
 LOCAL.startQuest=<eval ((<SRC.CTAG0.quest_page> - 1) * quest_itemsPerPage ) + 1>
 LOCAL.endQuest=<eval (<SRC.CTAG0.quest_page> * quest_itemsPerPage)>
@@ -994,6 +1137,16 @@ if (<src.isgm>)
     dialog d_quest_info
 endif
 
+on=5 // Ver quests terminadas
+quest_closeDialogs
+quest_createPlayerDoneList
+dialog d_quest_list 
+
+on=6 // Ver quests abertas
+quest_closeDialogs
+quest_createPlayerQuestList
+dialog d_quest_list 
+
 on=1000,1999 //itens buttons
 SRC.CTAG.quest_selectedQuest=<SRC.CTAG0.quest_ids<eval <argn> - 1000>>
 dialog d_quest_info
@@ -1053,8 +1206,9 @@ if ( <DB.ROW.NUMROWS> > 0 )
 else
     button 192 435 12018 12019 1 0 3    //Refuse button
 endif
-
-button 282 435 12000 12001 1 0 2    //Accept button
+if (<src.ctag0.quest_selectedNpc>)  //Tem NPC envolvido? Não faz sentido REFUSE na lista de quests antigas ou ativa.
+	button 282 435 12000 12001 1 0 2    //Accept button
+endif
 
 [DIALOG d_quest_info BUTTON]
 on=0
