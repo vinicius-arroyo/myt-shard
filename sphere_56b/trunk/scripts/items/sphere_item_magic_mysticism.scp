@@ -1,5 +1,5 @@
-//****************************************************************************
-// SPHERE by : Menasoft ©1997-2007
+﻿//****************************************************************************
+// SPHERE by : Menasoft ©1997-2017
 // www.sphereserver.net
 // All SPHERE script files and formats are copyright Menasoft & Partners.
 // This file may be freely edited for personal use, but may not be distributed
@@ -7,9 +7,9 @@
 // Menasoft & Partners.  All donations and contributions
 // become the property of Menasoft & Partners.
 //****************************************************************************
-// FILE LAST UPDATED: Tuesday, October 15, 2013
+// FILE LAST UPDATED: Monday, Feb 13, 2017
 //
-VERSION=0.56c
+VERSION=0.56d
 
 
 [COMMENT sphere_item_magic_mysticism]
@@ -25,15 +25,19 @@ This file contains all things relating to Mysticism, such as:
 
 [ITEMDEF 02d9d]
 DEFNAME=i_spellbook_mystic
+NAME=Mysticism Spellbook
 TYPE=t_spellbook_mystic
-NAME=Mystic Spellbook
-RESOURCES=80 i_parchment,1 i_hide,1 i_cloth
+TDATA3=677
+TDATA4=16
+VALUE=16
+WEIGHT=3.0
+RESOURCES=10 i_scroll_blank
+SKILLMAKE=Inscription 50.0,i_pen_and_ink
 CATEGORY=Provisions - Alchemy & Magic
-SUBSECTION=Mysticism
-DESCRIPTION=Mystic Spellbook
+SUBSECTION=Books
+DESCRIPTION=Mysticism Spellbook
 ON=@Create
 	ATTR=attr_magic|attr_newbie
-	MOREZ=677
 
 
 [ITEMDEF 02d9e]
@@ -270,11 +274,58 @@ ON=@Create
 [ITEMDEF 04078]
 DEFNAME=i_healing_stone
 NAME=healing stone
-TYPE=t_normal
+TYPE=t_spell
 WEIGHT=0.1
 CATEGORY=Magic
 SUBSECTION=Mysticism
 DESCRIPTION=Healing Stone
+//more1 = Healing Amount: The total energy stored for healing.
+//more2 = Healing Power : The maximum energy that can be used each time.
+//morex = Total Healing : The maximum amount of energy the stone can store.
+//morey don't set it, bad things can happen.
+//morez = Cooldown 0/1 : Each time it's used morey will be set to 1 (it canno't be used) until 2 seconds pass.
+
+ON=@Create
+attr=attr_blessed
+morex=<eval <src.Mysticism>/12> + (<src.Focus>/50 + <src.Imbuing>/50)>
+more1=<morex>
+more2=<morex>/3
+
+ON=@DClick
+if (<morey>>0)	// It's on cooldown, we cannot use it.
+	return 1
+endif
+if (<more1> < <more2>)	// Healing Amount is lesser than Healing Power, we cannot use it.
+	return 1
+endif
+if (<src.hits> >= <src.maxhits>)	// We have max HP, no need of use it.
+	return 1
+endif
+more1 -= <more2>
+src.hits +=<more2>
+if (<src.hits> > <src.maxhits>)
+	src.hits=<src.maxhits>
+endif
+morez = 1
+timerf 2,morez=0
+if (<timer> < 0)	// Is timer stopped?
+	timer = 1	// activate it again
+endif
+return 1
+
+ON=@Timer
+local.restore = <eval <morex>/15>	// Each 15 seconds the stone replenish totally its energy, so the energy restored in 1 second = total energy / 15
+more1 += <local.restore>
+if (<more1> < <morex> )	// Stone still not reached it Total Healing
+	timer = 1
+else	// Healing Amount is equal or higher than Total Healing
+	if (<more1> > <morex>)	// Stone passed the Total Healing
+		more1 = <morex>		// so Healing Amount reverted to it's limit.
+	endif
+	timer = -1	//	Reached the Total Healing value, no need to continue ticking.
+endif
+return 1
+
 ON=@DropOn_Char
    RETURN 1
 ON=@DropOn_Ground
