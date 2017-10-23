@@ -1,0 +1,179 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE EVENTOS por UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+
+//VARS usadas:
+//var.ev_max_on_players
+
+//*****************************************************************************
+//*****************************************************************************
+[comment SQL TABLES]
+//*****************************************************************************
+//*****************************************************************************
+
+CREATE TABLE  `mytserver`.`accounts` (
+  `idAcct` int(10) unsigned NOT NULL auto_increment,
+  `username` varchar(45) NOT NULL,
+  PRIMARY KEY  (`idAcct`),
+  UNIQUE KEY `byUsername` (`username`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE TABLE `mytserver`.`eventsLog` (
+  `idEvent` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+  `timestamp` TIMESTAMP NOT NULL,
+  `charUid` INTEGER UNSIGNED NOT NULL,
+  `charAcct` INTEGER UNSIGNED NOT NULL,
+  `eventType` ENUM('Kill PC','Kill NPC','Killed by PC','Killed by NPC','Login','Logout','GM Note','Jail') NOT NULL,
+  `char2Uid` INTEGER UNSIGNED NOT NULL,
+  `char2Acct` INTEGER UNSIGNED NOT NULL,
+  `x` SMALLINT UNSIGNED NOT NULL,
+  `y` SMALLINT UNSIGNED NOT NULL,
+  `z` TINYINT NOT NULL,
+  `message` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`idEvent`),
+  INDEX `byTs`(`timestamp`),
+  INDEX `byUid`(`charUid`),
+  INDEX `byAcct`(`charAcct`)
+)
+ENGINE = MyISAM;
+
+CREATE TABLE  `mytserver`.`server_stats` (
+  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `players` smallint(5) unsigned NOT NULL default '0',
+  `items` int(10) unsigned NOT NULL default '0',
+  `chars` int(10) unsigned NOT NULL default '0',
+  `ram` int(10) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`timestamp`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE TABLE  `mytserver`.`server_events` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `type` enum('Startup','Shutdown','SVN Update') NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
+//*****************************************************************************
+// event_log( type )
+//*****************************************************************************
+//log de um evento generico realizado pelo SRC
+[FUNCTION event_log]
+DB.QUERY "INSERT INTO eventsLog SET timestamp=NOW(), eventType='<argv0>',charUid=<eval <src>>,charAcct=<eval <src.tag0.idAcct>>,x=<eval <src.p.x>>,y=<eval <src.p.y>>,z=<eval <src.p.z>>"
+
+//*****************************************************************************
+// event_login()
+//*****************************************************************************
+//cria conta na db se nao existe e loga um evento de login
+//salva contador de maior numero de players on
+[FUNCTION event_login]
+if <DB.CONNECTED>
+    DB.QUERY "INSERT IGNORE INTO accounts SET username='<src.account>'"
+    DB.QUERY "SELECT idAcct FROM accounts WHERE username='<src.account>'"
+    if (<DB.ROW.NUMROWS> > 0)
+        SRC.TAG.idAcct=<DB.ROW.0.idAcct>
+        serv.log [EVENT]Login: <src.account> (<SRC.TAG.idAcct>)
+        event_log Login
+    else
+        serv.log [EVENT]Login: id not found (<src.account>)
+    endif
+    
+    if (<serv.clients> > 0<var.ev_max_on_players>)
+        var.ev_max_on_players = <serv.clients>
+    endif
+endif
+
+//*****************************************************************************
+// event_logout()
+//*****************************************************************************
+//loga um evento de logout
+[FUNCTION event_logout]
+if <DB.CONNECTED>
+    event_log Logout  
+endif
+
+//*****************************************************************************
+// event_kill()
+//*****************************************************************************
+//loga um evento de kill
+[FUNCTION event_kill]
+if <DB.CONNECTED>
+    
+    //se quem matou eh player
+    if <src.isplayer>
+        //se quem morreu eh player
+        if <src.act.isplayer>
+            LOCAL.e=Kill PC
+            LOCAL.ku=<src>
+            LOCAL.ka=<src.tag0.idAcct>
+            LOCAL.du=<src.act>
+            LOCAL.da=<src.act.tag0.idAcct>
+        else
+            LOCAL.e=Kill NPC
+            LOCAL.ku=<src>
+            LOCAL.ka=<src.tag0.idAcct>
+            LOCAL.du=0
+            LOCAL.da=0
+            LOCAL.m=<src.act.id>
+        endif
+    //se quem matou eh npc
+    else        
+        //se quem morreu eh player
+        if <src.act.isplayer>
+            LOCAL.e=Kill PC
+            LOCAL.ku=0
+            LOCAL.ka=0
+            LOCAL.du=<src.act>
+            LOCAL.da=<src.act.tag0.idAcct>
+            LOCAL.m=<src.id>
+        else
+            //npc kill npc nao interessa
+            return
+        endif
+    endif
+    
+    DB.QUERY "INSERT INTO eventsLog SET timestamp=NOW(), eventType='<LOCAL.e>',charUid=<eval <LOCAL.ku>>,charAcct=<eval <LOCAL.ka>>,x=<eval <src.p.x>>,y=<eval <src.p.y>>,z=<eval <src.p.z>>,char2Uid=<eval <LOCAL.du>>,char2Acct=<eval <LOCAL.da>>,message='<LOCAL.m>'"
+endif
+
+//*****************************************************************************
+// event_note(uidToNote,Message)
+//*****************************************************************************
+//loga um evento de GM Note 
+[FUNCTION event_note]
+OBJ=<argv0>
+if <DB.CONNECTED>
+    DB.QUERY "INSERT INTO eventsLog SET timestamp=NOW(), eventType='GM Note',charUid=<eval <src>>,charAcct=<eval <src.tag0.idAcct>>,x=<eval <obj.p.x>>,y=<eval <obj.p.y>>,z=<eval <obj.p.z>>,char2Uid=<eval <obj>>,char2Acct=<eval <obj.tag0.idAcct>>,message='<DB.ESCAPEDATA <argv1>>'"
+endif
+
+//*****************************************************************************
+// event_RPnote(uidToNote,Message)
+//*****************************************************************************
+//loga um evento de RP Note 
+[FUNCTION event_RPnote]
+OBJ=<argv0>
+if <DB.CONNECTED>
+    DB.QUERY "INSERT INTO eventsLog SET timestamp=NOW(), eventType='RP Note',charUid=<eval <src>>,charAcct=<eval <src.tag0.idAcct>>,x=<eval <obj.p.x>>,y=<eval <obj.p.y>>,z=<eval <obj.p.z>>,char2Uid=<eval <obj>>,char2Acct=<eval <obj.tag0.idAcct>>,message='<DB.ESCAPEDATA <argv1>>'"
+endif
+
+//*****************************************************************************
+// event_serverTick()
+//*****************************************************************************
+//chamado a cada tick do 'f_onserver_timer()' para funcoes periodicas (typ 10 min)
+[FUNCTION event_serverTick]
+
+//loga a quantidade maxima de players no ultimo periodo
+DB.EXECUTE "INSERT INTO server_stats SET timestamp=NOW(), players=<eval <var.ev_max_on_players>>, items=<serv.items>, chars=<serv.chars>, ram=<serv.mem>"
+var.ev_max_on_players = <serv.clients>
+
+//*****************************************************************************
+// event_server
+//*****************************************************************************
+//salva na DB um evento relativo ao servidor
+[FUNCTION event_server]
+if (<DB.CONNECTED>)
+    DB.EXECUTE INSERT INTO server_events SET timestamp=now(), type='<args>';
+endif

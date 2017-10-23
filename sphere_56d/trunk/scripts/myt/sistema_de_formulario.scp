@@ -1,0 +1,1024 @@
+//////////////////////////////////////////////////////////////////////////////
+//
+//                              Mystical Tales Shard
+//                        Sistema de Formulário de admissão
+//                          Galthar, o Errante - 10/2008
+//
+//////////////////////////////////////////////////////////////////////////////
+
+[COMMENT fomulario]
+
+==ToDo:
+
+- Transportar a parte de teleport para local segundo a raça para o sistema de criação de char
+- Verificação de validade do e-mail. O sistema pode dar bode por flood de multi-acc bagunceiro
+
+
+== Uso prático:
+
+- Alterar FORM_QUESTIONS no [DEFNAME formulario] para alterar o número de questões.
+- GMs usam '.formulario' para ver a lista de jogadores esperando aprovação
+- GMs usam '.formulario 1' para editar lista de questões e a ordem das questões.
+- Questão 0 é mensagem de 'bem vindo'.
+- Questão <DEF.FORM_QUESTIONS>+1 é mensagem final de 'aguarde até algum GM olhar seu formulário'.
+
+
+== Tags utilizadas:
+
+- account.tag.form.reason
+- account.tag.form.try
+- ctag.form.method
+- ctag.form.class
+- ctag.form.page
+- ctag.form.account
+- ctag.form.question
+- ctag.form.title
+- ctag.form.txtquestion
+- ctag.form.q_<dctag0.form.page> //De 1 a <FORM_QUESTIONS>
+- ctag.form.a_<dctag0.form.page> //De 1 a <FORM_QUESTIONS>
+- ctag.form.t_<dctag0.form.page> //De 1 a <FORM_QUESTIONS>
+- ctag.name
+- ctag.mail
+
+
+== Funções:
+- Todas as funções começam com form_*
+- Todas as funções que começam com dform_* são para desenhar o dialog
+- Funções que não começam com dform_* tratam de submit ou query.
+
+
+== Como fas/
+
+Login geral:
+- Se não tem mail na DB responde formulário de nome e mail.
+- Se é guest e na DB tá 'waiting', avisa que ainda não olharam.
+- Se é guest e na DB tá 'rejected', abre o form de questões.
+- Se é guest e na DB tá 'form' (DEFAULT), abre o form de questões.
+- Se é guest e na DB tá 'active', abre gump de notificação de aceitação de conta.
+
+Conta sem e-mail na DB responde o formulario de nome e email (no @login):
+- Se é player não faz nada. Marca 'active' na DB.
+- Se um guest NÃO ACEITA Regras e TdS, DELETA A CONTA. (tá bem explícito no gump)
+- Se é guest responde form. DB marca como 'form'. Teleportado para <DEF.FORM_NEWBIEPOINT>.
+
+Respondeu form:
+- Se não completou o form, força completar. Se deu logout, não faz nada. No próximologin responde o form de novo. Pode responder o form pelo HELP
+- Se completou o form, DB marca como 'waiting'. Continua guest. account.tag.form.try += 1
+
+Form rejeitado:
+- DB marca como 'rejected'. Continua guest. Se tá online abre form de questões avisando que foi rejeitado.
+- GM pode por razão ou comentário. É marcado em account.tag.form.reason.
+- Volta pro 'Respondeu form:'
+
+Form aceito:
+- DB marca como 'active'. Contiua guest.
+- Se tiver offline, abre o gump de notificação de aceitação quando der login.
+- Se tiver online, abre o gump de notificação de aceitação na mesma hora.
+
+Notificação de aceitação:
+- Só tem uma mensagem e um OKAY. Dando okay teleporta pra <DEF.STARTPOINT_<tag.raca>>
+- PLEVEL=1
+- Remove account.tag.form.try e account.tag.form.reason.
+
+
+==Tabelas utilizadas na DB:
+
+CREATE TABLE  `mytserver`.`accounts` (
+  `idAcct` int(10) unsigned NOT NULL auto_increment,
+  `username` varchar(45) NOT NULL,
+  `name` varchar(45) NOT NULL,
+  `mail` varchar(45) NOT NULL,
+  `status` enum('form','waiting','rejected','active','confirm') NOT NULL default 'form',
+  `lastedit` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`idAcct`),
+  UNIQUE KEY `byUsername` (`username`)
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
+CREATE TABLE  `mytserver`.`form_answers` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `username` varchar(45) NOT NULL,
+  `questionid` smallint(5) unsigned NOT NULL,
+  `answer` text NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=56 DEFAULT CHARSET=latin1;
+
+DROP TABLE IF EXISTS `mytserver`.`form_questions`;
+CREATE TABLE  `mytserver`.`form_questions` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `title` varchar(45) NOT NULL,
+  `question` text NOT NULL,
+  `ord` int(10) unsigned NOT NULL default '1',
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=20 DEFAULT CHARSET=latin1;
+
+[DEFNAME formulario]
+//classes
+FORM_QUESTION   0
+FORM_ACCOUNT    1
+FORM_ANSWER     2
+
+//Methods
+FORM_LIST       0
+FORM_VIEW       1
+FORM_SUBMIT     2
+FORM_DENIED     3
+FORM_ACCEPT     4
+
+//Número de questões no formulário
+FORM_QUESTIONS  6
+
+//Points para começar a jogar
+FORM_NEWBIEPOINT        1874,502,7
+STARTPOINT_Anao         Lynn
+STARTPOINT_Drow         Lynn
+STARTPOINT_Elfo         Lynn
+STARTPOINT_Humano       Lynn
+STARTPOINT_Orc          Lynn
+
+[PLEVEL 0]
+confirme
+
+[PLEVEL 4]
+formulario
+mail_key
+
+[ITEMDEF i_deed_form]
+ID=i_deed
+TYPE=t_script
+NAME=MyT Ticket
+
+ON=@CREATE
+attr |= attr_newbie
+
+ON=@DCLICK
+src.menu m_create_char
+return 1
+
+[FUNCTION form_checkAccStatus]
+
+
+if !<isonline>
+    serv.log [FORM] - Erro ao verificar status. Char nao esta online '<account>'
+    return 1
+elif (STRMATCH(*.*,<account>))
+    serv.log [FORM] - Erro ao verificar status. Account com '.' no nome '<account>'
+    prompt_new O nome de usuario '<account>' nao pode conter '.' . Favor criar outra conta. Sera desconectado em 30 s.
+    ynprompt_show
+    warnAndDisconnect
+    return 1
+endif
+
+//Assim que um char for criado ou fizer login chama esta função para conhecer o stsus da conta
+//e então tomar a provicência correta
+
+form_cacheAccountInfo
+if (STRMATCH(active,<ctag.form_status>)) || (<serv.account.<account>.plevel>)
+
+    if !<serv.account.<account>.plevel>  //Conta recem aprovada
+        sfx 05a6
+        ctag.form.method=<DEF.FORM_ACCEPT>
+        ctag.form.class=<DEF.FORM_ACCOUNT>
+        TRYSRC <uid> DIALOG d_formulario 1
+        
+        REF1=<findid.i_deed_form>
+        REF1.color=0044 //green
+    else //Jogador/GM antigo
+    
+        if (<IsGM>) //GM cadastrado. Mostrar se tem contas para avaliar.
+            DB.QUERY=SELECT COUNT(idAcct) AS cnt FROM accounts WHERE status='waiting'
+            if (<DB.ROW.0.cnt>)
+                timerf 7,sysmessageyellow,Existem <eval <DB.ROW.0.cnt>> formularios a serem avaliados.
+                timerf 9,sysmessageyellow,Digite '.formulario' para lista-los.
+            endif
+        endif
+
+    endif
+    
+    return 1
+endif
+
+
+REF1=<findid.i_deed_form>
+if !<REF1>
+    SERV.NEWITEM i_deed_form
+    new.cont=<uid>
+    REF1=<new>
+endif
+REF1.color=0020 //red
+
+if (STRMATCH(,<ctag.form_mail>))
+//        try src.go <DEF.FORM_NEWBIEPOINT>
+    serv.account.<account>.MAXCHARS=1
+    TRYSRC <uid> DIALOG d_form_new 1
+elif (STRMATCH(confirm,<ctag.form_status>))
+    //para re-enviar key automaticamente
+    if !<tag0.actkey>
+        mail_key
+        timerf 7,sysmessageyellow Um novo email de confirmacao foi enviado, favor verificar!
+    else
+        timerf 7,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+        timerf 14,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+        timerf 22,sysmessageyellow Sua conta esta aguardando confirmacao de email.
+    endif
+    REF1.color=00d4 //purple
+elif (STRMATCH(waiting,<ctag.form_status>))
+    timerf 7,sysmessageyellow Sua conta esta aguardando aprovacao.
+    timerf 14,sysmessageyellow Sua conta esta aguardando aprovacao.
+    timerf 22,sysmessageyellow Sua conta esta aguardando aprovacao.
+    REF1.color=0020 //red
+elif (STRMATCH(form,<ctag.form_status>))
+    playerform
+    REF1.color=0020 //red
+elif (STRMATCH(rejected,<ctag.form_status>))
+    sfx 05b3
+//        try go <DEF.FORM_NEWBIEPOINT>
+    ctag.form.method=<DEF.FORM_DENIED>
+    ctag.form.class=<DEF.FORM_ACCOUNT>
+    TRYSRC <uid> DIALOG d_formulario 1
+    REF1.color=0020 //red
+endif
+
+
+
+[FUNCTION confirme]
+form_cacheAccountInfo
+
+if (STRMATCH(confirm,<ctag.form_status>))        
+    if <tag0.actkey>==<args>
+        sysmessageyellow Email ativado com sucesso!
+        IF (<IsNum <account>>)
+            DB.EXECUTE=UPDATE accounts SET status='form' WHERE username='<DB.ESCAPEDATA <eval <account>>>'
+        ELSE
+            DB.EXECUTE=UPDATE accounts SET status='form' WHERE username='<DB.ESCAPEDATA <account>>'
+        ENDIF
+        tag.actkey=
+        form_checkAccStatus
+    else
+        sysmessageyellow Chave invalida!
+    endif
+else
+    sysmessageyellow Nao pode ativar novamente!
+endif
+
+[FUNCTION mail_key]
+form_cacheAccountInfo
+local.et=<eval <serv.time>-<tag0.actkeytime>>
+IF (<local.et> < 36000) && (!<src.isgm>) //eh SRC mesmo, pra validar gm dando .xmail_key
+    sysmessagered Nao foi possivel re-enviar seu e-mail de confirmacao!
+    sysmessageyellow Aguarde mais <f_timestring <eval 3600-(<local.et>/10)>>
+ELIF <ctag0.form_id>
+    if (!<tag0.actkey>)
+        tag.actkey = <serv.time>^<R1000>
+    endif
+    sysmessageyellow Email de confirmacao enviado para <ctag.form_mail>! <sendmail <ctag.form_mail>,<DEF.EMAIL_TYPE_CONFIRM>,<eval <tag.actkey>>>
+    serv.log [FORM]Email de confirmacao enviado para <ctag.form_mail>
+    tag.actkeytime=<serv.time>
+ENDIF
+
+[FUNCTION form_cacheAccountInfo]
+
+IF (<IsNum <account>>)
+    DB.QUERY=SELECT * FROM accounts WHERE username='<eval <account>>'
+ELSE
+    DB.QUERY=SELECT * FROM accounts WHERE username='<account>'
+ENDIF
+
+IF <DB.ROW.NUMROWS>
+    ctag.form_name=<DB.ROW.0.name>
+    ctag.form_mail=<DB.ROW.0.mail>
+    ctag.form_status=<DB.ROW.0.status>
+    ctag.form_id=<DB.ROW.0.idAcct>
+ELSE
+    ctag.form_name=
+    ctag.form_mail=
+    ctag.form_status=
+    ctag.form_id=
+ENDIF
+
+
+[FUNCTION playerform]
+form_cacheAccountInfo
+
+if (STRMATCH(form,<ctag.form_status>)) || (STRMATCH(rejected,<ctag.form_status>)) || (STRMATCH(waiting,<ctag.form_status>))
+    //Abre o formulário para os jogadores
+    ctag.form.method=<DEF.FORM_SUBMIT>
+    ctag.form.class=<DEF.FORM_ANSWER>
+    ctag.form.page=0
+    call form_loadAnswers
+    TRYSRC <uid> DIALOG d_formulario 1
+elif (STRMATCH(active,<ctag.form_status>))     
+    sysmessagered Voce ja eh um jogador aceito.
+else
+    sysmessagered Voce nao pode responder o formulario ainda.
+endif
+
+
+[FUNCTION formulario]
+//GMs visualizarem os formulários.
+//<argn>=0 lista as contas pendentes
+//<argn>=1 lista as questões
+if (0<argn>)
+ ctag.form.method=<DEF.FORM_LIST>
+ ctag.form.class=<DEF.FORM_QUESTION>
+else
+ DB.QUERY="SELECT COUNT(idAcct) AS cnt FROM accounts WHERE status='waiting';"
+ if (!<DB.ROW.0.cnt>)
+  sysmessageyellow Nao ha formularios pendentes.
+  return 1
+ endif
+ ctag.form.method=<DEF.FORM_LIST>
+ ctag.form.class=<DEF.FORM_ACCOUNT>
+endif
+ctag.form.account=
+ctag.form.question=
+ctag.form.title=
+ctag.form.txtquestion=
+DIALOG d_formulario 1
+
+[FUNCTION from_solveGump]
+//SWITCH para desenhar o gump
+DOSWITCH <ctag0.form.method>
+ DOSWITCH <ctag0.form.class>                    //LIST
+  call dform_ListQuestions                      //LIST->QUESTIONS
+  call dform_ListAccounts                       //LIST->ACCOUNTS
+  formClose                                     //LIST->ANSWERS
+ ENDDO 
+ DOSWITCH <ctag0.form.class>                    //VIEW
+  formClose                                     //VIEW->QUESTIONS
+  formClose                                     //VIEW->ACCOUNTS
+  call dform_ViewAnswers                        //VIEW->ANSWERS
+ ENDDO
+ DOSWITCH <ctag0.form.class>                    //SUBMIT
+  call dform_SubmitQuestions                    //SUBMIT->QUESTIONS
+  call dform_SubmitAccounts                     //SUBMIT->ACCOUNTS
+  call dform_SubmitAnswers                      //SUBMIT->ANSWERS
+ ENDDO
+ DOSWITCH <ctag0.form.class>                    //DENIED
+  formClose                                     //DENIED->QUESTIONS
+  call dform_DeniedAccount                      //DENIED->ACCOUNTS
+  formClose                                     //DENIED->ANSWERS
+ ENDDO
+ DOSWITCH <ctag0.form.class>                    //ACCEPT
+  formClose                                     //ACCEPT->QUESTIONS
+  call dform_AcceptAccount                      //ACCEPT->ACCOUNTS
+  formClose                                     //ACCEPT->ANSWERS
+ ENDDO
+ENDDO
+
+[FUNCTION from_clearctags]
+//Apaga as ctags utilizadas
+ctag.form.method=
+ctag.form.class=
+ctag.form.page=
+ctag.form.account=
+ctag.form.question=
+ctag.form.title=
+ctag.form.txtquestion=
+ctag.name=
+ctag.mail=
+FOR c 0 <DEF.FORM_QUESTIONS>
+ try ctag.form.q_<dlocal.c>=
+ try ctag.form.a_<dlocal.c>=
+ try ctag.form.t_<dlocal.c>=
+ENDFOR
+
+[FUNCTION formClose]
+//Erro na Switch do formulário. Não deve acontecer nunca, mas caso aconteça isso existe.
+timerf 1 dialogclose,d_formulario
+sysmessagered Erro no formulario!
+
+
+////////////////////////////////////////// GM \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+[FUNCTION form_SwapUpQuestion]
+//form_SwapUpQuestion <id da questao>
+//Poe a questao pra cima na ordem
+local.id=<argn>
+DB.QUERY="SELECT ord FROM form_questions WHERE id=<dlocal.id>";
+local.ord=<DB.ROW.0.ord>
+DB.QUERY="SELECT id FROM form_questions WHERE ord=<eval <local.ord>-1>";
+local.oid=<DB.ROW.0.id>
+DB.EXECUTE="UPDATE form_questions SET ord=<dlocal.ord> WHERE id=<dlocal.oid>;"
+DB.EXECUTE="UPDATE form_questions SET ord=<eval <local.ord>-1> WHERE id=<dlocal.id>;"
+formulario 1
+
+[FUNCTION form_SwapDownQuestion]
+//form_SwapUpDown <id da questao>
+//Poe a questao pra baixo na ordem
+local.id=<argn>
+DB.QUERY="SELECT ord FROM form_questions WHERE id=<dlocal.id>";
+local.ord=<DB.ROW.0.ord>
+DB.QUERY="SELECT id FROM form_questions WHERE ord=<eval <local.ord>+1>";
+local.oid=<DB.ROW.0.id>
+DB.EXECUTE="UPDATE form_questions SET ord=<dlocal.ord> WHERE id=<dlocal.oid>;"
+DB.EXECUTE="UPDATE form_questions SET ord=<eval <local.ord>+1> WHERE id=<dlocal.id>;
+formulario 1
+
+[FUNCTION form_SubmitQuestions]
+//call form_SubmitQuestions
+//se <ctag0.form.question>==0, adiciona nova questão. Se não, edita uma questão
+IF !(STRLEN(<ARGTXT[0]>)) || (STRMATCH(<ARGTXT[0]>,Titulo da nova questao))
+ sysmessagered Seu titulo nao parece certo. Reveja.
+ ctag.form.question=<ARGTXT[1]>
+ DIALOG d_formulario 1
+ return 0
+endif
+IF !(STRLEN(<ARGTXT[1]>))
+ sysmessagered Voce nao digitou uma questao!
+ ctag.form.title=<ARGTXT[0]>
+ DIALOG d_formulario 1
+ return 0
+endif
+IF !(<ctag0.form.question>)
+ //Nova questão. Inserir.
+ DB.QUERY="SELECT MAX(ord) as m FROM form_questions"
+ local.ord=<DB.ROW.0.m>+1
+ DB.EXECUTE="INSERT INTO form_questions SET title='<DB.ESCAPEDATA <argtxt[0]>>', question='<DB.ESCAPEDATA <argtxt[1]>>', ord=<dlocal.ord>;"
+ELSE
+ //Questão editada. Update
+ DB.QUERY="UPDATE form_questions SET title='<DB.ESCAPEDATA <argtxt[0]>>', question='<DB.ESCAPEDATA <argtxt[1]>>' WHERE id=<dctag0.form.question>;"
+ENDIF
+from_clearctags
+formulario 1
+
+[FUNCTION form_loadAnswers]
+//Carreca para ctags as respostas de <ctag.form.account> para aceitação dos GMs.
+//Carrega as ultimas questões de <src.account> para o formulario.
+IF (<IsGM>)
+ IF (<IsNum <ctag.form.account>>)
+  DB.QUERY="SELECT t1.question, t1.title, t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<DB.ESCAPEDATA <eval <ctag.form.account>>>' AND t1.id=t2.questionid ORDER BY t1.ord;"
+ ELSE
+  DB.QUERY="SELECT t1.question, t1.title, t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<DB.ESCAPEDATA <ctag.form.account>>' AND t1.id=t2.questionid ORDER BY t1.ord;"
+ ENDIF
+ FOR q 0 <eval <DEF.FORM_QUESTIONS>-1>
+  try ctag.form.t_<dlocal.q>=<DB.ROW.<dlocal.q>.title>
+  try ctag.form.q_<dlocal.q>=<DB.ROW.<dlocal.q>.question>
+  try ctag.form.a_<dlocal.q>=<DB.ROW.<dlocal.q>.answer>
+ ENDFOR
+ELSE
+ IF (<IsNum <account>>)
+  DB.QUERY="SELECT t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<DB.ESCAPEDATA <eval <account>>>' AND t1.id=t2.questionid ORDER BY t1.ord;"
+ ELSE
+  DB.QUERY="SELECT t2.answer FROM form_questions AS t1, form_answers AS t2 WHERE t2.username='<DB.ESCAPEDATA <account>>' AND t1.id=t2.questionid ORDER BY t1.ord;"
+ ENDIF
+ FOR q 0 <DEF.FORM_QUESTIONS>
+  try ctag.form.a_<eval <local.q>+1>=<DB.ROW.<eval <local.q>>.answer>
+ ENDFOR
+ENDIF
+
+[FUNCTION dform_ListQuestions]
+//Lista as questões para a Staff gerenciar
+IF (!<IsGM>) //Teste de segurança
+ formClose
+ return 0
+ENDIF
+dtext 21 54 4 Lista de questoes: 0=mensagem de bem vindo. <eval <DEF.FORM_QUESTIONS>+1>=mensagem final
+resizepic 15 75 9350 610 365
+dtext 20 80 37 Ordem
+dtext 100 80 37 Titulo
+local.min=<eval <ctag0.form.page>*16>
+DB.QUERY="SELECT id, title, ord FROM form_questions ORDER BY ord ASC LIMIT <dlocal.min>,17;"
+dorigin 20 80
+FOR r 0 <eval <DB.ROW.NUMROWS>-1>
+ if !(<DB.ROW.<dlocal.r>.ord>)
+  local.color=43
+ else
+  if (<DB.ROW.<dlocal.r>.ord> <= <DEF.FORM_QUESTIONS>)
+   local.color=4
+  else
+   if (<DB.ROW.<dlocal.r>.ord> == <eval <DEF.FORM_QUESTIONS>+1>)
+    local.color=62
+   else
+    local.color=918
+   endif
+  endif
+ endif
+ dtext - *20 <dlocal.color> <DB.ROW.<dlocal.r>.ord>
+ if (<DB.ROW.<dlocal.r>.ord>)
+  button +30 -3 250 251 1 0 <eval <DB.ROW.<dlocal.r>.id>+500>
+ endif
+ if (<local.r> != <eval <DB.ROW.NUMROWS>-1>) || (<DB.ROW.NUMROWS>==17)
+  button +45 -3 252 253 1 0 <eval <DB.ROW.<dlocal.r>.id>+1000>
+ endif
+ button +80 +2 1209 1210 1 0 <eval <DB.ROW.<dlocal.r>.id>+1500>
+ dtext +96 - <dlocal.color> <DB.ROW.<dlocal.r>.title>
+ENDFOR
+dtext 317 442 2228 pg <eval <ctag0.form.page>+1>
+IF (<DB.ROW.0.ord>)
+ button 279 447 2223 2223 1 0 4
+endif
+IF (<DB.ROW.NUMROWS>==17)
+ button 365 447 2224 2224 1 0 5
+ENDIF
+button 20 442 2443 2444 1 0 6 //Add
+dtext 38 444 37 ADD
+
+[FUNCTION dform_SubmitQuestions]
+//GMs editam questões
+IF (!<IsGM>) //Teste de segurança
+ formClose
+ return 0
+ENDIF
+if (<ctag0.form.question>)
+ DB.QUERY="SELECT title, question FROM form_questions WHERE id=<dctag0.form.question>;"
+ ctag.form.title=<DB.ROW.0.title>
+ ctag.form.txtquestion=<DB.ROW.0.question>
+else
+ if (<IsEmpty <ctag.form.title>>)
+  ctag.form.title=Titulo da nova questao
+ endif
+endif
+resizepic 22 55 9250 599 40
+dtextentry 35 65 573 20 17 0 <ctag.form.title>
+dhtmlgump 18 114 600 100 12 1 <DEF.BR><DEF.CENTER><DEF.BFONT_LRED>Editar Questao<DEF.BFONT_BLACK><DEF.CENTERE><DEF.BR>Descreva a cima o titulo da questao e escreva abaixo a questao.
+//dhtmlgump 18 231 600 194 13 1 
+resizepic 15 260 9350 610 173
+dtextentry 22 260 593 187 0 1 <ctag.form.txtquestion>
+button 562 441 247 248 1 0 1
+button 15 441 241 242 1 0 2
+
+[FUNCTION dform_ListAccounts]
+//Lista as contas aguardando aprovação
+IF (!<IsGM>) //Teste de segurança
+ formClose
+ return 0
+ENDIF
+dtext 21 54 4 Aguardando aprovacao
+resizepic 15 75 9350 610 365
+dtext 20 80 37 Tentativa
+dtext 100 80 37 Conta
+local.min=<eval <ctag0.form.page>*16>
+DB.QUERY="SELECT idAcct, username FROM accounts WHERE status='waiting' LIMIT <dlocal.min>,17;"
+dorigin 20 80
+FOR r 0 <eval <DB.ROW.NUMROWS>-1>
+ local.acc=<DB.ROW.<dlocal.r>.username>
+ dtext +10 *20 918 <serv.account.<local.acc>.dtag.form.try>
+ button +80 +2 1209 1210 1 0 <eval <DB.ROW.<dlocal.r>.idAcct>+2500>
+ IF (<IsNuM <local.acc>>)
+  dtext +96 - 918 <dlocal.acc>
+ ELSE
+  dtext +96 - 918 <local.acc>
+ ENDIF
+ENDFOR
+IF (<ctag0.form.page>)
+ button 279 447 2223 2223 1 0 4 //pg-
+endif
+dtext 317 442 2228 pg <eval <ctag0.form.page>+1> //num pg
+IF (<DB.ROW.NUMROWS>==17)
+ button 365 447 2224 2224 1 0 5 //pg+
+ENDIF
+
+[FUNCTION dform_ViewAnswers]
+//Desenha formulario de questões dos jogadores para os GMs.
+IF (!<IsGM>) //Teste de segurança
+ formClose
+ return 0
+ENDIF
+IF (<ctag0.form.page> < <DEF.FORM_QUESTIONS>)
+ resizepic 22 55 9250 599 40
+ dtext 36 65 18 <ctag.form.t_<dctag.form.page>>
+ dhtmlgump 18 114 600 100 12 1 <ctag.form.q_<dctag.form.page>>
+ dhtmlgump 18 231 600 194 13 1 <ctag.form.a_<dctag.form.page>>
+ELSE
+ dtext 25 90 4 Notas sobre a conta:
+ IF (<IsNum <ctag.form.account>>)
+  dhtmlgump 18 114 600 118 16 1 Conta: <dctag.form.account><DEF.BR>Tentativas: <eval <serv.account.<ctag.form.account>.tag0.form.try>><DEF.BR>Ultima consideracao de avaliador: <serv.account.<dctag.form.account>.tag.form.reason>
+ ELSE
+  dhtmlgump 18 114 600 118 16 1 Conta: <ctag.form.account><DEF.BR>Tentativas: <eval <serv.account.<ctag.form.account>.tag0.form.try>><DEF.BR>Ultima consideracao de avaliador: <serv.account.<ctag.form.account>.tag.form.reason>
+ ENDIF
+ dtext 28 238 4 Consideracao do avaliador:
+ resizepic 15 260 9350 610 173
+ IF (<IsNum <ctag.form.account>>)
+  dtextentry 23 269 592 158 0 0 <serv.account.<dctag.form.account>.tag.form.reason>
+ ELSE
+  dtextentry 23 269 592 158 0 0 <serv.account.<ctag.form.account>.tag.form.reason>
+ ENDIF
+ button 15 441 2443 2444 1 0 15
+ dtext 18 441 63 aprovar
+ button 562 441 2443 2444 1 0 16
+ dtext 563 441 37 reprovar
+ENDIF
+IF (<ctag0.form.page>)
+  button 279 447 2223 2223 1 0 4        //Boatao pg-
+endif
+dtext 308 442 2228 pg <eval <ctag0.form.page>+1>/<eval <DEF.FORM_QUESTIONS>+1>  //numero pg
+IF (<ctag0.form.page> < <DEF.FORM_QUESTIONS>)
+  button 365 447 2224 2224 1 0 5        //Botão pg+
+ENDIF
+
+////////////////////////////////////////// PLAYERS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+[FUNCTION form_SubmitAccounts]
+//Envia as respostas do Player para a DB
+//Use call form_SubmitAccounts
+
+//Checar a consistência das respostas
+//FOR r 1 <DEF.FORM_QUESTIONS>
+// IF (STRLEN(<ctag.form.a_<dlocal.r>>) < 3)
+//  sysmessageyellow Sua resposta para a <dlocal.r>a. questao nao parece consistente.
+//  local.redo=<local.r>
+// ENDIF
+//ENDFOR
+
+//Checar a DB
+IF (!<DB.CONNECTED>)
+ sysmessagered Nao foi possivel enviar as questoes. Tente novamente.
+ local.redo=1
+ENDIF
+
+//Presia refazer o form?
+IF (<local.redo>)
+ ctag.form.page=1
+ DIALOG d_formulario 1
+ return 1
+ENDIF
+
+//Checar conta errada ou fantasma
+form_cacheAccountInfo
+if (!<ctag0.form_id>) || !(STRMATCH(*@*.*,<ctag.form_mail>)) || !(STRMATCH(* *,<ctag.form_name>))
+ sysmessagered Sua conta ainda nao foi efetivada. Preencha o formulario.
+ DIALOG d_form_new 1
+ return 1
+endif
+
+//Tudo okay, pode enviar
+//Aumentar a contagem de tentativas se foi rejeitada
+IF (STRMATCH(rejected,<ctag.form_status>))
+ account.tag.form.try = <account.tag0.form.try>+1
+endif
+
+//As questões antigas serão deletadas pois se algum GM trocar a ordem das questões ou
+//alterar/adicionar alguma questão, pode dar conflito entre a DB e o gump.
+IF (<IsNum <account>>)
+ DB.EXECUTE="DELETE FROM form_answers WHERE username='<DB.ESCAPEDATA <eval <account>>>';"
+ELSE
+ DB.EXECUTE="DELETE FROM form_answers WHERE username='<DB.ESCAPEDATA <account>>';"
+ENDIF
+
+//pegar ID das questões
+DB.QUERY="SELECT id FROM form_questions WHERE ord < <eval <DEF.FORM_QUESTIONS>+1> ORDER BY ord;"
+for q 1 <DEF.FORM_QUESTIONS>
+ try local.q_<eval <dlocal.q>>=<DB.ROW.<dlocal.q>.id>
+ try local.a_<eval <dlocal.q>>=<ctag.form.a_<dlocal.q>>
+endfor
+
+//Salva respostas
+FOR a 1 <DEF.FORM_QUESTIONS>
+ IF (<IsNum <account>>)
+  DB.EXECUTE=INSERT INTO form_answers SET username='<DB.ESCAPEDATA <eval <account>>>', questionid=<dlocal.q_<eval <dlocal.a>>>, answer="<DB.ESCAPEDATA <local.a_<eval <dlocal.a>>>>";
+ ELSE
+  DB.EXECUTE=INSERT INTO form_answers SET username='<DB.ESCAPEDATA <account>>', questionid=<dlocal.q_<eval <dlocal.a>>>, answer="<DB.ESCAPEDATA <local.a_<eval <dlocal.a>>>>";
+ ENDIF
+ENDFOR
+
+//trocar status na DB
+IF (<IsNum <account>>)
+ DB.EXECUTE="UPDATE accounts SET status='waiting' WHERE username='<DB.ESCAPEDATA <eval <account>>>';"
+ELSE
+ DB.EXECUTE="UPDATE accounts SET status='waiting' WHERE username='<DB.ESCAPEDATA <account>>';"
+ENDIF
+
+sysmessagered Excelente!!!
+sysmessageyellow Assim que possivel um membro da Staff avaliara seu formulario!
+timerf 7,sysmessageorange,Enquanto isso, podes explorar alguns sistemas da MyT aqui em <region.name>!
+timerf 14,sysmessageorange,Utilize o botao HELP na parte superior para alterar seu formulario ou ter dicas adicionais.
+timerf 22,sysmessageorange,Qualquer duvida, visite nosso forum!
+serv.allclients broadstaff FORMULARIO,"Ha um novo formulario para ser lido!"
+from_clearctags
+
+[FUNCTION dform_SubmitAnswers]
+//Desenha formulario de questões para os jogadores.
+DB.QUERY="SELECT * FROM form_questions WHERE ord < <eval <DEF.FORM_QUESTIONS>+3> ORDER BY ord;"
+IF !(<ctag0.form.page>) || (<ctag0.form.page> == <eval <DEF.FORM_QUESTIONS>+1>)
+ dhtmlgump 20 107 598 329 8 0 <DB.ROW.<dctag.form.page>.question> //Cabeçalho
+ resizepic 22 55 9250 599 40 //Fundo
+ dtext 36 65 18 <DB.ROW.<dctag.form.page>.title>        //Titulo
+ IF (<ctag0.form.page> == <eval <DEF.FORM_QUESTIONS>+1>)
+  button 562 441 247 248 1 0 12 //Botão Okay. Submit
+ ENDIF
+ELSE (<ctag0.form.page>) && (<ctag0.form.page> != <eval <DEF.FORM_QUESTIONS>+1>)
+ resizepic 22 55 9250 599 40 //Fundo titulo
+ dtext 35 65 17 <DB.ROW.<dctag.form.page>.title> //Titulo
+ dhtmlgump 18 114 600 100 12 1 <DB.ROW.<dctag.form.page>.question>      //Questao
+ resizepic 15 260 9350 610 173          //Fundo resposta
+ IF (<IsEmpty <ctag.form.a_<dctag0.form.page>>>)        
+  dtextentry 22 260 593 187 0 1         //Resposta guardada
+ else
+  dtextentry 22 260 593 187 0 1 <ctag.form.a_<dctag0.form.page>>        //Nova resposta
+ endif
+ENDIF
+IF (<ctag0.form.page>)
+  button 279 447 2223 2223 1 0 10       //Boatao pg-
+endif
+dtext 308 442 2228 pg <eval <ctag0.form.page>+1>/<eval <DEF.FORM_QUESTIONS>+2>  //numero pg
+IF (<ctag0.form.page> < <eval <DEF.FORM_QUESTIONS>+1>)
+  button 365 447 2224 2224 1 0 11       //Botão pg+
+ENDIF
+
+[FUNCTION dform_DeniedAccount]
+//Carrega o gump avisando ao player queo formulário foi recusado.
+dhtmlgump 20 107 598 329 8 1 Suas respostas ao formulario nao foram suficientes para certificar seus conhecimentos de representacao e sobre o ambiente do Mystical Tales Shard. Voce pode tentar novamente, quantas vezes forem necessarias.<DEF.BR>Se tiver duvidas sobre representacao ou se a conduta do seu personagem eh adequada ao ambiente da MyT, debata a questao no forum da MyT na secao de Rolaplay em forum.myt.com.br<DEF.BR>Se voce acha que seus conhecimentos sobre o ambiente da MyT sao insuficientes, leia os textos de ambientacao em www.myt.com.br<DEF.BR><DEF.BR>Apontamentos do avaliador:<DEF.BR><serv.account.<account>.tag.form.reason>
+resizepic 22 55 9250 599 40
+dtext 36 65 18 Respostas recusadas!
+button 562 441 247 248 1 0 13
+
+[FUNCTION dform_AcceptAccount]
+//Carrega o gump avisando ao player que ele passou na Fuvest da MyT.
+dhtmlgump 20 107 598 329 8 1 Obrigado! Voce foi promovido de convidado a jogador no Mystical Tales Shard! Agora voce pode participar da comunidade de jogadores sem restricoes! Aproveite!<DEF.BR>Se voce precisar de maiores informacoes sobre a extensa e profunda jogabilidade permitida pelo servidor pode ler os manuais dos sistemas em www.myt.com.br ou ainda discuti-las em nosso forum (forum.myt.com.br) ou ainda ler e produzir seus proprios textos sobre os sistemas em nosso Wiki (www.wiki.myt.com.br).<DEF.BR><DEF.BR>Apontamentos do avaliador:<DEF.BR><serv.account.<account>.tag.form.reason>
+resizepic 22 55 9250 599 40
+dtext 36 65 18 Sua conta foi aceita!
+button 562 441 247 248 1 0 14
+
+[FUNCTION form_PruneAccounts]
+//Deleta contas e forms de guests não utilizados nos ultimos 45 dias
+DB.QUERY="SELECT username FROM accounts WHERE (status='rejected' OR status='form') AND lastedit < DATE_SUB(CURRENT_TIMESTAMP(),INTERVAL '45' DAY);"
+for a 0 <EVAL <DB.ROW.NUMROWS>-1>
+ local.acc_<dlocal.a>=<DB.ROW.<dlocal.a>.username>
+endfor
+for d 0 <local.a>
+ if (<SERV.ACCOUNT.<local.acc_<dlocal.d>>.PLEVEL>==0)
+  DB.EXECUTE="DELETE FROM accounts WHERE username='<DB.ESCAPEDATA <local.acc_<dlocal.d>>>';
+  DB.EXECUTE="DELETE FROM form_answers WHERE username='<DB.ESCAPEDATA <local.acc_<dlocal.d>>>';
+  SERV.ACCOUNT <local.acc_<dlocal.d>> DELETE
+ endif
+endfor
+if (<local.a> > 0)
+ serv.log [FORM PRUNE] <dlocal.a> contas GUEST inuteis removidas.
+endif
+
+[FUNCTION form_removeAccount]
+// Nao aceito
+if !(<isgm>)
+    if (<account.plevel>==0)
+        DB.EXECUTE=DELETE FROM accounts WHERE username='<account>'
+        DB.EXECUTE=DELETE FROM form_answers WHERE username='<account>'
+        TRYSRV serv.account <account> DELETE
+     endif
+endif
+
+//////////////////////////////////////////GUMPS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+[DIALOG d_formulario]
+100,50
+IF !(<IsGM>)
+ NOCLOSE
+ NOMOVE
+ NODISPOSE
+ENDIF
+page 0
+resizepic 0 0 9270 640 480
+resizepic 245 17 9200 150 29
+dtext 255 22 32 Mystical Tales Shard
+
+page 1
+call from_solveGump
+
+[DIALOG d_formulario text]
+
+[DIALOG d_formulario button]
+ON=0
+//Isso só acontece para GMs
+from_clearctags
+
+ON=1
+//Add Question
+call form_SubmitQuestions
+
+ON=2
+//Cancel ADD Question
+formulario 1
+
+ON=4
+// List pg-
+// 
+ctag.form.page -= 1
+DIALOG d_formulario 1
+
+ON=5
+// List pg+
+// 
+ctag.form.page=<ctag0.form.page> + 1 //(ultilizado essa notação de soma para iniciar a tag.
+DIALOG d_formulario 1
+
+ON=6
+// Add questão
+ctag.form.method=<DEF.FORM_SUBMIT>
+ctag.form.class=<DEF.FORM_QUESTION>
+ctag.form.question=
+DIALOG d_formulario 1
+
+ON=10
+// List pg- playa//
+IF (<ctag0.form.page> < <eval <DEF.FORM_QUESTIONS>>)
+ try ctag.form.a_<dctag0.form.page>=<argtxt[1]>
+ENDIF
+ctag.form.page -= 1
+DIALOG d_formulario 1
+
+ON=11
+// List pg+ playa// 
+IF (<ctag0.form.page>)
+ try ctag.form.a_<dctag0.form.page>=<argtxt[1]>
+ENDIF
+ctag.form.page=<ctag0.form.page> + 1 //(ultilizado essa notação de soma para iniciar a tag.
+//sysmessagered <argtxt[0]> - <argtxt[1]> - <argtxt[2]>
+DIALOG d_formulario 1
+
+ON=12
+//Mandar formulario
+form_SubmitAccounts
+
+ON=13
+//Okay do dialogo de 'Sua conta não foi aceita'.
+playerform
+
+ON=14
+//Okay no dialogo de 'Sua conta foi aceita'
+if !<serv.account.<account>.plevel>
+    serv.account.<account>.plevel=1
+endif    
+serv.account.<account>.tag.try=
+serv.account.<account>.tag.reason=
+serv.account.<account>.MAXCHARS=
+//try src.go <DEF.STARTPOINT_<src.tag.raca>>
+
+ON=15
+//GM aprova conta
+IF (<IsNum <ctag.form.account>>)
+ DB.EXECUTE="UPDATE accounts SET status='active' WHERE username='<dctag.form.account>';"
+ DB.QUERY="SELECT mail FROM accounts WHERE username='<dctag.form.account>';"
+ELSE
+ DB.EXECUTE="UPDATE accounts SET status='active' WHERE username='<ctag.form.account>';"
+ DB.QUERY="SELECT mail FROM accounts WHERE username='<ctag.form.account>';"
+ENDIF
+sysmessagered Aprovado, enviando email: <sendmail <DB.ROW.0.mail>,<DEF.EMAIL_TYPE_ACCEPTED>,"<argtxt[0]>">
+serv.account.<ctag.form.account>.tag.form.reason=<argtxt[0]>
+serv.account.<ctag.form.account>.plevel=0
+obj=<serv.account.<ctag.form.account>.char.0>
+from_clearctags
+formulario
+if <obj.isonline>
+ obj.form_checkAccStatus
+endif
+return 1
+
+ON=16
+//GM reprova conta
+IF (<IsNum <ctag.form.account>>)
+ DB.EXECUTE="UPDATE accounts SET status='rejected' WHERE username='<dctag.form.account>';"
+ DB.QUERY="SELECT mail FROM accounts WHERE username='<dctag.form.account>';"
+ELSE
+ DB.EXECUTE="UPDATE accounts SET status='rejected' WHERE username='<ctag.form.account>';"
+ DB.QUERY="SELECT mail FROM accounts WHERE username='<ctag.form.account>';"
+ENDIF
+sysmessagered Reprovado, enviando email: <sendmail <DB.ROW.0.mail>,<DEF.EMAIL_TYPE_REJECTED>,"<argtxt[0]>">
+serv.account.<ctag.form.account>.tag.form.reason=<argtxt[0]>
+obj=<serv.account.<ctag.form.account>.char.0>
+from_clearctags
+formulario
+if <obj.isonline>
+ obj.form_checkAccStatus
+endif
+return 1
+
+ON=501 1000
+//Altera a ordem da questão para cima
+form_SwapUpQuestion <eval <argn>-500>
+
+ON=1001 1500
+//Altera a ordem da questão para baixo
+form_SwapDownQuestion <eval <argn>-1000>
+
+ON=1501 2000
+// Edit questao
+ctag.form.method=<DEF.FORM_SUBMIT>
+ctag.form.class=<DEF.FORM_QUESTION>
+ctag.form.question=<eval <argn>-1500>
+DIALOG d_formulario 1
+
+ON=2500 99999
+//Ver respostas do Player
+IF (!<IsGM>) || (<serv.account.<account>.plevel> < 4)
+ sysmessagered Voce NAO TEM premissao para ver isso!
+ return 0
+endif
+ctag.form.method=<DEF.FORM_VIEW>
+ctag.form.class=<DEF.FORM_ANSWER>
+DB.QUERY="SELECT username FROM accounts WHERE idAcct=<eval <argn>-2500>;"
+ctag.form.account=<DB.ROW.0.username>
+call form_loadAnswers
+DIALOG d_formulario 1
+
+//Formulário de cadastro de nome e mail.
+[DIALOG d_form_new]
+100,50
+NOCLOSE
+NOMOVE
+NODISPOSE
+page 0
+resizepic 0 0 9270 640 480
+resizepic 245 17 9200 150 29
+text 255 22 32 0
+page 1
+text 249 50 4 1
+htmlgump 20 94 267 341 2 1 1
+text 294 122 905 3
+gumppic 356 120 1141
+textentry 366 123 252 20 0 0 4
+text 315 152 905 5
+gumppic 356 150 1141
+textentry 366 153 252 20 0 1 6
+button 315 200 2151 2152 1 0 1
+text 348 204 905 7
+button 315 240 2151 2152 1 0 2
+text 348 244 905 8
+resizepic 300 280 9350 320 150
+text 372 285 5 9
+text 388 302 5 10
+button 315 350 2151 2152 1 0 3
+text 346 356 67 11
+button 500 350 2151 2152 1 0 0
+text 535 356 37 12
+
+[DIALOG d_form_new text]
+Mystical Tales Shard
+Cadastro de jogadores
+Pra que sua conta seja aceita e efetivada, eh necessario que voce forneca seu NOME REAL e um E-MAIL VALIDO. Caso seu nome real e um e-mail valido nao sejam fornecidos, sua conta sera deliberadamente excluida do servidor sem avisos.<DEF.BR>Tambem eh necessario que voce leia, entenda e aceite, sem restricoes ou resalvas, as Regras do Servidor e os Termos de Servico. Apos isso, voce podera continuar com o processo de confirmacao respondendo o questionario de ambientacao.<DEF.BR> Obrigado e bom divertimento!!!<DEF.BR><DEF.BR> -- Staff Mystical Tales Shard
+Nome real
+<ctag.name>
+e-mail
+<ctag.mail>
+Regras do servidor
+Termos de servico
+Aceito as Regras do Servidor
+ e os Termos de Servico
+SIM
+NAO
+
+[DIALOG d_form_new button]
+ON=1
+// Regras
+WEBLINK=wiki.myt.com.br/index.php/Regras
+DIALOG d_form_new
+
+ON=2
+// TdS
+WEBLINK=wiki.myt.com.br/index.php/Termos_de_Servi%C3%A7o
+DIALOG d_form_new
+
+ON=3
+// Aceito
+ctag.name=<argtxt[0]>
+ctag.mail=<argtxt[1]>
+
+IF (<IsNum <account>>)
+ sysmessagered O username utilizado  parece um numero e nao deve ser utilizado. 
+ sysmessagered Crie outra conta...
+ DIALOG d_form_new
+ SERV.LOG [FORMULARIO] conta <account> sera deletada por parecer numerica (<eval <account>>)
+ timerf 60,form_removeAccount
+ return 0
+
+//Checar nome
+ELIF !(STRMATCH(* *,<ctag.name>)) || (<eval STRLEN(<ctag.name>)> < 8)
+ sysmessagered Nome invalido: <ctag.name>
+ DIALOG d_form_new
+ return 0
+
+//checar mail
+ELIF (STRMATCH(* *,<ctag.mail>)) || (<eval STRLEN(<ctag.mail>)> < 8) || !(STRMATCH(*@*,<ctag.mail>)) || !(STRMATCH(*.*,<ctag.mail>))
+ sysmessagered E-mail invalido: <ctag.mail>
+ DIALOG d_form_new
+ return 0
+ENDIF
+
+//Checar DB
+DB.QUERY=SELECT idAcct FROM accounts WHERE mail LIKE '<DB.ESCAPEDATA <ctag.mail>>'
+IF (<DB.ROW.NUMROWS>)
+ sysmessagered O email <ctag.mail> ja esta sendo usado.
+ SERV.LOG [FORMULARIO] IP:<account.lastip> Acc:<account> Tentando se inscrever com e-mail ja utilizado!!! (<ctag.mail>)
+ DIALOG d_form_new
+ return 0
+ENDIF
+
+
+DB.QUERY=SELECT idAcct FROM accounts WHERE username='<DB.ESCAPEDATA <account>>'
+IF (<DB.ROW.NUMROWS>)   //jogador já cadastrado
+ 
+ local.idAcct=<DB.ROW.0.idAcct>
+ DB.EXECUTE=UPDATE accounts SET name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>', status='confirm' WHERE idAcct=<dlocal.idAcct>
+ 
+ELSE                    //Jogador não cadastrado
+
+ DB.EXECUTE=INSERT INTO accounts SET username='<DB.ESCAPEDATA <account>>', name='<DB.ESCAPEDATA <ctag.name>>', mail='<DB.ESCAPEDATA <ctag.mail>>', status='confirm'
+ 
+ENDIF
+
+mail_key
+
+ON=0 //close/not accept
+SERV.LOG [FORMULARIO] conta <account> nao aceita Regras e TdS. Conta deletada.
+form_removeAccount
+
+
+[EOF]

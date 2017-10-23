@@ -1,0 +1,941 @@
+[COMMENT sistema_de_fe]
+
+                                -=Mystical Tales Shard=-
+                                 -=Sistema de Fé v2.0=-
+                                 
+30/09/2009
+Por: 
+        Metus
+        Galthar, o Errante
+
+ToDo:
+
+
+
+Deuses:
+
+Melian
+Metryah
+Lyria
+Aranrosse
+Mond
+Jat
+Luna
+Ferid
+Alkron
+Eilyel
+Lolth
+Kaylin
+Yarret
+Min'Gorad
+Molag'Bal
+
+        
+
+[DEFNAME idols]
+IDOL_COOLDOWN           3//*24*60*60      //Tempo de intervalo entre as oferendas (3 dias)
+IDOL_MINOFFER           5*100           //Menor oferenda para ganhar um ponto de alma em cobres (5 mo)
+IDOL_OFFERINCREASE      75*10           //Incremento em cobre para o próximo ponto de alma (7mo e 5mp)
+IDOL_PRAYLEVEL          3               //Quantos PRAY ele pode chamar para cada nível de oferenda (6 pontos de oração).
+
+Melian_ENEMIES=Min'Gorad; Molag'Bal; Yarret
+Metryah_ENEMIES=Molag'Bal; Min'Gorad; Lolth
+Lyria_ENEMIES=Molag'Bal; Min'Gorad
+Aranrosse_ENEMIES=Molag'Bal; Min'Gorad
+Mond_ENEMIES=Min'Gorad; Molag'Bal; Luna; Yarret
+Jat_ENEMIES=Min'Gorad; Molag'Bal; Lolth
+Luna_ENEMIES=Melian; Jat; Mond
+Ferid_ENEMIES=Molag'Bal; Min'Gorad; Luna; Lolth
+Alkron_ENEMIES=
+Eilyel_ENEMIES=
+Lolth_ENEMIES=Jat; Metryah; Melian
+Kaylin_ENEMIES=Eilyel; Metryah; Melian
+Yarret_ENEMIES=
+Min'Gorad_ENEMIES=Mond; Melian; Jat; Ferid
+Molag'Bal_ENEMIES=Mond; Melian; Jat; Ferid
+
+//////////////////////////////////////////////////////////////////////////
+// TYPEDEFS
+
+[TYPEDEF t_idol]
+//more2=SERV.TIME da criação
+//morex=Total de oferendas feitas
+//tag.offers=Total de oferendas em cobre
+//tag.god=Nome do deus
+
+ON=@ClientTooltip
+if <src.IsGM>
+ local.time=<eval (<serv.time>-<more2>)/10>
+ local.stime=<f_timestring <local.time>>
+ local.time = <eval <local.time>/86400>
+ if (<local.time>) && (<morex>)
+  if (<local.time> >= <morex>)
+   local.rate=<eval <local.time>/<morex>> dias para cada oferenda
+  else
+   local.rate=<eval <morex>/<local.time>> oferendas por dia
+  endif
+ else
+  local.rate=Nenhuma
+ endif
+ src.f_sendTooltip <name>,Deus: <tag.god><DEF.BR> Idade: <local.stime><DEF.BR> Oferendas: <morex> (<STRTRESURE <dtag0.offers>>)<DEF.BR> Razao: <local.rate>.
+else
+ local.rate=<eval <tag0.offers>/1000>
+ local.visit=Muito visitado. Um marco turistico milagreiro.
+ DORAND <local.rate>
+  local.visit=Quase abandonado
+  local.visit=Visitado raramente
+  local.visit=Visitado ocasionalmente
+  local.visit=Bem visitado
+  local.visit=Visitado frequentemente
+  local.visit=Sempre visitado
+  local.visit=Muito visitado
+ ENDDO
+ src.f_sendTooltip <name>,Idolo da divindade <tag.god><DEF.BR> Popularidade: <local.visit>
+endif
+return 1
+
+ON=@Click
+if !<src.IsGM>
+ local.rate=<eval <tag0.offers>/1000>
+ local.visit=Muito visitado. Um marco turistico milagreiro.
+ DORAND <local.rate>
+  local.visit=Quase abandonado
+  local.visit=Visitado raramente
+  local.visit=Visitado ocasionalmente
+  local.visit=Bem visitado
+  local.visit=Visitado frequentemente
+  local.visit=Sempre visitado
+  local.visit=Muito visitado
+ ENDDO
+ message=@036 <name>
+ message Idolo da divindade <tag.god>
+ message Popularidade: <local.visit>
+endif
+return 1
+
+ON=@DCLICK
+src.idol_open <uid>
+return 1
+
+
+//////////////////////////////////////////////////////////////////////////
+// ITEMDEFS
+
+
+
+[ITEMDEF i_mry_pray]
+//more1=Proxima doação com bônus de orações
+//more2=Dinheiro doado desde o ultimo bônus de alma
+//morex=Número de doações feitas
+//morey=Orações restantes
+//morez=Deus ficou zangado
+//morem=Almas doadas
+//tag.donations=Total de dinheiro doado
+ID=01C13
+NAME=Fe
+TYPE=t_eq_script
+LAYER=layer_special
+WEIGHT=0
+
+ON=@TIMER
+return 1
+
+
+//////////////////////////////////////////////////////////////////////////
+// FUNCTIONS
+
+
+//////////////////////////////////////////////
+[FUNCTION idolo]
+//Função para GM setar um ídolo
+if (!<argo>)
+ if (!<IsEmpty <args>>)
+  if (STRMATCH(*1*,<args>)) || (STRMATCH(*unblock*,<args>)) || (STRMATCH(*on*,<args>))
+   idol_unblock
+   return 1
+  elif (STRMATCH(*0*,<args>)) || (STRMATCH(*block*,<args>)) || (STRMATCH(*off*,<args>))
+   idol_block
+   return 1
+  endif
+ endif
+ sysmessageyellow Selecione um item para ser transformado em idolo:
+ targetf idolo
+elif (!<argo.IsItem>)
+ sysmessagered Inválido.
+else
+ ctag.idol_uid=<argo>
+ MENU m_idol_choose_god
+endif
+
+[FUNCTION idol_block]
+if (!<var0.idol_block>)
+ var.idol_block=1
+ sysmessagered Sistema de fe desativado.
+else
+ sysmessageyellow Ja esta desativado.
+endif
+
+[FUNCTION idol_unblock]
+if (<var0.idol_block>)
+ var.idol_block=
+ sysmessagegreen Sistema de fe ativado.
+else
+ sysmessageyellow Ja esta ativado.
+endif
+
+
+//////////////////////////////////////////////
+[FUNCTION idol_set_god]
+//Continuação da função .idolo
+obj=<ctag0.idol_uid>
+obj.tag.god=<args>
+obj.type=t_idol
+obj.more2=<serv.time>
+obj.tag.offers=0
+obj.update
+sysmessagegreen Processo terminado. <obj.name> agora eh um idolo e nao tem mais sua funcionalidade anterior.
+
+
+//////////////////////////////////////////////
+[FUNCTION idol_open]
+//Abre o gump de idolo pra player
+ctag0.idol_uid=<argn>
+SDIALOG d_idol
+
+
+//////////////////////////////////////////////
+[FUNCTION idol_donate]
+//Player doando dinheiro para idolo
+if (!<argo>)
+ sysmessageyellow Selecione um punhado de moedas:
+ targetf idol_donate
+elif !(<argo.IsItem>)
+ sysmessagered Voce so pode doar dinheiro.
+elif (<argo.defname>!=i_coin_copper) && (<argo.defname>!=i_coin_silver) && (<argo.defname>!=i_gold)
+ sysmessagered Voce so pode doar dinheiro.
+else
+ idol_donate_amount <argo>
+endif
+
+
+//////////////////////////////////////////////
+[FUNCTION idol_donate_amount]
+//continuação de IDOL_DONATE
+obj=<argn>
+ref1=<ctag0.idol_uid>
+
+//Algum deus inimigo se zanga?
+call idol_findEnemyGod <ref1.tag.god>
+if (<local.HasEnemy>)
+ sysmessagered <local.enemy> se zanga com voce. Nunca mais te ouvira!
+ try idol_debuff_<local.enemy>
+ ref2=<local.enemyMem>
+ ref2.dispiddec=6234
+ ref2.morez=1
+ morte_decrementaPontos <ref2.morem>
+ return 1
+endif
+
+ref2=<idol_FindMemory <ref1.tag.god>>
+
+//Checa se a divindade o renegou
+if (<ref2.morez>)
+ sysmessageorange Voce foi renegad<sex o/a> por <ref2.name>!
+ try idol_debuff_<ref2.name>
+ return 1
+endif
+
+//Checa Coll Down
+if (<ref2.timer> > 0)
+ sysmessageyellow <ref2.name> nao se satisfara. Volte em <f_timestring <ref2.timer>>.
+ return 1
+endif
+
+//Calcula amount para doar
+if (<obj.defname>==i_coin_copper)
+ local.amount=<obj.amount>
+elif (<obj.defname>==i_coin_silver)
+ local.amount=<eval <obj.amount>*10>
+elif (<obj.defname>==i_gold)
+ local.amount=<eval <obj.amount>*100>
+endif
+
+//Aplica modificações
+ref2.morex += 1
+ref1.morex += 1
+ref2.more2 += <local.amount>
+ref1.tag.offers = <eval <ref1.tag0.offers> + <local.amount>>
+ref2.tag.offers = <eval <ref2.tag0.offers> + <local.amount>>
+obj.remove
+
+local.do=1
+//Decide se dá prays para o player
+if (<ref2.more2> >= <ref2.more1>)
+ ref2.more1 += <DEF.IDOL_OFFERINCREASE>
+ ref2.more2 = 0
+ sysmessageblue <ref2.name> esta contente com voce e atendera <eval <DEF.IDOL_PRAYLEVEL>> oracoes.
+ ref2.morey += <DEF.IDOL_PRAYLEVEL>
+ local.do=0
+endif
+
+//Decide se dá alma pro player
+if (<idol_totalDonations> > <idol_nextSoulDonation>)
+ morte_incrementaPontos 1
+ ref2.morem += 1
+ local.do=0
+endif
+
+if (<local.do>)
+ sysmessagegreen Voce doa <obj.amount> <obj.name> para <ref2.name>.
+endif
+
+ref2.timer=<DEF.IDOL_COOLDOWN>
+
+
+//////////////////////////////////////////////
+[FUNCTION idol_findEnemyGod]
+//Procura alguma memory relativa a um deus inimigo de <args>
+FORCONTID i_mry_pray 1
+ if (STRMATCH(*<args>*,<DEF.<name>_ENEMIES>)) && (!<morez>)
+  local.HasEnemy=1
+  local.enemy=<name>
+  local.enemyMem=<uid>
+ endif
+END
+
+//////////////////////////////////////////////
+[FUNCTION idol_totalSouls]
+//Soma todos os pontos de alma concedidos
+local.s=0
+FORCONTID i_mry_pray 1
+ local.s += <morem>
+END
+return <local.s>
+
+//////////////////////////////////////////////
+[FUNCTION idol_nextSoulDonation]
+//Determina quanto dinheiro precisa para proxima doação
+local.souls=<idol_totalSouls>
+return <eval (2@<local.souls>)*<DEF.IDOL_OFFERINCREASE>>
+
+//////////////////////////////////////////////
+[FUNCTION idol_totalDonations]
+//Soma todo dinheiro já doado
+local.m=0
+FORCONTID i_mry_pray 1
+ local.m += <tag0.offers>
+END
+return <local.m>
+
+//////////////////////////////////////////////
+[FUNCTION idol_IsMyGod]
+//Retorna a UID da memory do iduolo se for meu idolo.
+//Retorna 0 se não for
+local.mry=0
+FORCONTID i_mry_pray 1
+ if (STRMATCH(*<args>*,<name>))
+  local.mry=<uid>
+ endif
+END
+return <local.mry>
+
+//////////////////////////////////////////////
+[FUNCTION idol_FindMemory]
+//Procura a memory relativa ao deus <args>
+//Cria a memory se não houvel
+local.mry=<idol_IsMyGod <args>>
+if !(<local.mry>)
+ local.mry=<idol_equipMemory <args>>
+endif
+return <local.mry>
+
+
+//////////////////////////////////////////////
+[FUNCTION idol_equipMemory]
+//Cria e equipa a memory do deus <args>
+serv.newitem=i_mry_pray
+new.name <args>
+new.equip
+new.more1=<DEF.IDOL_MINOFFER>
+return <new>
+
+//////////////////////////////////////////////
+[FUNCTION idol_pray]
+//Player orando <uid.<ctag0.idol_uid>.tag.god>
+obj=<ctag0.idol_uid>
+local.god=<obj.tag.god>
+
+//Corrige o nome do deus tirando o caractere "'"
+if (STRMATCH(*'*,<local.god>)) 
+ local.p=<STRPOS 0 39 <local.god>>
+ //local.p -= 2
+ local.fGod = <STRSUB 0 <local.p> <local.god>>
+ local.p += 1
+ local.l = <eval STRLEN(<local.god>)>
+ local.fGod .= <STRSUB <local.p> <local.l> <local.god>>
+else
+ local.fGod=<local.god>
+endif
+
+//Algum deus é contra essa oração?
+call idol_findEnemyGod <local.god>
+if (<local.HasEnemy>)
+ sysmessagered <local.enemy> se zanga com voce. Nunca mais te ouvira!
+ try idol_debuff_<local.enemy>
+ ref2=<local.enemyMem>
+ ref2.dispiddec=6234
+ ref2.morez=1
+ morte_decrementaPontos <ref2.morem>
+ return 1
+endif
+
+ref1=<idol_IsMyGod <local.god>>
+
+//Ele nunca rezou para esse deus?
+if (!<ref1>)
+ idol_equipMemory <local.god>
+ idol_buff <local.fgod>
+ sysmessageyellow <local.god> lhe atende, mas exige que voce seja um seguidor.
+ 
+//Ele tem pontos de oração?
+elif (<ref1.morey>)
+
+ //Ele está usando o buff já?
+ if (<restest i_mry_buff_<local.fgod>>)
+  sysmessagered <local.god> ja lhe atendeu. Nao amole!
+ else
+  sysmessageblue <local.god> acha seu pedido razoavel.
+  idol_buff <local.fgod>
+  ref1.morey -= 1
+ endif
+ 
+else
+ sysmessagered <local.god> acha seu pedido um disparate. Faca doacoes.
+endif
+
+[FUNCTION idol_buff]
+//Aplica o buff do deus <args>
+newitem=i_mry_buff_<args>
+new.link=<uid>
+new.equip
+local.time=<eval 60*60>
+ref1=<idol_IsMyGod <args>>
+local.time += <eval (<ref1.tag.offers>/10)*60>
+timerf 5,sysmessageorange Sua bencao vai durar <f_timestring <local.time>>.
+new.timer=<local.time>
+
+
+//////////////////////////////////////////////
+//              Funções de Debuff           //
+//////////////////////////////////////////////
+
+[FUNCTION idol_debuff_Melian]
+local.moddex=<eval 30-<DEX>>
+Buff_Dex <local.moddex>, <eval 3*24*60*60>
+
+[FUNCTION idol_debuff_Metryah]
+morte_incrementaDesmaios <DEF.max_desmaios>
+suicide
+
+[FUNCTION idol_debuff_Lyria]
+morte_incrementaDesmaios <DEF.max_desmaios>
+suicide
+
+[FUNCTION idol_debuff_Aranrosse]
+local.modstr=<eval 20-<STR>>
+Buff_Str <local.modstr>, <eval 3*24*60*60>
+
+[FUNCTION idol_debuff_Mond]
+morte_incrementaDesmaios <DEF.max_desmaios>
+suicide
+
+[FUNCTION idol_debuff_Jat]
+morte_incrementaDesmaios <DEF.max_desmaios>
+f_pega_fogo
+new.more2=360
+
+[FUNCTION idol_debuff_Luna]
+morte_incrementaDesmaios <DEF.max_desmaios>
+f_sm_bleed
+new.more1=14
+
+[FUNCTION idol_debuff_Ferid]
+f_polymorph c_zombie,0,<eval 3*24*60*60>
+local.modstr=<eval 40-<DEX>>
+Buff_Dex <local.moddex>, <eval 3*24*60*60>
+
+[FUNCTION idol_debuff_Alkron]
+morte_incrementaDesmaios <DEF.max_desmaios>
+suicide
+
+[FUNCTION idol_debuff_Eilyel]
+f_polymorph c_doe,0,<eval 3*24*60*60>
+local.moddex=<eval 40-<DEX>>
+Buff_Dex <local.moddex>, <eval 3*24*60*60>
+
+[FUNCTION idol_debuff_Lolth]
+f_polymorph c_terathran_drone,0,<eval 3*24*60*60>
+local.moddex=<eval 40-<DEX>>
+Buff_Dex <local.moddex>, <eval 3*24*60*60>
+
+[FUNCTION idol_debuff_Kaylin]
+morte_incrementaDesmaios <DEF.max_desmaios>
+f_pega_fogo
+new.more2=360
+f_sm_bleed
+new.more1=14
+
+[FUNCTION idol_debuff_Yarret]
+f_polymorph c_snake,0,<eval 3*24*60*60>
+local.moddex=<eval 40-<DEX>>
+Buff_Dex <local.moddex>, <eval 3*24*60*60>
+f_idol_debuff_Yarret
+
+[FUNCTION f_idol_debuff_Yarret]
+if (<IsOnline>)
+ if (<body>==c_snake)
+  msay louco
+  timerf <R3,15>,f_idol_debuff_Yarret
+ endif
+else
+ timerf 60,f_idol_debuff_Yarret
+endif
+
+[FUNCTION idol_debuff_Min'Gorad]
+f_polymorph c_zombie,0,<eval 3*24*60*60>
+local.modstr=<eval 40-<DEX>>
+Buff_Dex <local.moddex>, <eval 3*24*60*60>
+
+[FUNCTION idol_debuff_Molag'Bal]
+morte_incrementaDesmaios <DEF.max_desmaios>
+suicide
+
+
+//////////////////////////////////////////////
+//              Itemdefs de Buff            //
+//////////////////////////////////////////////
+
+
+[ITEMDEF i_mry_buff_Melian]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Melian
+
+on=@timer
+remove
+return 1
+
+on=@equip
+cont.sysmessageyellow Voce se sente mais vigoroso.
+cont.maxhits += 35
+
+on=@unequip
+cont.sysmessageorange A bencao de Melian se foi.
+cont.maxhits -= 35
+
+[ITEMDEF i_mry_buff_Metryah]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Metryah
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morex=<MINIMUM 100,<eval 1250-<cont.blacksmithing>>>
+morey=<MINIMUM 100,<eval 1250-<cont.alchemy>>>
+morez=<MINIMUM 100,<eval 1250-<cont.spellweaving>>>
+cont.blacksmithing += <morex>
+cont.alchemy += <morey>
+cont.spellweaving += <morez>
+
+on=@unequip
+cont.blacksmithing -= <morex>
+cont.alchemy -= <morey>
+cont.spellweaving -= <morez>
+
+[ITEMDEF i_mry_buff_Lyria]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Lyria
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morex=<MINIMUM 100,<eval 1250-<cont.spellweaving>>>
+morey=<MINIMUM 100,<eval 1250-<cont.animallore>>>
+morez=<eval <cont.HitsRegen>/4>
+cont.spellweaving += <morex>
+cont.animallore += <morey>
+cont.HitsRegen = <eval <cont.HitsRegen>-<morez>>
+
+on=@unequip
+cont.spellweaving -= <morex>
+cont.animallore -= <morey>
+cont.HitsRegen = <eval <cont.HitsRegen>+<morez>>
+
+[ITEMDEF i_mry_buff_Aranrosse]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Aranrosse
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morex=<MINIMUM 100,<eval 1250-<cont.taming>>>
+morey=<MINIMUM 100,<eval 1250-<cont.animallore>>>
+morez=<MINIMUM 100,<eval 1250-<cont.camping>>>
+cont.taming += <morex>
+cont.animallore += <morey>
+cont.camping += <morez>
+
+on=unequip
+cont.taming -= <morex>
+cont.animallore -= <morey>
+cont.camping -= <morez>
+
+[ITEMDEF i_mry_buff_Mond]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Mond
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morex=<MINIMUM 15,<eval 66-<cont.ar>>>
+morey=<MINIMUM 10,<eval 150-<cont.str>>>
+cont.modar += <morex>
+cont.modstr += <morey>
+
+on=@unequip
+cont.modar -= <morex>
+cont.modstr -= <morey>
+
+[ITEMDEF i_mry_buff_Jat]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Jat
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morex=<MINIMUM 15,<eval 150-<cont.str>>>
+morey=<MINIMUM 15,<eval 150-<cont.dex>>>
+morez=<MINIMUM 15,<eval 150-<cont.int>>>
+cont.modstr += <morex>
+cont.moddex += <morey>
+cont.modint += <morez>
+
+on=@unequip
+cont.modstr -= <morex>
+cont.moddex -= <morey>
+cont.modint -= <morez>
+
+[ITEMDEF i_mry_buff_Luna]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Luna
+
+on=@timer
+remove
+return 1
+
+on=@equip
+cont.sysmessageyellow Voce sente que pode concentrar mais mana.
+cont.maxmana += 35
+morex=<MINIMUM 100,<eval 1250-<cont.magery>>>
+morey=<MINIMUM 100,<eval 1250-<cont.Inscription>>>
+cont.magery += <morex>
+cont.inscription += <morey>
+
+on=@unequip
+cont.sysmessageorange A bencao de Luna se foi.
+cont.maxmana -= 35
+cont.magery -= <morex>
+cont.inscription -= <morey>
+
+[ITEMDEF i_mry_buff_Ferid]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Ferid
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morex=<MINIMUM 200,<eval 1250-<cont.parrying>>>
+morey=<MINIMUM 200,<eval 1250-<cont.tactics>>>
+cont.parrying += <morex>
+cont.tactics += <morey>
+
+on=@unequip
+cont.parrying -= <morex>
+cont.tactics -= <morey>
+
+
+[ITEMDEF i_mry_buff_Alkron]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Alkron
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morex=<MINIMUM 100,<eval 1250-<cont.tactics>>>
+morey=<MINIMUM 100,<eval 1250-<cont.swordsmanship>>>
+morez=<MINIMUM 100,<eval 1250-<cont.macefighting>>>
+morem=<MINIMUM 100,<eval 1250-<cont.parrying>>>
+cont.tactics += <morex>
+cont.swordsmanship += <morey>
+cont.macefighting += <morez>
+cont.parrying += <morem>
+
+on=@unequip
+cont.tactics -= <morex>
+cont.swordsmanship -= <morey>
+cont.macefighting -= <morez>
+cont.parrying -= <morem>
+
+[ITEMDEF i_mry_buff_Eilyel]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Eilyel
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morex=<MINIMUM 100,<eval 1250-<cont.musicianship>>>
+morey=<MINIMUM 100,<eval 1250-<cont.EvaluatingIntel>>>
+morez=<MINIMUM 100,<eval 1250-<cont.Meditation>>>
+cont.musicianship += <morex>
+cont.EvaluatingIntel += <morey>
+cont.Meditation += <morez>
+
+on=@unequip
+cont.musicianship -= <morex>
+cont.EvaluatingIntel -= <morey>
+cont.Meditation -= <morez>
+
+[ITEMDEF i_mry_buff_Lolth]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Lolth
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morey=<MINIMUM 100,<eval 1250-<cont.Hiding>>>
+morez=<MINIMUM 100,<eval 1250-<cont.Stealth>>>
+cont.Hiding += <morey>
+cont.Stealth += <morez>
+cont.maxmana += 10
+
+on=@unequip
+cont.Hiding -= <morey>
+cont.Stealth -= <morez>
+cont.maxmana -= 10
+
+[ITEMDEF i_mry_buff_Kaylin]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Kaylin
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morex=<MINIMUM 100,<eval 1250-<cont.Fencing>>>
+morey=<MINIMUM 100,<eval 1250-<cont.Poisoning>>>
+morez=<MINIMUM 100,<eval 1250-<cont.Hiding>>>
+cont.Fencing += <morex>
+cont.Poisoning += <morey>
+cont.Hiding += <morez>
+
+on=@unequip
+cont.Fencing -= <morex>
+cont.Poisoning -= <morey>
+cont.Hiding -= <morez>
+
+[ITEMDEF i_mry_buff_Yarret]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Yarret
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morex=<MINIMUM 100,<eval 1250-<cont.Snooping>>>
+morey=<MINIMUM 100,<eval 1250-<cont.Stealth>>>
+morez=<MINIMUM 100,<eval 1250-<cont.Hiding>>>
+cont.Snooping += <morex>
+cont.Stealth += <morey>
+cont.Hiding += <morez>
+
+on=@unequip
+cont.Snooping -= <morex>
+cont.Stealth -= <morey>
+cont.Hiding -= <morez>
+
+[ITEMDEF i_mry_buff_MinGorad]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff Min'Gorad
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morex=<MINIMUM 100,<eval 1250-<cont.Necromancy>>>
+morey=<MINIMUM 100,<eval 1250-<cont.Meditation>>>
+morez=<MINIMUM 100,<eval 1250-<cont.SpiritSpeak>>>
+cont.Necromancy += <morex>
+cont.Meditation += <morey>
+cont.SpiritSpeak += <morez>
+
+on=@unequip
+cont.Necromancy -= <morex>
+cont.Meditation -= <morey>
+cont.SpiritSpeak -= <morez>
+
+[ITEMDEF i_mry_buff_MolagBal]
+ID=i_memory
+TYPE=t_eq_script
+NAME=Buff MolagBal
+
+on=@timer
+remove
+return 1
+
+on=@equip
+morex=<MINIMUM 100,<eval 1250-<cont.Magery>>>
+morey=<eval <cont.ManaRegen>/4>
+cont.Magery += <morex>
+cont.maxmana += 30
+cont.ManaRegen = <eval <cont.ManaRegen>-<morey>>
+
+on=@unequip
+cont.Magery -= <morex>
+cont.maxmana -= 30
+cont.ManaRegen = <eval <cont.ManaRegen>+<morey>>
+
+//////////////////////////////////////////////////////////////////////////
+// MENUS E GUMPS
+
+[MENU m_idol_choose_god]
+Selecione um deus:
+on=0 Melian
+idol_set_god Melian
+
+on=0 Metryah
+idol_set_god Metryah
+
+on=0 Lyria
+idol_set_god Lyria
+
+on=0 Aranrosse
+idol_set_god Aranrosse
+
+on=0 Mond
+idol_set_god Mond
+
+on=0 Jat
+idol_set_god Jat
+
+on=0 Luna
+idol_set_god Luna
+
+on=0 Ferid
+idol_set_god Ferid
+
+on=0 Alkron
+idol_set_god Alkron
+
+on=0 Eilyel
+idol_set_god Eilyel
+
+on=0 Lolth
+idol_set_god Lolth
+
+on=0 Kaylin
+idol_set_god Kaylin
+
+on=0 Yarret
+idol_set_god Yarret
+
+on=0 Min'Gorad
+idol_set_god Min'Gorad
+
+on=0 Molag'Bal
+idol_set_god Molag'Bal
+
+
+// Created 1/10/2009 00:09:39, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+
+[DIALOG d_idol]
+150,75
+obj=<ctag0.idol_uid>
+if (!<var0.idol_block>)
+ ref1=<idol_IsMyGod <obj.tag.god>>
+ if (!<ref1>)
+  local.text=Voce nunca adorou <obj.tag.god>. 
+ else
+  if (<ref1.morez>)
+   local.text=<obj.tag.god> ficou zangado com voce e te amaldicoou. Todos os pontos de alma ganhos foram retirados. <obj.tag.god> nunca mais te ouvira.
+   local.negate=1
+  else
+   local.text=Adoracoes: <ref1.morex> (<STRTRESURE <ref1.tag0.offers>>)<DEF.BR>Pontos de alma concedidos: <ref1.morem><DEF.BR>Oracoes restantes: <ref1.morey>
+  endif
+ endif
+else
+ local.text=Sistema de fe desativado.
+endif
+page 0
+resizepic 0 0 2620 481 203
+checkertrans 6 6 469 189
+tilepic 9 11 11534
+tilepic 427 11 11539
+dhtmlgump 72 14 338 86 1 0 <DEF.CENTER><DEF.BFONT_RED>Idolo de <obj.tag.god><DEF.BR><DEF.BFONT_blue><local.text><DEF.DIV_E>
+if (!<local.negate>) && (!<var0.idol_block>)
+ button 156 105 2151 2152 1 0 1
+ dtext 193 110 2100 Fazer uma doacao
+ button 156 140 2151 2152 1 0 2
+ dtext 193 145 2100 Fazer uma oracao
+endif
+
+[DIALOG d_idol text]
+
+[DIALOG d_idol button]
+ON=1
+// Doação
+src.idol_donate
+
+ON=2
+// Oração
+src.idol_pray
+
+
+
+
+[EOF]

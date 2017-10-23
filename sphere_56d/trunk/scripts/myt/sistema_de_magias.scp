@@ -1,0 +1,1696 @@
+[comment sistema_de_magias]
+
+        -=OFFSETS DAS MAGIAS=-
+0 a 99          Padrão
+100 a 149       Destruição (Magery)
+150 a 199       Restauração (Focus)
+200 a 249       Alteração (Spellweavung)
+250 a 299       Necromancia (Necromancy)
+300 a 349       Ilusão - Bardspells (Musicianship)
+350 a 374       Efeitos de armadilhas
+375 a 399       Efeitos de maldições
+400 a 449       Efeitos de poções
+
+
+        -=ToDo=-
+- Apagar magias da DB quando char for deletado
+- Refazer o sistema de encantar itens
+- Encantar armas/armaduras
+
+        -=TAGS UTILIZADOS=-
+tag.mage_spellid
+tag.mage_know
+tag.mage_source
+tag.mage_mana
+tag.mage_actdiff
+tag.mage_skill
+tag.mage_uid
+ctag.mage.gem
+ctag.mage.power
+ctag.mage.enchant_spell
+
+
+@Spellselect
+argn1=magia
+argn2=mana
+argn3=3 se esta começando, 2 se passou no teste (é chamado 2x)
+argo=objeto de quem está se castando
+O que faz:
+- Guarda o objeto de onde está se castando (UID do mago, UID do scroll, UID da wand, UID da gema)
+Se é o mago castando por WoP:
+ Se sabe a magia:
+  - Proceder normal
+ Se não sabe a magia:
+  - Mana += 25%
+Se é mago usando scroll
+ Se sabe a magia:
+  - Não gasta mana
+ Se não sabe a magia
+  - Gasta mana
+Se é mago usando gema ou wand
+  - Não gasta mana
+
+@spellcast
+argn1=magia
+argn2=dificuldade ajustavel
+argn3=resultado do cálculo de dificuldade
+O que faz:
+- Verifica o objeto que castou a magia (mago via WoP, scroll, wand ou gema
+Se é o mago castando por WoP:
+ Se sabe a magia:
+  - Proceder normal
+ Se não sabe a magia:
+  - Dificuldade += 25%
+Se é mago usando scroll
+ Se sabe a magia:
+  - Dificuldade -= 25%
+ Se não sabe a magia
+  - Proceder normal
+Se é mago usando gema ou wand
+  - Dificuldade 0
+
+Foram usados IFs encadeados em alguns blocos em ordens específicas para diminuir o impacto
+no processamento de chamadas mais corriqueiras.
+
+Caminho                 Oposto          Paradoxal
+Alteração               Destruição      Necromancia
+Destruição              Alteração       Restauração
+Necromancia             Restauração     Alteração
+Restauração             Necromancia     Destruição
+
+
+DROP TABLE IF EXISTS `mytserver`.`spellbooks`;
+CREATE TABLE  `mytserver`.`spellbooks` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `player` int(5) unsigned default NULL COMMENT 'UID do jogador',
+  `spellid` int(4) unsigned default NULL COMMENT 'ID da spell',
+  `skill` int(3) unsigned default NULL COMMENT 'Essa spell e relativa a que skill?',
+  `diff` int(5) unsigned default NULL COMMENT 'Dificuldade da spell. Para classificar no livro',
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `ByPlayer` USING BTREE (`player`,`spellid`)
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
+//************************************************************************************
+//************************************************************************************
+//************************************************************************************
+//************************************************************************************
+
+[DEFNAME MAGE_SYSTEM]
+MAGE_SELF               1
+MAGE_WAND               2
+MAGE_GEM                3
+MAGE_SCROLL             4
+
+MAGE_SPELL_KNOWN        1
+MAGE_SPELL_UNKNOWN      0
+
+MAGE_LEARN_RATIO        16
+MAGE_LEARN_OFFSET       5
+MAGE_LEARN_DECAY        60*60*24*3
+
+MAGE_LEARNING           1
+MAGE_KNOWN              2
+
+
+[PLEVEL 4]
+mage_initSpells
+mage_KnowSpell
+mage_addSpell
+mage_learnSpell
+mage_loadSpells
+mage_forgetSpell
+
+[PLEVEL 6]
+//Infelizmente, Anti-Dragazul
+xmage_initSpells
+xmage_KnowSpell
+xmage_addSpell
+xmage_learnSpell
+xmage_loadSpells
+xmage_forgetSpell
+
+//////////////////////////////////////FUNCTIONS///////////////////////////////
+
+
+////// Funções básicas utilizadas em todo o script ou chamadas em outras Events como e_geral.
+
+//***********************************************************
+// mage_sonsumeMana <mana>
+//***********************************************************
+//Consome do mago <argn> de mana e retorna quanta mana ele tem.
+[FUNCTION mage_consumeMana]
+if (<mana> < <argn>)
+ mana=0
+else
+ mana -= <argn>
+endif
+return <mana>
+
+//***********************************************************
+// mage_clearTags
+//***********************************************************
+//Apaga todas as tags referentes a castar magias
+//Usa-se tags pois ctags não são permitidas em NPCs.
+[FUNCTION mage_clearTags]
+tag.mage_spellid=
+tag.mage_know=
+tag.mage_source=
+tag.mage_mana=
+tag.mage_actdiff=
+tag.mage_skill=
+tag.mage_uid=
+tag.mage_p=
+if (<IsPlayer>)
+ ctag.mage.gem=
+ ctag.mage.power=
+ ctag.mage.enchant_spell=
+endif
+
+
+//***********************************************************
+// mage_skillgain
+//***********************************************************
+//Evita magos ganharem skill em spells muito simples para seu nível.
+[FUNCTION mage_skillgain]
+//cache vars
+LOCAL.skillreq=<serv.spell.<tag0.mage_spellid>.skillreq>
+LOCAL.skilldiff=<strarg <LOCAL.skillreq>>
+LOCAL.skillreq=<streat <LOCAL.skillreq>>
+if (strmatch(skill_*,<LOCAL.skillreq>))
+    LOCAL.skillname=<LOCAL.skillreq>
+else
+    LOCAL.skillname=skill_<LOCAL.skillreq>
+endif
+
+try LOCAL.MY=<SRC.<DEF.<LOCAL.skillname>>>
+//serv.log [MAGE_SKILLGAIN] <account> tem <dlocal.my> de <LOCAL.skillname>
+LOCAL.ACT=<LOCAL.skilldiff>+300
+if (<local.my> < <local.act>)
+  //Checar caminhos opostos
+ if (<DEF.<local.skillname>>==<DEF.SKILL_Spellweaving>) && (<necromancy>)
+  necromancy -= 1
+ elif (<DEF.<local.skillname>>==<DEF.SKILL_Magery>) && (<focus>)
+  focus -= 1
+ elif (<DEF.<local.skillname>>==<DEF.SKILL_Necromancy>) && (<spellweaving>)
+  spellweaving -= 1
+ elif (<DEF.<local.skillname>>==<DEF.SKILL_Focus>) && (<Magery>)
+  magery -= 1
+ endif
+ //Trigar ganho de skill
+// serv.log [MAGE_SKILLGAIN] <src.account> skill_gain <LOCAL.skillname>
+ skill_gain <LOCAL.skillname>
+else
+// serv.log [MAGE_SKILLGAIN] <src.account> NAO GANHA SKILL <LOCAL.skillname> pq eh muito facil
+endif
+
+//***********************************************************
+// mage_success
+//***********************************************************
+//chamado no @SKILLSUCCESS para skills Magery, Necromancy, Focus e SpellWeaving
+[FUNCTION mage_success]
+
+IF (<IsGM>)
+ return 6
+ENDIF
+
+IF !<tag0.mage_spellid>
+ return 1
+endif
+
+//Teste de penalidade por andar
+if (!<IsEmpty <tag.mage_p>>)
+ local.penalty=<eval 4.5*<distance <tag.mage_p>>>
+ if (<local.penalty>)
+  local.penalty += <eval (<tag0.mage_actdiff>*10)-2.6>//Ajuste liear de -2.6 por causa de aflhas automáticas. Estamos testando 2x a magia desse jeito. Então o segundo teste (de penalidade por correr) deve ser mais brando pra não foder uma magia que já foi dada como sucesso.
+  local.skill=<streat <serv.spell.<tag0.mage_spellid>.skillreq>>
+  TRY local.skill = <src.<eval <DEF.<local.skill>>&03fffffff>> //03fffffff=(~0c0000000) pega ID da skill e na sequencia o valor que o player tem
+  //serv.log SPELLSUCCESS: Penalidade por andar: <dlocal.penalty> (<dlocal.skill>)
+  if (!<BELLTEST <local.skill>,<local.penalty>>)
+   sysmessagered Voce andou de mais!
+   mage_consumeMana <tag.mage_mana>
+   mage_cleartags
+   action -1
+   return 0
+  endif
+ endif 
+endif
+
+// *TESTE DO BB*
+//if <tag0.mage_source>==<DEF.MAGE_SELF> && !<tag0.mage_know>
+// serv.log [mage_success] S: <tag0.mage_spellid> <serv.spell.<tag0.mage_spellid>.name>
+// mage_learnSpell <tag0.mage_spellid>
+// endif
+
+if <tag0.mage_source>==<DEF.MAGE_WAND>
+ obj=<tag.mage_uid>
+ obj.more2 -= 1
+ obj.update
+ if <obj.more2> < 1
+  if <obj.layer>        //É wand, não gem
+   obj.morex=0
+   sysmessagered O poder de <obj.name> se esvaiu.
+   if !<IsEmpty <obj.tag.name>>
+    obj.name=<obj.tag.name>
+   endif
+  else                  //É gem
+   sysmessagered <obj.name> some sem deixar vestigios.
+   obj.timerf 1,decrement
+  endif
+ endif
+endif
+if <tag0.mage_source>==<DEF.MAGE_SCROLL>
+ uid.<tag.mage_uid>.decrement
+ sysmessageorange O pergaminho desintegra-se magicamente
+endif
+mage_consumeMana <tag.mage_mana>
+mage_skillgain
+//serv.log mage_success <serv.spell.<tag0.mage_spellid>.name>
+TRIGGER @TownSpellSuccess,<DEF.TAT_AS_ARGN>,<tag0.mage_spellid>
+mage_cleartags
+return 6
+
+//***********************************************************
+// mage_fail
+//***********************************************************
+//chamado no @SKILLFAIL para skills Magery, Necromancy, Focus e SpellWeaving
+[FUNCTION mage_fail]
+//Magery
+if <tag0.mage_source>==<DEF.MAGE_SCROLL>
+ uid.<tag.mage_uid>.decrement
+ sysmessageyellow O pergaminho se esfarelou em sua mao.
+endif
+mage_consumeMana <src.tag0.mage_mana>
+//serv.log [MAGE_FAIL] <account> falha <serv.spell.<tag0.mage_spellid>.name>
+IF (<tag0.mage_know>)
+ mage_skillgain
+endif
+mage_cleartags
+
+//***********************************************************
+// mage_GetSpellRunes <magia>
+//***********************************************************
+//Retorna a palavra do poder para a spell <args>
+[FUNCTION mage_GetSpellRunes]
+local.rop=<SERV.SPELL.<ARGV[0]>.RUNES>
+local.sk=<streat <SERV.SPELL.<ARGV[0]>.SKILLREQ>>
+local.i=1
+local.wop ="<DEF.RUNE_<local.sk>_<strsub 0 1 <local.rop>>> "
+WHILE !<IsEmpty <strsub <local.i> 1 <local.rop>>>
+ local.wop .= "<DEF.RUNE_<local.sk>_<strsub <dlocal.i> 1 <local.rop>>> "
+ local.i += 1
+END
+return <strtrim <local.wop>>
+
+//***********************************************************
+// mage_enchant_gem <UIDgem>
+//***********************************************************
+//Abre dialogo para encantar uma gema com pontos ou magia
+[FUNCTION mage_enchant_gem]
+if (!<argo>)
+ sysmessageyellow Selecione a pedra lapidada ou varinha
+ targetf mage_enchant_gem
+ return 1
+elif (!<argo.isitem>)
+ sysmessagered Polimorfismo com gemas? Nao...
+ return 1
+elif (<argo.topobj>!=<src>) || ( ( (<argo.type>!=t_wand) && (!<argo.layer>) ) && (<argo.type>!=t_gem_stoned) )
+ sysmessagered Impossivel encantar isso.
+ return 1
+elif (<argo.amount> > 1)
+ sysmessagered Impossivel mais de uma por vez.
+ return 1
+elif (<argo.more2>) && (!<argo.layer>)
+ sysmessagered Esta gema ja foi encantada.
+ return 1
+elif (<argo.layer>) && !(<argo.attr>&01)
+ sysmessagered Voce nao faz ideia do que este objeto eh capaz de fazer.
+ return 1
+elif (<argo.more2> > 11) && (<argo.layer>)
+ sysmessagered Esta varinha alcancou sua carga maxima.
+ return 1
+elif (<argo.morex>)
+ if (!<mage_KnowSpell <argo.morex>>)
+  sysmessagered Voce nao conhece a magia <serv.spell.<argo.morex>.name> para recarregar a varinha
+  return 1
+ endif
+endif
+//Limpa o cachê e salva a pedra.
+mage_cleartags
+src.ctag.mage.gem=<argo>
+if (<argo.morex>)
+ src.ctag.mage.enchant_spell=<argo.morex>
+endif
+src.ctag.mage_skill=Skill_<serv.skill.<eval <argo.tdata1>>.key>
+SDIALOG d_spellbook 3
+return 1
+
+//***********************************************************
+// mage_enchant_gem_select_spell
+//***********************************************************
+//Selecinou a magia <argn> como sendo a magia do encantamento de uma gema
+[FUNCTION mage_enchant_gem_select_spell]
+ctag.mage.enchant_spell=<argn>
+SDIALOG d_spellbook 3
+return 1
+
+
+
+
+
+//*******************************************************************************
+//
+/////////////////////////////Manejar magias e DB/////////////////////////////////
+//
+//*******************************************************************************
+
+//***********************************************************
+// mage_AdmCountDB
+//***********************************************************
+//Conta quantas spells e quantos players estão inscritos
+[FUNCTION mage_AdmCountDB]
+DB.QUERY="SELECT COUNT(DISTINCT player) as CNT FROM spellbooks;"
+local.p=<DB.ROW.CNT>
+DB.QUERY="SELECT COUNT(skill) as CNT FROM spellbooks;"
+local.s=<DB.ROW.CNT>
+sysmessageyellow Um total de <dlocal.s> magias para <dlocal.p> jogadores.
+
+//***********************************************************
+// mage_pruneDB
+//***********************************************************
+//Limpa todas as magias dos players não existentes
+[FUNCTION mage_pruneDB]
+DB.QUERY="SELECT DISTINCT player FROM spellbooks;"
+local.prune=0
+local.lst=-1.0        //truque sujo
+for p 0 <eval <DB.ROW.NUMROWS>-1>
+    LOCAL.player=<DB.ROW.<dlocal.p>.player>
+    obj=<LOCAL.player>
+    if ( (!<obj.Instances>) && (!<obj.IsChar>) ) || !<obj> 
+        local.lst .= ,<eval <LOCAL.player>>
+        local.prune += 1
+    endif
+end
+
+if <local.prune>
+    local.q="DELETE FROM spellbooks WHERE player IN (<local.lst>);"
+    serv.log [MAGE_PruneDB] <local.q>
+    DB.EXECUTE=<local.q>
+    return <local.prune>
+endif
+
+return 0
+
+//***********************************************************
+// mage_DumpSpells
+//***********************************************************
+//Mostra as magias inscritas na DB para este char
+[FUNCTION mage_DumpSpells]
+if !<argo>
+    sysmessageyellow Selecione o char:
+    TARGETF mage_DumpSpells
+else
+    local.uid=<argo>
+    local.uid &= ~040000000
+
+    DB.QUERY="SELECT * FROM spellbooks WHERE player=<dlocal.uid>;"
+    local.c=0
+    serv.log ----------------[DUMPSPELLS]-------------------
+    serv.log UID:<local.uid>(<dlocal.uid>) ARGO:<argo> ACC:<argo.account> NAME:<argo.tag.name>
+    for s 0 <eval <DB.ROW.NUMROWS>-1>
+        local.m=I:<DB.ROW.<dlocal.s>.id>::P:<DB.ROW.<dlocal.s>.player>::Sid:<DB.ROW.<dlocal.s>.spellid>::Sk:<DB.ROW.<dlocal.s>.skill>::Dif:<DB.ROW.<dlocal.s>.diff>
+        if <local.c>
+            local.c=0
+            sysmessageyellow <local.m>
+        else
+            local.c=1
+            sysmessagegreen <local.m>
+        endif
+        serv.log <dlocal.s> - <local.m>
+    end
+    serv.log ----------------[/DUMPSPELLS]------------------
+endif
+
+
+//***********************************************************
+// mage_wipeSpells
+//***********************************************************
+//Limpa todas as magias do player <default> da DB
+[FUNCTION mage_wipeSpells]
+return 1
+//DB.QUERY="DELETE FROM spellbooks WHERE player=<eval <UID>>';"
+
+//***********************************************************
+// mage_initSpells [<spell>]
+//***********************************************************
+//Limpa todas as magias do player <default> e começa de novo
+[FUNCTION mage_initSpells]
+mage_wipeSpells
+if (!<IsEmpty <args>>)
+ tag.spells=;<args>;
+else
+ tag.spells=;
+endif
+
+//***********************************************************
+// mage_addSpell <spell>
+//***********************************************************
+//Adiciona uma magia para o jogador <default> na DB e na lista local.
+[FUNCTION mage_addSpell]
+local.spell=<mage_GetSpellNumber <argv0>>
+
+if (!<local.spell>)
+ return 0
+endif
+
+IF <mage_KnowSpell <local.spell>>
+ return 0
+else
+ IF (<IsEmpty <tag.spells>>)
+  tag.spells = <local.spell>
+ ELSE
+  tag.spells .= <serv.spell.<local.spell>.defname>;
+ ENDIF
+ENDIF
+if (<IsPlayer>)
+    local.sk=<serv.spell.<local.spell>.skillreq>
+    DB.QUERY="INSERT INTO spellbooks SET player=<dSRC>, skill=<dDEF.<streat <LOCAL.sk>>>, diff=<eval <strarg <LOCAL.sk>>>, spellid=<dlocal.spell>;"
+endif
+
+//***********************************************************
+// mage_GetSpellNumber
+//***********************************************************
+[FUNCTION mage_GetSpellNumber]
+//Retorna o número da spell <args>
+
+if (<IsNum <argv0>>)
+ if <serv.spell.<argn>>
+  return <argn>
+ endif
+endif
+
+if (<hval <DEF.<argv0>>&0ca000000>!=0ca000000)
+ //sysmessageyellow Nao eh magia.
+ return 0
+endif
+return <eval <argv0>^0ca000000>
+
+//***********************************************************
+// mage_loadSpells
+//***********************************************************
+//Carrega as magias do jogador <default> da DB para a lista local.
+[FUNCTION mage_loadSpells]
+DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<dUID> ORDER BY diff ASC;"
+tag.spells=;<serv.spell.<DB.ROW.0.spellid>.defname>;
+for r 1 <eval <DB.ROW.NUMROWS>-1>
+ if (!<IsEmpty <DB.ROW.<dlocal.r>.spellid>>)
+  tag.spells .=<serv.spell.<DB.ROW.0.spellid>.defname>;
+ endif
+end
+
+//***********************************************************
+// mage_forgetSpell <spell>
+//***********************************************************
+//Apaga uma dada magia da DB e carrega novamente a lista local para o jogador <default>
+[FUNCTION mage_forgetSpell]
+local.spellid=<mage_GetSpellNumber <argv0>>
+
+DB.EXECUTE="DELETE FROM spellbooks WHERE player=<dUID> AND spellid=<dlocal.spell>";
+mage_loadSpells
+  
+[FUNCTION mage_KnowSpell]
+//Checa na DB local se o jogador conhece a dada spell
+DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<dUID> AND spellid=<eval <mage_GetSpellNumber <argv0>>>;"
+RETURN <DB.ROW.NUMROWS>
+
+
+
+//*******************************************************************************
+//
+////////////////////////////Aprendizado de magias////////////////////////////////
+//
+//*******************************************************************************
+
+//***********************************************************
+// i_mry_learn_spell
+//***********************************************************
+//Memória que guarda que o <cont> está aprendendo a spell
+//more1 é a spell
+//more2 é quantos sucessos ele ainda precisa para aprender efetivamente a spell.
+//more2 inicial é <spell.skillreq>/<DEF.MAGE_LEARN_RATIO>
+//Some e deixa de aprender a spell quando correr o timer que é <DEF.MAGE_LEARN_DECAY>
+[ITEMDEF i_mry_learn_spell]
+id=i_deed
+name=Aprendendo magia
+type=t_eq_script
+layer=layer_special
+
+on=@create
+//color=memory_learnSpell               //Sim, o tipo de memoria fica no Color. Sempre foi assim desde o Sphere 0.54
+//attr=012
+
+on=@timer
+f_sendMessage <cont>,Voce nao consegue mais se lembrar o que tinha aprendido sobre <serv.spell.<more1>.name>,028
+remove
+return 1
+
+//***********************************************************
+// mage_getIncLearning <spell>
+//***********************************************************
+//Retorna quantas vezes o char tem que acertar a magia para aprender
+[FUNCTION mage_getIncLearning]
+//Custo da magia em sí (0~60)
+local.cost=<BETWEEN 0,60,<strarg <serv.spell.<argv[0]>.skillreq>>,125.0>
+
+//Bônus pela skill do playa (-25~0)
+local.cost -= <BETWEEN 0,25,<src.<DEF.Skill_<streat <serv.spell.<argv[0]>.skillreq>>>>,1250>
+
+//Modificador por Inscription (-25~30)
+local.cost -= <BETWEEN -30,25,<src.Inscription>,1250>
+
+//Modificador por spells sendo aprendidas (+3 x spells)
+local.cost += <eval 3*(<mage_countLearningSpells>-1)>
+
+//Minimizar em 5
+local.cost = <MAXIMUM <DEF.MAGE_LEARN_OFFSET>,<local.cost>>
+
+return <local.cost>
+
+//***********************************************************
+// mage_learnSpell <spell>,[<value>]
+//***********************************************************
+[FUNCTION mage_learnSpell]
+//Faz o char aprender a spell <argv[0]>. <ARGV[1]> é opcional, quantas vezes vale esta tentativa.
+//Retorna 1 se o aprendizado terminou.
+//player.mage_learnSpell <spelldefname>
+
+if !<serv.spell.<argn>>
+ serv.log [MAGIA] <TAG.NAME> [<ACCOUNT>] :: Magia '<args>' nao existe.
+ return 0
+endif
+
+if (!0<argv[1]>)
+ local.inc=1
+else
+ local.inc=<argv[1]>
+endif
+
+args=<serv.spell.<argn>.defname>
+
+local.memory=<mage_findLearningSpell <args>>
+if !<local.memory>
+ //Ainda não começou a aprender essa. iniciar.
+ local.learning=<mage_countLearningSpells>
+ serv.newitem i_mry_learn_spell
+ new.link=<UID>
+ new.cont=<UID>
+ new.more1 <args>
+ new.timer <DEF.MAGE_LEARN_DECAY>
+ local.sname=<serv.spell.<args>.name>
+ new.name=Learn Spell (<local.sname>)
+ sysmessageyellow Voce comecou a aprender uma magia nova: <local.sname>
+ sysmessageyellow Aprendendo agora <eval <local.learning>+1> novas magias
+ obj=<new>
+else
+ obj=<local.memory>
+endif
+
+//Já tá aprendendo a magia. Incrementar.
+obj.more2 += <local.inc>
+if <obj.more2> >= <mage_getIncLearning <obj.more1>>
+ //terminou o aprendizado
+ local.spell=<hval <obj.more1>&000ffffff>
+ mage_addSpell <local.spell>
+ timerf 3 sysmessageorange,Voce aprendeu uma magia nova: <serv.spell.<local.spell>.name>
+ timerf 3 psfx,<serv.spell.<local.spell>.SOUND>
+ obj.remove
+ return 1
+else
+ obj.timer=<DEF.MAGE_LEARN_DECAY>
+endif
+return 0
+
+//***********************************************************
+// mage_countLearningSpells
+//***********************************************************
+//Conta quantas spells o player está aprendendo.
+[FUNCTION mage_countLearningSpells]
+local.n=0
+FORCHARLAYER 30// memory_learnSpell
+ IF (<defname>==i_mry_learn_spell)
+  local.n += 1
+ ENDIF
+ENDFOR
+return <local.n>
+
+//***********************************************************
+// mage_findLearningSpell
+//***********************************************************
+//Retorna a UID da memoria de aprendizado de magia da magia <args>
+[FUNCTION mage_findLearningSpell]
+FORCHARLAYER 30//memory_learnSpell
+ if (<defname>==i_mry_learn_spell)
+  if <to32 <more1>>==<args>
+	return <uid>
+  endif
+ endif
+ENDFOR
+return 0
+
+//***********************************************************
+// mage_paradoxEffect
+//***********************************************************
+//Causa uma coisa ruim para o mago que usa caminhos da magia paradoxais.
+DOSWITCH <argn>
+ spelleffect s_queimadura,100.0,<src>//Só um aviso
+ Buff_Int <eval 40-<int>,<eval 60*60*4>//40 de int por 4 horas
+ damage <R13,30>,dam_god,<src>//Dano de 13 a 30
+ Buff_Int <eval 27-<int>,<eval 60*60*8>//27 de int por 8 horas
+ uid.<f_conjure_creature {c_elem_earth 1 c_elem_water 1 c_elem_air 1 c_elem_fira 1},<eval 60*30>>.attack <uid>//NPC encrenca
+ Buff_Int <eval 17-<int>,<eval 60*60*12>//17 de int por 12 horas
+ f_polymorph <body>,021,<eval 60*60*24*7>//Ficar vermelho por uma semana
+ stonned <eval 60*60*12>//Vira estatua por 12 horas
+ Buff_Int <eval 5-<int>,<eval 60*60*24>//5 de int por 1 dia
+ f_polymorph c_snake,colors_blue,<eval 60*60*24>//Vira uma cobra azul por 1 dia
+ go 5284,620,20//Vai pro INFERNO!
+ENDDO
+if (<local.s> > 10)
+ kill
+endif
+timerf 5,psfx,0246
+sysmessagered Voce esta sofrendo efeitos do Paradoxo!
+
+//***********************************************************
+// mage_CalcEnchant
+//***********************************************************
+//CALL mage_CalcEnchant
+//Calcula e retorna como LOCAL mana usada, reags, tempo de preparação, custo em skill do
+//encantamento de uma gema
+[FUNCTION mage_CalcEnchant]
+
+//Mana inicial
+doswitch <ctag0.mage.power>
+ local.mana 0
+ local.mana 13
+ local.mana 20
+ local.mana 33
+ local.mana 49
+ local.mana 65
+ local.mana 97
+ local.mana 130
+ local.mana 195
+ local.mana 260
+ local.mana 325
+ENDDO
+
+//Dif inicial
+doswitch <ctag0.mage.power>
+ local.dif 0
+ local.dif 30
+ local.dif 39
+ local.dif 43
+ local.dif 65
+ local.dif 83
+ local.dif 96
+ local.dif 125
+ local.dif 175
+ local.dif 200
+ local.dif 250
+ENDDO
+
+//Custo em skill inicial
+doswitch <ctag0.mage.power>
+ local.skill 0
+ local.skill 0
+ local.skill 0
+ local.skill 0
+ local.skill 0
+ local.skill 0
+ local.skill 3
+ local.skill 7
+ local.skill 8
+ local.skill 10
+ local.skill 50
+ENDDO
+
+//Tempo para fazer
+doswitch <ctag0.mage.power>
+ local.time 0
+ local.time 15
+ local.time 25
+ local.time 35
+ local.time 47
+ local.time 62
+ local.time 78
+ local.time 80
+ local.time 80
+ local.time 80
+ local.time 80
+ENDDO
+
+IF (<ctag0.mage.enchant_spell>)
+ local.dif += <eval <strarg <serv.spell.<ctag.mage.enchant_spell>.skillreq>>/30>
+ local.mana += <eval <serv.spell.<ctag.mage.enchant_spell>.MANAUSE>/3>
+ELSE
+ if (<ctag0.mage_skill>==skill_magery)
+  ctag.mage_elem=Fogo
+ elif (<ctag0.mage_skill>==skill_necromancy)
+  ctag.mage_elem=Veneno
+ elif (<ctag0.mage_skill>==skill_focus)
+  ctag.mage_elem=Energia
+ elif (<ctag0.mage_skill>==skill_spellweaving)
+  ctag.mage_elem=Gelo
+ else
+  ctag.mage_elem=Fisico
+ endif
+ENDIF
+
+//Formata texto para gump
+local.text=Resumo:<DEF.BR>
+if (!<ctag0.mage.power>)
+ local.text .= Selecione magia ou bonus.
+ return 0
+endif
+local.text .= <DEF.BFONT_SIZE3><DEF.BFONT_BLACK>Mana: <dlocal.mana><DEF.BR>
+local.text .= Dificuldade: <dlocal.dif>.0<DEF.BR>
+if (0<local.skill>)
+ local.text .= Custo: <fval <local.skill>> <serv.skill.<ctag0.mage_skill>.name><DEF.BR>
+endif
+
+IF (<ctag0.mage.enchant_spell>)
+ local.resc=<f_count_resources <serv.spell.<ctag0.mage.enchant_spell>.RESOURCES>>
+ local.res=<serv.itemdef.<streat <f_strip_resources 1,<serv.spell.<ctag0.mage.enchant_spell>.RESOURCES>>>.name>
+ if (<local.resc> > 1)
+  for r 2 <dlocal.resc>
+   local.res .=", <serv.itemdef.<streat <f_strip_resources <dlocal.r>,<serv.spell.<ctag0.mage.enchant_spell>.RESOURCES>>>.name>"
+  end
+ endif
+ local.text .= Reagentes: <local.res>
+elif (!<uid.<ctag0.mage.gem>.layer>)
+ local.text .= Somente para encantar itens. +<dctag0.mage.power> de dano em armas ou +<dctag0.mage.power> de resistencia em <ctag.mage_elem>.
+else
+ local.text .= Selecione magia para sua varinha.
+ local.cando=0
+ return 0
+endif
+
+//Decide se o char pode fazer ou não
+local.cando=1
+if <ctag0.mage.enchant_spell>
+ IF !(<restest <serv.spell.<ctag0.mage.enchant_spell>.RESOURCES>>)
+  local.cando=0
+ ENDIF
+endif
+if (!<ctag0.mage.power>)
+ local.cando=0
+endif
+
+//*************************************************************
+// mage_SpellCast <argn1>, <argn2>, <argn3> (do @SpellCast)
+//*************************************************************
+
+[COMMENT mage_SpellCast]
+IF (<IsGM>)
+ return 6
+ENDIF
+
+local.skill=<src.<serv.skill.<DEF.<streat <serv.spell.<argn1>.skillreq>>>.key>>
+
+
+
+
+IF <tag0.mage_source>==<DEF.MAGE_SELF>  //Mago castando via WoP
+
+ if !<tag0.mage_know>                   //Não sabe a magia
+   src.sysmessageyellow voce sibila algumas palavras mas nao obtem nenhum resultado.
+   argn2=1500    //faz a magia falhar se castar por WOP sem conhecer a magia (anti-meta)
+   //argn2=(<argn2>*125)/100
+ endif
+
+ELIF <tag0.mage_source>==<DEF.MAGE_SCROLL>//Mago castando via scroll
+
+ if <tag0.mage_know>                                                            //Sabe a magia
+  if (<inscription> <= <local.skill>)                                //se for usar o inscription, não ativa o bonus
+    argn2=(<strarg <serv.spell.<argn1>.skillreq>>*10)/125                         //Bônus de 25%
+  endif
+  //  serv.log sabe a spell
+ endif
+
+  if (<inscription> > <local.skill>)   Se inscription for maior que skill de magia, usar inscription.
+   if (<skillcheck inscription <eval <strarg <serv.spell.<argn1>.skillreq>>/10>>)
+    argn2=0      //Passou no teste com inscription
+   else
+    argn2=1500   //Não passou no teste de inscription
+   endif
+  else
+    if !<tag0.mage_know>           //se inscription não for alto e não sabe a magia
+    // serv.log nao sabe a spell
+       argn2=<eval <strarg <serv.spell.<argn1>.skillreq>>/10>        //Barra a diff hard coded de t_scroll
+    endif
+  endif
+ENDIF
+
+tag.mage_actdiff=<argn2>
+//serv.log SPELLCAST s: <argn1> (<serv.spell.<argn1>.name>) - d: <argn2> - ad: <argn3> - actdiff: <dtag.mage_actdiff>
+return 6
+
+//*************************************************************
+// mage_SpellSelect <argn1>, <argn2>, <argn3> (do @SpellSelect)
+//*************************************************************
+
+[COMMENT mage_SpellSelect]
+IF (<IsGM>)
+ return 6//Proceder como o de normal
+ENDIF
+IF (<tag0.mage_spellid>) && (<argn3>=2)//Foi cancelada e começada outra magia posteriormente?
+ mage_cleartags
+ argn3=3        //Começar a castar de novo
+ return 6
+ENDIF
+IF (<argn3>==2)         //sucesso. Passar para @skillsuccess
+ return 6
+ENDIF
+
+//Guarda se o char sabe a spell e quam é a spell
+tag.mage_know=<mage_knowSpell <argn1>>
+tag.mage_spellid=<argn1>
+
+//Define bônus/penalidade por modalidade de cast (WoP, wand/orb, scroll)
+if (<argo>==<uid>)      //Mago castando sozinho
+ tag.mage_source=<DEF.MAGE_SELF>
+ if !(<tag0.mage_know>)
+  argn2=(<argn2>*125)/100       //consimir 25% mais de mana
+ endif
+else
+ tag.mage_uid=<argo>            //Salva item
+ argn2=0                        //Castando por item. Não usar mana.
+ if (<argo.type>==t_wand)//Mago castando por varinha ou gema
+  tag.mage_source=<DEF.MAGE_WAND>
+ else
+  if (<argo.type>==t_SCROLL)//Mago castando por pergaminho
+   tag.mage_source=<DEF.MAGE_SCROLL>
+   if (!<tag0.mage_know>)//Se mago não sabe magia do pergaminho, gasta mana.
+    argn2=<serv.spell.<argn1>.manause>
+   endif
+  endif
+ endif
+endif
+IF (<Mana> < <argn2>)
+ sysmessageyellow Falta-lhe mana suficiente para esta magia...
+ return 1
+endif
+tag.mage_mana=<argn2>
+//serv.log SPELLSELECT <argn1> (<serv.spell.<argn1>.name>) - <argn2>
+return 6
+
+//////////////////////////////////////TYPEDEFS///////////////////////////////
+
+[TYPEDEF t_scroll]
+on=@Dropon_item
+IF (<argo.type>==t_spellbook) || (<argo.type>==t_spellbook_necro) || (<argo.type>==t_spellbook_arcanist) || (<argo.type>==t_spellbook_pala) || (<argo.type>==t_wand)
+ src.sysmessageyellow Use a skill Inscription para aprender uma magia a partir de um pergaminho
+ return 1
+endif
+
+[TYPEDEF t_grimorio]
+//compatibilidade com sistema de vendas
+on=@dclick
+if (<link>==04fffffff) || (!<link.instances>)
+ //livro sem dono
+ if (<src.uid>==<topobj>)
+  link=<src.uid>
+  src.sysmessageorange Este <name> agora pertence a voce.
+ endif
+endif
+src.mage_loadSpells
+src.cTAG.MAGE_GRIMORIO=<uid>
+return 0
+ 
+
+[ITEMDEF i_grimorio_destruicao]
+id=i_spellbook
+name=grimorio de destruicao
+type=t_grimorio
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Magical Items
+DESCRIPTION=destruicao
+
+on=@dclick
+src.ctag.mage_skill=skill_magery
+src.SDIALOG d_spellbook 1
+return 1
+
+[ITEMDEF i_grimorio_necro]
+id=i_spellbook_necromancy
+name=grimorio de necromancia
+type=t_grimorio
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Magical Items
+DESCRIPTION=necromancia
+
+on=@dclick
+src.ctag.mage_skill=skill_necromancy
+src.SDIALOG d_spellbook 1
+return 1
+
+[ITEMDEF i_grimorio_restauracao]
+id=i_spellbook_paladin
+name=grimorio de restauracao
+type=t_grimorio
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Magical Items
+DESCRIPTION=restauracao
+
+on=@dclick
+src.ctag.mage_skill=skill_focus
+src.SDIALOG d_spellbook 1
+return 1
+
+[ITEMDEF i_grimorio_alteracao]
+id=i_spellbook_arcanist
+name=grimorio de alteracao
+type=t_grimorio
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Magical Items
+DESCRIPTION=alteracao
+
+on=@dclick
+src.ctag.mage_skill=skill_spellweaving
+src.SDIALOG d_spellbook 1
+return 1
+
+[ITEMDEF i_mry_spkmage]
+id=0181d
+name=Spk_mage
+type=t_eq_script
+layer=layer_special
+weight=0
+
+ON=@equip
+cont.dspeech +spk_mage
+
+on=@unequip
+cont.dspeech -spk_mage
+
+on=@timer
+remove
+return 1
+
+
+
+[FUNCTION mage_DrawBookPage]
+IF (<ctag0.mage_property>==<DEF.MAGE_KNOWN>)
+ DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<eval <UID.<cTAG0.MAGE_GRIMORIO>.link>> AND skill=<eval <DEF.<ctag.mage_skill>>> ORDER BY diff ASC LIMIT <eval (<ctag.mage_page>-1)*2>, 3;"
+ local.spell1=<DB.ROW.0.spellid>
+ local.spell2=<DB.ROW.1.spellid>
+ local.nextpage=<QVAL <DB.ROW.NUMROWS>==3?1:0>
+ELIF (<ctag0.mage_property>==<DEF.MAGE_LEARNING>)
+ call src.mage_GetLearningSpells
+ENDIF
+
+//Pagina esquerda
+button 49 9 2205 2205 1 0 1002
+IF (<eval <local.spell1>>)
+ dhtmlgump 82 8 112 35 0 0 <DEF.BFONT_SIZE5><DEF.BFONT_DBLUE><serv.spell.<local.spell1>.name>//Nome da magia
+ if (!<IsEmpty <src.ctag.mage_action>>)//Se é necessário apertar a runa pra fazer alguma coisa (inscription, etc)
+  button 65 46 2472 2473 1 0 <dlocal.spell1>
+ endif
+ gumppic 60 41 <serv.spell.<local.spell1>.RUNE_ITEM>// //Runa
+ dhtmlgump 107 41 88 41 0 0 <DEF.BFONT_SIZE4><mage_GetSpellRunes <local.spell1>>//WoP
+ gumppictiled 71 83 104 21 58//Separador de barra
+ //Pega os reags da lista e transforma em nomes. As função são do cictema_de_facas_especiais.scp
+ local.resc=<f_count_resources <serv.spell.<local.spell1>.RESOURCES>>
+ local.res=<serv.itemdef.<streat <f_strip_resources 1,<serv.spell.<local.spell1>.RESOURCES>>>.name>
+ if (<local.resc> > 1)
+  for r 2 <dlocal.resc>
+   local.res .=", <serv.itemdef.<streat <f_strip_resources <dlocal.r>,<serv.spell.<local.spell1>.RESOURCES>>>.name>"
+  end
+ endif
+ dhtmlgump 57 90 142 70 0 0 <DEF.BFONT_SIZE5><DEF.BFONT_DBLUE>Reagentes:<DEF.BR><DEF.BFONT_SIZE3><DEF.BFONT_BLACK><local.res>//reagentes
+ IF (<local.spell1_rest>)       //Se está aprendendo, mostrar quanto falta
+  dhtmlgump 57 160 140 35 0 0 <DEF.BFONT_SIZE2><DEF.BFONT_DBLUE>Restam <eval <mage_getIncLearning <local.spell1>>-<dlocal.spell1_rest>> tentativas e <f_timestring <local.spell1_time>>
+ ELSE
+  dhtmlgump 57 160 140 42 0 0 <DEF.BFONT_SIZE5><DEF.BFONT_DBLUE>Mana:      <eval <serv.spell.<local.spell1>.MANAUSE>><DEF.BR>Dificuldade:  <eval <strarg <serv.spell.<local.spell1>.skillreq>>/10>
+ ENDIF
+ENDIF
+
+//Pagina direita
+IF (<eval <local.spell2>>)
+ dhtmlgump 212 8 112 35 0 0 <DEF.BFONT_SIZE5><DEF.BFONT_DBLUE><serv.spell.<local.spell2>.name>
+ if (!<IsEmpty <src.ctag.mage_action>>)//Se é necessário apertar a runa pra fazer alguma coisa (inscription, etc)
+  button 225 46 2472 2473 1 0 <dlocal.spell2>
+ endif
+ gumppic 220 41 <serv.spell.<local.spell2>.RUNE_ITEM>//gumppic 60 41 2240
+ dhtmlgump 267 41 88 41 0 0 <DEF.BFONT_SIZE4><mage_GetSpellRunes <local.spell2>>
+ gumppictiled 231 83 104 21 58
+ //Pega os reags da lista e transforma em nomes. As função são do cictema_de_facas_especiais.scp
+ local.resc=<f_count_resources <serv.spell.<local.spell2>.RESOURCES>>
+ local.res=<serv.itemdef.<streat <f_strip_resources 1,<serv.spell.<local.spell2>.RESOURCES>>>.name>
+ if (<local.resc> > 1)
+  for r 2 <dlocal.resc>
+   local.res .=", <serv.itemdef.<streat <f_strip_resources <dlocal.r>,<serv.spell.<local.spell2>.RESOURCES>>>.name>"
+  end
+ endif
+ dhtmlgump 217 90 142 70 0 0 <DEF.BFONT_SIZE5><DEF.BFONT_DBLUE>Reagentes:<DEF.BR><DEF.BFONT_SIZE3><DEF.BFONT_BLACK><local.res>
+ IF (<local.spell2_rest>)       //Se está aprendendo, mostrar quanto falta
+  dhtmlgump 217 160 140 35 0 0 <DEF.BFONT_SIZE2><DEF.BFONT_DBLUE>Restam <eval <mage_getIncLearning <local.spell2>>-<dlocal.spell2_rest>> tentativas e <f_timestring <local.spell2_time>>
+ ELSE
+  dhtmlgump 217 160 140 42 0 0 <DEF.BFONT_SIZE5><DEF.BFONT_DBLUE>Mana:      <eval <serv.spell.<local.spell2>.MANAUSE>><DEF.BR>Dificuldade:  <eval <strarg <serv.spell.<local.spell2>.skillreq>>/10>
+ ENDIF
+ENDIF
+
+IF (<local.nextpage>)
+ button 321 8 2206 2206 1 0 1003
+endif
+
+[FUNCTION mage_GetLearningSpells]
+local.i=0
+obj=<src.uid>
+FORCONTID i_mry_learn_spell
+ IF STRMATCH(<streat <serv.spell.<more1>.skillreq>>,<obj.ctag.mage_skill>)
+  IF (<eval (<obj.ctag.mage_page>-1)*2>==<local.i>)
+   local.spell1=<more1>
+   local.spell1_rest=<more2>
+   local.spell1_time=<timer>
+  ELIF (<eval (<obj.ctag.mage_page>-1)*2>==<local.i>-1)
+   local.spell2=<more1>
+   local.spell2_rest=<more2>
+   local.spell2_time=<timer>
+  ELIF (<eval (<obj.ctag.mage_page>-1)*2>==<local.i>-2)
+   local.nextpage=1
+  ENDIF
+  local.i += 1
+ ENDIF
+END
+
+
+[DIALOG d_spellbook]
+100,150
+page 0
+button 6 104 2103 2103 1 0 0
+if (<src.ctag.mage_skill>==skill_magery)
+ gumppic 0 0 2220
+elif (<src.ctag.mage_skill>==skill_necromancy)
+ gumppic 0 0 11008
+elif (<src.ctag.mage_skill>==skill_spellweaving)
+ gumppic 0 0 11055
+elif (<src.ctag.mage_skill>==skill_focus)
+ gumppic 0 0 11009
+endif
+page 1
+dtext 75 16 48 Tomo de magias
+gumppictiled 72 102 100 10 50
+dhtmlgump 59 115 125 74 0 0 <DEF.center>Propriedade de <uid.<uid.<cTAG.MAGE_GRIMORIO>.link>.tag.name>
+if (<UID>==<uid.<cTAG.MAGE_GRIMORIO>.link>)
+ dhtmlgump 215 35 200 25 0 0 Magias sendo aprendidas
+ button 266 57 2472 2473 1 0 1000
+endif
+gumppictiled 229 102 100 10 50
+button 266 147 2472 2473 1 0 1001
+dhtmlgump 232 128 125 25 0 0 Magias conhecidas
+page 2
+mage_DrawBookPage
+
+page 3
+dhtmlgump 57 13 125 29 0 0 <DEF.CENTER><DEF.BFONT_SIZE1><uid.<ctag0.mage.gem>.name>
+tilepic 95 49 <uid.<ctag0.mage.gem>.dispiddec>
+button 56 110 250 251 1 0 1004          //Mais poder
+button 56 130 252 253 1 0 1005          //Menos poder
+//Selecionou magia?
+IF (<ctag0.mage.enchant_spell>)
+ dtext 79 120 43 <dctag0.mage.power> cargas
+else
+ dtext 79 120 43 + <dctag0.mage.power> <ctag.mage_elem>
+endif
+IF (!<uid.<ctag0.mage.gem>.layer>) || (!<uid.<ctag0.mage.gem>.morex>)
+ button 54 167 2224 2224 1 0 1006        //Adicionar/remover magia
+endif
+dhtmlgump 74 164 114 20 0 0 <QVAL <ctag0.mage.enchant_spell>?<serv.spell.<ctag0.mage.enchant_spell>.name>:Adicionar magia>
+CALL mage_CalcEnchant           //Calcula o custo
+dhtmlgump 218 12 130 157 0 0 <local.text>
+IF (<local.cando>)
+ button 250 171 247 248 1 0 1007                //Botão Encantar
+endif
+
+[DIALOG d_spellbook text]
+
+
+[DIALOG d_spellbook button]
+ON=0
+// Button 1
+src.ctag.mage_property=
+src.ctag.mage_page=
+src.ctag.mage_skill=
+src.ctag.mage_action=
+
+ON=1 999
+//Faz o mago executar a função <ctag.mage_action> com <argv[0]> da magia selecionada
+src.try <src.ctag.mage_action> <argn>
+src.ctag.mage_action=
+
+ON=1000
+// learning spells
+src.ctag.mage_property=<DEF.MAGE_LEARNING>
+src.ctag.mage_page=1
+src.SDIALOG d_spellbook 2
+
+ON=1001
+// known spells
+src.ctag.mage_property=<DEF.MAGE_KNOWN>
+src.ctag.mage_page=1
+src.SDIALOG d_spellbook 2
+
+ON=1002
+// pg-
+src.ctag.mage_page=<src.ctag0.mage_page>-1
+IF (!<src.ctag0.mage_page>)
+ src.ctag.mage_property=
+ src.SDIALOG d_spellbook 1
+ELSE
+ src.SDIALOG d_spellbook 2
+ENDIF
+
+ON=1003
+// pg+
+src.ctag.mage_page=<src.ctag0.mage_page>+1
+src.SDIALOG d_spellbook 2
+
+ON=1004
+//Mais poder
+IF (<ctag0.mage.power> < 10)
+ ctag.mage.power=<ctag0.mage.power>+1
+endif
+SDIALOG d_spellbook 3
+return 1
+
+ON=1005
+//Menos poder
+IF (<ctag0.mage.power> > 0)
+ ctag.mage.power=<ctag0.mage.power>-1
+endif
+SDIALOG d_spellbook 3
+return 1
+
+ON=1006
+//Add/Rem magia
+IF (!<ctag0.mage.enchant_spell>)
+ ctag.mage_action=mage_enchant_gem_select_spell         //Função que vai ser chamada quando a magia for selecionada
+ ctag.mage_property=<DEF.MAGE_KNOWN>            //Abrir o livro na parte de magias conhecidas
+ ctag.mage_page=1                               //Abrir o livro na página 1
+ SDIALOG d_spellbook 2                           //Abrir o livro
+ sysmessagegreen Selecione uma magia conhecida:
+else
+ ctag.mage.enchant_spell=
+ SDIALOG d_spellbook 3
+endif
+return 1
+
+ON=1007
+//Okay
+sysmessageyellow Voce comeca o encantamento.
+call mage_CalcEnchant
+obj=<findid.i_faz_item>
+obj.cleartags
+if (<ctag0.mage.enchant_spell>)
+ local.i=0
+ while <serv.spell.<ctag0.mage.enchant_spell>.resources.<dlocal.i>.val>
+  obj.tag.res<dlocal.i>=<serv.spell.<ctag0.mage.enchant_spell>.resources.<local.i>.key>
+  obj.tag.amt<dlocal.i>=<eval <serv.spell.<ctag0.mage.enchant_spell>.resources.<local.i>.val>*<ctag0.mage.power>>
+  local.i += 1
+ end
+endif
+obj.tag.delay=<local.time>
+obj.tag.skill=<serv.skill.<ctag0.mage_skill>.name>
+obj.tag.skill2=<local.skill>
+obj.tag.dif=0
+obj.tag.dif2=<local.dif>
+obj.tag.mana=<local.mana>
+obj.tag.spell=<ctag0.mage.enchant_spell>
+obj.tag.power=<ctag0.mage.power>
+obj.tag.f_step=mage_enchant_gem_step
+obj.tag.item=1
+obj.tag.f_done=mage_enchant_gem_end
+obj.tag.abort=1
+src.fazitem
+sfx=05c1
+return 1
+
+[FUNCTION mage_enchant_gem_step]
+DORAND 5
+ anim=17
+ENDDO
+DORAND 10
+ BEGIN
+  EFFECT 1 0 0 16 0
+  SFX <hval <DEF.SND_THUNDER>>
+ ENDDO
+ EFFECT 3 i_fx_sparkle 0 32 0
+ENDDO
+DORAND 10
+ sfx 01f7
+ sfx 01EB
+ENDDO
+//Manter caldeirao certinho
+IF !<R0,5>
+ foritems 2
+  if (<defname>==i_bowl_stew) && (<more2>==5)
+   more1=120
+  elif (<defname>==i_campfire)
+   timer=120
+  endif
+ end
+endif
+
+[FUNCTION mage_enchant_gem_end]
+//Determina se esta num altar
+if (STRMATCH(*_altar_magi*,<dspeech>))
+ local.can=<mage_enchant_altar_test_users>
+else
+ local.caldronOK=0
+ obj=<UID>
+ foritems 2
+  if (<type>==t_stew) && (<more2>==5)
+   local.can=<obj.mage_enchant_caldron_test>
+   more1=1
+  endif
+ end
+endif
+if (<local.can>)
+ sfx 05c2
+ make_chanted_gem
+else
+ sfx 0274
+ sysmessagered Voce falhou ao tentar encantar a pedra.
+endif
+
+[FUNCTION make_chanted_gem]
+obj=<ctag.mage.gem>
+
+//O item ainda existe?
+if (<obj.amount> > 1) || (<obj.topobj>!=<UID>) || (!<obj.uid>)
+ damage 30,<DEF.dam_god>,<UID>
+ sysmessagered Voce tentou perturbar o Eter!
+ EFFECT 1 0 0 16 0
+ SFX <hval <DEF.SND_THUNDER>>
+ return 1
+endif
+
+
+//Eh uma gema?
+if (<obj.type>==t_gem_stoned)
+ //Pedra lapidada virando gema?
+ if (<obj.tdata2>)
+  newitem <obj.tdata2>
+  new.bounce
+  obj.decrement
+  obj=<new>
+ else
+  //Gema sendo encantada?
+  obj.name=Gema de <strarg <obj.name>>
+ endif
+ obj.more2=<ctag0.mage.power>            //Adiciona cargas ou bônus
+ obj.attr=021                            //identifyed and magic
+ //Vai colocar uma magia nela?
+ if (<ctag0.mage.enchant_spell>)
+  obj.type=t_wand                        //Troca o type para trigar magia 
+  obj.morex=<ctag0.mage.enchant_spell>   //Guarda a magia
+ endif
+elif (<obj.layer>)
+ obj.more2 += <ctag0.mage.power>        //Adiciona cargas ou bônus
+ if (<obj.more2> > 12)
+  obj.more2=12
+ endif
+ obj.attr=021                           //identifyed and magic
+ obj.morex=<ctag0.mage.enchant_spell>   //Guarda a magia
+endif
+obj.updatex                             //Troca ToolTip
+sysmessagegreen Voce encantou uma <obj.name> com sucesso! 
+mage_cleartags
+
+[FUNCTION mage_enchant_caldron_test]
+//serv.log [ENCANTAMENTO] Usando caldeirao: <tag.name> (<account> - <uid>) encantando <ctag0.mage.gem> (<uid.<ctag0.mage.gem>.name>)
+obj=<findid.i_mry_fazitem>
+local.dif=<obj.tag.dif2>
+local.skill=<obj.tag.skill>
+//serv.log [ENCANTAMENTO] <local.skill>: <dlocal.dif>
+
+//Determina custos
+local.mana=<obj.tag.mana>
+local.cost=<obj.tag.skill2>
+//serv.log [ENCANTAMENTO] mana: <dlocal.mana> (Custa <dlocal.cost> <local.skill>)
+
+//consome mana e skill do mago e testa a skill
+local.manaOK=1
+local.skillOK=1
+
+IF (<mage_consumeMana <local.mana>>)
+ local.manatest=1
+ELSE
+ local.manatest=0
+ENDIF
+local.manaOK=<local.manaOK>&<local.manatest>
+local.test=<eval ( (<alchemy>*2) + (<uid.<uid>.<local.skill>>*8) )/10>
+local.skillOK=<local.skillOK>&<belltest <local.test>,<eval <local.dif>*10>>
+if (<local.cost>)
+ try UID.<uid>.<local.skill> = <UID.<uid>.<local.skill>>-<local.cost>
+ skill_init
+endif
+//serv.log [ENCANTAMENTO] TESTE skill: <dlocal.skillOK> - mana:<dlocal.manaOK>
+
+//precisa testar reags da magia?
+local.reagsOK=1
+//if (<ctag0.mage.enchant_spell>)
+// if (<restest <serv.spell.<ctag0.mage.enchant_spell>.resources>>)
+//  consume <serv.spell.<ctag0.mage.enchant_spell>.resources>
+// else
+//  local.reagsOK=0
+// endif
+//endif
+
+IF (<local.manaOK> && <local.skillOK> && <local.reagsOK>)
+ return 1
+else
+ return 0
+endif
+
+[FUNCTION mage_enchant_altar_test_users]
+//serv.log [ENCANTAMENTO] Usando altar: <tag.name> (<account> - <uid>) encantando <ctag0.mage.gem> (<uid.<ctag0.mage.gem>.name>)
+
+//Determina o número de participantes
+ref1=<region.uid>
+local.users=1
+for u 2 8
+ if (<ref1.tag0.user_<dlocal.u>>)
+  local.users += 1
+ endif
+end
+//serv.log [ENCANTAMENTO] <dlocal.users> usuarios no altar
+
+//Determina o teste de skill para cada membro
+obj=<findid.i_mry_fazitem>
+local.actdif=<obj.tag.dif2>
+local.skill=<obj.tag.skill>
+local.dif=<eval <local.actdif>/<local.users>>
+//serv.log [ENCANTAMENTO] <local.skill>: <dlocal.actdif> (<dlocal.dif> para cada)
+
+//Determina custos para cada membro
+local.mana=<eval <obj.tag.mana>/<local.users>>
+local.cost=<obj.tag.skill2>
+//serv.log [ENCANTAMENTO] mana: <dlocal.mana> (Custa <eval <local.cost>/<local.users>> <local.skill> para cada)
+
+//consome mana e skill dos envolvidos e testa a skill
+local.manaOK=1
+local.skillOK=1
+for u 1 <local.users>
+ if (<UID.<ref1.tag0.user_<dlocal.u>>.ischar>)
+  IF (<UID.<ref1.tag0.user_<dlocal.u>>.mage_consumeMana <local.mana>>)  //QVAL não suportado aqui
+   local.manatest=1
+  ELSE
+   local.manatest=0
+  ENDIF
+  local.manaOK=<local.manaOK>&<local.manatest>
+  local.test=<eval <UID.<ref1.tag0.user_<dlocal.u>>.<local.skill>>>
+  local.skillOK=<local.skillOK>&<UID.<ref1.tag0.user_<dlocal.u>>.belltest <local.test>,<eval <local.dif>*10>>
+  if (<local.cost>)
+   try UID.<ref1.tag0.user_<dlocal.u>>.<local.skill> = <UID.<ref1.tag0.user_<dlocal.u>>.<local.skill>>-<eval <local.cost>/<local.users>>
+   UID.<ref1.tag0.user_<dlocal.u>>.skill_init
+  endif
+  //serv.log [ENCANTAMENTO] TESTE DO MAGO No <dlocal.u> :: skill: <dlocal.skillOK> - mana:<dlocal.manaOK>
+ endif
+end
+
+//precisa testar reags da magia?
+local.reagsOK=1
+//if (<ctag0.mage.enchant_spell>)
+// if (<restest <serv.spell.<ctag0.mage.enchant_spell>.resources>>)
+//  consume <serv.spell.<ctag0.mage.enchant_spell>.resources>
+// else
+//  local.reagsOK=0
+// endif
+//endif
+
+IF (<local.manaOK> && <local.skillOK> && <local.reagsOK>)
+ return 1
+else
+ return 0
+endif
+
+
+[FUNCTION mage_register_altar_user]
+obj=<UID>
+for u 1 8
+ if (<isEmpty <obj.tag.user_<dlocal.u>>>)
+  try obj.tag.user_<dlocal.u>=<argn>
+  return 1
+ endif
+end
+
+[FUNCTION mage_UNregister_altar_user]
+obj=<UID>
+for u 1 8
+ //serv.log Usuario <dlocal.u>=<obj.tag0.user_<dlocal.u>>
+ if (<obj.tag0.user_<dlocal.u>>==<argn>)
+  try obj.tag.user_<dlocal.u>=
+  return 1
+ endif
+end
+
+[REGIONTYPE r_altar_magic]
+on=@enter
+src.sysmessageblue Voce sente uma aura magica.
+src.dspeech +spk_altar_magic
+uid.<uid>.mage_register_altar_user <src.uid>
+src.music=<hval <DEF.musics_dungeon>>
+
+on=@exit
+src.sysmessageyellow Voce nao sente mais magia.
+uid.<uid>.mage_UNregister_altar_user <src.uid>
+src.dspeech -spk_altar_magic
+
+[SPEECH spk_altar_magic]
+on=Chantus Maliki
+obj=<region.uid>
+if (<obj.tag0.user_1>==<src.uid>)
+ src.mage_enchant_gem
+else
+ src.sysmessageorange <src.rec_fgetname <obj.tag0.user_1>> esta no comando do altar.
+ return 1
+endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//#################################################################################
+
+//                              ITENS DE TESTE
+
+//#################################################################################
+
+[TYPEDEF t_spell_test_cont]
+//Gera <more1> amt de cada pergaminho das magias nº [<morex>:<morey>]
+//A cada <morez> minutos
+on=@dclick
+if (<eval (<serv.time>-<more2>)/600> > <morez>)
+ more2=<serv.time>
+ empty
+ for s <morex> <morey>
+  if (<serv.spell.<local.s>>)
+   serv.newitem <serv.spell.<local.s>.SCROLL_ITEM>
+   new.cont=<uid>
+   new.amount=<more1>
+  else
+   serv.log [CAIXA DE TESTE DE MAGIA] - <dlocal.s> nao eh magia.
+  endif
+ end
+ update
+endif
+
+[ITEMDEF i_bau_teste_destruicao]
+NAME=Pergaminhos de destruicao
+ID=i_chest_metal
+TYPE=T_CONTAINER
+FLIP=1
+WEIGHT=20
+TEVENTS=t_spell_test_cont
+
+on=@create
+color=028
+more1=20
+more2=0
+morex=100
+morey=119
+morez=60
+
+[ITEMDEF i_bau_teste_restauracao]
+NAME=Pergaminhos de restauracao
+ID=i_chest_metal
+TYPE=T_CONTAINER
+FLIP=1
+WEIGHT=20
+TEVENTS=t_spell_test_cont
+
+on=@create
+color=0809
+more1=20
+more2=0
+morex=150
+morey=169
+morez=60
+
+[ITEMDEF i_bau_teste_alteracao]
+NAME=Pergaminhos de alteracao
+ID=i_chest_metal
+TYPE=T_CONTAINER
+FLIP=1
+WEIGHT=20
+TEVENTS=t_spell_test_cont
+
+on=@create
+color=017C
+more1=20
+more2=0
+morex=250
+morey=269
+morez=60
+
+[ITEMDEF i_bau_teste_necromancia]
+NAME=Pergaminhos de necromancia
+ID=i_chest_metal
+TYPE=T_CONTAINER
+FLIP=1
+WEIGHT=20
+TEVENTS=t_spell_test_cont
+
+on=@create
+color=0838
+more1=20
+more2=0
+morex=200
+morey=219
+morez=60
+
+[ITEMDEF i_stone_skill]
+ID=0eDD
+NAME=Pedra de teste de skill
+TYPE=t_script
+
+on=@dclick
+src.menu m_test_skill
+return 1
+
+[MENU m_test_skill]
+O que deseja fazer agora? (sujeito a apenas uma subida de skill a cada 3 horas)
+
+ON=0 Subir 12.5 em uma skill
+src.test_skill_up
+
+ON=0 Descer 12.5 em uma skill
+src.test_skill_dn
+
+ON=0 Obter todas as magias
+src.test_allspells
+
+[FUNCTION test_skill_up]
+if (<tag0.skill_test_time>)
+ local.eltime=<hval <serv.time>-<tag0.skill_test_time>>
+ local.extime=<hval <local.eltime>-10*60*60>
+ if (<local.extime> < 0)
+  sysmessagered Voce deve esperar mais <f_timestring <eval -<local.extime>/10>> para subir novamente uma skill.
+  return 1
+ endif
+endif
+list_new Escolha uma skill para subir 12.5 pontos:
+list_newCol 20,Skill
+cTAG.list_action=test_skill_apply_up
+cTAG.list_numItems=54
+cTAG.list_numPages=4
+for s 0 54
+ try cTAG.list_row<hval <local.s>+1>_01=<serv.skill.<dlocal.s>.name>
+end
+list_show 1
+
+[FUNCTION test_skill_dn]
+list_new Escolha uma skill para descer 12.5 pontos:
+list_newCol 20,Skill
+cTAG.list_action=test_skill_apply_dn
+cTAG.list_numItems=54
+cTAG.list_numPages=4
+for s 0 54
+ try cTAG.list_row<hval <local.s>+1>_01=<serv.skill.<dlocal.s>.name>
+end
+list_show 1
+
+[FUNCTION test_CorrectSkills]
+if (<skilltotal> > <TAG0.skill_maxSkillSumValue>)
+ local.s=0
+ WHILE ( (<skilltotal> > <TAG0.skill_maxSkillSumValue>) && (<local.s> < 55) )
+  src.<dlocal.s>=0
+  local.s += 1
+ END
+ timerf 2,sysmessagered Sua skill tava muito alta, champs.
+endif
+
+[FUNCTION Targ_CorrectSkills]
+if !(<argo>)
+ sysmessageyellow Seleciona o filho da puta:
+ TARGETF Targ_CorrectSkills
+else
+ if (<argo.skilltotal> > <argo.TAG0.skill_maxSkillSumValue>)
+  local.s=0
+  WHILE ( (<argo.skilltotal> > <argo.TAG0.skill_maxSkillSumValue>) && (<local.s> < 55) )
+   argo.<dlocal.s>=0
+   local.s += 1
+  END
+  argo.timerf 2,sysmessagered Sua skill tava muito alta, champs.
+  argo.timerf 3,sysmessagered Foi automaticamente passada para o maximo permitido.
+ endif
+endif
+
+[FUNCTION test_skill_apply_up]
+if (<tag0.skill_test_time>)
+ local.eltime=<hval <serv.time>-<tag0.skill_test_time>>
+ local.extime=<hval <local.eltime>-10*60*60>
+ if (<local.extime> < 0)
+  sysmessagered Voce deve esperar mais <f_timestring <eval -<local.extime>/10>> para subir novamente uma skill.
+  return 1
+ endif
+endif
+test_CorrectSkills
+argn -= 1
+src.<argn> += 125
+src.tag.skill_test_time=<serv.time>
+src.sysmessageyellow Voce podera utilizar este comando novamente em 1 hora.
+
+[FUNCTION test_skill_apply_dn]
+argn -= 1
+src.<argn> -= 125
+
+[FUNCTION test_allspells]
+for s 100 349
+ if (<serv.spell.<dlocal.s>>)
+//  serv.log mage_addspell <serv.spell.<dlocal.s>.defname>
+  src.mage_addspell <serv.spell.<dlocal.s>.defname>
+ endif
+ local.c += 1
+end
+mage_loadSpells
+sysmessageyellow Voce aprendeu <dlocal.c> magias.
+[EOF]

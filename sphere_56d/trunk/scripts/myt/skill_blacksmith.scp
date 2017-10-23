@@ -1,0 +1,956 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE BLACKSMITH por
+//
+//          Galthar
+//          Silver
+//          UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+// - remover teste de carvao no T_ORE
+
+//TAGS usadas:
+//tags do sistema de crafting
+
+//--------------legenda-----------------//
+//
+//  LF = lingot ferro
+//  LP = lingot de prata
+//  LO = lingote de ouro
+//  PF = placa ferro
+//  PC = peca couro correspondente
+//  AF = arame ferro
+//  AP = arame prata
+//  AO = arame ouro
+//  CM = cabo madeira
+//  TF = tacha ferro
+//  AF = argorla ferro
+//..CC = couro curtido
+//..CJ = cajado
+//  
+//------------------------------------//
+// sfx 
+// 022b - som de uma placa sendo feita
+// 02a  - PAN! PAN
+// 0146 - DUUM. 
+// 01ff - correntes
+
+[DEFNAME skill_blacksmith]
+i_arame_ferro           = i_iron_wire
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_anvil
+//*****************************************************************************
+[TYPEDEF t_anvil]
+ON=@DCLICK
+if ( <src.findlayer(layer_hand1).id> == <serv.itemdef.i_martelo_ferreiro.id> )
+    if (<src.targ.distance> > 1)
+        src.sysmessage Chegue mais perto.
+        return 1
+    else
+//      src.blacksmithing_bs=<src.blacksmithing>
+        src.craft_loadLevel 1//   craftmenu de ferriro
+        return 1
+    endif
+else
+  src.sysmessage Voce nao esta equipado com um martelo de ferreiro.
+return 1
+endif 
+
+//*****************************************************************************
+// t_forge
+//*****************************************************************************
+[TYPEDEF t_forge]
+ON=@DCLICK
+return 1
+
+//*****************************************************************************
+// t_ingot
+//*****************************************************************************
+[TYPEDEF t_ingot]
+ON=@DCLICK
+src.sysmessageblue Use a bigorna para fazer algo com isto.
+return 1
+
+//*****************************************************************************
+// t_ore
+//*****************************************************************************
+[COMMENT t_ore]
+ON=@DCLICK
+
+//temporário enquanto existirem i_carvao com type t_ore
+if (strmatch(<baseid>,i_carvao_mineral))
+    return 0
+endif
+
+if !(<src.isneartype t_forge 2>)
+    src.sysmessagered Voce precisa estar proximo de uma forja acesa.
+    return 1
+endif
+
+if (<amount> < 10)
+    src.sysmessageyellow Voce precisa de pelo menos 10 <name> para fazer lingotes.
+    return 1
+endif
+
+//Calcula a skill que vai usar
+if (<src.Blacksmithing> > <src.Mining>)
+ local.skill=Blacksmithing
+ local.skillval=<src.blacksmithing>
+else
+ local.skill=Mining
+ local.skillval=<src.mining>
+endif
+
+//calcula o rendimento baseado na dificuldade de fazer o ore. Ter skill igual a diff = 80%
+local.diff=<serv.itemdef.<tdata1>.skillmake.0.val>//Dificuldade de fazer o ingot
+local.amount=<eval <skillchance <local.skillval>,<local.diff>>/62>//Baseado na dificuldade de fazer o ore.
+//Se você tem a skill igual a dificuldade, SKILLCHANCE retorna 500. Divididio por 62 fica 80%
+SERV.LOG s:<local.skill>=<dlocal.skillval> amt:<dlocal.amount>
+
+if (<local.amount> < 1)
+ local.amount=1
+elif (<local.amount> > 10)
+ local.amount=10
+endif
+
+obj=<src.findid.i_mry_fazitem.uid>
+obj.cleartags
+obj.tag.amt=<local.amount>
+obj.tag.skill=<local.skill>
+obj.tag.uid1=<uid>
+obj.tag.nam1=<name>
+obj.tag.amt1=10
+obj.tag.dif=0//<eval <serv.itemdef.<tdata1>.skillmake.0.val>/10>
+obj.tag.anim=19                          
+obj.tag.sfx=02b            
+obj.tag.delay=5
+obj.tag.item=<tdata1>
+obj.tag.emote=fundindo <name>
+src.fazitem <minimumn <amount>/10,10>
+return 1
+
+//*****************************************************************************
+// t_incomplete_forged
+//*****************************************************************************
+//usado em  pre itens
+[TYPEDEF t_incomplete_forged]
+ON=@DCLICK
+target Selecione a tina de agua:
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.dispid>==i_barrel_water)
+    if (<src.targ.distance> > 1)
+        src.sysmessage Chegue mais perto.
+        return 1
+    endif
+    
+    if !(<tag0.item>)
+        src.sysmessagered Item invalido. Reporte.
+        return 1
+    endif
+    
+    sfx 054
+    src.targ.effect 2,i_fx_smoke,0,15,0
+    serv.newitem=<tag0.item>
+    new.more1=<more1>
+    if (<morex>)
+        new.amount=<morex>
+    endif
+    if (STRMATCH(*_exp,<new.defname>))
+        src.sysmessageblue Voce criou um item de qualidade excepcional!
+        if (<new.tdata4>)
+            new.maxhits=<new.tdata4>
+            new.hits=<new.tdata4>
+        endif
+    endif
+    new.bounce
+    decrement 1
+    return 1
+else
+    src.sysmessage Voce deve selecionar uma tina de agua.
+    return 1
+endif
+return 1
+
+//*****************************************************************************
+// t_enferrujado
+//*****************************************************************************
+//usado em itens enferrujados
+[TYPEDEF t_enferrujado]
+ON=@dclick
+src.sysmessageyellow Esse item esta enferrujado!
+if <hits> != 1
+    hits = 1
+    name=<name> [enferrujado]
+endif    
+return 1
+
+ON=@equip
+src.sysmessageyellow Esse item esta enferrujado!
+if <hits> != 1
+    hits = 1
+    name=<name> [enferrujado]
+endif    
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// f_setItemTag( itemTag, fezItem, uidItem )
+//*****************************************************************************
+[FUNCTION f_setItemTag]
+if (<argv1>)
+ OBJ=<argv2>
+ local.exp=<src.craft_expChance <argv[0]>>
+ if (<R1001> < <local.exp>)
+  SERV.LOG [Blacksmithing] BEEP!!! Pré-item gerado com exceptional! <argv0>_exp
+  OBJ.tag.item=<argv0>_exp
+ else
+  OBJ.tag.item=<argv0>
+ endif
+// obj.more2=<obj.tag.item>
+endif
+
+//*****************************************************************************
+// repairfix ()
+//*****************************************************************************
+[FUNCTION repairfix]
+
+if ( !<argo> )
+    src.sysmessage O que deseja reparar?
+    targetf repairfix
+    return 1
+
+elif (<argo><040000000) 
+    src.sysmessage Somente itens podem ser reparados.
+    return 1
+
+elif !(<restest 5 i_ingot_iron>)
+    src.sysmessage Voce precisa de pelo menos 5 lingotes de ferro.
+    return 1
+
+elif (<ARGO.TOPOBJ.DISTANCE>>=2) || (<SRC.TARG.CanSeeLos>!=1)
+    src.sysmessage Esta muito longe.
+    return 1
+
+//make sure item is armor/swords etc
+elif (<argo.type>!=t_weapon_mace_smith) && (<argo.type>!=t_weapon_sword) && (<argo.type>!=t_weapon_fence) && (<argo.type>!=t_armor) && (<argo.type>!=t_weapon_axe) && (<argo.type>!=t_weapon_mace_pick) && (<argo.type>!=t_weapon_mace_sharp) && (<argo.type>!=t_shield) && (<argo.type>!=t_enferrujado)
+    src.sysmessage Voce nao pode reparar isto.
+    return 1
+
+elif (<argo.hits>>=<argo.maxhits>)
+    src.sysmessage Nao esta danificado. 
+    return 1
+endif
+
+LOCAL.tRepair=<eval 6-(<src.blacksmithing>/250)>
+
+//inicia processo de reparo
+timerf 1 repair_step <argo>,<LOCAL.tRepair>
+
+//*****************************************************************************
+// repair_step ( uid_to_repair, steps_remaining )
+//*****************************************************************************
+[FUNCTION repair_step]
+
+if ( !<argv[0]> )
+    src.sysmessage Erro reparando!!
+    return 1
+endif
+
+//repete animacao ate terminar
+if ( <argv[1]> > 0 )
+    src.anim 11
+    src.sfx 42
+
+    LOCAL.r=<eval <argv[1]>-1>
+    timerf 1 repair_step <argv[0]>,<LOCAL.r>
+    return 1
+endif
+
+if !(<restest 5 i_ingot_iron>)
+    src.sysmessage Voce precisa de pelo menos 5 lingotes de ferro.
+    return 1
+endif
+
+LOCAL.chance1=<eval rand(1500)>
+LOCAL.chance2=<eval rand(1000)>
+LOCAL.chance3=<eval rand(500)>
+
+//consome de 1 a 5 lingotes
+LOCAL.consume=<eval 5-(<src.blacksmithing>/201)>
+src.consume <LOCAL.consume> i_ingot_iron
+
+OBJ=<argv[0]>
+LOCAL.rep=0
+if ( <LOCAL.chance1> < <src.blacksmithing> )
+    src.sysmessagegreen Reparo finalizado com sucesso.
+    OBJ.maxhits=<eval <OBJ.maxhits>-1>
+    OBJ.hits=<OBJ.maxhits>
+    LOCAL.rep=1
+elif ( <LOCAL.chance2> < <src.blacksmithing> )
+    src.sysmessageyellow Reparo incompleto.
+    OBJ.maxhits=<eval <OBJ.maxhits>-1>
+    LOCAL.maxinc=<eval <OBJ.maxhits>-<OBJ.hits>>
+    OBJ.hits += <R<LOCAL.maxinc>>
+    LOCAL.rep=1
+elif ( <LOCAL.chance3> > <src.blacksmithing> )
+    src.sysmessageyellow Reparo falhou e o material foi danificado!!
+    OBJ.maxhits=<eval <OBJ.maxhits>-1>
+    OBJ.hits -= <eval <R<OBJ.hits>>+1>
+else
+    src.sysmessagered Voce nao conseguiu reparar.
+endif
+
+src.skill_gain skill_blacksmith
+
+if <LOCAL.rep> && (<OBJ.type>==t_enferrujado)
+    OBJ.type=<serv.itemdef.<obj.baseid>.type>
+    OBJ.name=<serv.itemdef.<obj.baseid>.name>
+    src.sysmessagegreen Ferrugem removido!
+endif
+
+if (<OBJ.maxhits>==0)
+    src.sysmessagered Este item possui muitos remendos e nao pode ser mais reparado.
+    OBJ.remove
+
+elif (<OBJ.hits><=0)
+    src.sysmessagered Este item foi destruido.
+    OBJ.remove
+else
+    OBJ.update
+endif
+
+return 1
+
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONS PARA BEHAVIOR DE CRAFTING
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+[FUNCTION craft_t_weapon_fence]
+//*****************************************************************************
+//CALL craft_t_weapon_fence
+if (<serv.itemdef.<args>.skillmake.0.key>==Carpentry)
+    CALL craft_carpentry_weapon
+    return 1
+endif
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge        
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_forjado
+obj.tag.f_done=f_setItemTag <argv[0]>,
+obj.tag.emote=forjando
+obj.tag.scrap=i_foligem_bs
+obj.tag.delay=<eval ((STRLEN(<serv.itemdef.<argv[0]>.resources>))/2)+<MAXIMUM 3,<eval <serv.itemdef.<argv[0]>.SKILLMAKE.1.val>/33>>>
+craft_setTool i_martelo_ferreiro
+local.craftable=1
+
+//*****************************************************************************
+[FUNCTION craft_t_weapon_sword]
+//*****************************************************************************
+// CALL craft_t_weapon_sword
+if (<serv.itemdef.<args>.skillmake.0.key>==Skill_Carpentry)
+    CALL craft_carpentry_weapon
+    return 1
+endif
+call craft_t_weapon_fence
+
+//*****************************************************************************
+[FUNCTION craft_t_weapon_mace_sharp]
+//*****************************************************************************
+// CALL craft_t_weapon_mace_sharp
+if (<serv.itemdef.<args>.skillmake.0.key>==Skill_Carpentry)
+    CALL craft_carpentry_weapon
+    return 1
+endif
+call craft_t_weapon_fence
+obj.tag.item=i_bola_maca
+
+//*****************************************************************************
+[FUNCTION craft_t_weapon_mace_smith]
+//*****************************************************************************
+// CALL craft_t_weapon_mace_smith
+if (<serv.itemdef.<args>.skillmake.0.key>==Skill_Carpentry)
+    CALL craft_carpentry_weapon
+    return 1
+endif
+call craft_t_weapon_fence
+obj.tag.item=i_maca_martelo
+
+//*****************************************************************************
+[FUNCTION craft_t_weapon_axe]
+//*****************************************************************************
+// CALL craft_t_weapon_axe
+if (<serv.itemdef.<args>.skillmake.0.key>==Skill_Carpentry)
+    CALL craft_carpentry_weapon
+    return 1
+endif
+call craft_t_weapon_fence
+obj.tag.item=i_ponta_picareta
+
+//*****************************************************************************
+[FUNCTION craft_t_weapon_mace_pick]
+//*****************************************************************************
+// CALL craft_t_weapon_mace_pick
+if (<serv.itemdef.<args>.skillmake.0.key>==Skill_Carpentry)
+    CALL craft_carpentry_weapon
+    return 1
+endif
+call craft_t_weapon_fence
+obj.tag.item=i_ponta_picareta
+
+//*****************************************************************************
+[FUNCTION craft_t_arame]
+//*****************************************************************************
+// CALL craft_t_arame
+obj.tag.anim=19
+obj.tag.sfx=02b
+obj.tag.espid=i_trefila
+obj.tag.espname=trefila
+obj.tag.neartype=t_forge        
+obj.tag.nearname=forja acesa
+obj.tag.item=i_metal_fundido
+obj.tag.f_done=f_setItemTag <argv[0]>,
+obj.tag.emote=fundindo metal
+obj.tag.scrap=i_foligem_bs
+obj.tag.morex=<eval (<blacksmithing>/333)+1>//Amount
+obj.tag.delay=<eval <serv.itemdef.<argv[0]>.skillmake.1.val>/33>
+craft_setTool i_trefila
+local.craftable=1
+
+//*****************************************************************************
+[FUNCTION craft_t_mring]
+//*****************************************************************************
+// CALL craft_t_mring
+obj.tag.anim=6
+obj.tag.sfx=1453
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.item=<argv[0]>
+obj.tag.amt=<eval <blacksmithing>/5>
+obj.tag.emote=fechando aneis
+obj.tag.delay=<eval <serv.itemdef.<argv[0]>.skillmake.1.val>/33>
+craft_setTool i_alicate
+local.craftable=1
+
+//*****************************************************************************
+[FUNCTION  craft_i_barra_metal]
+//*****************************************************************************
+// CALL craft_i_barra_metal
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+craft_setTool i_alicate
+obj.tag.neartype=t_forge        
+obj.tag.nearname=forja acesa
+obj.tag.item=i_barra_metal
+obj.tag.emote=forjando metal
+obj.tag.scrap=i_foligem_bs
+obj.tag.amt=<eval (<blacksmithing>/250)+1>//Amount
+obj.tag.delay=7
+local.craftable=1
+
+//*****************************************************************************
+[FUNCTION  craft_i_pregos]
+//*****************************************************************************
+// CALL craft_i_pregos
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+craft_setTool i_alicate
+obj.tag.neartype=t_forge        
+obj.tag.nearname=forja acesa
+obj.tag.item=i_pregos
+obj.tag.emote=forjando metal
+obj.tag.scrap=i_foligem_bs
+obj.tag.amt=<eval (<blacksmithing>/10)+1>//Amount
+obj.tag.delay=7
+local.craftable=1
+
+//*****************************************************************************
+[FUNCTION craft_t_plate]
+//*****************************************************************************
+// CALL craft_t_plate
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_forge        
+obj.tag.nearname=forja acesa
+obj.tag.needtype=t_anvil
+obj.tag.need=bigorna
+obj.tag.item=i_placa_ferro_forjada
+obj.tag.more1=<DEF.<argv[0]>>
+obj.tag.f_done=f_setItemTag <argv[0]>,
+obj.tag.emote=forjando placa
+obj.tag.scrap=i_foligem_bs
+obj.tag.morex=1
+obj.tag.delay=<eval <serv.itemdef.<argv[0]>.skillmake.1.val>/33>
+craft_setTool i_alicate
+local.craftable=1
+
+//*****************************************************************************
+[FUNCTION  craft_i_tacha_armor]
+//*****************************************************************************
+// CALL craft_i_tacha_armor
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+craft_setTool i_alicate
+obj.tag.neartype=t_forge        
+obj.tag.nearname=forja acesa
+obj.tag.item=i_tacha_armor
+obj.tag.emote=forjando metal
+obj.tag.scrap=i_foligem_bs
+obj.tag.amt=<eval (<blacksmithing>/10)+1>//Amount
+obj.tag.delay=7
+local.craftable=1
+
+//*****************************************************************************
+[FUNCTION  craft_t_ponta_flecha]
+//*****************************************************************************
+// CALL craft_t_ponta_flecha
+obj.tag.anim=9
+obj.tag.sfx=02a
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+craft_setTool i_alicate
+obj.tag.neartype=t_forge        
+obj.tag.nearname=forja acesa
+obj.tag.item=<argv[0]>
+obj.tag.emote=moldando pontas de flecha
+obj.tag.scrap=i_foligem_bs
+obj.tag.amt=<eval (<blacksmithing>/6)+1>//Amount
+obj.tag.delay=<between 1,10,<blacksmithing>,<serv.itemdef.<argv[0]>.skillmake.0.val>>
+local.craftable=1
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - Ferramentas
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_bigorna
+//*****************************************************************************
+[ITEMDEF i_bigorna]
+ID=0faf
+NAME=bigorna
+DEFNAME=i_bigorna
+TYPE=T_ANVIL
+FLIP=1
+WEIGHT=30
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=bigorna (N)
+DUPELIST=0fb0
+
+//*****************************************************************************
+// i_martelo_ferreiro
+//*****************************************************************************
+[ITEMDEF i_martelo_ferreiro]
+ID=0fb4
+NAME=martelo de ferreiro
+DEFNAME=i_martelo_ferreiro
+WEIGHT=4
+TYPE=T_WEAPON_MACE_SMITH
+FLIP=1
+DAM=4,10
+//SPEED=60
+SKILL=MaceFighting
+REQSTR=30
+TWOHANDS=N
+SKILLMAKE=Tinkering 48.5
+RESOURCES=2 i_ingot_iron, 1 i_cabo_madeira
+TEVENTS=t_crafting_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=martelo de ferreiro
+DUPELIST=0fb5
+TDATA4=750
+
+ON=@CREATE
+MAXHITS=100
+HITPOINTS=100
+
+//*****************************************************************************
+// i_martelo_ferreiro
+//*****************************************************************************
+[ITEMDEF i_martelo_ferreiro_exp]
+ID=0fb4
+NAME=martelo de ferreiro excepcional
+WEIGHT=4
+TYPE=T_WEAPON_MACE_SMITH
+FLIP=1
+DAM=4,10
+//SPEED=60
+SKILL=MaceFighting
+REQSTR=30
+TWOHANDS=N
+SKILLMAKE=Tinkering 48.5
+RESOURCES=2 i_ingot_iron, 1 i_cabo_madeira
+TEVENTS=t_crafting_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=martelo de ferreiro
+DUPELIST=0fb5
+TDATA4=1500
+
+
+ 
+//*****************************************************************************
+// i_picareta
+//*****************************************************************************
+[ITEMDEF 0e85]
+NAME=picareta
+DEFNAME=i_pickaxe
+TYPE=T_WEAPON_MACE_PICK
+RESOURCES=4 i_ingot_iron, 2 i_cabo_madeira
+SKILLMAKE=40.0 Tinkering
+FLIP=1
+DAM=1,10
+SPEED=40
+REQSTR=55
+TWOHANDS=N
+WEIGHT=11
+TEVENTS=t_crafting_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=picareta
+TDATA4=1500
+dupelist=0e86
+
+ON=@CREATE
+MAXHITS=450
+HITS=300
+
+[ITEMDEF 0e86]
+DUPEITEM=0e85
+
+[ITEMDEF i_picareta_exp]
+ID=0e86
+NAME=picareta excepcional
+TYPE=T_WEAPON_MACE_PICK
+RESOURCES=4 i_ingot_iron, 2 i_cabo_madeira
+SKILLMAKE=40.0 Tinkering
+FLIP=1
+DAM=1,10
+SPEED=40
+REQSTR=55
+TWOHANDS=N
+WEIGHT=11
+TEVENTS=t_crafting_tool
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=picareta excepcional
+TDATA4=3000
+
+
+//*****************************************************************************
+// i_pa
+//*****************************************************************************
+[ITEMDEF i_pa]
+id=0f39
+NAME=pa 
+DEFNAME=i_shovel
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=pa
+SKILLMAKE=TINKERING 70.0
+RESOURCES=4 i_ingot_iron, 2 i_cabo_madeira
+TYPE=T_WEAPON_MACE_PICK
+TEVENTS=t_crafting_tool
+TDATA4=2000
+
+ON=@CREATE
+MAXHITS=450
+HITS=300
+
+//*****************************************************************************
+// i_pa_exp
+//*****************************************************************************
+[ITEMDEF i_pa_exp]
+id=0f39
+NAME=pa excepcional
+DEFNAME=i_shovel
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=pa exp
+SKILLMAKE=TINKERING 70.0
+RESOURCES=4 i_ingot_iron, 2 i_cabo_madeira
+TYPE=T_WEAPON_MACE_PICK
+TEVENTS=t_crafting_tool
+TDATA4=4000
+
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - Material incompleto - forjado
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_bigorna_forjada
+//*****************************************************************************
+[ITEMDEF i_bigorna_forjada]
+NAME=metal forjado (incandescente)
+WEIGHT=30
+ID=i_anvil
+TYPE=t_incomplete_forged
+
+ON=@CREATE
+color=026
+
+//*****************************************************************************
+// i_ponta_picareta
+//*****************************************************************************
+[ITEMDEF i_ponta_picareta]
+//usado tambem para representar laminas de machados.
+NAME=metal forjado (incandescente)
+ID=01043
+TYPE=t_incomplete_forged
+WEIGHT=1.0
+
+ON=@CREATE
+color=0845
+
+//*****************************************************************************
+// i_metal_forjado
+//*****************************************************************************
+[ITEMDEF i_metal_forjado]
+NAME=metal forjado (incandescente)
+ID=0fb7
+TYPE=t_incomplete_forged
+WEIGHT=1.0
+
+//*****************************************************************************
+//i_bola_maca
+//*****************************************************************************
+[ITEMDEF i_bola_maca]
+NAME=bola para maca (incandescente)
+//antigo id 01cb
+ID=3699
+TYPE=t_incomplete_forged
+WEIGHT=2.0
+
+ON=@CREATE
+color=026
+
+//*****************************************************************************
+// i_tacha_forjada
+//*****************************************************************************
+[ITEMDEF i_tacha_forjada]
+name=metal forjado (incandescente)
+id=7847
+weight=0.1
+type=t_incomplete_forged
+Pile=0
+
+ON=@CREATE
+color=026
+
+//*****************************************************************************
+// i_placa_ferro_forjada
+//*****************************************************************************
+[ITEMDEF i_placa_ferro_forjada]
+name=placa de metal (incandescente)
+ID=5988
+type=t_incomplete_forged
+weight=1.0
+pile=1
+
+ON=@CREATE
+color=026
+
+//*****************************************************************************
+// i_maca_martelo
+//*****************************************************************************
+[ITEMDEF i_maca_martelo]
+NAME=maca para o martelo (incandescente)
+ID=01044
+TYPE=t_incomplete_forged
+PILE=0
+WEIGHT=1.0
+
+ON=@CREATE
+color=026
+
+//*****************************************************************************
+// i_metal_fundido
+//*****************************************************************************
+[ITEMDEF i_metal_fundido]
+name=metal fundido (incandescente)
+id=0136b
+type=t_incomplete_forged
+WEIGHT=1.0
+
+ON=@CREATE
+color=026
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - Peças / Materia Prima / Outros
+//*****************************************************************************
+//*****************************************************************************
+
+[EVENTS e_metal_preitem]
+ON=@DCLICK
+src.sysmessage Utilize o martelo para criar
+src.sysmessage pecas com <name>.
+return 1
+
+//*****************************************************************************
+// i_barra_metal
+//*****************************************************************************
+[ITEMDEF i_barra_metal]
+NAME=barra%s% de ferro
+DEFNAME=i_bar_iron
+ID=0f8a
+WEIGHT=0.1
+RESOURCES=1 i_ingot_iron
+SKILLMAKE=Blacksmithing 3.4
+TYPE=t_buy_raw
+TEVENTS=e_metal_preitem
+
+ON=@CREATE
+color=00482
+
+//*****************************************************************************
+// i_tacha_armor
+//*****************************************************************************
+[ITEMDEF i_tacha_armor]
+NAME=tachas para armadura
+ID=0f12
+TYPE=t_buy_raw
+WEIGHT=0.1
+PILE=1
+RESOURCES=1 i_ingot_iron
+SKILLMAKE=Blacksmithing 12.5
+TEVENTS=e_metal_preitem
+
+ON=@CREATE
+color=0430
+
+//*****************************************************************************
+// i_pregos
+//*****************************************************************************
+[ITEMDEF i_pregos]
+ID=0105b//014fb
+TYPE=t_buy_raw
+NAME=prego%s
+PILE=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=pregos
+RESOURCES=1 i_ingot_iron
+SKILLMAKE=Blacksmithing 4.0
+WEIGHT=0
+
+ON=@create
+color=03c4
+
+ON=@DCLICK
+src.sysmessage Usado por carpinteiros.
+return 1
+
+//*****************************************************************************
+// i_argola_barril
+//*****************************************************************************
+[ITEMDEF i_argola_barril]
+ID=010e2
+NAME=argolas para barril
+TYPE=t_buy_raw
+RESOURCES=1 i_ingot_iron
+SKILLMAKE=Blacksmithing 7.1
+FLIP=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=argolas para barril
+
+//*****************************************************************************
+// t_arame
+//***************************************************************************** 
+[TYPEDEF t_arame]
+on=@dclick
+sysmessage Utilizado para fazer aneis para armaduras e brbantes para arcos.
+
+//*****************************************************************************
+// i_ferradura
+//*****************************************************************************
+[ITEMDEF i_ferradura]
+NAME=ferraduras
+ID=4022
+TYPE=t_normal
+WEIGHT=1
+RESOURCES=1 i_ingot_iron
+SKILLMAKE=Blacksmithing 6.3
+CATEGORY=MyT - Items by Professions
+subsectiON=Blacksmith
+descriptiON=ferraduras
+
+//*****************************************************************************
+// i_foligem_bs
+//*****************************************************************************
+[ITEMDEF i_foligem_bs]
+NAME=foligem
+ID=01038
+TYPE=t_normal
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=foligem
+
+ON=@CREATE
+color=03c2
+attr=00002
+timer=30
+
+//*****************************************************************************
+// i_chest_metal
+//*****************************************************************************
+[ITEMDEF 09ab]
+//DEFNAME2=METAL_CHEST_4
+DEFNAME=i_chest_metal
+NAME=bau de metal
+TYPE=T_CONTAINER
+SKILLMAKE=BLACKSMITHING 67.5
+RESOURCES=8 i_plate_iron, 2 i_tabua, 2 i_hinge
+TEVENTS=t_furniture
+FLIP=1
+WEIGHT=20.0
+WEIGHT=20.0
+TDATA2=04a
+TAG.LOCKTYPE=10
+TAG.OVERRIDE.MAXWEIGHT=5000
+DUPELIST=0e7c
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=Bau de metal
+
+
+[EOF]

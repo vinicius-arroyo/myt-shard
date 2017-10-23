@@ -1,0 +1,285 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE COZINHA 
+//
+//      Galthar
+//      UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//TAGS usadas:
+
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+[TYPEDEF t_cooking_tool]
+//Compatibilidade com sistema de vendas
+
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_panela
+//*****************************************************************************
+[ITEMDEF i_panela]
+NAME=Panela
+ID=09e0
+TYPE=t_crafting_tool
+RESOURCES=1 i_plate_iron
+SKILLMAKE=15.6 Blacksmithing
+TDATA1=3915
+TDATA4=160
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Panela
+
+ON=@CREATE
+MAXHITS=<R15,<TDATA4>>
+HITS=<R10,<MAXHITS>>
+
+//*****************************************************************************
+// i_frigideira
+//*****************************************************************************
+[ITEMDEF i_frigideira]
+NAME=Frigideira
+ID=09e2
+TYPE=t_crafting_tool
+RESOURCES=1 i_plate_iron, 1 i_cabo_madeira
+SKILLMAKE=12.3 Blacksmithing
+TDATA1=3914
+TDATA4=160
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Frigideira
+
+ON=@CREATE
+MAXHITS=<R15,<TDATA4>>
+HITS=<R10,<MAXHITS>>
+
+//*****************************************************************************
+// i_assadeira
+//*****************************************************************************
+[ITEMDEF i_assadeira]
+NAME=assadeira
+ID=014e9
+TYPE=t_crafting_tool
+TDATA1=3917
+TDATA4=160
+RESOURCES=3 i_tabua
+SKILLMAKE=Carpentry 30.0
+WEIGHT=5
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Assadeira
+
+ON=@CREATE
+MAXHITS=<R15,<TDATA4>>
+HITS=<R10,<MAXHITS>>
+
+//*****************************************************************************
+// i_tigela_massa
+//*****************************************************************************
+[ITEMDEF i_tigela_massa]
+NAME=tigela para massa
+ID=010e3
+TYPE=t_crafting_tool
+TDATA1=3916
+TDATA4=160
+RESOURCES=2 i_tabua
+SKILLMAKE=Carpentry 50.0
+WEIGHT=5
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Tigela para massas
+
+ON=@CREATE
+MAXHITS=<R15,<TDATA4>>
+HITS=<R10,<MAXHITS>>
+
+//*****************************************************************************
+// i_ninho_ovo
+//*****************************************************************************
+[itemdef i_ninho_ovo]
+ID=01AD5
+NAME=ninho
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Farmer
+DESCRIPTION=ninho para coletar ovos
+
+on=@clientToolTip
+if (<morex>)
+ local.text=Ovos: <morex>
+else
+ local.text=Esta vazio
+endif
+if (<src.IsGm>)
+ local.text .= <DEF.BR>Total de ovos coletados: <dmore1>
+endif
+f_sendToolTip <name>,<local.text>
+return 1
+
+on=@Step
+if (!<argn1>)
+    if (<src.body>==c_chicken) && (!<src.tag0.botouovo>)
+        if (<morex> < 10)
+            src.cry
+            src.emotegreen poe ovos
+            src.tag.botouovo=1
+            src.timerf 3600,tag.botouovo=
+            morex += <R1,3>
+            dispid=01AD4
+            update
+        endif
+    endif
+endif
+
+ON=@DCLICK
+if (<morex>)
+    serv.newitem i_eggs_fresh
+    new.amount=<morex>
+    new.bounce
+    more1 += <morex>
+    morex=0
+    dispid=01AD5
+    update
+else
+    src.sysmessageyellow O ninho esta vazio.
+endif
+return 1
+
+[FUNCTION craft_t_food_raw]
+//CALL craft_t_food_raw
+CALL craft_t_food <args>
+
+[FUNCTION craft_t_food]
+//CALL craft_t_food
+ref1=<ctag0.craft_tool>
+if (<ref1>)
+ local.def=<ref1.defname>
+endif
+
+obj.tag.delay=<BETWEEN 7,30,<serv.itemdef.<args>.skillmake.1.val>,125.0>
+obj.tag.neartype=t_fire
+obj.tag.nearname=fogao ou fogo
+obj.tag.f_done=f_createFood
+obj.tag.anim=6
+
+if (STRMATCH(*frigideira*,<local.def>))
+ obj.tag.sfx=48
+ obj.tag.emote=fritando
+elif (STRMATCH(*panela*,<local.def>))
+ obj.tag.sfx=021
+ obj.tag.emote=cozinhando
+elif (STRMATCH(*tigela*,<local.def>))
+ obj.tag.sfx=0242
+ obj.tag.emote=misturando
+elif (STRMATCH(*assadeira*,<local.def>))
+ obj.tag.sfx=04BA
+ obj.tag.emote=assando
+else
+ obj.tag.sfx=0247
+ obj.tag.emote=preparando
+endif
+local.craftable=1
+
+[FUNCTION f_createFood]
+if (<argv[0]>==1)
+ obj=<argv[1]>
+ obj.morex=<BETWEEN 1,<obj.tdata1>,<cooking>,1000>
+ obj.update
+ if (<obj.TDATA3>)
+  obj.timerf 1,dupe <eval <obj.TDATA3>-1>
+ endif
+else
+ obj=<findid.i_mry_fazitem>
+ IF (<serv.itemdef.<obj.tag.item>.TDATA2>)
+  serv.newitem <serv.itemdef.<obj.tag.item>.TDATA2>
+  bounce <new>
+ ENDIF
+endif
+
+[ITEMDEF I_SACO_DE_FARINHA]
+ID=01039 
+TYPE=t_buy_raw
+NAME=saco de farinha
+RESOURCES=2 i_wheat_sheaf, 1 i_CLOTH 
+WEIGHT=5 
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=saco de farinha
+
+on=@dclick 
+SRC.SYSMESSAGE voce abriu o saco de farinha
+SRC.NEWITEM=I_SACO_DE_FARINHA2
+SRC.ACT.BOUNCE 
+REMOVE 
+RETURN 1 
+
+[ITEMDEF I_SACO_DE_FARINHA2]
+DEFNAME=i_saco_de_farinha2
+NAME=saco de farinha aberto
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=saco de farinha aberto
+ID=0103a
+
+ON=@CREATE
+MORE=5
+
+ON=@DCLICK 
+IF (<MORE>>=1)
+ SRC.SYSMESSAGE Voce tirou uma porcao de farinha
+ MORE=(<MORE>-1)
+ SRC.NEWITEM=i_porcao_farinha
+ SRC.ACT.BOUNCE
+ IF (<MORE><=0)
+  REMOVE
+ ENDIF
+ RETURN 1
+ELSE
+ REMOVE
+ RETURN 1
+ENDIF
+
+ON=@CLICK
+MESSAGE <name> (<more>)
+RETURN 1
+
+ON=@CLIENTTOOLTIP
+f_sendTooltip <name>, Porcoes: <eval <more>>
+return 1
+
+[ITEMDEF i_porcao_farinha]
+ID=0103e
+DEFNAME=i_porcao_farinha
+TYPE=t_food_raw
+WEIGHT=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Porcao de farinha
+NAME=porcao de farinha
+
+[ITEMDEF i_massa]
+ID=0103d
+DEFNAME=i_massa
+TYPE=t_food_raw
+NAME=massa
+RESOURCES=1 i_dose_milk, 1 i_eggs_fresh, 2 i_porcao_farinha
+SKILLMAKE=30.0 Cooking
+WEIGHT=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=massa
+
+[EOF]

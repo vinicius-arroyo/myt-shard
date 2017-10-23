@@ -1,0 +1,977 @@
+//more1 tempo de duracao do oleo
+//more2 se precisa verificar topobj
+[TYPEDEF t_luz_oleo]
+ON=@CLICK
+if (<timer><=0)
+    if (<more1><=0)
+        message <name> (sem oleo)
+        return 1
+    elif (<more1> > 600)
+        message <name>
+        return 1
+    else
+        message <name> (pouco oleo)
+        return 1
+    endif
+else
+    if (<timer> > 600)
+        message <name>
+        return 1
+    else
+        message <name> (pouco oleo)
+        return 1
+    endif
+endif
+
+ON=@CLIENTTOOLTIP
+if (<timer><=0)
+    if (<more1><=0)
+        f_sendTooltip <name>,Sem oleo.
+        return 1
+    elif (<more1> < 600)
+        f_sendTooltip <name>,O oleo esta acabando.
+        return 1
+    endif
+else
+    if (<timer> < 600)
+        f_sendTooltip <name>,O oleo esta acabando.
+        return 1
+    endif
+endif
+
+ON=@DCLICK
+if (<src.distance <uid>>>2)
+    src.sysmessageyellow Chegue mais perto.
+    return 1
+elif (<more2>) && (<topobj>!=<src>)
+    src.sysmessageyellow Somente acende/apaga em sua posse.
+    return 1
+endif
+
+//se apagado
+if (<timer><=0)
+    if (<more1><=0)
+        src.sysmessageyellow Voce precisa colocar mais oleo para acender
+        id=<TDATA3>
+        update
+        return 1
+    else
+        timer=<more1>
+        emotered acende
+        sfx 0225
+        id=<TDATA4>
+        if (<more2>)
+            equip
+        endif
+        update
+        return 1
+    endif
+else
+    emotered apaga
+    sfx 0226
+    id=<TDATA3>
+    more1=<timer>
+    timer=-1
+    update
+endif
+return 1
+
+ON=@TIMER
+emotered apaga
+sfx 0226
+dispid=<TDATA3>
+more1=0
+timer=-1
+update
+return 1
+
+  //---------------------------------------//
+ // sistema de catalisadores   por:Silver //
+//---------------------------------------//
+
+
+//------------typedefs---------//
+
+[typedef t_apagado]
+NAME=APAGADO
+
+on=@create
+color=03e4
+
+on=@dclick
+src.sysmessage forja desativada
+src.sysmessage precisa de catalisador para funcionar
+src.sysmessage (madeira ou carvao).
+return 1
+
+[typedef t_apagado2]
+NAME=APAGADO
+
+on=@create
+color=03e4
+
+on=@dclick
+src.sysmessage brazeiro desativada
+src.sysmessage precisa de catalisador para funcionar
+src.sysmessage (madeira ou carvao).
+return 1
+
+[typedef t_log]
+
+on=@dclick
+if (<cont.uid>==<src.findlayer(21).uid>)
+target Onde quer usar o catalisador ?
+return 1
+else
+src.sysmessage Voce deve ter o catalisador na mochila.
+endif
+return 1
+
+on=@targon_item
+src.i_usando_carvao_vegetal
+return 1
+
+
+
+//---------itens---------//
+
+
+
+[itemdef i_frasco_oleo]
+id=01c18
+type=t_oleo
+name=Frasco de Oleo
+pile=1
+weight=1.5
+value=3
+
+CATEGORY=MyT - Provisions - Catalisadores
+SUBSECTION=Recipiente
+DESCRIPTION=frasco de oleo
+
+on=@dclick
+bounce
+src.sysmessageyellow Selecione o item para colocar o oleo:
+target
+return 1
+
+on=@targon_item
+if (<src.targ.distance> > 1)
+    src.sysmessagered Muito longe...
+    return 1
+elif (<src.targ.baseid> == i_flecha_fogo_apagada)
+    src.sysmessageyellow Ja esta banhado com oleo.
+    return 1
+elif (<src.targ.baseid> == i_arrow)
+    src.emoteyellow aplicando oleo
+    sfx 0242
+    serv.newitem=i_frasco_oleo_vazio
+    new.bounce
+    decrement
+
+    if (<src.targ.amount> >= 10 )
+        LOCAL.a=10
+    else
+        LOCAL.a=<src.targ.amount>
+    endif
+    
+    serv.newitem=i_flecha_fogo_apagada
+    new.amount=<LOCAL.a>
+    new.bounce
+    src.consume <LOCAL.a> i_arrow
+    return 1
+elif (<src.targ.baseid> == i_lantern_lit) || (<src.targ.baseid>==i_lamppost2_lit)  || (<src.targ.baseid>==i_lamppost3_lit)  || (<src.targ.baseid>==i_lamppost1_lit)
+    src.sysmessageyellow Voce deve apagar primeiro.
+    return 1
+elif ((<src.targ.baseid>==i_lamppost2)  || (<src.targ.baseid>==i_lamppost3)  || (<src.targ.baseid>==i_lamppost1)
+    if (<src.targ.more1> > 36000) // 10 horas offline 
+        src.sysmessageyellow Ainda tem bastante oleo
+        return 1
+    else
+        src.emoteyellow aplicando oleo
+        sfx 0242
+        src.targ.more1=<src.targ.more1>+432000 // 5 dias offline
+        serv.newitem=i_frasco_oleo_vazio
+        new.bounce
+        decrement
+        return 1     
+    endif
+    return 1
+ elif (<src.targ.baseid> == i_lantern)
+    if (<src.targ.more1> > 5000) 
+        src.sysmessageyellow Ainda tem bastante oleo
+        return 1
+    else
+        src.emoteyellow aplicando oleo
+        sfx 0242
+        src.targ.more1=<src.targ.more1>+6000 // aprox.100 min ininterruptos ou 10h ingame
+        serv.newitem=i_frasco_oleo_vazio
+        new.bounce
+        decrement
+        return 1
+    endif
+    return 1
+elif (<src.targ.baseid> == i_moldura_couro)
+    src.emoteyellow tratando o couro
+    src.targ.more1=1
+    src.targ.update
+    serv.newitem=i_frasco_oleo_vazio
+    new.bounce
+    decrement
+    return 1
+elif (<src.targ.baseid> == i_moldura_pelo)
+    src.emoteyellow *tratando o pelo*
+    src.targ.more1=1
+    src.targ.update
+    serv.newitem=i_frasco_oleo_vazio
+    new.bounce
+    decrement
+    return 1
+else
+    src.sysmessageyellow Voce nao pode fazer nada colocando oleo nisso.
+endif
+return 1
+
+
+
+[itemdef 01039]
+NAME=saco 
+DEFNAME=i_saco
+TYPE=T_script
+WEIGHT=5
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=saco
+
+[itemdef i_saco_carvao]
+ID=01045
+NAME=saco de carvao 
+DEFNAME=i_saco_carvao
+TYPE=T_script
+WEIGHT=10
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=saco de carvao
+
+on=@create
+color=03e4
+
+on=@dclick
+SRC.message *abriu o saco* 
+SRC.NEWITEM=I_SACO_carvao2
+SRC.ACT.BOUNCE 
+REMOVE 
+RETURN 1 
+
+
+[itemdef i_saco_carvao2]
+NAME=saco de carvao (aberto) 
+ID=01046
+DEFNAME=i_saco_carvao2
+TYPE=T_script
+WEIGHT=10
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=saco de carvao
+
+on=@create
+color=03e4
+more=10
+
+on=@dclick
+IF (<MORE>>=1)
+ SRC.message *tirando carvao*
+ sfx 0048
+ MORE=(<MORE>-1)
+ SRC.NEWITEM=i_carvao_mineral
+ SRC.ACT.BOUNCE
+ RETURN 1
+ IF (<MORE><=0)
+  REMOVE
+ ENDIF
+ RETURN 1
+ELSE
+ REMOVE
+ RETURN 1
+ENDIF
+
+ON=@CLICK
+MESSAGE <name> (<more>)
+RETURN 1
+
+ON=@CLIENTTOOLTIP
+f_sendTooltip <name>, Porcoes: <more>
+return 1
+
+[itemdef i_pilha_madeira1]
+NAME=pilha de madeira (pequena)
+ID=01bde
+DEFNAME=i_pilha_madeira1
+TYPE=T_script
+WEIGHT=5
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Canpenter
+DESCRIPTION=pilhra de madeira (media)
+
+on=@create
+color=03e4
+more=3
+
+on=@dclick
+IF (<MORE>>=1)
+ SRC.message * tirando tora *
+ sfx 0048
+ MORE=(<MORE>-1)
+ SRC.NEWITEM=i_log
+ SRC.ACT.BOUNCE
+ return 1
+ IF (<MORE><=0)
+  REMOVE
+ ENDIF
+ RETURN 1
+ELSE
+ REMOVE
+ RETURN 1
+ENDIF
+
+[itemdef i_pilha_madeira2]
+NAME=pilha de madeira (grande) 
+ID=01bdf
+DEFNAME=i_pilha_madeira2
+TYPE=T_script
+WEIGHT=5
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=pilha de madeira (grande)
+
+on=@create
+more=10
+return 1
+
+on=@dclick
+IF (<MORE>>=1)
+ SRC.message *tirando tora*
+ sfx 0048
+ MORE=(<MORE>-1)
+ SRC.NEWITEM=i_log
+ SRC.ACT.BOUNCE
+ return 1
+ IF (<MORE><=0)
+  REMOVE
+ ENDIF
+ RETURN 1
+ELSE
+ REMOVE
+ RETURN 1
+ENDIF
+
+
+
+//----------------forja , brazeiros , fire pit , lanternas , postes -------//
+
+
+[itemdef i_poste_sem_lanterna]
+id=0b23
+name=poste ( sem lanterna )
+weight=5
+type=t_script
+category=MyT - Items by Professions
+subsection=Blacksmith
+description=poste (sem lanterna)
+
+on=@create
+color=03e4
+
+on=@dclick
+src.sysmessage Sem lanterna.
+target Selecione a lanterna para ser colocada :
+return 1
+
+on=@targon_char
+src.sysmessage Alvo inválido.
+return 1
+
+on=@targon_ground
+TRIGGER @targon_char 
+return 1
+
+on=@targon_item
+src.i_colocando_lanterna
+return 1
+
+[itemdef i_poste_sem_lanterna2]
+id=0b21
+name=poste ( sem lanterna )
+weight=5
+type=t_script
+category=MyT - Items by Professions
+subsection=Blacksmith
+description=poste (sem lanterna)
+
+on=@create
+color=03e4
+
+on=@dclick
+src.sysmessage Sem lanterna.
+target Selecione a lanterna para ser colocada :
+return 1
+
+on=@targon_char
+src.sysmessage Alvo inválido.
+return 1
+
+on=@targon_ground
+TRIGGER @targon_char 
+return 1
+
+on=@targon_item
+src.i_colocando_lanterna2
+return 1
+
+[itemdef i_poste_sem_lanterna3]
+id=0b25
+name=poste ( sem lanterna )
+weight=5
+type=t_script
+category=MyT - Items by Professions
+subsection=Blacksmith
+description=poste (sem lanterna)
+
+on=@create
+color=03e4
+
+on=@dclick
+src.sysmessage Sem lanterna.
+target Selecione a lanterna para ser colocada :
+return 1
+
+on=@targon_char
+src.sysmessage Alvo inválido.
+return 1
+
+on=@targon_ground
+TRIGGER @targon_char 
+return 1
+
+on=@targon_item
+src.i_colocando_lanterna3
+return 1
+
+[ITEMDEF 0b21]
+//lamp post empty
+DEFNAME=i_lamppost1
+TYPE=t_luz_oleo
+NAME=poste de metal
+TDATA3=i_lamppost1
+TDATA4=i_lamppost1_lit
+RESOURCES=1 I_CANDLE, 20 i_ingot_iron, 2 I_SAND
+CATEGORY=MyT - Decoration - Lightsources
+SUBSECTION=Lamps
+DESCRIPTION=Lamp Post (unlit)
+
+[ITEMDEF 0b20]
+//lamp post
+DEFNAME=i_lamppost1_lit
+TYPE=t_luz_oleo
+NAME=poste de metal
+TDATA3=i_lamppost1
+TDATA4=i_lamppost1_lit
+RESOURCES=i_lamppost1
+CATEGORY=MyT - Decoration - Lightsources
+SUBSECTION=Lamps
+DESCRIPTION=Lamp Post
+
+
+[ITEMDEF 0b23]
+//lamp post unlit
+DEFNAME=i_lamppost2
+TYPE=t_luz_oleo
+NAME=poste simples
+TDATA3=i_lamppost2
+TDATA4=i_lamppost2_lit
+RESOURCES=1 I_CANDLE, 20 i_ingot_iron, 2 I_SAND
+CATEGORY=MyT - Decoration - Lightsources
+SUBSECTION=Lamps
+DESCRIPTION=Lamp Post (Unlit)
+
+[ITEMDEF 0b22]
+//lamp post
+DEFNAME=i_lamppost2_lit
+NAME=poste simples
+TYPE=t_luz_oleo
+TDATA3=i_lamppost2
+TDATA4=i_lamppost2_lit
+RESOURCES=i_lamppost2
+CATEGORY=MyT - Decoration - Lightsources
+SUBSECTION=Lamps
+DESCRIPTION=Lamp Post (lit)
+
+[ITEMDEF 0b25]
+//fancy lamp post unlit
+DEFNAME=i_lamppost3
+TYPE=t_luz_oleo
+NAME=poste ornado
+TDATA3=i_lamppost3
+TDATA4=i_lamppost3_lit
+RESOURCES=1 I_CANDLE, 25 i_ingot_iron, 4 I_SAND
+CATEGORY=MyT - Decoration - Lightsources
+SUBSECTION=Lamps
+DESCRIPTION=Lamp Post (Fancy Unlit)
+
+[ITEMDEF 0b24]
+//lamp post fancy lit
+DEFNAME=i_lamppost3_lit
+NAME=poste ornado 
+TYPE=t_luz_oleo
+TDATA3=i_lamppost3
+TDATA4=i_lamppost3_lit
+RESOURCES=i_lamppost3
+CATEGORY=MyT - Decoration - Lightsources
+SUBSECTION=Lamps
+DESCRIPTION=Lamp Post (Fancy Lit)
+
+[COMMENT 0a15]
+DEFNAME=i_lantern_lit
+name= Lanterna de oleo acesa
+RESOURCES=i_lantern
+TYPE=t_luz_oleo
+TDATA3=i_lantern
+TDATA4=i_lantern_lit
+WEIGHT=2
+DUPELIST=0a16,0a17,0a1a,0a1b,0a1c,0a22,0a23,0a24
+LAYER=layer_face
+
+ON=@CREATE
+more2=1
+
+[COMMENT 0a18]
+DEFNAME=i_lantern
+NAME=Lanterna de oleo
+TYPE=t_luz_oleo
+SKILLMAKE=Tinkering 64.5
+RESOURCES=4 i_areia, 1 i_arame_ferro, 1 i_ingot_bronze
+TDATA3=i_lantern
+TDATA4=i_lantern_lit
+WEIGHT=2
+DUPELIST=0a1d,0a25
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tinker
+DESCRIPTION=Lanterna
+LAYER=layer_face
+
+ON=@CREATE
+more2=1
+
+
+[ITEMDEF 0fb1]
+NAMe=forja (desativada)
+DEFNAME=i_forja
+TYPE=t_apagado
+WEIGHT=500
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=forja 
+
+on=@create
+color=03e4
+
+on=@timer
+if (<more1> >= 1)
+  more1=<more1>-1
+  timer=60
+  return 1
+else
+  color=03e4
+  type=t_apagado
+  name=forja (desativada)
+  return 1
+endif
+
+[itemdef i_brazeiro_ap]
+ID=0e31
+NAME=brazeiro (desativado)
+DEFNAME=i_brazeiro
+TYPE=t_apagado2
+WEIGHT=500
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=brazeiro
+
+on=@create
+color=03e4
+
+on=@timer
+if (<more1> >= 1)
+  more1=<more1>-1
+  timer=40
+  return 1
+else
+  color=03e4
+  type=t_apagado2
+  name=brazeiro (desativado) 
+  return 1
+endif
+
+[itemdef i_brazeiro_ap2]
+ID=019aa
+NAME=brazeiro (desativado)
+DEFNAME=i_brazeiro
+TYPE=t_apagado2
+WEIGHT=500
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=brazeiro
+
+
+
+on=@create
+color=03e4
+
+on=@timer
+if (<more1> >= 1)
+  more1=<more1>-1
+  timer=40
+  return 1
+else
+  color=03e4
+  type=t_apagado2
+  name=brazeiro (desativado) 
+  return 1
+endif
+
+[itemdef i_brazeiro_ap3]
+ID=019bb
+NAME=brazeiro (desativado)
+DEFNAME=i_brazeiro
+TYPE=t_apagado2
+WEIGHT=500
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=brazeiro
+
+
+
+on=@create
+color=03e4
+
+on=@timer
+if (<more1> >= 1)
+  more1=<more1>-1
+  timer=40
+  return 1
+else
+  color=03e4
+  type=t_apagado2
+  name=brazeiro (desativado) 
+  return 1
+endif
+
+[itemdef i_brazeiro_ap4]
+id=01f2b
+NAME=brazeiro (desativado)
+DEFNAME=i_brazeiro
+TYPE=t_apagado2
+WEIGHT=500
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=brazeiro
+
+
+on=@create
+color=03e4
+
+on=@timer
+if (<more1> >= 1)
+  more1=<more1>-1
+  timer=40
+  return 1
+else
+  color=03e4
+  type=t_apagado2
+  name=brazeiro (desativado) 
+  return 1
+endif
+
+
+
+//-------recursos-------//
+//para ser adicionado ao carpenter 
+
+
+[TYPEDEF t_catalisador]
+on=@dclick
+if (<cont.uid>==<src.findlayer(21).uid>)
+ src.sysmessageyellow Onde quer usar o catalisador ?
+ target
+else
+ src.sysmessagered Voce deve ter o catalisador na mochila.
+endif
+return 1
+
+on=@targon_item 
+src.i_usando_carvao_mineral
+return 1
+
+on=@targon_ground
+src.sysmessage Alvo invalido.
+return 1
+
+on=@targon_char
+src.sysmessage Alvo invalido. 
+return 1
+
+[ITEMDEF i_carvao_mineral]
+defname=i_carvao_mineral
+PILE=1
+ID=i_ore_iron
+NAME=carvao
+SKILLMAKE=MINING 20.0
+VALUE=5
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Blacksmith
+DESCRIPTION=carvao
+TYPE=t_catalisador
+
+
+ON=@Create
+COLOR=0096c
+
+
+//---------funcoes--------------//
+
+[function i_usando_carvao_mineral]
+if (<src.targ.type>==t_apagado)
+  sfx 0227
+  src.consume 1 i_carvao_mineral
+  src.newitem=i_fire
+  src.act.p=<src.targ.p>
+  src.act.z=<src.targ.z>+8
+  src.act.timer=2
+  src.act.attr=012
+  src.targ.type=t_forge
+  src.targ.color=00
+  src.targ.timer=60
+  src.targ.more1=10
+  src.targ.name=forja (ativa)
+  src.targ.emoteyellow acende
+elif (<src.targ.type>==t_forge) && (<src.targ.more1> < 30 )
+  src.targ.more1=<src.targ.more1>+10 
+  src.consume 1 i_carvao_mineral
+  src.emoteyellow coloca mais carvao
+  src.sfx 04BB
+elif (<src.targ.type>==t_forge) && (<src.targ.more1> >= 30 )
+  src.sysmessagered Ja nao cabe mais nada.
+elif (<src.targ.baseID>==i_saco) && (<src.restest 10 i_carvao_mineral>)
+  src.consume 10 i_carvao_mineral
+  sfx 0048
+  src.targ.remove
+  src.newitem=i_saco_carvao
+  src.act.p=<src.targ.p>
+  src.emotegreen coloca no saco
+elif (<src.targ.baseID>==i_saco) && (!<src.restest 10 i_carvao_mineral>)
+ src.sysmessageyellow Voce precisa de pelo menos 10 carvoes para encher o saco.
+elif (<src.targ.type>==t_apagado2)
+  sfx 0227
+  src.consume 1 i_carvao_mineral
+  src.targ.type=t_fire
+  src.targ.color=00
+  src.targ.timer=40
+  src.targ.more1=5
+  src.targ.name=brazeiro (ativo)
+  src.emoteyellow acende
+elif (<src.targ.type>==t_fire) && (<src.targ.more1> < 20 )
+  sfx 0227
+  src.emoteyellow coloca mais carvao
+  src.targ.more1=<src.targ.more1>+10 
+  src.consume 1 i_carvao_mineral
+elif (<src.targ.type>==t_fire) && (<src.targ.more1> >= 20 )
+  src.sysmessagered ja nao cabe mais nada.
+else
+  src.sysmessagered Alvo invalido.
+endif
+return 1
+
+
+
+[function i_usando_carvao_vegetal]
+if (<src.targ.canseelos> == 0)
+ src.sysmessage Alvo fora da linha de visao...
+   return 1
+ endif
+if (<src.targ.distance> > 1)
+ src.sysmessage Chegue mais perto.
+ return 1
+endif
+if (<src.targ.type>==t_apagado)
+  sfx 0227
+  src.consume 1 i_log
+  src.newitem=i_fire
+  src.act.p=<src.targ.p>
+  src.act.z=<src.targ.z>+8
+  src.act.timer=2
+  src.act.attr=012
+  src.targ.type=t_forge
+  src.targ.color=00
+  src.targ.timer=60
+  src.targ.more1=5
+  src.targ.name=forja (ativa)
+  src.targ.say * acende *
+ return 1
+elif (<src.targ.type>==t_forge) && (<src.targ.more1> < 30 )
+  src.targ.more1=<src.targ.more1>+5  
+  src.consume 1 i_log
+elif (<src.targ.type>==t_forge) && (<src.targ.more1> >= 30 )
+  src.sysmessage ja nao cabe mais nada.
+  return 1
+elif (<src.targ.type>==t_apagado2)
+  sfx 0227
+  src.consume 1 i_log
+  src.targ.type=t_fire
+  src.targ.color=00
+  src.targ.timer=60
+  src.targ.more1=5
+  src.targ.name=brazeiro (ativo)
+  src.targ.say * acende *
+  return 1
+elif (<src.targ.type>==t_fire) && (<src.targ.more1> < 20 )
+  sfx 0227
+  src.targ.more1=<src.targ.more1>+5  
+  src.consume 1 i_log
+elif (<src.targ.type>==t_fire) && (<src.targ.more1> >= 20 ) 
+  src.sysmessage ja nao cabe mais nada.
+  return 1
+else
+  src.sysmessage alvo invalido
+return 1
+endif
+
+
+
+
+[function i_usando_carvao_vegetal2]
+if (<src.targ.canseelos> == 0)
+ src.sysmessage Alvo fora da linha de visao...
+   return 1
+ endif
+if (<src.targ.distance> > 1)
+ src.sysmessage Chegue mais perto.
+ return 1
+endif
+ if (<src.targ.type>==t_apagado)
+  sfx 0227
+  src.consume 1 i_tabua
+  src.newitem=i_fire
+  src.act.p=<src.targ.p>
+  src.act.z=<src.targ.z>+8
+  src.act.timer=2
+  src.act.attr=012
+  src.targ.type=t_forge
+  src.targ.color=00
+  src.targ.timer=60
+  src.targ.more1=3
+  src.targ.name=forja (ativa)
+  src.targ.say * acende *
+return 1
+elif (<src.targ.type>==t_forge) && (<src.targ.more1> < 30 ) //ou forge
+  sfx 0227
+  src.targ.more1=<src.targ.more1>+3  
+  src.consume 1 i_tabua
+  return 1
+elif (<src.targ.type>==t_forge) && (<src.targ.more1> >=30 ) 
+  src.sysmessage ja nao cabe mais nada.
+  return 1
+elif (<src.targ.type>==t_apagado2)
+  sfx 0227
+  src.consume 1 i_tabua
+  src.targ.type=t_fire
+  src.targ.color=00
+  src.targ.timer=60
+  src.targ.more1=3
+  src.targ.name=brazeiro (ativo)
+  src.targ.say * acende *
+return 1
+elif (<src.targ.type>==t_fire) && (<src.targ.more1> < 20 )
+  sfx 0227
+  src.targ.more1=<src.targ.more1>+3  
+  src.consume 1 i_tabua
+  return 1
+elif (<src.targ.type>==t_fire) && (<src.targ.more1> >= 20 ) 
+  src.sysmessage ja nao cabe mais nada.
+  return 1
+else
+  src.sysmessage alvo invalido
+return 1
+endif
+
+
+[function i_colocando_lanterna]
+if (<src.targ.dispid> == i_lantern)
+src.link.say eu sou o link
+src.newitem i_lamppost2
+src.act.p=<act.p>
+//src.act.more1=src.targ.more1
+//src.act.more2=src.targ.more2
+//src.act.remove
+src.act.remove
+src.targ.remove
+elif (<src.targ.dispid> == i_lantern_lit)
+src.newitem=i_lamppost2_lit
+src.act.p=act.p
+src.act.more1=src.targ.more1
+src.act.more2=src.targ.more2
+src.targ.remove
+serv.allclients update
+src.act.remove
+return 1
+else
+src.sysmessage Alvo invalido.
+return 1
+endif
+return 1
+
+[function i_colocando_lanterna2]
+if (<src.targ.dispid> == i_lantern)
+src.newitem=i_lamppost1
+src.act.p=act.p
+src.act.more1=src.targ.more1
+src.act.more2=src.targ.more2
+src.targ.remove
+serv.allclients update
+return 1
+elif (<src.targ.dispid> == i_lantern_lit)
+src.newitem=i_lamppost1_lit
+src.act.p=act.p
+src.act.more1=src.targ.more1
+src.act.more2=src.targ.more2
+src.targ.remove
+serv.allclients update
+return 1
+else
+src.sysmessage Alvo invalido.
+return 1
+endif
+return 1
+
+[function i_colocando_lanterna3]
+if (<src.targ.dispid> == i_lantern)
+src.newitem=i_lamppost3
+src.act.more1=src.targ.more1
+src.act.more2=src.targ.more2
+src.targ.remove
+serv.allclients update
+return 1
+elif (<src.targ.dispid> == i_lantern_lit)
+src.newitem=i_lamppost3_lit
+src.act.more1=src.targ.more1
+src.act.more2=src.targ.more2
+src.targ.remove
+serv.allclients update
+return 1
+else
+src.sysmessage Alvo invalido.
+return 1
+endif
+return 1
+
+[eof]
+

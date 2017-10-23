@@ -1,0 +1,199 @@
+
+   /////////////////////////////
+  ///        Máquinas       ///
+ /////////////////////////////
+
+
+//AFFFFFFFFFF! ALGUÉM REFAÇA ESSE SCRIPT
+
+[ITEMDEF i_moinho_1]
+ID=01930
+name=alavanca
+type=t_script
+
+on=@create
+attr=010
+more1=0
+
+on=@dclick
+if (<src.restest 1 i_wheat_sheaf>)
+ src.consume 1 i_wheat_sheaf
+ //src.flags |= statf_freeze
+ src.tag.nomovetill <eval <serv.time>+1000>
+ src.anim 16 
+ sfx 184
+dispid=01935
+ update
+ more1=1
+ link=<src.uid>
+ timerd=0.3
+ return 1
+else
+ src.sysmessage Voce nao tem trigo para moer.
+ return 1
+endif
+
+on=@timer
+if (<more2>==5)
+ more2=0
+ dispid=01930
+ update
+ more1=0
+ link.newitem I_SACO_DE_FARINHA
+ link.act.cont=<link.findlayer(21).uid>
+ //src.flags &= ~statf_freeze
+ link.tag.nomovetill
+ sfx 0231
+ return 1
+endif
+if <dispiddec>==01937
+ if ({1 5} == 1)
+  say ranc!
+ endif
+ dispid=01930
+ timerd=0.3
+ sfx 184
+ link.anim 16
+ sfx 43
+elif <dispiddec>==01930
+ dispid=01935
+ timerd=0.3
+ more2=<more2>+1 
+else
+ dispid=<dispiddec>+1
+ timerd=0.3
+endif
+update
+return 1
+
+
+[ITEMDEF i_moinho_2]
+ID=0192e
+name=moinho
+type=t_script
+
+on=@create
+attr=010
+more1=0
+
+on=@dclick
+src.sysmessage Utilize a alavanca.
+timer=1
+return 1
+
+on=@timer
+if (<link.more1>==1)
+ if <dispiddec>==0192f
+  dispid=01933
+  timerd=0.3
+  sfx 43
+ elif <dispiddec>==01933
+  dispid=0192f
+ if ({1 5} == 1)
+  say CLANC!
+ endif
+  timerd=0.3
+ elif <dispiddec>==0192e
+  dispid=0192f
+  timerd=0.3
+ endif
+ update
+ return 1
+else
+ dispid=0192e
+ update
+ timer=1
+ return 1
+endif
+
+[ITEMDEF i_moinho_3]
+ID=0192c
+name=moinho
+type=t_script
+
+on=@create
+attr=010
+more1=0
+
+on=@dclick
+src.sysmessage Utilize a alavanca.
+timer=1
+return 1
+
+on=@timer
+if (<link.more1>==1)
+ if <dispiddec>==0192c
+  dispid=0192d
+  timerd=0.3
+  sfx 43
+ elif <dispiddec>==0192d
+  dispid=01931
+  timerd=0.3
+ elif <dispiddec>==01931
+  dispid=0192d
+  timerd=0.3
+ endif
+ update
+ return 1
+else
+ dispid=0192c
+ update
+ timer=1
+ return 1
+endif
+return 1
+
+[FUNCTION AddMoinho]
+src.newitem i_mry_AddMoinho
+src.act.equip
+src.act.use
+return 1
+
+[ITEMDEF i_mry_AddMoinho]
+id=i_memory
+name=Adicionando Moinho
+type=t_eq_script
+layer=30
+
+on=@Dclick
+targetg Onde voce deseja instalar o moinho?
+return 1
+
+on=@Targon_char
+cont.sysmessage Alvo invalido
+targetg Onde voce deseja instalar o moinho?
+return 1
+
+on=@Targon_item
+cont.sysmessage Alvo invalido
+targetg Onde voce deseja instalar o moinho?
+return 1
+
+on=@Targon_ground
+CONT.POINT_INFO <SRC.TARGP> 
+morep=<VAR.TI_P>
+if (<var.ti_los>==0)
+ cont.say Nao pode por neste local.
+ targetg Onde voce deseja instalar o moinho?
+ return 1
+elseif (<var.ti_distance> >=3)
+ cont.say Muito longe. Aproxime-se.
+ targetg Onde voce deseja instalar o moinho?
+ return 1
+endif
+cont.newitem=i_moinho_1
+cont.act.p=<var.TI_P>
+var.linking=<cont.act.UID>
+morey=(<morey> +(-1))
+cont.newitem=i_moinho_2
+cont.act.p=<morep>
+cont.act.timer=1
+cont.act.link=<var.linking>
+morey=(<morey> +(-1))
+cont.newitem=i_moinho_3
+cont.act.p=<morep>
+cont.act.timer=1
+cont.act.link=<var.linking>
+cont.consume 1 i_moinho_encaixotado
+remove
+return 1

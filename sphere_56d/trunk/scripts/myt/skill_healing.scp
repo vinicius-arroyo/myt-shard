@@ -1,0 +1,395 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL HEALING e VETERINARY
+//
+//  Finnegan
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//TAGS usadas:
+
+// Bandit (AKA Banditation)
+// - Healer deve estar ao lado do ferido
+// - Ferido deve estar ferido...
+// - Ferido nao pode estar sendo curado por outro healer
+//SE FERIDO ESTIVER VIVO:
+// - Healer cura de 1 a 7 hits por segundo dependendo do skill, durante 2 a 12 
+//      segundos.
+//SE FERIDO ESTIVER DESMAIADO:
+// - Healer cura de 1 a 4 hits por segundo dependendo do skill, durante 10 a 20 
+//      segundos.
+// - Ambos healer e ferido devem permanacer parados
+// - Ambos nao podem estar em warmode
+// - Ambos nao podem receber ataque algum
+
+// Possiveis alteracoes futuras:
+//   Healer nao poder estar segurando nada (escudo, arma, lanterna...)
+
+// Atributos da memory
+// MORE1  - hitpoints que poderao ser curados
+// MORE2  - dificuldade de uso da skill healing
+// MOREY  - se a bandagem esta sendo aplicada na propria pessoa
+
+
+[DEFNAME skill_healing]
+heal_mintime=3
+heal_maxtime=12
+
+heal_minhits=2
+heal_maxhits=5
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// T_BANDAGE_BLOOD
+//*****************************************************************************
+[TYPEDEF T_BANDAGE_BLOOD]
+on=@DClick
+if (!<Skill_InUse Skill_Healing>)
+    src.sysmessagered Voce so pode fazer uma coisa por vez
+    src.Skill_InUse 0
+    return 1
+elif ( <src.uid> != <topobj.uid> )
+    src.sysmessageyellow A bandagem precisa estar na sua mochila.
+else
+    src.sysmessageyellow Aonde voce quer lavar isto?
+    targetfg targ_bandage <UID> 
+endif
+return 1
+
+[FUNCTION targ_bandage]
+if (!<argn>)
+ return 0
+endif
+IF (<argo>)
+ IF (<argo.IsItem>)
+  if <argo.distance> > 3
+   src.sysmessageyellow Muito longe...
+   return 1
+  elif (<argo.type>==t_recipient) && (<argo.GetRecipientCan>&RECIPIENT_WASH_BANDAGE) && (<argo.morex>&LIQUID_CAN_BANDAGE)
+   UID.<argn>.bandage_clean
+   argo.FillRecipient LIQUID_BLOOD,<argo.more1>
+  ELIF (<DEF.LIQUID_<DEF.LIQUID_<argo.type>>_CAN>&LIQUID_CAN_BANDAGE)
+   UID.<argn>.bandage_clean
+   src.anim 33
+  ELSE
+   src.sysmessagered Voce nao pode lavar bandagens nisso.
+  ENDIF
+ ELSE
+  src.sysmessagered Voce nao pode lavar bandagens nisso.
+ ENDIF
+ELSE
+ if <src.distance <src.targp>> > 3 
+   src.sysmessageyellow Muito longe...
+   return 1 
+ elif (<serv.map(<targp.x>,<targp.y>).statics(0)>)
+  FOR z 0 3
+   IF (<serv.map(<targp.x>,<targp.y>).statics(<LOCAL.z>)>)
+    IF (!<ISEMPTY <DEF.LIQUID_<serv.map(<targp.x>,<targp.y>).statics(<LOCAL.z>).type>>>)
+     LOCAL.t=<serv.map(<targp.x>,<targp.y>).statics(<LOCAL.z>).type>
+    ENDIF
+   ENDIF
+  ENDFOR
+ ELSE
+  LOCAL.t=<serv.map(<targp.x>,<targp.y>).type>
+ ENDIF
+ IF (!<IsEmpty <DEF.LIQUID_<LOCAL.t>>>)
+  IF (<DEF.LIQUID_<DEF.LIQUID_<LOCAL.t>>_CAN>&LIQUID_CAN_BANDAGE)
+   src.bow
+   UID.<argn>.bandage_clean
+  ELSE
+   src.sysmessagered Voce nao pode lavar bandagens nisso.
+  ENDIF
+ ELSE
+  src.sysmessagered Voce nao pode lavar bandagens nisso.
+ ENDIF
+endif
+
+[FUNCTION bandage_clean]
+src.sfx 023E
+src.emoteyellow lavando bandagens
+serv.newitem i_bandage
+new.amount=<amount>
+src.bounce <new>
+remove
+
+//*****************************************************************************
+// t_bandagem
+//*****************************************************************************
+[TYPEDEF t_bandagem]
+ON=@DCLICK
+if ( <src.uid> != <topobj.uid> )
+    src.sysmessageyellow A bandagem precisa estar na sua mochila.
+else
+    src.sysmessageyellow Quem deseja tratar?
+    target 
+endif
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.type>==t_corpse) && (<src.targ.link.isplayer>)
+    src.f_healing <src.targ.link>
+else
+    src.sysmessageyellow Utilize a bandagem em pessoas ou animais.
+endif
+return 1
+    
+ON=@TARGON_CHAR
+if (<src.targ.isplayer>) || (<src.targ.npc>==brain_animal)
+    src.f_healing <src.targ>
+else
+    src.sysmessageyellow Utilize a bandagem em pessoas ou animais.
+endif
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// EVENTs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// e_bandagem
+//*****************************************************************************
+[EVENTS e_bandagem]
+
+ON=@ITEMDCLICK
+    if (<findid.i_mry_bandagem>)
+        SYSMESSAGERED Voce nao pode fazer outra coisa durante o tratamento.
+        return 1
+    else
+        events -e_bandagem
+    endif
+    
+[FUNCTION f_healing]
+obj=<argv0>
+if !(<obj.flags>&statf_dead) && ( <distance <obj>> > 1 )
+        sysmessagered Paciente esta muito longe.
+        return 1
+elif ( <obj.hits> >= <obj.maxhits> )
+        sysmessagered O paciente nao precisa de tratamento.
+        return 1
+ELIF ( <obj.isevent.e_mortalStrike>)
+        sysmessagered O paciente recebeu um ataque mortal!
+        obj.sysmessagered Voce não pode ser curado! Recebeu um ataque mortal!
+        return 1
+elif ( <obj.restest 1 i_mry_bandagem> )
+        sysmessagered Este paciente ja esta sendo tratado.
+        return 1
+elif ( !<restest 1 i_bandage> )
+        sysmessagered A bandagem parece nao estar mais na sua mochila.
+        return 1
+elif ( <obj.flags>&statf_dead )  && ( !<obj.findid.i_mry_desmaio> )
+        sysmessagered Nao pode tratar um morto
+        return 1
+endif
+
+consume 1 i_bandage
+serv.newitem i_mry_bandagem
+if (<obj.isplayer>)
+    local.timer=<between heal_mintime,heal_maxtime,<healing>,100.0>
+    local.hits=<between heal_minhits,heal_maxhits,<healing>,100.0>
+    if (<obj.flags>&statf_dead) 
+        new.more1=2*<local.timer>
+        new.more2=<local.hits>
+    else
+        new.more1=<local.timer>
+        new.more2=<local.hits>
+        if ( <uid> == <obj> )
+                new.morey=1
+        else
+                new.morey=0
+        endif
+    endif
+else
+    new.more1=<local.timer>
+    new.more2=2+<local.hits>
+    new.morey=0
+endif
+
+new.link=<uid>
+new.timer=1
+new.cont=<obj>
+obj.tag.disturb=0
+obj.ctag.disturb=0
+ctag.disturb=0
+
+sysmessagegreen Voce comeca a tratar os ferimentos.
+events +e_bandagem
+tag.bandmem=<new.uid>
+tag.bandx=<src.p.x>
+tag.bandy=<src.p.y>
+
+if ( !<new.morey> )
+        obj.sysmessagegreen Seus ferimentos estao sendo tratados.
+        obj.events +e_bandagem
+        obj.tag.bandmem=<new.uid>
+        obj.tag.bandx=<obj.p.x>
+        obj.tag.bandy=<obj.p.y>
+endif
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_bandage
+//*****************************************************************************
+[ITEMDEF 0e21]
+DEFNAME=i_bandage
+NAME=bandage%ns/m
+RESOURCES=i_cloth
+SKILLMAKE=5.0 Tailoring
+TYPE=t_bandagem
+WEIGHT=.1
+DUPELIST=0ee9
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Healer
+DESCRIPTION=Clean Bandages
+
+
+//*****************************************************************************
+[FUNCTION craft_t_bandagem]
+//*****************************************************************************
+//Behavior de crafting para bandagens
+REF1=<src.ctag.tai_material>
+obj.tag.emote=cortando <REF1.name>
+obj.tag.sfx=0248
+obj.tag.color=<ref1.color>
+obj.tag.res1=
+obj.tag.uid1=<ref1>
+obj.tag.anim=6
+obj.tag.emote=cortando <REF1.name>
+obj.tag.sfx=0248
+obj.tag.item=i_bandage
+obj.tag.delay=<eval 15-(<Tailoring>/89)>
+obj.tag.amt=<eval 5+(<Tailoring>/100)>
+craft_setTool i_tesoura
+local.craftable=1
+
+//*****************************************************************************
+// i_mry_bandagem
+//*****************************************************************************
+//link: curador
+//cont: char sendo curado
+[ITEMDEF i_mry_bandagem]
+NAME=Com bandagens
+TYPE=t_eq_script
+LAYER=layer_special
+
+ON=@CREATE
+    ATTR=attr_decay
+
+ON=@TIMER
+    if (<link.p.x>!=<link.tag.bandx>) || (<link.p.y>!=<link.tag.bandy>) || ( !(<cont.flags>&statf_dead) && ( (<cont.p.x>!=<cont.tag.bandx>) || (<cont.p.y>!=<cont.tag.bandy>) ) ) || (!<Skill_InUse Skill_Healing>)
+        if ( !<morey> )
+            cont.sysmessagered Deve-se permanecer parado durante o tratamento.
+        endif
+        link.sysmessagered Deve-se permanecer parado durante o tratamento.
+        Skill_InUse 0
+    elif ( <cont.wasDisturbed> ) || ( <link.wasDisturbed> ) || (<link.flags>&statf_dead)
+        if ( !<morey> )
+            link.sysmessagered Um ataque interrompeu o tratamento.
+        endif
+        cont.sysmessagered Um ataque interrompeu o tratamento.
+    elif ( (<link.flags> & statf_war) && (!<morey>)  )
+        link.sysmessagered Voce precisa relaxar para tratar o paciente.
+    elif ( <cont.flags> & statf_war )
+        if ( !<morey> )
+            link.sysmessagered O paciente esta muito agitado.
+        endif
+        cont.sysmessagered Voce esta muito agitado.
+    elif ( ((<link.flags> & statf_stone) || (<link.flags> & statf_dead)) && !<morey> )
+        cont.sysmessagered Quem estava lhe tratando perdeu a consciencia.
+    elif (<cont.flags>&statf_dead) && (!<cont.findid.i_mry_desmaio>)
+        link.sysmessagered Este corpo nao pode retornar a vida
+    elif ( <cont.hits> < <cont.maxhits> )
+        if (<cont.isplayer>)
+            link.skill_gain skill_healing
+        else
+            link.skill_gain skill_vet
+        endif
+    
+        dorand 9
+            link.anim 16
+            sfx 04f
+            link.anim 19
+            sfx 04f
+            link.emoteyellow aplicando curativos
+            link.anim 16
+            sfx 04f
+            sfx 04f
+            link.anim 19
+        enddo
+    
+        //nao da hits se player morto
+        if !(<cont.flags>&statf_dead)
+            cont.hits += <r1,<more2>>
+            if <cont.hits> >= <cont.maxhits>
+                cont.hits = <cont.maxhits>
+                more1 = 1 //fim
+            endif
+        endif
+        
+        more1 -= 1
+        if <more1>
+            timer=1
+            return 1
+        endif
+
+		//se alvo estiver envenenado e passar em um teste de healing
+		if (<cont.flags>&statf_poisoned)
+			if (<R600,1000> < <link.healing>)
+				//cura
+				cont.spelleffect s_cure,<link.healing>
+				if ( !<morey> )
+					link.sysmessagegreen Voce retirou parte do veneno do paciente.
+				endif
+			else
+				if ( !<morey> )
+					link.sysmessagegreen Voce falhou au tentar lidar com o veneno.
+				endif
+			endif
+		else
+			if ( !<morey> )
+				link.sysmessagegreen Voce termina de tratar o paciente.
+			endif
+			cont.sysmessagegreen Voce nao esta mais sendo tratado.     
+		endif
+
+		//retorna a vida se morto
+		if <cont.flags>&statf_dead
+			cont.f_returnToLife
+		endif 
+
+	endif
+
+    link.events -e_bandagem
+    link.tag.bandmem=
+    cont.events -e_bandagem
+    cont.tag.bandmem=
+    
+    //nem sempre devolve bandagem suja
+    local.chance=<eval ((-<link.healing>*4)/100)+55>
+    if ( <r101> < <local.chance> )
+        serv.newitem i_bandage_bloody
+        new.name bandagem suja
+        new.cont=<link>
+    endif
+
+    Skill_InUse 0
+    remove
+return 1
+
+[EOF]

@@ -1,0 +1,1071 @@
+[COMMENT sistema_de_armadilhas]
+                #########################################################
+                #                                                       #
+                #                    Mystical Tales Shard               #
+                #            Sistema de Armadilhas versão ALELUIA       #
+                #                                                       #
+                #               Galthar, o Errante 05/05/2009           #
+                #                                                       #
+                #########################################################
+                
+        -=ToDo=-
+- Armadilha de energia
+- Armadilha de machado
+- Armadilha de serra circular
+- Armadilhas de chão (outro painel)
+
+        -=tags=-
+tag.trap_panel
+tag.trap_effect
+tag.trap_power
+tag.trap_difficult
+tag.trap_flags
+tag.act
+tag.try
+tag.Detecting_Hidden
+ctag.trap_panel
+
+        -=Como fas/=-
+- Adicione i_trap_panel ou i_trap_trigger
+- Gerencie com gump via @DCLICK
+
+[DEFNAME sistema_de_armadilhas]
+TRAP_DELAY      60*30   //meia-hora
+TRAP_FOUND      1
+TRAP_MAGIC      2
+
+//********************************************************************************
+//**
+//**            SPELLS (Usadas como Effect)
+//**
+//********************************************************************************
+
+//*********
+[SPELL 350]
+//*********
+NAME=Explosao
+DEFNAME=s_trap_explosion
+RUNES=Uma explosão atinge a todos num raio de (forca/20) tiles com dano de (forca x 2) dependendo da força da armadilha.<BR>O dano diminui com a distancia.<BR><B>CUIDADO!</B> Forca maior que 50.0 eh mortal!
+EFFECT_ID=i_fx_explode
+SOUND=snd_SPELL_EXPLOSION
+FLAGS=SPELLFLAG_HARM
+
+ON=@EFFECT
+obj=<UID>
+local.dist=<eval (<argn2>/250)+1>
+FORCHARS <local.dist>
+ local.dam=<eval ((<argn2>/5)*(<local.dist>-<distance <obj>>))/<local.dist>>
+ DAMAGE <local.dam>,dam_physical|dam_general|dam_fire
+END
+src.effect 2 i_fx_explode 0 32 0
+SFX snd_SPELL_EXPLOSION
+return 1
+
+
+//*********
+[SPELL 351]
+//*********
+NAME=Veneno
+DEFNAME=s_trap_poison
+RUNES=Borrifa uma substancia toxica que envenena a todos em um raio de 2 tiles do objeto.<BR> A força do veneno é a força do efeito, de 0.0 a 100.0
+SOUND=0532
+FLAGS=SPELLFLAG_HARM
+
+ON=@EFFECT
+obj=<uid>
+forplayers 2
+ if (<CanSee <obj>>)
+  sfx 0532
+  serv.newitem i_moscas
+  new.dispid=i_fx_smoke
+  new.more1=<R2,5>
+  new.more2=<argn2>
+  new.color=0110
+  new.type t_veneno
+  new.name gas venenoso
+  new.p=<p>
+  new.timerd <R8,12>
+ endif
+end
+return 1
+
+
+//*********
+[SPELL 352]
+//*********
+NAME=Espinhos
+DEFNAME=s_trap_spikes
+RUNES=Uma série de espetos emergem do chão causando dano ao alvo.<BR>O dano varia de 15 a 60 com a forca.
+FLAGS=SPELLFLAG_HARM
+
+ON=@EFFECT
+local.dam=<eval (<argn2>/22)+15>
+if (<act.type>==t_door) || (<act.type>==t_door_locked)
+ DOSWITCH <dir>
+  effect 2 0111c 0 64 0                 //0
+  effect 2 i_trap_spike_large 0 32 0    //1
+  effect 2 i_trap_spike_4 0 32 0        //2
+  effect 2 i_trap_spike_large 0 32 0    //3
+  effect 2 i_trap_spike_3 0 32 0        //4
+  effect 2 i_trap_spike_large 0 32 0    //5
+  effect 2 01109 0 64 0                 //6
+  effect 2 i_trap_spike_large 0 32 0    //7
+ ENDDO
+else
+ DOSWITCH <dir>
+  effect 2 i_trap_spike_3 0 32 0        //0
+  effect 2 i_trap_spike_large 0 32 0    //1
+  effect 2 i_trap_spike_4 0 32 0        //2
+  effect 2 i_trap_spike_large 0 32 0    //3
+  effect 2 i_trap_spike_3 0 32 0        //4
+  effect 2 i_trap_spike_large 0 32 0    //5
+  effect 2 i_trap_spike_4 32 0          //6
+  effect 2 i_trap_spike_large 0 32 0    //7
+ ENDDO
+endif
+DAMAGE <dlocal.dam>,dam_slash|dam_physical
+sfx 056
+return 1
+
+
+//*********
+[SPELL 353]
+//*********
+NAME=Congelamento
+DEFNAME=s_trap_freeze
+RUNES=Causa (forca/4) de dano tipo gelo em qualquer criatura a menos de 1 tile de distância e congela o alvo por (forca/1,7) segundos.
+FLAGS=SPELLFLAG_HARM
+
+ON=@EFFECT
+FORCHARS 1
+ DAMAGE <eval <argn2>/40>,dam_physical|dam_cold
+END
+src.stonned <eval <argn2>/17>
+src.effect 3 i_fx_explode 0 64 0 2 2
+SFX 05cf
+return 1
+
+
+
+//********************************************************************************
+//**
+//**            EVENTS e ITEMDEFs
+//**
+//********************************************************************************
+
+//*********
+[TYPEDEF e_trapped]
+//*********
+ON=@DCLICK
+if (!<src.IsGM>)
+    return <trap_activate>
+else
+    src.sysmessagered Contem armadilha de <STRTOLOWER(<serv.spell.<tag0.trap_effect>.name>)> (<fval <tag0.trap_power>>)
+endif
+
+ON=@STEP
+if (<src.isplayer>)
+ if (<src.IsGm>) || (<src.flags>&statf_dead) //GM invis não.
+  return 0
+ endif
+ trap_activate
+ emoteyellow click
+ return 0
+endif
+
+ON=@DropOn_Self
+IF (<type>==t_container)
+    return <trap_activate>
+ENDIF
+
+on=@CLIENTTOOLTIP
+if (<tag0.trap_flags>&<DEF.TRAP_FOUND>)
+ DOSWITCH <eval <tag0.trap_power>/200>
+  local.m=debil
+  local.m=muito fraca
+  local.m=fraca
+  local.m=moderada
+  local.m=forte
+  local.m=muito forte
+ ENDDO
+ src.f_sendTooltipData *Armadilha de <STRTOLOWER(<serv.spell.<tag0.trap_effect>.name>)> <local.m>*
+endif
+
+//*********
+[TYPEDEF t_trap_kit]
+//*********
+//more1=Força do efeito
+//more2=Dificuldade de detectar
+//morex=Spell de efeito
+on=@CLIENTTOOLTIP
+if (<ATTR>&attr_identified)
+ src.f_sendTooltipData Tipo: <STRTOLOWER(<serv.spell.<morex>.name>)> <DEF.BR>Forca: <fval <more1>><DEF.BR>Dificuldade de detectar: <fval <more2>><DEF.BR>Dificuldade de desarmar: <fval (<more1>+(<more2>*2))/3>
+endif
+
+ON=@DCLICK
+if (<topobj>!=<src>)
+    src.sysmessagered A armadilha deve estar em sua posse.
+else
+    src.sysmessageyellow Aonde deseja instalar a armadilha?
+    TARGET
+endif
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.distance> > 1)
+    src.sysmessageyellow Muito longe...
+elif (<src.targ.type>!=t_door) && (<src.targ.type>!=t_container)
+    src.sysmessagered Somente containeres e portas destrancados.
+elif (<src.targ.type>==t_container) && (<src.targ.tdata3> < 8)
+    src.sysmessagered Este container eh muito pequeno para uma armadilha.
+elif (!<src.CHECK_TARG_OWNER_PRESENSE>) && !<src.isgm>
+    src.sysmessagered Voce so deve instalar na presenca do dono ou responsavel.
+elif (<src.targ.tag0.trap_disarmed>)
+    src.sysmessagered Voce devera remover a armadilha atual antes de instalar outra.
+elif (<src.targ.IsEvent.e_trapped>) || (<src.targ.IsTEvent.e_trapped>)
+    src.targ.use
+else
+    src.sysmessagegreen Voce comeca a instalar a armadilha.
+    newitem i_mry_install_trap
+    new.link=<src.targ>
+    new.morep=<src.p>
+    new.more1=<UID>
+    src.new.equip
+    src.act=<new>
+    new.timer 1
+endif
+return 1
+
+//*****************************************************************************
+// t_key_trap
+//*****************************************************************************
+[TYPEDEF t_key_trap]
+ON=@CLIENTTOOLTIP
+if (STRMATCH(<tag.name>,))
+    return 0
+else
+    f_sendTooltip <name>, <tag.name>
+endif
+return 1
+
+ON=@DCLICK
+if (<topobj> != <src>)
+    src.sysmessageyellow Coloque a chave na bolsa antes de usa-la.
+    return 1
+endif
+src.sysmessageyellow Onde deseja usar a chave?
+target
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ>==<UID>)
+    src.sysmessageyellow Digite nome para esta chave:
+    src.promptconsole key_addname 
+elif (<src.targ.distance> > 1)
+    src.sysmessageyellow Chegue mais perto.
+elif (!<src.targ.IsEvent.e_trapped>) && (!<src.targ.tag0.trap_disarmed>)
+    src.sysmessagered Esta chave nao entra!
+elif (<more1>!=<src.targ.tag0.trap_code>) && (<src.targ.IsEvent.e_trapped>)
+    src.use <src.targ>
+elif (<more1>!=<src.targ.tag0.trap_code>) && (<src.targ.tag0.trap_disarmed>)
+    src.sysmessagered Esta chave nao entra!
+else
+    if (<src.targ.tag0.trap_disarmed>)
+        src.targ.events +e_trapped
+        src.targ.tag.trap_disarmed
+        src.sysmessageorange Voce armou a armadilha!
+        src.sfx 03E4
+    elif (<src.targ.IsEvent.e_trapped>)
+        src.targ.events -e_trapped
+        src.targ.tag.trap_disarmed=1
+        src.sysmessagegreen Voce desarmou a armadilha.
+        src.sfx 03E5
+    else
+        src.sysmessagered Esta chave nao entra!
+    endif
+endif
+return 1
+
+//*****************************************************************************
+// i_key_trap
+//*****************************************************************************
+[ITEMDEF i_key_trap]
+ID=i_key_iron
+NAME=chave
+RESOURCES=3 i_ingot_iron
+WEIGHT=1
+TYPE=T_KEY_TRAP
+
+
+[ITEMDEF i_mry_install_trap]
+NAME=Instalando armadilha
+ID=i_memory
+TYPE=t_eq_script
+LAYER=layer_special
+
+ON=@Equip
+ref1=<more1>//A armadilha
+tag.timer = <BETWEEN 30,80,<ref1.more2>,125.0>      //Tempo mínimo antes de testar sucesso
+tag.timer -= <BETWEEN 5,35,<src.tinkering>,125.0>   //Bônus de tempo por Tinkering
+tag.anim = 0
+
+ON=@TIMER
+more2 += 1          //Incrementa timer
+TIMER = 1
+if (<cont.p.x>!=<morex>) || (<cont.p.y>!=<morey>) || (<cont.act>!=<UID>)    //Testa se ele se mexeu.
+    cont.sysmessagered Voce parou de instalar a armadilha.
+    remove
+    return 1
+endif
+if (<more2>==<tag.timer>)   //Deu tempo. Testa.
+    obj=<more1>             //A armadilha
+    if (<obj.topobj>!=<cont>)
+        morep=0,0,0,0
+    elif (<BELLTEST <cont.tinkering>,<obj.more1>>)//Teste para conseguir
+        cont.sysmessagegreen Voce instalou a armadilha com sucesso!
+        link.sfx 03E4
+        link.trap_setTrap 0,<obj.morex>,<obj.more1>,<obj.more2>
+        cont.newitem i_key_trap
+        new.more1={01000 0ffff}
+        cont.bounce <new>
+        link.tag.trap_code=<new.more1>
+        obj.decrement
+        remove
+    elif (!<BELLTEST <cont.tinkering>,<eval <obj.more1>/2>>)//Falha crítica? 50% dificuldade
+        cont.sysmessagered Voce disparou a armadilha acidentalmente!
+        cont.spelleffect <obj.morex>,<obj.more1>,<obj>
+        obj.decrement
+        remove
+    else
+        cont.sysmessagered Voce falhou ao instalar a armadilha.
+        remove
+    endif
+else    //Ainda não deu tempo. Animar.
+    DOSWITCH <tag.anim>
+        cont.emoteyellow usando ferramentas
+        link.sfx 04A
+        cont.anim 6
+        link.sfx 03E5
+        cont.emoteorange tenso
+        link.sfx 04D3
+        cont.emoteyellow montando pecas
+        cont.anim 9
+        cont.emoteyellow segura trava
+        cont.bow
+        link.sfx 03E7
+    ENDDO
+    if (<tag0.anim>==10)
+        tag.anim = 0
+    else
+        tag0.anim += 1
+    endif
+endif
+return 1
+        
+        
+
+
+//*********
+[ITEMDEF 13048]
+//*********
+NAME=Armadilha
+DEFNAME=i_tap_kit
+
+//*********
+[ITEMDEF i_trap_poison_lo]
+//*********
+ID=i_tap_kit
+NAME=Armadilha de veneno fraca
+TYPE=t_trap_kit
+SKILLMAKE=Tinkering 30.0
+RESOURCES=2 i_axel_and_gears, 1 i_bottle_green_lo, 1 i_wire_copper
+
+CATEGORY=MyT - Provisions - miscellaneous
+SUBSECTION=Armadilhas
+DESCRIPTION=Veneno Lo
+
+ON=@CREATE
+morex=351
+more1={20.0 40.0}
+more2=<more1>
+
+//*********
+[ITEMDEF i_trap_poison]
+//*********
+ID=i_tap_kit
+NAME=Armadilha de veneno
+TYPE=t_trap_kit
+SKILLMAKE=Tinkering 55.0
+RESOURCES=3 i_axel_and_gears, 1 i_bottle_green, 1 i_wire_copper
+
+CATEGORY=MyT - Provisions - miscellaneous
+SUBSECTION=Armadilhas
+DESCRIPTION=Veneno
+
+ON=@CREATE
+morex=351
+more1={50.0 70.0}
+more2=<more1>
+
+//*********
+[ITEMDEF i_trap_poison_hi]
+//*********
+ID=i_tap_kit
+NAME=Armadilha de veneno forte
+TYPE=t_trap_kit
+SKILLMAKE=Tinkering 75.0
+RESOURCES=4 i_axel_and_gears, 1 i_bottle_green_hi, 2 i_wire_copper
+
+CATEGORY=MyT - Provisions - miscellaneous
+SUBSECTION=Armadilhas
+DESCRIPTION=Veneno
+
+ON=@CREATE
+morex=351
+more1={80.0 100.0}
+more2=<more1>
+
+//*********
+[ITEMDEF i_trap_explosion_lo]
+//*********
+ID=i_tap_kit
+NAME=Armadilha de explosao fraca
+TYPE=t_trap_kit
+SKILLMAKE=Tinkering 55.0
+RESOURCES=2 i_axel_and_gears, 1 i_frasco_oleo, 2 i_barra_metal
+
+CATEGORY=MyT - Provisions - miscellaneous
+SUBSECTION=Armadilhas
+DESCRIPTION=Explosao lo
+
+ON=@CREATE
+morex=350
+more1={15.0 20.0}
+more2=<more1>
+
+//*********
+[ITEMDEF i_trap_explosion]
+//*********
+ID=i_tap_kit
+NAME=Armadilha de explosao
+TYPE=t_trap_kit
+SKILLMAKE=Tinkering 70.0
+RESOURCES=3 i_axel_and_gears, 2 i_frasco_oleo, 2 i_barra_metal
+
+CATEGORY=MyT - Provisions - miscellaneous
+SUBSECTION=Armadilhas
+DESCRIPTION=Explosao
+
+ON=@CREATE
+morex=350
+more1={25.0 30.0}
+more2=<more1>
+
+//*********
+[ITEMDEF i_trap_explosion_hi]
+//*********
+ID=i_tap_kit
+NAME=Armadilha de explosao forte
+TYPE=t_trap_kit
+SKILLMAKE=Tinkering 85.0
+RESOURCES=3 i_axel_and_gears, 5 i_frasco_oleo, 2 i_barra_metal
+
+CATEGORY=MyT - Provisions - miscellaneous
+SUBSECTION=Armadilhas
+DESCRIPTION=Explosao Hi
+
+ON=@CREATE
+morex=350
+more1={35.0 50.0}
+more2=<more1>
+
+//*********
+[ITEMDEF i_trap_spikes_lo]
+//*********
+ID=i_tap_kit
+NAME=Armadilha de espinhos fraca
+TYPE=t_trap_kit
+SKILLMAKE=Tinkering 40.0
+RESOURCES=1 i_axel_and_gears, 4 i_adaga_cobre, 1 i_plate_bronze
+
+CATEGORY=MyT - Provisions - miscellaneous
+SUBSECTION=Armadilhas
+DESCRIPTION=Espinhos Lo
+
+ON=@CREATE
+morex=352
+more1={20.0 40.0}
+more2=<more1>
+
+//*********
+[ITEMDEF i_trap_spikes]
+//*********
+ID=i_tap_kit
+NAME=Armadilha de espinhos
+TYPE=t_trap_kit
+SKILLMAKE=Tinkering 60.0
+RESOURCES=2 i_axel_and_gears, 4 i_adaga_bronze, 1 i_plate_bronze
+
+CATEGORY=MyT - Provisions - miscellaneous
+SUBSECTION=Armadilhas
+DESCRIPTION=Espinhos
+
+ON=@CREATE
+morex=352
+more1={50.0 70.0}
+more2=<more1>
+
+//*********
+[ITEMDEF i_trap_spikes_hi]
+//*********
+ID=i_tap_kit
+NAME=Armadilha de espinhos forte
+TYPE=t_trap_kit
+SKILLMAKE=Tinkering 80.0
+RESOURCES=6 i_axel_and_gears, 4 i_adaga, 1 i_plate_bronze
+
+CATEGORY=MyT - Provisions - miscellaneous
+SUBSECTION=Armadilhas
+DESCRIPTION=Espinhos Hi
+
+ON=@CREATE
+morex=352
+more1={80.0 100.0}
+more2=<more1>
+
+//*********
+[ITEMDEF i_trap_panel]
+//*********
+//more1=Força do efeito
+//more2=Dificuldade de detectar
+//morex=Spell de efeito
+//morey=Número de itens setados
+//morez=Quantas vezes trigou
+//morem=Quantas vezes desarmaram
+//tag.act=Número do item que está armado no momento
+ID=i_sign_brass
+NAME=Painel de armadilhas
+TYPE=t_script
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=Painel de armadilhas
+
+ON=@CREATE
+morex=350       //Explosão
+more1=35.0      //Força
+more2=15.0      //Dificuldade de detectar
+color=07AD
+ATTR=090        //inivis|neve_movable
+tag.act=-1      //nenhuma armadilha setada
+timer=<DEF.TRAP_DELAY>
+
+ON=@DCLICK
+IF (<src.IsGM>)
+ src.cTAG.trap_Panel=<uid>
+ src.DIALOG d_trap_panel 1
+ENDIF
+return 1
+
+ON=@TIMER
+if (!<morey>)
+ SERV.LOG Hey! Hey! Hey! Painel de armadilha sem armadilhas! UID: <UID> - P: (<p>)
+ return 1
+endif
+if (<tag0.act>!=-1)
+ //Tem item armado, desarme
+ obj=<tag0.item_<dtag0.act>>
+ obj.trap_untrap
+endif
+tag.act=<R<morey>>
+obj=<tag0.item_<dtag0.act>>
+if (<obj.IsEvent.e_trapped>)
+ //Já tem outra armadilha. Outro painel ou magia de player.
+ tag.act= -1
+ timer 20
+ return 1
+endif
+obj.trap_setTrap <uid>,<morex>,<more1>,<more2>
+timer=<DEF.TRAP_DELAY>
+return 1
+
+[ITEMDEF 023B]
+DEFNAME=i_trap_gen
+NAME=gerador de armadilhas
+TYPE=t_script
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=Gerador de armadilhas
+
+ON=@DCLICK
+IF (<src.IsGM>)
+ src.cTAG.trap_Panel=<uid>
+ src.DIALOG d_trap_ground 1
+ENDIF
+return 1
+
+ON=@CREATE
+morex=350       //Explosão
+more1=35.0      //Força
+more2=15.0      //Dificuldade de detectar
+morey=5         //Número de armadilhas
+tag.trap_dist=3 //3 tiles
+color=07AD
+ATTR=090        //inivis|never_movable
+tag.act=0       //nenhuma armadilha setada
+timer=<DEF.TRAP_DELAY>
+
+on=@timer
+if (<tag0.act> < 0)
+ tag0.act=0
+ timer=<DEF.TRAP_DELAY>
+ return 1
+elif (<tag0.act> < <morey>)
+ serv.newitem i_trap_trigger
+ new.tag.trap_panel=<uid>
+ new.link=<uid>
+ new.tag.trap_effect=<morex>
+ new.tag.trap_power=<more1>
+ new.tag.Detecting_Hidden=<more2>
+ new.tag.trap_difficult=<more2>
+ new.timer=<DEF.TRAP_DELAY>
+ new.attr 092
+ new.movenear <UID>,<R<tag0.trap_dist>>
+ tag0.act += 1
+endif
+timer=<eval <DEF.TRAP_DELAY>/<morey>>
+return 1
+
+[ITEMDEF 0FAA]
+DEFNAME=i_trap_trigger
+NAME=gatilho de armadilha
+TYPE=t_script
+
+on=@create
+EVENTS +e_trapped
+color=0482
+tag.trap_flags=<DEF.TRAP_FOUND>
+timerf 1 trap_trySuperposition
+
+on=@destroy
+//decrementa itens
+link.tag0.act -= 1
+
+
+//********************************************************************************
+//**
+//**            FUNCTIONS
+//**
+//********************************************************************************
+
+//*********
+[FUNCTION trap_activate]
+//*********
+//Triga a armadilha
+if (!<tag0.trap_effect>)
+ events -e_trapped
+ return 0
+endif
+src.spelleffect <tag0.trap_effect>,<tag0.trap_power>,<uid>
+src.sysmessageorange Voce ativou uma armadilha de <STRTOLOWER(<serv.spell.<tag0.trap_effect>.name>)>!
+if (<tag0.trap_panel>)//Contador de triggers do painel
+ uid.<tag0.trap_panel>.morez += 1
+endif
+if (<attr>&080)
+ attr &= ~080
+ update
+endif
+trap_untrap
+return 1
+
+//*********
+[FUNCTION trap_untrap]
+//*********
+//Desabilita a armadilha do objeto DEFAULT
+IF (<tag0.trap_panel>)
+ obj=<tag0.trap_panel>
+ if (<obj.baseid>==i_trap_panel)
+  //armadilha de item. Unset na lista.
+  obj.tag.act = -1
+ else
+  //armadilha de chão. Decay para decrementar item.
+  timer 5
+ endif
+ if (<argn1>)
+  //desarmado por skill. Contar pro painel
+  obj.tag0.morem += 1
+ endif
+endif
+tag.trap_panel=
+tag.trap_effect=
+tag.trap_power=
+tag.trap_difficult=
+tag.trap_flags=
+tag.trap_code=
+if (!<IsEmpty <tag.color>>)
+ color=<tag.color>
+ tag.color=
+endif
+events -e_trapped
+update
+
+//*********
+[FUNCTION trap_setTrap]
+//*********
+//trap_setTrap <uidPanel>,<effect>,<power>,<difficult>
+events +e_trapped
+tag.trap_panel=<argv0>
+tag.trap_effect=<argv1>
+tag.trap_power=<argv2>
+tag.trap_difficult=<argv3>
+tag.trap_flags=0
+
+
+//*********
+[FUNCTION trap_addItem]
+//*********
+//Adiciona o item <ARGO> à lista de itens para setar armadilha
+obj=<cTAG.trap_Panel>
+for o 0 7
+ if (<obj.tag0.item_<dlocal.o>>==<argo>)
+  sysmessagered O item ja esta nesta lista!
+  DIALOG d_trap_panel
+  return <local.did>
+ elif (!<obj.tag0.item_<dlocal.o>>) && (!<local.did>)
+  try obj.tag0.item_<dlocal.o>=<argo>
+  local.did=1
+  obj.morey +=1 //Incrementa número de itens possíveis
+ endif
+end
+DIALOG d_trap_panel
+return <local.did>
+
+//*********
+[FUNCTION trap_removeItem]
+//*********
+//Remove o item <argn> da lista
+obj=<cTAG.trap_Panel>
+ref1=<obj.item_<eval <argn>>>
+ref1.trap_untrap
+local.i=0
+for o 0 7
+ if (<local.o>!=<argn>)
+  try local.ocache_<dlocal.i>=<obj.tag0.item_<dlocal.o>>
+  local.i += 1
+ endif
+end
+for o 0 <local.i>
+ try obj.tag.item_<dlocal.o>=<local.ocache_<dlocal.o>>
+end
+obj.morey -=1 //Decrementa número de itens possíveis
+DIALOG d_trap_panel
+return 0
+
+//*********
+[FUNCTION trap_changePower]
+//*********
+//Muda a forca da armadilha para <argn>
+obj=<cTAG.trap_Panel>
+obj.more1=<minimumN 100.0,<maximum 0.0,<argn>>>
+if (<obj.baseid>==i_trap_panel)
+ DIALOG d_trap_panel 2
+else
+ DIALOG d_trap_ground 1
+endif
+
+//*********
+[FUNCTION trap_changeDifficult]
+//*********
+//Muda a dificuldade de detectar da armadilha para <argn>
+obj=<cTAG.trap_Panel>
+obj.more2=<minimumN 100.0,<maximum 0.0,<argn>>>
+if (<obj.baseid>==i_trap_panel)
+ DIALOG d_trap_panel 2
+else
+ DIALOG d_trap_ground 1
+endif
+
+//*********
+[FUNCTION trap_changeDist]
+//*********
+//Muda a distancia maxima das armadilhas
+obj=<cTAG.trap_Panel>
+obj.tag.trap_dist=<maximum 1,<argn>>
+DIALOG d_trap_ground 1
+
+//*********
+[FUNCTION trap_changeAmount]
+//*********
+//Muda a quantidade de armadilhas
+obj=<cTAG.trap_Panel>
+obj.morey=<maximum 1,<argn>>
+DIALOG d_trap_ground 1
+
+//*********
+[FUNCTION trap_trySuperposition]
+//*********
+//Testa se esta armadilha este em cima de outra
+obj=<uid>
+FORITEMS 1
+ //checa por itens iguais a mim na minha posição que NÃO SOU EU!
+ if (<baseid>==<obj.baseid>) && (<p.x>==<obj.p.x>) && (<p.y>==<obj.p.y>) && (<uid>!=<obj.uid>)
+  //Já tentei mudar de lugar 15x?
+  if (<obj.tag0.try> > 14)
+   //Campo minado muito complexo. Diminuir o trigger. Tchau.
+   serv.log [TRAPS] Hey! Hey! Hey! Campo minado muito complexo! (<p>)
+   obj.link.morey -= 1
+   obj.remove
+  else
+   //Vou mudar de lugar com o mesmo padrão e tentar de novo.
+   obj.movenear <obj.link>,<R<obj.link.tag0.trap_dist>>
+   obj.tag0.try += 1
+   obj.timerf 1 trap_trySuperposition
+  endif
+ endif
+END
+
+
+
+
+//********************************************************************************
+//**
+//**            DIALOGS
+//**
+//********************************************************************************
+
+// Created 4/5/2009 16:15:43, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+[DIALOG d_trap_panel]
+150,100
+page 0
+obj=<cTAG.trap_Panel>
+resizepic 0 0 9200 510 387
+dhtmlgump 6 7 496 53 0 0 <DEF.CENTER><DEF.BFONT_LRED>(MyT) - Pailel de Armadilhas - (MyT)<DEF.BR><DEF.BFONT_DBLUE>Efeito: <serv.spell.<obj.morex>.name> - Força: <fval <obj.more1>> - Dificuldade de detectar: <fval <obj.more2>><DEF.BR>Trigs: <eval <obj.morez>> - Desarmes: <eval <obj.morem>>
+resizepic 8 66 2620 490 277
+button 431 352 247 248 1 0 8//ok
+button 18 352 241 242 1 0 1//cancel
+page 1
+local.o=0
+dorigin 20 58
+WHILE (<obj.tag0.item_<dlocal.o>>)
+ button - *20 1154 1153 1 0 <eval 100+<local.o>>
+ button +32 - 1151 1150 1 0 <eval 200+<local.o>>
+ if (<uid.<obj.tag.item_<dlocal.o>>.IsEvent.e_trapped>)
+  if (<uid.<obj.tag.item_<dlocal.o>>.tag.trap_panel>==<obj>)
+   dtext +67 - 36 <uid.<obj.tag.item_<dlocal.o>>.name> (armada)
+  else
+   dtext +67 - 35 <uid.<obj.tag.item_<dlocal.o>>.name> (armada por outro painel)
+  endif
+ else
+  dtext +67 - 54 <uid.<obj.tag.item_<dlocal.o>>.name>
+ endif
+ local.o += 1
+END
+IF (<local.o> < 8)
+ button - *20 1154 1153 1 0 7
+ dtext +67 - 37 Add
+ENDIF
+button 200 352 2445 2445 1 0 2
+dtext 232 353 57 Efeito
+page 2
+button 200 352 2445 2445 1 0 3
+dtext 226 353 57 Objetos
+button 21 82 1209 1210 1 0 4
+dtext 42 78 2100 Efeito: <serv.spell.<obj.morex>.name>
+button 21 106 1209 1210 1 0 5
+dtext 42 102 2100 Força: <fval <obj.more1>>
+button 21 131 1209 1210 1 0 6
+dtext 42 127 2100 Dificuldade para detectar: <fval <obj.more2>>
+dhtmlgump 25 224 453 100 1 1 <serv.spell.<obj.morex>.RUNES>
+page 3
+local.spell=350
+dorigin 21 62
+WHILE (<serv.spell.<dlocal.spell>>)
+ button - *20 1209 1210 1 0 <dlocal.spell>
+ dtext +18 -3 2100 <serv.spell.<dlocal.spell>.name>
+ local.spell += 1
+END
+
+[DIALOG d_trap_panel text]
+
+[DIALOG d_trap_panel button]
+ON=0
+// Close
+sysmessageyellow Suas modificacoes foram guardadas!
+cTAG.trap_Panel=
+
+ON=1
+// Cancel
+sysmessagered Armadilhas desabilitadas por 1 dia.
+obj=<cTAG0.trap_Panel>
+if (<obj.tag0.act>!=1) //se tem armadilha setada
+ ref1=<obj.tag.item_<obj.dtag0.act>>
+ ref1.trap_untrap
+ obj.tag.act=-1
+endif
+obj.timer=24*60*60
+cTAG.trap_Panel=
+
+ON=2
+// Efeito
+src.DIALOG d_trap_panel 2
+
+ON=3
+// Objetos
+src.DIALOG d_trap_panel 1
+
+ON=4
+src.DIALOG d_trap_panel 3
+// Mudar efeito
+// 
+
+ON=5
+// Mudar forca
+sysmessageyellow Digite uma forca de 0.0 a 100.0
+promptconsole trap_changePower
+
+
+ON=6
+//Mudar DH
+sysmessageyellow Digite uma dificuldade de Dettect Hidden de 0.0 a 100.0
+promptconsole trap_changeDifficult
+
+ON=7
+//Add item
+sysmessageyellow Que objeto deseja adicionar?
+targetf trap_addItem
+
+ON=8
+// Okay
+obj=<cTAG0.trap_Panel>
+sysmessagegreen Armadilha armada.
+obj.timerd=1
+cTAG.trap_Panel=
+
+ON=100 110
+// Change/view
+local.i=<eval <argn>-100>
+obj=<cTAG0.trap_Panel>
+ref1=<obj.tag0.item_<dlocal.i>>
+if (<src.distance <ref1>> > 6)
+ src.cTAG.op=<p>
+ src.go <ref1.p>
+ src.timerf 3 go <cTAG.op>
+endif
+src.hilight <ref1>,026
+src.blindItemMsg <ref1>,04,[EU!]
+src.sysmessage Aguarde a janela abrir novamente.
+src.timerf 3 DIALOG d_trap_panel 1
+
+ON=200 210
+// Remover item
+trap_removeItem <eval <argn>-200>
+
+ON=350 400
+// Escolher este efeito
+try uid.<src.cTAG.trap_Panel>.morex=<argn>
+src.DIALOG d_trap_panel 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+[DIALOG d_trap_ground]
+150,100
+page 0
+obj=<cTAG.trap_Panel>
+resizepic 0 0 9200 510 387
+dhtmlgump 6 7 496 53 0 0 <DEF.CENTER><DEF.BFONT_LRED>(MyT) - Gerador de Armadilhas - (MyT)<DEF.BR><DEF.BFONT_DBLUE>Efeito: <serv.spell.<obj.morex>.name> - Força: <fval <obj.more1>> - Dificuldade de detectar: <fval <obj.more2>><DEF.BR>Trigs: <eval <obj.morez>> - Desarmes: <eval <obj.morem>>
+resizepic 8 66 2620 490 277
+button 431 352 247 248 1 0 8//ok
+button 18 352 241 242 1 0 1//cancel
+
+page 1
+button 21 82 1209 1210 1 0 4
+dtext 42 78 2100 Efeito: <serv.spell.<obj.morex>.name>
+button 21 102 1209 1210 1 0 5
+dtext 42 98 2100 Forca: <fval <obj.more1>>
+button 21 122 1209 1210 1 0 6
+dtext 42 118 2100 Dificuldade para detectar: <fval <obj.more2>>
+button 21 142 1209 1210 1 0 7
+dtext 42 138 2100 Distancia maxima: <obj.dtag0.trap_dist>
+button 21 162 1209 1210 1 0 9
+dtext 42 158 2100 Armadilhas: <obj.morey>
+dhtmlgump 25 224 453 100 1 1 <serv.spell.<obj.morex>.RUNES>
+
+page 2
+local.spell=350
+dorigin 21 62
+WHILE (<serv.spell.<dlocal.spell>>)
+ button - *20 1209 1210 1 0 <dlocal.spell>
+ dtext +18 -3 2100 <serv.spell.<dlocal.spell>.name>
+ local.spell += 1
+END
+
+[DIALOG d_trap_ground text]
+
+[DIALOG d_trap_ground button]
+ON=0
+// Close
+sysmessageyellow Suas modificacoes foram guardadas!
+cTAG.trap_Panel=
+
+ON=1
+// Cancel
+sysmessagered Armadilhas desabilitadas por 1 dia.
+obj=<cTAG0.trap_Panel>
+if (<obj.tag0.act>!=1) //se tem armadilha setada
+ ref1=<obj.tag.item_<obj.dtag0.act>>
+ ref1.trap_untrap
+ obj.tag.act=-1
+endif
+obj.timer=24*60*60
+cTAG.trap_Panel=
+
+ON=4
+src.DIALOG d_trap_ground 2
+// Mudar efeito
+// 
+
+ON=5
+// Mudar forca
+sysmessageyellow Digite uma forca de 0.0 a 100.0
+promptconsole trap_changePower
+
+
+ON=6
+//Mudar DH
+sysmessageyellow Digite uma dificuldade de Dettect Hidden de 0.0 a 100.0
+promptconsole trap_changeDifficult
+
+ON=7
+//Mudar dist
+sysmessageyellow Digite a distancia maxima para aparecer uma armadilha
+promptconsole trap_changeDist
+
+ON=8
+// Okay
+obj=<cTAG0.trap_Panel>
+sysmessagegreen Armadilha armada.
+obj.timerd=1
+cTAG.trap_Panel=
+
+ON=9
+//Mudar qtd
+sysmessageyellow Digite o numero maximo de armadilhas que aparcerao por vez.
+promptconsole trap_changeAmount
+
+ON=350 400
+// Escolher este efeito
+obj=<src.cTAG.trap_Panel>
+obj.morex=<argn>
+src.DIALOG d_trap_ground 1
+[EOF]

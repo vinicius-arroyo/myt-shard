@@ -1,0 +1,519 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL TAMING
+//
+//  Galthar
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//TAGS usadas:
+
+//NOTAS:
+//usar MAXFOLLOWER para definir maximo de pets
+//*****************************************************************************
+//*****************************************************************************
+// EVENTSs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// e_pet - evento de pets
+//*****************************************************************************
+[EVENTS e_pet]
+
+//src   master
+//default npc
+ON=@PETDESERT
+tam_undoPet
+
+//chamado no .remove ou .kill
+//nesse caso nao tem memory de pet mais, entao o uso do tag eh obrigatorio
+ON=@DESTROY
+tam_undoPet
+
+ON=@CONTEXTMENUSELECT
+
+//41 guard
+//42 follow
+//43 drop
+//44 kill
+//45 stop
+//46 stay
+//47 friend
+//48 transfer
+
+if (<argn>==41)     //guard
+    src.ctag.anim_action=4
+elif (<argn>==42)   //follow
+    src.ctag.anim_action=7
+elif (<argn>==44)   //kill
+    src.ctag.anim_action=3
+elif (<argn>==45)   //stop
+    src.ctag.anim_action=8
+elif (<argn>==46)   //stay
+    src.ctag.anim_action=8
+    anim_tool_target <uid>    
+    return 0
+elif (<argn>==47)   //friend
+    src.ctag.anim_action=6
+elif (<argn>==48)   //transfer
+    src.ctag.anim_action=5
+else
+    src.sysmessageyellow Nao suportado.
+    return 1
+endif
+
+anim_tool_target <uid>
+return 1
+
+ON=@HUNGER
+//nao deixa passar fome se dono offline
+if <memoryfindtype.memory_ipet.link.isonline>
+    return 0
+endif
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_figurine
+//*****************************************************************************
+[TYPEDEF t_figurine]
+ON=@DCLICK
+//so permite sair do shrink se for pet
+if (<uid.<more2>.memoryfindtype.memory_ipet.link> == <src>) || <src.isgm>
+    return 0
+else
+    src.sysmessageyellow Esse animal nao lhe pertence.
+    return 1
+endif
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// sk_taming
+//*****************************************************************************
+[FUNCTION sk_taming]
+
+if (<src.targ.distance>>8)
+    src.sysmessageyellow Aproxime-se mais.
+    return 1
+endif
+
+if <src.herding> > <src.taming>
+    LOCAL.s=<src.herding>
+else
+    LOCAL.s=<src.taming>
+endif
+
+
+serv.log [TAMING] animal ocupa <src.targ.tam_animalSlots> slots e <src.tam_playerFreeSlots> disponiveis
+// Checar se ja foi tamed
+if (<src.targ.memoryfindtype.memory_ipet>)
+    src.sysmessageyellow Este animal ja possui dono...
+elif (<src.findid.i_taming>)
+    src.sysmessageyellow Voce so pode domar um animal por vez...
+elif (<src.targ.npc>!=brain_animal)
+    src.sysmessageyellow Voce so pode domar animais...
+elif (<src.tam_playerFreeSlots> < <src.targ.tam_animalSlots>)
+    src.sysmessageyellow Voce nao pode domar esse animal...
+elif (<src.flags>&statf_onhorse)
+    src.sysmessageyellow Nao pode domar em cima de outro animal...
+// Checa se tem skill suficiente pra tentar domar o animal.
+elif (<eval <src.targ.taming> - <LOCAL.s>> >= 30.0)
+    src.sysmessageyellow Voce nao tem chances de domar este animal...
+else
+    serv.newitem i_taming
+    new.cont=<src>
+    new.link=<src.targ>
+    src.ctag.disturb=0
+endif
+return 1
+
+//*****************************************************************************
+// tam_animalSlots
+//*****************************************************************************
+//retorna o numero de slots que um NPC ocupa
+//deve ser usado da seguinte forma: npc.tam_animalSlots
+[FUNCTION tam_animalSlots]
+return <eval (<taming>/100)+1>
+
+//*****************************************************************************
+// tam_playerSlots
+//*****************************************************************************
+//retorna o numero de slots que um PLAYER suporta (total) e atualiza o MAXFOLLOER
+//deve ser usado da seguinte forma: player.tam_animalSlots
+[FUNCTION tam_playerSlots]
+maxfollower=<eval (<taming>/100)+6>
+return <maxfollower>
+
+//*****************************************************************************
+// tam_playerFreeSlots
+//*****************************************************************************
+//retorna o numero de slots que um PLAYER tem disponivel
+//deve ser usado da seguinte forma: player.tam_playerFreeSlots
+[FUNCTION tam_playerFreeSlots]
+return <eval <tam_playerSlots>-<curfollower>>
+
+//*****************************************************************************
+// tam_undoPet
+//*****************************************************************************
+//retira os slots utilizados por um pet
+//deve ser usado da seguinte forma: npc.tam_undoPet
+[FUNCTION tam_undoPet]
+REF1=<tag.owner>
+
+//compatibilidade com sistema antigo
+if <tag0.slots>
+    REF1.curfollower -= <tag.slots>
+else
+    REF1.curfollower -= <tam_animalSlots>
+endif
+
+if (<REF1.curfollower> < 0) || (<REF1.curfollower> > 1000)
+    REF1.curfollower = 0
+endif
+
+tag.owner=
+tag.slots=
+
+findid.i_tamed.remove
+events -e_pet
+
+//*****************************************************************************
+// tam_setPet (setToWhom)
+//*****************************************************************************
+//coloca os slots utilizados pelo pet e salva memory
+//deve ser usado da seguinte forma: npc.tam_setPet <uid>
+[FUNCTION tam_setPet]
+transfer <argv0>
+tag.owner=<argv0>
+tag.slots=<tam_animalSlots>
+uid.<argv0>.curfollower += <tag.slots>
+events +e_pet
+serv.newitem=i_tamed
+new.cont=<uid>
+update
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_tamed
+//*****************************************************************************
+[ITEMDEF i_tamed]
+ID=i_deed
+NAME=PetEvents
+TYPE=t_eq_script
+WEIGHT=0
+LAYER=layer_special
+
+ON=@CREATE
+TIMER=1
+
+ON=@TIMER
+TIMER=5
+cont.home=<cont.p> //ajusta home periodicamente
+
+//desiste do alvo se em warmode
+if (<cont.flags>&statf_war)
+//    f_gmLog TAM: <name> ignore war <src.name>:
+    dorand 6
+        cont.emotered nervoso
+    enddo
+    
+    dorand 4
+        sfx <cont.sound>
+    enddo
+    return 1
+endif
+
+OBJ=<cont>
+LOCAL.g=<cont.memoryfindtype.memory_guard.link>
+LOCAL.p=<cont.memoryfindtype.memory_ipet.link>
+LOCAL.f=<cont.memoryfindtype.memory_friend.link>
+
+forchars 10
+    //consigo ver?
+    if (<uid>!=<obj>) && (0<obj.canseelos <uid>>)
+        //se esta olhando para alguem em batalha e vivo
+        if (<hits>) && (<memoryfindtype.memory_fight.link>)
+            //salva alvo
+            REF1=<memoryfindtype.memory_fight.link>
+            //se estiver protegendo (guard), for pet ou amigo DO ATACANTE, ataca o mesmo alvo
+            if ( <LOCAL.g>==<uid> ) || ( <LOCAL.p>==<uid> ) || ( <LOCAL.f>==<uid> )
+//                f_gmLog TAM: (A) <OBJ.name> ajudando <name> a atacar / <ref1.name>
+                OBJ.attack <REF1>
+            //se estiver protegendo (guard), for pet ou amigo DO ATACADO, 'ataca o atacante'
+            elif ( <LOCAL.g>==<REF1> ) || ( <LOCAL.p>==<REF1> ) || ( <LOCAL.f>==<REF1> )
+//                f_gmLog TAM: (B) <OBJ.name> ajudando <REF1.name> a atacar / <name>
+                OBJ.attack <uid>
+            //pretende me atacar?
+            elif (<OBJ>==<REF1>)
+//                f_gmLog TAM: (C) <OBJ.name> atacando <name>
+                OBJ.attack <uid>
+//            else
+//                f_gmLog TAM: (D) <obj.name> ignorando <name> (<ref1.name>)
+            endif
+        else
+//            f_gmLog TAM: <obj.name> idle <name>
+        endif
+    endif
+endfor
+
+return 1
+
+//*****************************************************************************
+// i_taming
+//*****************************************************************************
+[ITEMDEF i_taming]
+ID=i_deed
+NAME=Taming Memory
+TYPE=t_eq_script
+WEIGHT=0
+LAYER=layer_special
+
+ON=@CREATE
+ATTR=attr_decay
+MORE=15-(<cont.taming>/100) //5 a 15 segundos
+TIMER=1
+
+ON=@TIMER
+
+// Checar distancia
+if (<link.distance <cont>>>4) || !(<link.canseelos <cont>>)
+    cont.sysmessageyellow O animal se distanciou demais.
+    remove
+    return 1
+// Se o animal estiver sendo atacado
+elif <link.memoryfindtype memory_fight>
+    cont.sysmessageyellow O animal nao pode ser domado enquanto estiver enfurecido.
+    remove
+    return 1
+
+// Se estiver em war mode
+elif (<cont.flags>&statf_War)
+    cont.sysmessageyellow O animal se assusta com seus movimentos.
+    remove
+    return 1
+
+//qualquer outro flag q atrapalhe
+//statf_freeze|statf_invisible|statf_sleeping|statf_war|statf_polymorph|statf_stone|statf_hallucinating|statf_hidden|statf_onhorse|statf_insubstantial
+elif (<cont.flags>&080c4243c)
+    cont.sysmessageyellow Nao pode domar assim...
+    remove
+    return 1
+elif <cont.ctag0.disturb>
+    cont.sysmessageyellow Desconcentrou...
+    remove
+    return 1
+endif    
+
+//loop de animacao
+if (<more>)
+    more=<more>-1
+    timer=1
+    dorand 8
+        cont.say Nao vou machucar voce.
+        cont.say Eu sempre quis um <link.name> como voce.
+        cont.say Aqui <link.name>.
+        cont.say Bom <link.name>.
+    enddo
+    return 1
+endif
+    
+//escolhe entre taming e herding , o q for maior
+if <cont.herding> > <cont.taming>
+    LOCAL.s=<cont.herding>
+else
+    LOCAL.s=<cont.taming>
+endif    
+
+//faz uma ponderacao entre herding/taming e animallore para valor maximo
+LOCAL.sk=<eval (<LOCAL.s>*7)+(<cont.animallore>*3)>
+
+//da bonus se tiver com o cajado (~10%)
+if (<cont.findlayer.layer_hand2.baseid>==i_cajado_pastor)
+    LOCAL.sk=<eval <LOCAL.sk>/9>
+else
+    LOCAL.sk=<eval <LOCAL.sk>/10>
+endif
+
+
+LOCAL.chance=<skillchance <LOCAL.sk>,<link.taming>,200>
+LOCAL.t1=<R1000>
+LOCAL.f=<R<link.maxfood>>
+
+serv.log [TAMING] <cont.account> chance:<dLOCAL.chance>/1000 (<dLOCAL.t1>) contra TM <link.taming>
+//faz teste de skill taming
+if (<LOCAL.t1> < <LOCAL.chance>)
+    cont.sysmessage Parece que ele aceitou voce como novo dono.
+//    if (<link.memoryfindtype.memory_ispawned>)
+    link.memoryfindtype.memory_ispawned.remove
+    link.tam_setPet <cont>
+    
+//faz outro teste de fome para ver se somente falha ou se ataca o domador
+elif (<LOCAL.f> > <link.food>)
+    cont.sysmessageyellow O animal esta enfurecido.
+    link.flags=<link.flags>|statf_war
+    dorand 2
+        link.attack <cont>
+    enddo
+else
+    cont.sysmessagegreen Voce falhou ao tentar domar o animal.
+endif
+
+cont.skill_gain skill_taming
+remove
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// SPEECHes
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// spk_pet
+//*****************************************************************************
+[SPEECH spk_pet]
+ON=ATTACK
+ON=COME
+ON=DEFEND ME
+ON=DISMISS
+ON=DROP // "GIVE" ?
+ON=DROP ALL
+ON=FETCH
+ON=FOLLOW
+ON=FOLLOW ME
+ON=FRIEND
+ON=GO
+ON=GUARD
+ON=GUARD ME
+ON=KILL
+ON=RELEASE
+ON=SPEAK
+ON=STAY
+ON=STAY HERE
+ON=TRANSFER
+if !(<src.isgm>)
+    src.sysmessageyellow Use o cajado ou o comando certo para comandar.
+    return 1
+endif
+
+ON=STOP
+    return 0
+    
+ON=GUARDE
+ON=PROTEJA
+ON=DEFENDA
+    if (<ismypet>)
+        src.ctag.anim_action=4
+        src.anim_tool_target <uid>
+        return 1
+    endif
+ON=SIGA
+ON=ACOMPANHE
+    if (<ismypet>)
+        src.ctag.anim_action=7
+        src.anim_tool_target <uid>
+        return 1
+    endif
+ON=ATAQUE
+ON=MATE
+    if (<ismypet>)
+        src.ctag.anim_action=3
+        src.anim_tool_target <uid>
+        return 1
+    endif
+ON=PARE
+ON=FIQUE AI
+    if (<ismypet>)
+        src.ctag.anim_action=8
+        src.anim_tool_target <uid>
+        return 1
+    endif
+ON=AMIGO
+    if (<ismypet>)
+        src.ctag.anim_action=6
+        src.anim_tool_target <uid>
+        return 1
+    endif
+ON=TRANSFERIR
+    if (<ismypet>)
+        src.ctag.anim_action=5
+        src.anim_tool_target <uid>
+        return 1
+    endif
+ON=VA
+ON=ANDE
+ON=VENHA
+    if (<ismypet>)
+        //if <strmatch("all*",)>
+        src.ctag.anim_action=2
+        src.anim_tool_target <uid>
+        return 1
+    endif    
+ON=VONTADE    
+ON=PASSEAR
+    if (<ismypet>)
+        src.ctag.anim_action=9
+        src.anim_tool_target <uid>
+        return 1
+    endif
+    
+//************ PLURAL
+ON=GUARDEM
+ON=PROTEJAM
+ON=DEFENDAM
+    src.ctag.anim_action=4
+    src.anim_tool_area
+    return 1
+
+ON=SIGAM
+ON=ACOMPANHEM
+    src.ctag.anim_action=7
+    src.anim_tool_area
+    return 1
+
+ON=ATAQUEM
+ON=MATEM
+    src.ctag.anim_action=3
+    src.anim_tool_area
+    return 1
+
+ON=PAREM
+ON=FIQUEM AI
+    src.ctag.anim_action=8
+    src.anim_tool_area
+    return 1
+
+ON=VAO
+ON=ANDEM
+ON=VENHAM
+    src.ctag.anim_action=2
+    src.anim_tool_area
+    return 1
+
+//ON=VONTADE    
+ON=PASSEIEM
+    src.ctag.anim_action=9
+    src.anim_tool_area
+    return 1
+[EOF]

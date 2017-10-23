@@ -1,0 +1,241 @@
+﻿//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL MEDITATION por
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// sk_meditation
+//*****************************************************************************
+[FUNCTION sk_meditation]
+
+if <src.findid.i_meditation>
+    src.sysmessageyellow Ja esta meditando...
+    return 1
+elif (<src.flags>&statf_onhorse)
+    src.sysmessageyellow Voce nao pode meditar em um cavalo...
+    return 1
+elif (<src.mana> >= <src.maxmana>) && (<src.stam> >= <src.maxstam>)
+    src.sysmessageyellow Ja esta revigorado.
+    return 1
+endif
+
+src.act=0
+src.ctag.disturb=0
+serv.newitem i_meditation
+new.cont=<src>
+new.morex=<src.p.x>
+new.morey=<src.p.y>
+new.more2=<src.meditation_timer>
+return 1
+
+[FUNCTION meditation_timer]
+//*****************************************************************************
+//meditation_timer
+//*****************************************************************************
+//Tempo de acordo com Medit. 2 minutos a 30 segundos.
+local.dt=<eval ((-9*<meditation>)/10)+1200>
+
+//Penalidade de tempo por INT. f(int)=penalidade => f(50)=10 =>f(100)=0
+local.dt += <eval 200-(2*<INT>)>
+
+//deltaT em função de MAXMANA
+local.dt = <eval (<MAXMANA>*100)/<local.dt>>
+
+return <local.dt>
+
+[FUNCTION meditation_skillgain]
+//*****************************************************************************
+//meditation_timer
+//*****************************************************************************
+if (<restest 1 i_meditation>)
+ skill_gain SKILL_MEDITATION
+ timerf 1,meditation_skillgain
+endif
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_meditation
+//*****************************************************************************
+//morez: active
+//more2: time between increases
+[ITEMDEF i_meditation]
+ID=i_deed
+NAME=Meditation
+TYPE=t_eq_script
+LAYER=layer_special
+
+ON=@CREATE
+//not meditating
+morex=0
+timer=1
+
+ON=@TIMER
+timer = 1
+more1 += <more2>
+
+//serv.log <dmore1>/<dmore2>
+
+local.dm = <eval <more1>/10>
+more1 -= <eval <local.dm>*10>
+
+//statf_dead|statf_freeze|statf_sleeping|statf_war|statf_poisoned|statf_stone|statf_hallucinating|statf_onhorse|statf_spiritspeak     //statf_polymorphed
+if (<cont.flags>&0804410b6) || (<cont.ctag0.disturb>) || (<morex>!=<cont.p.x>) || (<morey>!=<cont.p.y>) || (<cont.action> > 0) || (!<cont.isonline>) || (!<skill_InUse skill_Meditation>)
+    cont.sysmessageyellow Voce perdeu a concentracao!!
+    cont.meditation_leave
+    remove
+    return 1
+endif
+
+if !<morez>
+    cont.sysmessagegreen Entrou em transe!
+    cont.meditation_enter
+    cont.meditation_skillgain
+    morez=1
+    
+else
+
+    if <cont.mana> < <cont.maxmana>
+        cont.mana += <local.dm>
+        LOCAL.d=1
+    endif
+    
+    if <cont.stam> < <cont.maxstam>
+        cont.stam += <local.dm>
+        LOCAL.d=1
+    endif
+    
+    if !<LOCAL.d>
+        cont.sysmessagegreen Voce se sente recuperado!
+        cont.meditation_leave
+        cont.mana = <cont.maxmana>
+        cont.stam = <cont.maxstam>
+        remove
+    else
+        dorand 14
+            cont.emoteyellow em transe
+            cont.anim 17
+            cont.psfx <hval {01f9 1 01fa 1 01fb 1 0511 1}>
+            cont.sysmessagegreen A meditacao esta lhe revigorando
+            cont.emoteyellow em transe
+        enddo
+    endif
+endif
+return 1
+
+//*****************************************************************************
+// meditation_enter
+//*****************************************************************************
+[FUNCTION meditation_enter]
+skill_InUse skill_Meditation
+events +e_no_attack
+events +e_no_dclick
+ctag.disturb=0
+dspeech +spk_disturb
+
+//*****************************************************************************
+// meditation_leave
+//*****************************************************************************
+[FUNCTION meditation_leave]
+skill_InUse 0
+events -e_no_attack
+events -e_no_dclick
+dspeech -spk_disturb
+
+//*****************************************************************************
+// setRegenBasePm hp,mana,stam
+//*****************************************************************************
+//configura regen base da raca com modificadores (meditation)
+[FUNCTION setRegenBasePm]
+setRegenBonusPm <argn1>,<eval <argn2>+(<meditation>/100)>,<argn3>
+
+//*****************************************************************************
+// setRegenBonusPm hp,mana,stam
+//*****************************************************************************
+//incrementa x hp, y mana a e z stam a cada minuto
+[FUNCTION setRegenBonusPm]
+setRegenBonus <eval 60/<argn1>>,<eval 60/<argn2>>,<eval 60/<argn3>>
+
+//*****************************************************************************
+// setRegenBonus hp,mana,stam
+//*****************************************************************************
+//incrementa hp a cada x segundos, mana a cada y e stam a cada z
+[FUNCTION setRegenBonus]
+consume 1 i_regen
+serv.newitem i_regen
+new.morex=<argn1>
+new.morey=<argn2>
+new.morez=<argn3>
+new.more1h=<argn1>
+new.more1l=<argn2>
+new.more2h=<argn3>
+new.cont=<uid>
+
+//more1h=hp rate
+//more1l=mana rate
+//more2h=stam rate
+//more2l=food rate
+//morex=hp timer
+//morey=mana timer
+//morez=stam timer
+[ITEMDEF i_regen]
+id=i_deed
+name=Regen
+type=t_eq_script
+layer=layer_special
+weight=0
+
+ON=@CREATE
+timer=1
+return 1
+
+ON=@TIMER
+timer=1
+
+//hp
+morex -= 1
+if !<morex>
+    morex=<more1h>
+    if <cont.hits> < <cont.maxhits>
+        cont.hits += 1
+    endif
+endif
+
+//mana
+morey -= 1
+if !<morey>
+    morey=<more1l>
+    if <cont.mana> < <cont.maxmana>
+        cont.mana += 1
+    endif
+endif
+
+//stam
+morez -= 1
+if !<morez>
+    morez=<more2h>
+    if <cont.stam> < <cont.maxstam>
+        cont.stam += 1
+    endif
+endif
+
+return 1
+
+[EOF]

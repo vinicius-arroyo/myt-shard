@@ -1,0 +1,181 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL DETECTING HIDDEN por
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
+
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+
+[DEFNAME DetectingHidden]
+//Tempo antes de poder detectar no mesmo lugar
+DetectingHidden_timer   15
+
+//Distância mínima de um lugar já detectado para poder detectar
+DetectingHidden_dist    8
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// sk_DetectingHidden
+//*****************************************************************************
+[FUNCTION sk_DetectingHidden]
+if (!<Skill_InUse Skill_DetectHidden>)
+    src.sysmessagered Voce so pode fazer uma coisa por vez
+    src.Skill_InUse 0
+    return 1
+elif !<dh_canDetect>
+    sysmessagered Voce procurou aqui faz pouco tempo.
+else
+    serv.newitem i_mry_detectinghidden
+    new.equip
+    new.use
+endif
+return 1
+
+//*****************************************************************************
+// dh_canDetect
+//*****************************************************************************
+[FUNCTION dh_canDetect]
+obj=<uid>
+forcharlayer layer_special
+    if (<baseid>==i_mry_detectinghidden)                    //ele usou essa skill faz pouco tempo?
+        if (<obj.distance <morep>> < detectinghidden_dist)  //foi aqui perto?
+            return 0                                        //entao nao pode detectar ainda
+        endif
+    endif
+endfor
+return 1                                                    //pode detectar
+
+//*****************************************************************************
+// dh_search
+//*****************************************************************************
+[FUNCTION dh_search]
+obj=<uid>
+LOCAL.vision=<eval (<detectinghidden>/166)+2>
+FORITEMS <LOCAL.vision>
+
+    //testa se pode ver mesmo e se esta invisivel
+    if <obj.canseelos <uid>>
+        if <IsEvent.e_trapped>
+            if <BELLTEST <obj.detectinghidden>,<tag0.trap_difficult>> || <obj.IsGM>
+                if !(<tag0.trap_flags>&<DEF.TRAP_FOUND>)                 //se não estiver detectada
+                    tag.trap_flags=<eval <tag.trap_flags>|<DEF.TRAP_FOUND>>
+                    timerf 6 color <color>
+                    color=026
+                endif
+                
+                attr &= ~attr_invis
+                
+                update
+                message @028, [armadilha]
+            endif
+        //Para itens invisiveis
+        elif !<IsEmpty <tag.Detecting_Hidden>> && (<attr>&attr_invis)
+            if <BELLTEST <obj.detectinghidden>,<tag0.Detecting_Hidden>> || <obj.IsGM> || !<tag0.Detecting_Hidden>
+                if !(strmatch(<tag.name>,)
+                    name=<tag.name>
+                endif
+                color=<tag0.color>
+                attr &= ~attr_invis
+                update
+                message @04, [escondido]
+                TRIGGER=@Found
+                if (<tag0.gen>)
+                  ref1=<tag.gen>
+                  ref1.morex += 1
+                endif
+            endif
+        endif
+    endif        
+ENDFOR
+
+FORCHARS <LOCAL.vision>
+    if <obj>!=<uid>
+        if <obj.canseelos <uid>> && <tag0.sk_hiding> 
+            if <BELLTEST <obj.detectinghidden>,<hiding>> || <obj.IsGM>
+                hiding_leave
+                message @04, [escondido]
+            endif    
+        endif            
+    endif
+ENDFOR
+
+Skill_InUse 0
+skill_gain skill_detecthidden
+sysmessageyellow Voce nao esta mais procurando.
+
+//*****************************************************************************
+//*****************************************************************************
+// MEMORIEs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_mry_detectinghidden
+//*****************************************************************************
+//more1=timer
+//more2=indica cooldown em progresso
+[ITEMDEF i_mry_detectinghidden]
+ID=i_rune_reveal
+NAME=DetectingHidden
+TYPE=t_eq_script
+LAYER=layer_special
+
+ON=@TIMER
+
+if <more1>
+    if (<cont.ctag0.disturb>) || (<cont.ctag.e_no_move_x>!=<cont.p.x>) || (<cont.ctag.e_no_move_y>!=<cont.p.y>) || (!<Skill_InUse Skill_DetectHidden>)
+        cont.sysmessageyellow Interrompido
+        src.Skill_InUse 0
+        remove
+    else
+        timer=1
+        more1 -= 1
+    endif
+    return 1    
+elif !<more2>    
+    timer=<DEF.DetectingHidden_timer>
+    more2=1
+    cont.dh_search
+    return 1
+else
+    remove
+endif
+return 1
+
+ON=@DCLICK
+
+morep=<cont.p>
+more1=<BETWEEN2 5,15,<cont.detectinghidden>,1000>
+more2=0
+
+DORAND 3
+    cont.emoteyellow observando atentamente
+    cont.emoteyellow procurando
+    cont.emoteyellow apalpando o ambiente
+ENDDO
+
+cont.ctag.disturb=
+cont.ctag.e_no_move_x=<cont.p.x>
+cont.ctag.e_no_move_y=<cont.p.y>
+cont.events +e_no_attack
+cont.events +e_no_dclick
+
+timer=1
+return 1
+
+[EOF]

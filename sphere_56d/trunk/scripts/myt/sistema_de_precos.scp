@@ -1,0 +1,366 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE PRECOS por
+//      Galthar
+//      UsMarine (vinicius.arroyo at gmail.com)
+//
+//
+// Para usar:
+// use .mudarpreco para modificar o preco atual
+// use .verpreco para ver o preco atual
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
+
+[COMMENT DBPRECOS]
+
+DROP TABLE IF EXISTS `mytserver`.`merchant_values`;
+CREATE TABLE  `mytserver`.`merchant_values` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `itemdef` varchar(45) NOT NULL,
+  `category` int(10) unsigned NOT NULL,
+  `itemname` varchar(45) NOT NULL,
+  `value` float NOT NULL default '0.1',
+  `region` varchar(45) NOT NULL default 'a_Kalesh',
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `itemByRegion` (`itemdef`,`region`)
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
+
+
+
+
+
+[PLEVEL 0]
+mudarpreco
+verpreco
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// mudarpreco
+//*****************************************************************************
+[FUNCTION mudarpreco]
+if !<src.has_merchant_priv>
+    sysmessagered Voce nao tem privilegio para isso.
+    return 0
+endif
+
+if !<argo>
+    sysmessageyellow Selecione o item para modificar o preco:
+    targetf mudarpreco
+    return 0
+endif
+
+if !<argo.isitem>
+    sysmessageyellow <argo.name> nao eh um item valido.
+    return 0
+endif
+
+if <DB.CONNECTED>
+    DB.QUERY ="SELECT value FROM merchant_values WHERE itemdef='<argo.baseid>' AND region='<region.defname>' LIMIT 1"
+    if <DB.ROW.NUMROWS>
+        sysmessageyellow O valor de uma unidade de <argo.name> da mais alta qualidade eh <STRTRESURE <DB.ROW.0.value>>.
+    endif
+    
+    prompt_new Quanto voce acha que uma unidade de <argo.name> em perfeita qualidade deveria custar em cobres?
+    prompt_setAction merchant_set_value <argo>,
+    prompt_show                   
+else
+    sysmessagered Impossivel alterar o preco nesse momento.
+endif
+return 0
+
+//*****************************************************************************
+// merchant_set_value <item>,<value>
+//*****************************************************************************
+[FUNCTION merchant_set_value]
+if (<argn> < 1) && (<strpos 0 . <argv0>> > 0)
+    sysmessagered Valor invalido.
+    return 0
+endif
+
+obj=<argv0>
+if (<f_IsWeapon <obj>>)
+    local.c=1
+elif (<f_isArmor <obj>>)
+    local.c=2
+elif (<f_isRegsOrMagic <obj>>)
+    local.c=3
+elif (<f_isFood <obj>>)
+    local.c=4
+elif (<f_isMisc <obj>>)
+    local.c=5
+elif (<f_isWearable <obj>>)
+    local.c=6
+elif (<f_isRaw <obj>>)
+    local.c=7
+else
+    sysmessagered Este item nao tem classificacao!
+    return 0
+endif
+
+if <DB.CONNECTED>
+    DB.EXECUTE "INSERT INTO merchant_values (itemdef,category,itemname,value,region) VALUES('<obj.baseid>',<dlocal.c>,'<obj.idname>',<argv1>,'<region.defname>') ON DUPLICATE KEY UPDATE value='<DB.ESCAPEDATA <argv1>>'"
+    sysmessagegreen Preco do item alterado com sucesso!
+else
+    sysmessagered Impossivel alterar o preco.
+endif
+
+//*****************************************************************************
+// merchant_get_value
+//*****************************************************************************
+[FUNCTION merchant_get_value]
+REF1=<argn>
+if !<REF1>
+    return -1
+endif
+
+if <DB.CONNECTED>
+    DB.QUERY ="SELECT value FROM merchant_values WHERE itemdef='<REF1.baseid>' AND region='<region.defname>' LIMIT 1"
+    if <DB.ROW.NUMROWS>
+        return  <DB.ROW.0.value>
+    endif
+endif
+
+return <REF1.value>
+
+//*****************************************************************************
+// verpreco
+//*****************************************************************************
+[FUNCTION verpreco]
+if !<argo>
+    sysmessageyellow Selecione o item para ver o preco:
+    targetf verpreco
+    return 0
+endif
+
+LOCAL.value=<merchant_get_value <argo>>
+if (<LOCAL.value> < 0) && (<strpos 0 . <LOCAL.value>> > 0)
+    sysmessagered Impossivel ver o preco.
+elif (<LOCAL.value> == 0)
+    sysmessageyellow Item sem preco determinado.
+else
+    if (<strpos 0 . <LOCAL.value>> > 0) //formatDecimal dependendo desta expressao nao aplicavel em QVAL
+        sysmessagegreen O valor de uma unidade de <argo.name> da mais alta qualidade eh <formatDecimal <local.value>>mc
+    else
+        sysmessagegreen O valor de uma unidade de <argo.name> da mais alta qualidade eh <STRTRESURE <local.value>>.
+    endif
+endif    
+return 0
+
+//*****************************************************************************
+// has_merchant_priv
+//*****************************************************************************
+[FUNCTION has_merchant_priv]
+if <IsGM> || (<CTAG0.TOWN_<region.defname>_PRIVS>&<DEF.TOWN_PRIV_CONFISCATE>)
+    return 1
+endif
+return 0
+
+//*****************************************************************************
+//*****************************************************************************
+// DIALOGs
+//*****************************************************************************
+//*****************************************************************************
+
+
+//*****************************************************************************
+// d_merchant_guild
+//*****************************************************************************
+[DIALOG d_merchant_guild]
+100,75
+page 0
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+gumppic 0 0 10400
+gumppic 0 160 10401
+gumppic 0 356 10402
+gumppic 518 -2 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+gumppic 225 45 2501
+text 231 45 26 0
+resizepic 92 87 2620 416 310
+text 245 93 48 1
+page 1
+text 104 112 166 2
+button 106 171 2224 2223 1 0 1
+text 130 167 166 3
+text 104 128 166 4
+button 106 246 2224 2223 1 0 2
+text 130 242 166 5
+button 106 333 2224 2223 1 0 3
+text 130 329 166 6
+page 2
+text 237 109 259 7
+text 103 155 166 8
+button 106 190 2224 2223 1 0 4
+text 130 186 166 9
+button 106 210 2224 2223 1 0 5
+text 130 206 166 10
+button 106 230 2224 2223 1 0 6
+text 130 226 166 11
+button 106 250 2224 2223 1 0 7
+text 130 246 166 12
+button 106 270 2224 2223 1 0 8
+text 130 266 166 13
+button 106 290 2224 2223 1 0 9
+text 130 286 166 14
+button 106 310 2224 2223 1 0 10
+text 130 306 166 15
+
+
+page 3
+local.firstitem=<eval <ctag.page>*12>
+local.lastitem=<eval <local.firstitem>+12>
+DB.QUERY = "SELECT id,itemname,value FROM merchant_values WHERE category=<eval <ctag.cat>> AND region='<region.defname>' ORDER BY itemname;"
+if (<has_merchant_priv>)
+ local.priv=1
+endif
+
+text 108 109 259 16
+
+dorigin 97 114
+for R <local.firstitem> <eval <local.lastitem>-1>
+ if !(STRMATCH(<DB.ROW.<dlocal.r>.itemname>, ))
+  gumppictiled - *20 406 30 93
+  if <local.priv>
+   button +16 +9 2224 2223 1 0 <eval 1000+<DB.ROW.<dlocal.r>.id>>
+  endif
+  dtext +40 +9 166 <DB.ROW.<dlocal.r>.itemname>
+  if (<strpos 0 . <DB.ROW.<dlocal.r>.value>> > 0) //formatDecimal dependendo desta expressao nao aplicavel em QVAL
+   dtext +300 +9 52 <formatDecimal <DB.ROW.<dlocal.r>.value>>mc
+  else
+   dtext +300 +9 52 <STRTRESURE <DB.ROW.<dlocal.r>.value>>
+ endif
+endif
+endfor
+
+if (<ctag.page>)
+ button 92 402 5603 5607 1 0 11
+endif
+if (<local.lastitem> < <DB.ROW.NUMROWS>)
+ button 489 402 5601 5605 1 0 12
+endif
+
+[DIALOG d_merchant_guild text]
+Mystical Tales Shard
+Guilda Mercante
+A guilda mercante de <region.name> tem <var.blank> componentes
+Ver tabela de precos
+e eh regida por <var.name>.
+Ver impostos
+Ver integrantes da guilda
+Tabela de precos
+Selecione a categoria de produtos:
+Armas
+Armaduras
+Reagentes e magicos
+Alimentos
+Provisoes
+Roupas e acessorios
+Materia prima
+Tabela de precos: <ctag.category>
+//<DB.ROW.0.itemname>
+//<DB.ROW.0.value>
+
+[DIALOG d_merchant_guild button]
+ON=0
+//TOWN
+
+ON=1
+// Tabela de precos
+// 
+DIALOG d_merchant_guild 2
+
+ON=2
+// Ver impostos
+// 
+
+ON=3
+// Ver integrantes da guilda
+// 
+
+ON=4
+// PreçosCategoriaArmas
+// 
+ctag.cat=1
+ctag.category=Armas
+ctag.page=0
+DIALOG d_merchant_guild 3
+
+ON=5
+// armaduras// 
+ctag.cat=2
+ctag.category=Armaduras
+ctag.page=0
+DIALOG d_merchant_guild 3
+
+ON=6
+// Magic&Reags
+// 
+ctag.cat=3
+ctag.category=Reagentes e magicos
+ctag.page=0
+DIALOG d_merchant_guild 3
+
+ON=7
+// Alimentos
+// 
+ctag.cat=4
+ctag.category=Alimentos
+ctag.page=0
+DIALOG d_merchant_guild 3
+
+ON=8
+// Provisões
+// 
+ctag.cat=5
+ctag.category=Provisoes
+ctag.page=0
+DIALOG d_merchant_guild 3
+
+ON=9
+// Roupas e acessórios
+// 
+ctag.cat=6
+ctag.category=Roupas e acessorios
+ctag.page=0
+DIALOG d_merchant_guild 3
+
+ON=10
+// Matéria prima
+// 
+ctag.cat=7
+ctag.category=Materia prima
+ctag.page=0
+DIALOG d_merchant_guild 3
+
+ON=100
+// GM Edit Price
+// 
+
+ON=11
+// Page -1
+// 
+ctag.page=<ctag.page>-1
+DIALOG d_merchant_guild 3
+
+ON=12
+// Page +1 (tabela de preços)
+// 
+ctag.page=<ctag.page>+1
+DIALOG d_merchant_guild 3
+
+on=1000 9999
+say <eval <argn>-1000>
+
+[EOF]

@@ -1,0 +1,331 @@
+//*****************************************************************************
+// t_horse_armor
+//*****************************************************************************
+[TYPEDEF t_horse_armor]
+
+ON=@DCLICK
+if (<distance> > 2)
+    src.sysmessageyellow Muito longe
+else
+    src.sysmessageyellow Selecione o cavalo:
+    target
+endif    
+return 1
+
+ON=@TARGON_ITEM
+src.sysmessageyellow Usado apenas em cavalos
+return 1
+
+ON=@TARGON_CHAR
+if (<src.targ.distance> > 2 )
+    src.sysmessagered Voce nao alcanca o animal
+    return 1
+elif (<baseid>==i_armadura_traseira) && (<src.targ.tag0.traseira>)
+    src.sysmessageyellow O cavalo ja esta com a parte traseira da armadura equipada.
+    return 1
+elif (<baseid>==i_armadura_frontal) && (<src.targ.tag0.frontal>)
+    src.sysmessageyellow O cavalo ja esta com a parte frontal da armadura equipada.
+    return 1
+elif (<src.targ.body> == c_horse_gray) || (<src.targ.body> == c_horse_white) || (<src.targ.body> == c_horse_brown_dk) || (<src.targ.body> == c_horse_brown_lt) || (<src.targ.body> == c_horse_tan) || (<src.targ.body> == c_horse_black)
+    src.targ.tag.corpo <src.targ.body>
+elif (<src.targ.body> == c_cavalo_armadura)
+    //nop
+else
+    src.sysmessagered Isto nao e um cavalo.
+    return 1
+endif
+
+src.emotegreen Equipando armadura no cavalo
+sfx 89
+
+if <baseid>==i_armadura_traseira
+    src.targ.tag.traseira = 1
+else
+    src.targ.tag.frontal = 1
+endif
+
+if <src.targ.tag.traseira> && <src.targ.tag.frontal>
+    src.targ.body=c_cavalo_armadura
+endif
+
+serv.newitem i_suporte_cavalo
+new.movenear <src.targ> 1
+remove
+src.targ.update
+return 1
+
+//*****************************************************************************
+// e_cavalo_armor
+//*****************************************************************************
+[EVENTS e_cavalo_armor]
+
+On=@death
+ 
+if <TAG0.TRASEIRA>
+    serv.newitem=i_armadura_traseira
+    new.bounce
+endif
+
+if <TAG0.FRONTAL>
+    serv.newitem=i_armadura_frontal
+    new.bounce
+endif 
+
+//*****************************************************************************
+// t_armor_leather
+//*****************************************************************************
+[TYPEDEF t_armor_leather]
+ON=@EQUIP
+src.eqArmor <uid>
+
+ON=@UNEQUIP
+src.unequipArmor <uid>    
+
+ON=@CLIENTTOOLTIP
+tooltip_armors
+return 1
+
+ON=@Identify
+//salva morep em TAG e ZERA, para evitar efeitos de spell ao equipar item
+if <IsEmpty <tag.resmod>>
+    tag.resmod = <morex>,<morey>,<morez>,<morem>
+    morex=0
+    morey=0
+    morez=0
+    morem=0
+endif
+
+//*****************************************************************************
+// t_armor
+//*****************************************************************************
+[TYPEDEF t_armor]
+ON=@EQUIP
+src.eqArmor <uid>
+
+ON=@UNEQUIP
+src.unequipArmor <uid>    
+
+ON=@CLIENTTOOLTIP
+tooltip_armors
+return 1
+
+ON=@Identify
+//salva morep em TAG e ZERA, para evitar efeitos de spell ao equipar item
+if <IsEmpty <tag.resmod>>
+    tag.resmod = <morex>,<morey>,<morez>,<morem>
+    morex=0
+    morey=0
+    morez=0
+    morem=0
+endif
+
+
+//*****************************************************************************
+// t_attune_armor
+//*****************************************************************************
+[TYPEDEF t_attune_armor]
+//Inicialmente não tem uso. Então funciona como um 'flag' para saber de a armadura
+//esta attunada ou não. O script usa. Não remover.
+
+//*****************************************************************************
+// t_shield
+//*****************************************************************************
+[TYPEDEF t_shield]
+ON=@EQUIP
+src.eqArmor <uid>
+
+ON=@UNEQUIP
+src.unequipArmor <uid>    
+
+ON=@CLIENTTOOLTIP
+tooltip_armors
+return 1
+
+ON=@Identify
+//salva morep em TAG e ZERA, para evitar efeitos de spell ao equipar item
+if <IsEmpty <tag.resmod>>
+    tag.resmod = <morex>,<morey>,<morez>,<morem>
+    morex=0
+    morey=0
+    morez=0
+    morem=0
+endif
+
+[FUNCTION armor_getModdex]
+ref3=<argn>
+return <ref3.tdata3>
+
+[FUNCTION eqArmor]
+local.moddex=<armor_getModdex <argn>>
+//serv.log [MDXA] <account>/<dlocal.moddex>
+ref3=<argn>
+
+//serv.log aplicando moddex -<dlocal.moddex> em <hval <ref3.dispid>>
+moddex -= <local.moddex>
+
+//salva morep em TAG e ZERA, para evitar efeitos de spell ao equipar item
+if <IsEmpty <ref3.tag.resmod>>
+    ref3.tag.resmod = <ref3.morex>,<ref3.morey>,<ref3.morez>,<ref3.morem>
+    ref3.morex=0
+    ref3.morey=0
+    ref3.morez=0
+    ref3.morem=0
+endif
+
+eqArmor_ <ref3>,<ref3.tag.resmod>
+
+[FUNCTION eqArmor_]
+ref3=<argv0>
+
+//Aplica resistência a danos especiais. salva valor aplicado em tag diferente
+ref3.tag.resmodactive=<resfiremod <argv1>>,<rescoldmod <argv2>>,<respoisonmod <argv3>>,<resenergymod <argv4>>
+
+
+[FUNCTION unequipArmor]
+local.moddex=<armor_getModdex <argn>>
+//serv.log [MDXB] <account>/<dlocal.moddex>
+ref3=<argn>
+
+//serv.log aplicando moddex <dlocal.moddex> em <hval <ref3.dispid>>
+moddex += <local.moddex>
+
+unequipArmor_ <ref3>,<ref3.tag.resmodactive>
+
+[FUNCTION unequipArmor_]
+ref3=<argv0>
+
+//Retira resistência a danos especiais
+resfiremod -<argv1>
+rescoldmod -<argv2>
+respoisonmod -<argv3>
+resenergymod -<argv4>
+
+ref3.tag.resmodactive=
+
+[FUNCTION res_fire]
+//Mostra ou seta a resistencia a fogo de uma armadura
+if !<IsArmor>
+    return 0
+endif
+if (!<IsEmpty <argv0>>)
+    local.mod=<argn>
+    args=<tag.resmod>
+    tag.resmod=<eval <local.mod>>,<argv1>,<argv2>,<argv3>
+    update
+else
+    args=<tag.resmod>
+    return <argv[0]>
+endif
+
+[FUNCTION res_cold]
+//Mostra ou seta a resistencia a frio de uma armadura
+if !<IsArmor>
+    return 0
+endif
+if (!<IsEmpty <argv0>>)
+    local.mod=<argn>
+    args=<tag.resmod>
+    tag.resmod=<argv0>,<eval <local.mod>>,<argv2>,<argv3>
+    update
+else
+    args=<tag.resmod>
+    return <argv[1]>
+endif
+
+[FUNCTION res_poison]
+//Mostra ou seta a resistencia a veneno de uma armadura
+if !<IsArmor>
+    return 0
+endif
+if (!<IsEmpty <argv0>>)
+    local.mod=<argn>
+    args=<tag.resmod>
+    tag.resmod=<argv0>,<argv1>,<eval <local.mod>>,<argv3>
+    update
+else
+    args=<tag.resmod>
+    return <argv[2]>
+endif
+
+[FUNCTION res_energy]
+//Mostra ou seta a resistencia a elétrica (em Ohms) de uma armadura
+if !<IsArmor>
+    return 0
+endif
+if (!<IsEmpty <argv0>>)
+    local.mod=<argn>
+    args=<tag.resmod>
+    tag.resmod=<argv0>,<argv1>,<argv2>,<eval <local.mod>>
+    update
+else
+    args=<tag.resmod>
+    return <argv[3]>
+endif
+
+[FUNCTION ATTUNEARMOR]
+//Adiciona <argn1> de resistencia durante <argn2> na armadura DEFAULT.
+//Opcionalmente, <argn3> pode ser o tipo de dano DAM_*
+serv.log <name>.ATTUNEARMOR <args>
+IF (!<IsArmor>) || ( (<argn2> < 1)
+    return 0
+ELIF (<tag0.ATTUNEARMOR_TYPE>)
+    UNATTUNEARMOR
+ENDIF
+
+if (<IsEmpty <argv2>>)
+    local.type=0
+elif (<argv2>&dam_fire)
+    local.type=1
+elif (<argv2>&dam_cold)
+    local.type=2
+elif (<argv2>&dam_poison)
+    local.type=3
+elif (<argv2>&dam_energy)
+    local.type=4
+else
+    local.type=0
+endif
+
+tag.ATTUNEARMOR_TYPE=<local.type>
+tag.ATTUNEARMOR_MOD=<argn1>
+
+DOSWITCH (<local.type>)
+    MODAR = <eval <MODAR>+<argn1>>
+    RES_FIRE = <eval <RES_FIRE>+<argn1>>
+    RES_COLD = <eval <RES_COLD>+<argn1>>
+    RES_POISON = <eval <RES_POISON>+<argn1>>
+    RES_ENERGY = <eval <RES_ENERGY>+<argn1>>
+ENDDO
+
+TIMERF <argn2> UNATTUNEARMOR
+
+EVENTS +t_attune_armor
+
+UPDATE
+
+[FUNCTION UNATTUNEARMOR]
+//Desliga o ATTUNEARMOR
+DOSWITCH (<tag0.ATTUNEARMOR_TYPE>)
+    MODAR = <eval <MODAR>-<tag0.ATTUNEARMOR_MOD>>
+    RES_FIRE = <eval <RES_FIRE>-<tag0.ATTUNEARMOR_MOD>>
+    RES_COLD = <eval <RES_COLD>-<tag0.ATTUNEARMOR_MOD>>
+    RES_POISON = <eval <RES_POISON>-<tag0.ATTUNEARMOR_MOD>>
+    RES_ENERGY = <eval <RES_ENERGY>-<tag0.ATTUNEARMOR_MOD>>
+ENDDO
+
+//Está equipada? Precisa tirar o buff do char.
+IF (<cont.IsChar>)
+    DOSWITCH (<tag0.ATTUNEARMOR_TYPE>)
+        local.0
+        cont.resfiremod -<tag0.ATTUNEARMOR_MOD>
+        cont.rescoldmod -<tag0.ATTUNEARMOR_MOD>
+        cont.respoisonmod -<tag0.ATTUNEARMOR_MOD>
+        cont.resenergymod -<tag0.ATTUNEARMOR_MOD>
+    ENDDO
+ENDIF
+tag.ATTUNEARMOR_TYPE=
+tag.ATTUNEARMOR_MOD=
+EVENTS -t_attune_armor
+topobj.sysmessagered <name> peddeu sua resistencia extra.
+UPDATE
+[EOF]

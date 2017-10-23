@@ -1,0 +1,175 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// Skill Anatomy por
+//  Silver
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//  Chame sk_anatomy sempre que a skill for utilizada. Dessa forma o player SRC
+//recebe as informações sobre o alvo (SRC.targ) de acordo com sua akill anatomy.
+//
+// A mensagem é exibida da seguinte forma:
+// "Parece <antm_dexA>, <antm_strB> e <antm_stamC>" 
+// A,B e C são calculadas de acordo com a skill do SRC e a habilidade do TARG.
+// As mensagens estão na tabela (DEFNAME) abaixo.
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+//- verificar se alvo esta vivo ainda
+//- limite de 1 anatomy por alvo por login
+
+//TAGS usadas:
+//*****************************************************************************
+
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+
+[DEFNAME anatomy_msg]
+antm_dex1= nao conseguir ficar parado em equilibrio
+antm_dex2= muito desajeitado
+antm_dex3= um pouco descordenado
+antm_dex4= ter alguma agilidade
+antm_dex5= um pouco agil
+antm_dex6= muito agil
+antm_dex7= extremamente agil
+antm_dex8= extraordinariamente agil
+antm_dex9= que se movimenta com grande velocidade
+antm_dex10= ser uma das pessoas mais rapidas que voce ja viu
+antm_dex11= possuir uma agilidade sobrenatural
+ 
+antm_str1= ter dificuldades em lidar com pequenos objetos
+antm_str2= muito fraco
+antm_str3= fraco
+antm_str4= ter uma forca normal
+antm_str5= um pouco forte
+antm_str6= muito forte
+antm_str7= extremamente forte
+antm_str8= extraordinariamente forte
+antm_str9= forte como um touro
+antm_str10= ser uma das pessoas mais fortes que voce ja viu
+antm_str11= possuir uma forca sobrenatural
+
+antm_stam1= cansado
+antm_stam2= ofegante
+antm_stam3= disposto
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// sk_anatomy - anatomy skill
+//*****************************************************************************
+
+[FUNCTION sk_anatomy]
+
+if (!<Skill_InUse Skill_Anatomy>)
+    src.sysmessagered Voce so pode fazer uma coisa por vez
+    src.Skill_InUse 0
+    return 1
+elif (<src.targ.canseelos> == 0)
+    src.sysmessagered Seu alvo esta fora da linha de visao...
+    return 1
+elif (<src.targ.uid> == <src.uid>)
+    src.sysmessagered Voce nao pode usar Anatomy em si mesmo...
+    return 1
+elif (<src.targ.isitem>)
+    src.sysmessagered Voce nao pode usar Anatomy em objetos...
+    return 1
+elif (<src.targ.flags>&statf_dead)
+    src.sysmessagered Voce nao pode usar Anatomy em almas...
+    return 1
+elif (<src.findid.i_anatomy_mry>)
+    src.sysmessagered Voce ainda nao pode usar Anatomy...
+    return 1
+elif (<src.ctag0.sk_anatomy>==<src.targ>)
+    src.sysmessagered Voce ja analisou esse ser.
+    return 1
+endif
+
+src.emoteyellow Observando <src.targ.name>
+src.ctag.disturb=0
+src.newitem i_anatomy_mry
+NEW.more=<eval 11-(<src.anatomy>/100)>
+
+if ( <NEW.more> <= 0 )
+    NEW.more=1
+endif
+
+NEW.link=<src.targ>
+NEW.cont=<src>
+NEW.timer=1
+
+src.ctag0.sk_anatomy=<src.targ>
+return 1    
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+[ITEMDEF i_anatomy_mry]
+id=i_deed
+name=Anatomy Memory
+type=t_eq_script
+layer=layer_special
+weight=0
+
+on=@timer
+
+ if (<cont.canseelos <link>> == 0)
+  cont.sysmessageyellow Seu alvo esta fora da linha de visao...
+  remove
+  Skill_InUse 0
+  return 1
+ endif 
+ 
+ // Se for perturbado ou estiver incapacitado:
+ if (<cont.f_isDisturbed>) || (!<skill_InUse skill_Anatomy>)
+    cont.sysmessageyellow Voce nao esta em condicoes de analisar nada.
+    Skill_InUse 0
+    remove
+    return 1
+endif
+
+//loop de animacao
+if (<more>)
+    more=<more>-1
+    timer=1
+    return 1 
+endif
+
+LOCAL.dex=(<link.dex>/10)+1
+LOCAL.str=(<link.str>/10)+1
+LOCAL.stam=((<link.stam>*3)/<link.dex>)+1
+
+if ( <LOCAL.dex> > 11 )
+  LOCAL.dex = 11
+endif
+
+if ( <LOCAL.str> > 11 )
+  LOCAL.str = 11
+endif
+
+if ( <LOCAL.stam> > 3 )
+  LOCAL.stam = 3
+endif
+
+cont.sysmessagegreen Parece <DEF.antm_dex<eval <LOCAL.dex>>>, <DEF.antm_str<eval <LOCAL.str>>> e <DEF.antm_stam<eval <LOCAL.stam>>>
+
+if (<link.isplayer>) && (<cont.anatomy> > <R1000>)
+    cont.sysmessagegreen Parece um <link.tag.raca>
+endif
+
+cont.skill_gain skill_anatomy
+Skill_InUse 0
+remove
+return 1
+
+[EOF]

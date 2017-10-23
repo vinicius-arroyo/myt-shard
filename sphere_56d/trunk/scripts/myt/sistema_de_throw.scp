@@ -1,0 +1,120 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE THROW
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
+
+[PLEVEL 0]
+arremessar
+
+//*****************************************************************************
+// arremessar
+//*****************************************************************************
+[FUNCTION arremessar] 
+findlayer.layer_hand1.unequip
+findlayer.layer_hand2.unequip
+
+if !<tag0.skill_throw>
+    if <tag0.arremecarskill>
+        tag.skill_throw=<tag.arremecarskill>
+        tag.arremecarskill=
+    else        
+        tag.skill_throw=<R500,600>
+    endif        
+endif
+
+if <stam> <= 10
+    sysmessageyellow Muito cansado para arremessar.
+elif <flags> & statf_dead
+    sysmessagered Nem morto que voce consegue arremessar algo!
+elif (<flags> & 0802008)  && (!<IsGM>)//invis|hidden|insubstancial
+    sysmessageyellow A intencao seria nao te descobrirem.
+else
+    sysmessagegreen Skill Arremessar: <eval <tag.skill_throw>/10>%
+    sysmessagegreen Selecione o objeto que deseja arremessar...
+    targetf throw_object
+    hiding_leave
+endif
+
+//*****************************************************************************
+// throw_object
+//*****************************************************************************
+[FUNCTION throw_object]
+if !<argo>
+    sysmessagered Isso nao pode ser arremessado.
+    return 1
+elif <argo.topobj>!=<uid>
+    sysmessagered Isto nao te pertence...
+    return 1
+elif <argo.layer>==layer_pack
+    sysmessagered Nao pode atirar sua mochila.
+    return 1
+elif <argo.weight> > 200
+    sysmessagered Muito pesado...
+    return 1
+endif
+ 
+sysmessagegreen Selecione o alvo...
+targetf throw_target <argo>
+
+//*****************************************************************************
+// throw_target
+//*****************************************************************************
+[FUNCTION throw_target]
+ 
+if <argo>==<uid>
+    sysmessagered Nao e possivel arremessar em voce mesmo...
+    return 1
+elif <argo.topobj>==<uid>
+    sysmessagered Nao e possivel arremessar em voce mesmo...
+    return 1
+elif !<argo.canseelos <uid>>
+    sysmessagered Nao pode ver o alvo...
+    return 1
+endif
+
+if (<tag.skill_throw> < 1000) && !<R5>
+    tag.skill_throw += 1
+    sysmessageblue Skill Arremessar: Subiu 0.1%!
+endif
+
+ref1=<argv0>
+emoteyellow Arremessa <ref1.name>
+anim 11 
+sfx 0232
+argo.effect 0,<ref1>,10,1,0
+face <argo>
+
+if (<R1000> < <tag.skill_throw>)
+    argo.damage <eval <tag.skill_throw>/100>
+else
+    if <argo.isitem>
+        argo.emoteyellow intacto
+    else
+        argo.emoteyellow esquiva
+    endif        
+endif
+
+if <ref1.amount>>1
+    serv.newdupe <ref1>
+    ref1.decrement
+    new.amount=1
+    ref1=<new>
+endif
+ref1.movenear <argo>
+ref1.attr |= attr_decay
+
+if <ref1.timer> <= 0
+    ref1.timer=120
+endif
+
+ref1.trigger @step
+
+stam -= 10
+

@@ -1,0 +1,299 @@
+[FUNCTION sextant]
+VAR.LAT = <eval (((<P.Y> - 1624) * 360 * 60) / 4096)>
+VAR.LNG = <eval (((<P.X> - 1323) * 360 * 60) / 5120)>
+
+VAR.LATd = <eval (<VAR.LAT>/60)>
+VAR.LATm = <eval (<VAR.LAT> - (<VAR.LATd>*60))>
+
+VAR.LNGd = <eval (<VAR.LNG>/60)>
+VAR.LNGm = <eval (<VAR.LNG> - (<VAR.LNGd>*60))>
+
+ABSVAL VAR.LATd
+ABSVAL VAR.LATm
+ABSVAL VAR.LNGd
+ABSVAL VAR.LNGm
+
+VAR.LATc = "N"
+if ( <VAR.LAT> > 0 )
+VAR.LATc = "S"
+endif
+
+VAR.LNGc = "W"
+if ( <VAR.LNG> > 0 )
+VAR.LNGc = "E"
+endif
+
+LINK.TAG.COORDS=<eval <VAR.LATd>>o<eval <VAR.LATm>>'<VAR.LATc>, <eval <VAR.LNGd>>o<eval <VAR.LNGm>>'<VAR.LNGc>
+
+[itemdef i_sos_bottle]
+NAME=mesagem na garrafa
+id=099f
+
+on=@create
+ATTR=attr_decay
+TIMER=0
+
+on=@dclick
+src.newitem=i_sos_message
+src.act.timer=0
+src.act.bounce
+src.newitem=i_garrafa_vazia
+src.act.bounce
+REMOVE
+return 1
+
+[itemdef i_sos_tile]
+ID=i_water
+type=t_script
+
+on=@create
+ATTR=attr_decay
+TIMER=0
+
+[FUNCTION f_generate_coords]
+var.coords=<eval {2304 5008}>,<eval {1344 3696}>,255
+//var.coords=<eval {1 5109}>,<eval {1 5109}>,255 //this will do the entire world but can pick small rivers in towns, etc
+src.home=<src.p>
+src.p=<var.coords>
+if (!<SRC.isonwater>)
+src.p=<src.home>
+var.coords=
+f_generate_coords
+else
+src.p=<src.home>
+src.tag.sextantp=<var.coords>
+var.coords=
+endif
+
+[itemdef i_sos_message]
+NAME=mensagem de SOS
+id=014ed
+TYPE=t_script
+
+on=@create
+ATTR=attr_decay
+TIMER=0
+
+on=@dclick
+if (!<eval <tag.sextantp>>)
+src.f_generate_coords
+tag.sextantp=<src.tag.sextantp>
+src.tag.sextantp=
+src.newitem=i_sos_tile
+src.act.link=<UID>
+link=<src.act.uid>
+src.act.attr=attr_static|attr_move_never
+src.act.p=<tag.sextantp>
+src.act.sextant
+src.act.fix
+endif
+
+src.tag.sextantcoords=<tag.coords>
+dialog d_sos_message
+return 1
+
+[DIALOG d_sos_message]
+0, 0
+PAGE 0
+resizepic 63 62 2520 317 319
+resizepic 91 103 3500 256 189
+text 122 114 0 0
+text 104 130 0 1
+text 104 147 0 2
+text 104 165 0 3
+text 104 181 0 4
+text 104 197 0 5
+text 104 214 0 6
+text 104 231 0 7
+text 104 248 0 8
+button 91 317 4014 4015 1 0 0
+text 132 317 0 9
+text 91 293 0 10
+
+[DIALOG d_sos_message TEXT]
+Essa e uma pobre mensagem
+foi escrita por  um  passangeiro 
+abordo de um navio em naufragio. 
+Embora seja provavel estar tarde 
+parasalver  os  passageiros  e a 
+tripulacao , talvez algum tesouro 
+naufragou com o navio.A mensa-
+gem tem as  ultimas coordenadas  
+do astrolabio
+OKAY
+<src.tag.sextantcoords>
+
+[DIALOG d_sos_message BUTTON]
+on=0
+src.tag.sextantcoords=
+
+[ITEMDEF 0dbf]
+//Fishing Pole
+DEFNAME=i_fishing_pole
+TYPE=T_FISH_POLE
+NAME=vara de pescar
+WEIGHT=2
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Fisherman
+DESCRIPTION=Vara de pesca
+RESOURCES=3 i_cabo_madeira,1 i_string
+TEVENTS=t_crafting_tool
+SKILLMAKE=CARPENTRY 50.0
+VALUE=10
+DUPELIST=0dc0
+TDATA4=350
+
+ON=@CREATE
+MAXHITS=<R100,210>
+HITS=<R100,<MAXHITS>>
+
+
+ON=@TARGON_ITEM
+        if (<src.targ.baseid>==i_sos_tile)
+                src.anim 12
+                src.sound 027
+                LOCAL.PERCENT=<EVAL RAND(100)>
+                if (<LOCAL.PERCENT><10)
+                        src.sysmessage Voce perturbou um monstro do mar!
+                        LOCAL.oldp=<src.p>
+                        src.p=<src.targp>
+                        src.newnpc=c_sea_serpent
+                        src.p=<LOCAL.oldp>
+                elseif (<LOCAL.PERCENT>>80)
+                        src.sysmessage Voce puxa da agua um tesouro!
+                        src.newitem=loot_sos_treasure
+                        src.act.p=<src.p>
+                        src.targ.link.remove
+                        src.targ.remove
+                else
+                        src.message Voce pesca por um tempo, mas falha em pegar qualquer coisa.
+                endif
+        else
+                SRC.SYSMESSAGE Nao tem peixe aqui.
+        endif
+        return 1
+
+[ITEMDEF i_fishing_pole_exp]
+//Fishing Pole
+ID=0dbf
+TYPE=T_FISH_POLE
+NAME=vara de pescar excepcional
+WEIGHT=2
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Fisherman
+DESCRIPTION=Vara de pesca exp
+RESOURCES=3 i_cabo_madeira,1 i_string
+TEVENTS=t_crafting_tool
+SKILLMAKE=CARPENTRY 50.0
+VALUE=10
+TDATA4=1000
+
+ON=@CREATE
+MAXHITS=<R300,750>
+HITS=<R300,<MAXHITS>>
+
+
+[FUNCTION isonwater]
+VAR.ISONWATER 0
+SRC.NEWNPC c_dummy_dolphin
+SRC.ACT.P <SRC.P>
+SRC.ACT.HOME <SRC.P>
+VAR.PX <SRC.ACT.P.X>
+VAR.PY <SRC.ACT.P.Y>
+SRC.ACT.dolphin_run nw
+SRC.ACT.dolphin_run n
+SRC.ACT.dolphin_run ne
+SRC.ACT.dolphin_run e
+SRC.ACT.dolphin_run se
+SRC.ACT.dolphin_run s
+SRC.ACT.dolphin_run sw
+SRC.ACT.dolphin_run w
+SRC.ACT.REMOVE
+
+VAR.PX
+VAR.PY
+
+IF (<VAR.ISONWATER> == 8)
+VAR.ISONWATER
+RETURN 1
+ENDIF
+
+VAR.ISWATER
+RETURN 0
+
+[CHARDEF c_dummy_dolphin]
+ID=c_dolphin
+
+ON=@Click
+RETURN 1
+
+[FUNCTION dolphin_run]
+RUN <ARGS>
+IF (<P.X> != <VAR.PX> ) || (<P.Y> != <VAR.PY> )
+VAR.ISONWATER <VAR.ISONWATER> + 1
+ENDIF
+P <HOME>
+
+//since I've never actually done fishing on OSI and I no longer have
+//an osi account, this is the best I could do with what little information
+//I have.... if someone wants to tell me exactly what osi's nets do, I'll
+//fix this up...
+[ITEMDEF i_special_fishing_net]
+NAME=rede de pesca especial
+ID=0dca
+TYPE=t_script
+weight=1
+CATEGORY=MyT - Items by Profession
+SUBSECTION=Fisherman
+DESCRIPTION=Special fishing Net
+VALUE=1000
+
+on=@dclick
+TARGETG Onde voce quer jogar a rede?
+RETURN 1
+
+on=@targon_item
+src.message Voce nao pode tacar a rede ai!
+return 1
+
+on=@targon_char
+src.message Voce nao pode pegar uma pessoa com essa rede!
+return 1
+
+on=@targon_ground
+src.home=<src.p>
+src.p=<src.targp>
+//if (!<SRC.isonwater>)
+//src.p=<src.home>
+//src.message Use na agua.
+//else
+remove
+src.p=<src.home>
+src.newitem=0dca
+src.act.p=<src.targp>
+src.act.attr=attr_decay
+src.act.timer=3
+src.anim 12
+src.sound 027
+src.home=<src.p>
+src.p=<src.targp>
+dorand 3
+src.newnpc=096
+src.newnpc=01024
+src.newnpc=010
+enddo
+dorand 3
+src.newnpc=096
+src.newnpc=01024
+src.newnpc=010
+enddo
+dorand 3
+src.newnpc=096
+src.newnpc=01024
+src.newnpc=010
+enddo
+src.p=<src.home>
+//endif
+return 1
+
+[EOF]

@@ -1,0 +1,340 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE CARPENTRY por
+//
+//          Galthar
+//          Silver
+//          UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+// - rever rates (dif)
+
+//TAGS usadas:
+//tags do sistema de crafting
+
+//ferramentas utilizaveis
+//martelo
+//serrote
+//Talhadeira
+//Envergadeira
+
+
+// Recursos:
+//corda
+//caixa de pregos
+//estofamento
+//
+//more 1 - normal , more 2 - container , more 3 - container //locked 
+
+//Legenda
+// B= tabua
+// C= corda
+// P= pena
+// T= tora
+// V= vareta
+// AF= apoio fino
+// AL= apoio largo
+// AR= argolas de ferro
+// BA= base para o item
+// GV= gaveta
+// ME= madeira envergada
+// PE= pregos 
+// PF= ponta de ferro
+// PL= ponta leve
+// PP= ponta precisao
+// PR= ponta perfurante
+// SP= suporte 
+// ST= estofamento
+// TF= tacha de ferro
+// TM= tampa madeira
+// TR= torneira
+
+ //--Sfx--//
+//023d - Toc Toc    ( batendo com o martelo )
+//0249 - Chick chick    ( talhando algo )
+//0056 - raspando algo
+
+//--Animações--//
+//anim 9 - batendo martelo
+//anim 34 - comendo algo
+
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_envergadeira
+//*****************************************************************************
+[TYPEDEF t_envergadeira]
+ON=@DCLICK
+src.craftmenu i_madeiraenvergada
+return 1
+
+//*****************************************************************************
+// t_preitem_carpentry
+//*****************************************************************************
+[TYPEDEF t_preitem_carpentry]
+ON=@DCLICK
+src.sysmessageyellow Utilize este item para criar novos itens de carpintaria ou similares.
+return 1
+
+//*****************************************************************************
+// t_carpentry_tool
+//*****************************************************************************
+[TYPEDEF t_carpentry_tool]
+ON=@DCLICK
+if (<topobj.uid> != <src.uid>)  
+    src.targ.bounce         
+endif
+
+if (<topobj.uid> != <src.uid>)  
+    src.sysmessage Voce deve possuir a ferramenta para poder usar. 
+    return 1
+endif
+
+src.craftmenu 3
+//src.dialog d_menu_cr   
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+[FUNCTION craft_t_weapon_arrow]
+//*****************************************************************************
+// CALL craft_t_arrow
+local.amt=<eval (<bowcraft>/50)+1>
+local.amt=<BETWEEN 1,<local.amt>,<bowcraft>,<STRARG <serv.itemdef.<args>.skillmake>>>
+
+//Reorganizar materias primas
+LOCAL.c=<serv.itemdef.<args>.resources.count>
+for R 1 <LOCAL.c> //Quantas dá pra fazer?
+    local.resource=<serv.itemdef.<args>.resources.<local.r>.key>
+    local.resamt=<serv.itemdef.<args>.resources.<local.r>.val>
+    local.type=<serv.itemdef.<local.resource>.type>
+    if (<local.type>==t_shaft) || (<local.type>==t_feather) || (<local.type>==t_ponta_flecha)
+     local.pos=<eval <rescount <local.resource>>/<local.resamt>>
+     local.need=<eval <local.amt>*<local.resamt>>
+     local.amt=<MINIMUMN <local.pos>, <local.need>, <local.amt>>
+    endif
+endfor
+
+for R 1 <LOCAL.c> //Aplicar
+    local.resource=<serv.itemdef.<args>.resources.<local.r>.key>
+    local.resamt=<serv.itemdef.<args>.resources.<local.r>.val>
+    local.type=<serv.itemdef.<local.resource>.type>
+    if (<local.type>==t_shaft) || (<local.type>==t_feather) || (<local.type>==t_ponta_flecha)
+     try obj.tag.amt<dlocal.r>=<MAXIMUM <eval <local.amt>*<local.resamt>>,<serv.itemdef.<args>.resources.<local.r>.val>>
+    endif
+endfor
+
+obj.tag.delay=<BETWEEN 1,12,<STRARG <serv.itemdef.<args>.skillmake>>,125.0>
+obj.tag.amt=<local.amt>
+obj.tag.emote=trabalhando
+obj.tag.anim=9
+obj.tag.sfx=02b2
+local.craftable=1
+
+//*****************************************************************************
+[FUNCTION craft_t_weapon_bolt]
+//*****************************************************************************
+// CALL craft_t_arrow
+CALL craft_t_weapon_arrow <args>
+
+//*****************************************************************************
+[FUNCTION craft_i_tabua]
+//*****************************************************************************
+obj.tag.skill=lumberjacking
+obj.tag.anim=9
+obj.tag.sfx=023d
+obj.tag.delay=7
+obj.tag.emote=trabalhando
+//craft_setTool i_tool_carpentry
+obj.tag.scrap=i_foligem_carp
+obj.tag.amt=<eval 1+(<src.lumberjacking>/100)>
+local.craftable=1
+return 1
+
+//*****************************************************************************
+[FUNCTION craft_i_kindling]
+//*****************************************************************************
+obj.tag.skill=lumberjacking
+obj.tag.anim=9
+obj.tag.sfx=023d
+obj.tag.delay=4
+obj.tag.emote=trabalhando
+//craft_setTool i_tool_carpentry
+obj.tag.scrap=i_foligem_carp
+local.skill=<MAXIMUM <src.lumberjacking>,<src.camping>,<src.carpentry>>
+obj.tag.amt=<MULDIV <BETWEEN 3,15,<local.skill>,100.0>,<R80,100>,100>
+local.craftable=1
+return 1
+
+//*****************************************************************************
+[FUNCTION craft_t_shaft]
+//*****************************************************************************
+obj.tag.anim=9
+obj.tag.sfx=023d
+obj.tag.delay=5
+obj.tag.emote=trabalhando
+craft_setTool i_tool_arrow
+obj.tag.scrap=i_foligem_carp
+local.skill=<MAXIMUM <src.lumberjacking>,<src.bowcraft>,<src.carpentry>>
+obj.tag.amt=<eval 1+(<local.skill>/100)>
+local.craftable=1
+return 1
+
+//*****************************************************************************
+// craft_carpentry
+//*****************************************************************************
+// CALL craft_carpentry. Behavior para craftinf de carpintaria.
+[FUNCTION craft_SKILL_carpentry]
+obj.tag.anim=9
+obj.tag.sfx=023d
+obj.tag.dif=<eval <serv.itemdef.<argv[0]>.SKILLMAKE.1.val>/10>
+obj.tag.delay=<eval <serv.itemdef.<argv[0]>.SKILLMAKE.1.val>/22>
+obj.tag.emote=serrando e martelando
+obj.tag.neartype=t_bancada
+obj.tag.nearname=Bancada
+obj.tag.scrap=i_foligem_carp
+local.craftable=1
+
+//*****************************************************************************
+// craft_carpentry_weapon
+//*****************************************************************************
+// CALL craft_carpentry_weapon. Behavior para crafting de armas de madeira
+[FUNCTION craft_carpentry_weapon]
+obj.tag.anim=9
+obj.tag.sfx=023d
+obj.tag.dif=<eval <serv.itemdef.<argv[0]>.SKILLMAKE.1.val>/10>
+obj.tag.delay=<eval <serv.itemdef.<argv[0]>.SKILLMAKE.1.val>/22>
+obj.tag.emote=esculpindo
+obj.tag.neartype=t_bancada
+obj.tag.nearname=Bancada
+obj.tag.scrap=i_foligem_carp
+local.craftable=1
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - Ferramentas
+//*****************************************************************************
+//*****************************************************************************
+
+[ITEMDEF i_envergadeira]
+ID=019f9
+NAME=envergadeira
+TYPE=t_envergadeira
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Envergadeira
+
+[ITEMDEF i_envergadeira2]
+ID=019fa
+NAME=envergadeira
+TYPE=t_envergadeira
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Envergadeira
+
+[ITEMDEF i_envergadeira3]
+ID=019fb
+NAME=envergadeira
+TYPE=t_envergadeira
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Envergadeira
+
+[ITEMDEF i_envergadeira4]
+ID=019fc
+NAME=envergadeira
+TYPE=t_envergadeira
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=Envergadeira
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - Outros
+//*****************************************************************************
+//*****************************************************************************
+
+[ITEMDEF i_foligem_carp]
+NAME=foligem
+ID=01038
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Carpenter
+DESCRIPTION=foligem
+
+ON=@CREATE
+attr=00002
+timer=30
+
+[ITEMDEF i_suporte_cavalo]
+id=0f38
+Name=Suporte para armadura de cavalo
+TYPE=t_normal
+RESOURCES=20 i_tabua
+WEIGHT=20
+
+CATEGORY=MyT - provisions - armor
+SUBSECTION=Para animais
+DESCRIPTION=Suporte para armadura de cavalo
+
+ON=@DCLICK
+if (<distance> > 2)
+    src.sysmessageyellow Muito longe
+else
+    src.sysmessageyellow Selecione o cavalo:
+    target
+endif
+return 1
+
+ON=@TARGON_ITEM
+src.sysmessageyellow Use p/ apoiar armadura p/ cavalos durante sua confeccao, ou p/ remove-la do animal
+return 1
+
+ON=@TARGON_CHAR
+if (<src.targ.distance> > 2 )
+    src.sysmessagered Voce nao alcanca o animal
+    return 1
+elif (!<src.targ.tag0.traseira>) && (!<src.targ.tag0.frontal>)
+    src.sysmessageyellow O cavalo nao esta equipado com nenhuma armadura
+    return 1
+elif (<src.targ.body> == c_cavalo_armadura) || (<src.targ.body> == c_horse_gray) || (<src.targ.body> == c_horse_white) || (<src.targ.body> == c_horse_brown_dk) || (<src.targ.body> == c_horse_brown_lt) || (<src.targ.body> == c_horse_tan) || (<src.targ.body> == c_horse_black)
+
+    if (<src.targ.tag0.traseira> == 1)
+        src.emotegreen Removendo parte traseira da armadura do animal
+        sfx 89
+        src.targ.tag.traseira = 0
+        serv.newitem i_armadura_traseira
+        new.movenear <src.targ> 1
+        remove
+    elif (<src.targ.tag0.frontal> == 1)
+        src.emotegreen Removendo parte frontal da armadura do animal
+        sfx 89
+        src.targ.tag.frontal = 0
+        serv.newitem i_armadura_frontal
+        new.movenear <src.targ> 1
+        remove
+    endif
+
+    if (!<src.targ.tag0.traseira>) || (!<src.targ.tag0.frontal>)
+        src.targ.body=<src.targ.tag.corpo>
+        src.targ.update
+    endif
+else
+    src.sysmessagered Isto nao e um cavalo.
+endif
+return 1
+
+[EOF]

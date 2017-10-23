@@ -1,0 +1,160 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// QUESTs por UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// QUEST PARA RECARGA DE OLEO EM POSTES [i_quest_postes]
+//*****************************************************************************
+[EVENTS e_quest_postes]
+ON=@ITEMDCLICK
+//serv.log [Q:ITEMDCLICK] <src>
+if (<src.act.baseid>==i_frasco_oleo)
+    src.tag.quest_dclick_oleo=<src.act>
+endif
+
+//
+ON=@ITEMTARGON_CANCEL
+src.tag.quest_dclick_oleo=
+
+ON=@ITEMTARGON_ITEM
+if (<argo.type>==t_luz_oleo) && (<src.tag0.quest_dclick_oleo>)
+    if (<argo.attr>&attr_move_never) && (<argo.timer> <= 0) && (<argo.region.defname>==a_luya) && (<argo.more1> <= 5000) && (<argo.distance> <= 1)
+        serv.log [Q:TARGON_ITEM] <src> colocou oleo!!!
+        OBJ=<src.findid.i_quest_postes>
+        OBJ.amount=<OBJ.amount>-1
+        
+        if ( <OBJ.amount> == 0 )    //acabou de completar o step
+            OBJ.cont.sysmessageyellow Voce finalizou um objetivo da quest.
+            LOCAL.o = <OBJ.link>
+            OBJ.remove
+            src.events -e_quest_postes
+            quest_nextStep <LOCAL.o>
+        else                        //ainda nao completou
+            SRC.sysmessageyellow Falta(m) <OBJ.amount> poste(s)!!
+        endif        
+    endif
+endif
+src.tag.quest_dclick_oleo=
+
+ON=@ITEMTARGON_CHAR
+src.tag.quest_dclick_oleo=
+
+ON=@ITEMTARGON_GROUND
+src.tag.quest_dclick_oleo=
+
+[ITEMDEF i_quest_postes]
+ID=i_deed
+NAME=Quest Poste
+TYPE=t_eq_script
+LAYER=layer_special
+WEIGHT=0
+
+ON=@QuestInit
+serv.log [Q:QuestInit] <cont>/<amount>
+cont.events +e_quest_postes
+return 1
+
+
+//*****************************************************************************
+// QUEST PARA COMPRA DE ITENS
+//*****************************************************************************
+[SPEECH spk_quest_vendor_deeds]
+
+ON=*sim*
+REF1=<TAG0.vendor_bod_npc>
+OBJ=<TAG0.vendor_bod_id>
+if !<REF1>
+
+elif <REF1.distance> > 2
+    sysmessageyellow Muito longe...
+    return 0
+elif !<OBJ> || (<OBJ.topobj>!=<src>)
+    REF1.say O que quer me vender mesmo?
+elif <OBJ.amount>!=<TAG0.vendor_bod_amount>
+    REF1.say Hey, eu disse que compro <eval <TAG0.vendor_bod_amount>>, nem mais nem menos!
+else
+    REF1.vendor_sellNpcItem <OBJ>,<TAG0.vendor_bod_price>
+    REF1.say Ok, obrigado. Aqui esta(o) <eval <TAG0.vendor_bod_price>> moedas.
+    
+    SERV.newitem i_coin_copper
+    NEW.amount=<TAG0.vendor_bod_price>
+    NEW.cont=<src.findlayer.layer_pack>
+    
+    OBJ=<TAG.vendor_bod_quest>
+    LOCAL.o = <OBJ.link>
+    OBJ.remove
+    src.events -e_quest_vendor_deeds
+    quest_nextStep <LOCAL.o>
+endif
+dspeech -spk_quest_vendor_deeds
+
+ON=*nao*
+REF1=<TAG0.vendor_bod_npc>
+if !<REF1>
+
+elif <REF1.distance> < 10
+    REF1.say Ok. volte quando tiver algo a oferecer.
+endif    
+dspeech -spk_quest_vendor_deeds
+
+ON=*
+dspeech -spk_quest_vendor_deeds
+
+[EVENTS e_quest_vendor_deeds]
+
+//Default: The person on which the trigger is
+//Argo: The char on which the item is being dropped
+//Act: The item being dropped. 
+ON=@ITEMDROPON_CHAR
+
+forcont <SRC> 0
+    if ( <baseid>==i_quest_vendor_deeds )
+        //check for npc quester
+        if <link.link> == <argo>
+            if <argo.distance> > 2
+                argo.say Esta muito longe, chegue mais perto!
+                return 1
+            elif !<vendor_matchItemType <argo.TAG0.vendor_type>,<src.act>>
+                argo.say Me desculpe, mas nao compro isso.
+                return 1
+            else
+                LOCAL.v=<merchant_get_value <src.act>>
+                if <LOCAL.v> > 0
+                    LOCAL.totalPrice=<vendor_calcTotalPrice <LOCAL.v>,<src.act.amount>>
+
+                    SRC.TAG.vendor_bod_id=<src.act>
+                    SRC.TAG.vendor_bod_amount=<src.act.amount>
+                    SRC.TAG.vendor_bod_price=<LOCAL.totalPrice>
+                    SRC.TAG.vendor_bod_npc=<argo>
+                    SRC.TAG.vendor_bod_quest=<uid>
+
+                    argo.say Interessante, compro <src.act.amount> <src.act.name> por <dLOCAL.totalPrice>. Aceita?
+                    SRC.sysmessageyellow Responda SIM ou NAO.
+                    src.dspeech +spk_quest_vendor_deeds            
+                else
+                    argo.say Nao tenho o preco tabelado para isso. Veja com a guilda mercante e poderemos conversar.
+                endif
+                return 1
+            endif
+        endif
+    endif        
+endfor    
+
+
+[ITEMDEF i_quest_vendor_deeds]
+ID=i_deed
+NAME=Quest BOD
+TYPE=t_eq_script
+LAYER=layer_special
+WEIGHT=0
+
+ON=@QuestInit
+serv.log [Q:QuestBodInit] <cont>/<amount>
+cont.events +e_quest_vendor_deeds
+return 1
+
+[EOF]

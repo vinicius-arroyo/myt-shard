@@ -1,0 +1,258 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE CADEIA ALIMENTAR por
+//  Silver
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//
+// Adicionar isso as animais:
+// TEVENTS=e_marker_init
+//
+// TAGS
+// tag.animal=1  carnivoro grande porte
+// tag.animal=2  carnivoro médio porte
+// tag.animal=3  carnivoro pequeno porte
+// tag.animal=4  herbivoro grande
+// tag.animal=5  herbivoro médio 
+// tag.animal=6  herbivoro pequeno
+// tag.ca_eat        id body que o npc ira comer
+
+//*****************************************************************************
+//*****************************************************************************
+// EVENTs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// e_calimentar
+//*****************************************************************************
+[EVENTS e_calimentar]
+
+ON=@DEATHCORPSE
+//f_gmLog <name> died <argo.name>
+argo.tag.animal=<tag.animal>
+
+//default: npc
+//src: (n)pc being looked
+ON=@NPCLookAtChar
+
+//f_gmLog <name> see <src.name>/<act.name>/<argo.name>/<src.act.name>/<argo.act.name>
+
+//ignora npcs fora do sistema
+if ( !<tag0.animal> )
+    return 0
+endif
+
+//desiste do alvo se em warmode
+if (<flags>&statf_war)
+//  f_gmLog <name> ignorewar <src.name>:
+    return 0
+//ou se alvo nao for animal
+elif !( <src.tag0.animal> )
+//  f_gmLog <name> tags <src.name>:
+    return 0
+//consigo ver?
+elif !( <src.canseelos> )
+//  f_gmLog <name> los <src.name>:
+    return 0
+//se sou um pet comportado
+elif ( <memoryfindtype.memory_ipet> )
+//  f_gmLog <name> pet <src.name>:
+    return 0
+endif
+
+//se for carnivoro, tiver maior porte que o alvo, nao estiver 'cheio' e for mais forte
+if ( <tag.animal> < 4 ) && ( <tag.animal> < <src.tag.animal> ) && (<food> < <eval <serv.chardef.<id>.maxfood>/2>) && (<str> >= <src.str>)
+//  f_gmLog <name> atacando <src.name> <src.tag.animal>
+    attack <src>
+    if (<R0,100> < <src.int>)
+        src.attack <uid>
+    endif
+//se mesma raca e aliado precisando de ajuda (e vivo)
+elif  ( <id>==<src.id> ) && (<src.flags>&statf_war) && ( <src.hits> ) 
+    if (<R0,100> < <int>)
+//      f_gmLog <name> ajudando <src.name> <src.tag.animal>
+        attack <src.memoryfindtype.memory_fight.link>
+    endif
+//else
+//  f_gmLog <name> ignorando <src.name> <str>/<src.str>
+endif
+return 0
+
+//corpses me interessam se for carnivoro
+ON=@NPCLOOKATITEM
+
+//f_gmLog <name> vendo <argo.name>    
+if (<flags>&statf_war)
+    return 0 //ignora se em warmode
+elif (<food> > <eval <serv.chardef.<id>.maxfood>/2>)
+    return 0 //ignora se nao tiver com fome
+elif (<tag0.ca_eat>) && (<tag0.ca_eat>!=<argo>)
+    return 0 //ignora se ja estiver indo atras de outro item/body
+else
+    if ( <argo.type> == t_corpse )
+        if ( <argo.link.dex> ) || ( <tag0.animal> > 3 )
+            return 0 //ignora body de players e se for herbivoro  
+        endif
+    else
+        return 0 //deixa sistema hardcoded cuidar da alimentacao. cuidamos somente no caso de carnivoros.
+//        if !(STRMATCH(*<argo.type>*,<serv.chardef.<id>.foodtype>))
+//            return 0 //ignora items do tipo que nao como
+//        endif
+    endif
+
+    if (<argo.distance> >= 2)
+        tag.ca_eat=<argo>
+//        f_npcRunStepToUid <argo>,1
+//        f_gmLog <name> seguindo <argo.name>
+        return 0
+    else
+//        f_gmLog <name> comendo <argo.name>   
+        tag.ca_eat=
+        emotered comendo
+        
+//        if ( <argo.type> == t_corpse )
+            food += <serv.chardef.<argo.morex>.maxfood>
+            serv.newitem i_blood_pool_large
+            new.p=<p>
+            new.attr=attr_decay|attr_move_never
+            new.timer=15
+            dorand 3
+                sfx 58
+                sfx 59
+                sfx 60
+            enddo
+            update
+//        else
+//            food+=<R3>
+//        endif
+        argo.remove     
+    endif
+endif
+return 0
+
+//src:player
+//default:npc
+ON=@NPCSEENEWPLAYER
+
+//ignora npcs fora do sistema
+if ( !<tag0.animal> )
+    return 0
+endif
+
+if (<memoryfindtype(memory_ipet)>)
+    return 0
+//se carnivoro de grande porte e com fome, ataca player
+elif (<tag.animal>==1) && ( <food> < <eval <serv.chardef.<id>.maxfood>/2> )
+//  f_gmLog <name> atacando player <src.name> f:<food>
+    attack <src>
+endif
+return 1
+
+ON=@CLICK
+if ( <memoryfindtype.memory_ipet.link>==<src> )
+    message <name> [companheiro]
+    return 1
+elif ( <memoryfindtype.memory_guard.link>==<src> )
+    message <name> [defensor]
+    return 1
+elif ( <memoryfindtype.memory_friend.link>==<src> )
+    message <name> [amigo]
+    return 1
+endif
+return 0
+
+ON=@CLIENTTOOLTIP
+if ( <memoryfindtype.memory_ipet.link>==<src> )
+    f_sendtooltip <name>,companheiro
+    return 1
+elif ( <memoryfindtype.memory_guard.link>==<src> )
+    f_sendtooltip <name>,defensor
+    return 1
+elif ( <memoryfindtype.memory_friend.link>==<src> )
+    f_sendtooltip <name>,amigo
+    return 1
+else
+    f_sendtooltipData <name>
+endif
+return 1
+
+//ON=@HUNGER
+//f_gmLog FOME <food>
+//argo = item
+//defaut = npc
+//if (<p.type>==t_snow) || (<p.type>==t_normal)
+//    serv.log <uid> com FOME <food> - <p.type>
+//    food 100
+//    return 1    
+//endif    
+
+ON=@RECEIVEITEM
+if (<food>>=<maxfood>)
+    food=<maxfood>
+    return 1
+elif !(STRMATCH(*<argo.type>*,<serv.chardef.<id>.foodtype>))
+    src.sysmessageyellow Nao quer isto.
+    return 1 //ignora items do tipo que nao como
+else
+    food = <food> + <eval <argo.weight>/<argo.amount>>
+    dorand 3
+        sfx 58
+        sfx 59
+        sfx 60
+    enddo
+    emotered come <argo.name>
+    argo.decrement
+endif
+return 1 
+
+//on=@NPCAction
+//se action for buscar comida
+//evita bug de segmentation fault
+//if <action>==074 
+//    obj=<uid>
+//    foritems 0
+//        if (<baseid>==i_worldgem_bit) && (<amount>==0)
+//            //wandering
+//            obj.action=067  
+//            return 1
+//        endif
+//    endfor
+//endif
+
+//*****************************************************************************
+// e_marker_init
+//*****************************************************************************
+//mantido por compatibilidade com sistema antigo
+[EVENTS e_marker_init]
+ON=@EnvironChange
+SRC.EVENTS +e_calimentar
+SRC.EVENTS -e_marker_init
+RETURN 0
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// 01f13
+//*****************************************************************************
+//mantido por compatibilidade com sistema antigo
+[ITEMDEF 01f13]
+DEFNAME=i_monster_marker
+NAME=Monster Marker
+TYPE=t_script
+LAYER=layer_special
+CATEGORY=MyT - Provisions - GM Items
+SUBSECTION=Special Items
+DESCRIPTION=Monster Marker
+
+ON=@Create
+ATTR=04082
+
+[EOF]

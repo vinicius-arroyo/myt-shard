@@ -1,0 +1,932 @@
+// Created 19/5/2009 01:06:30, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+
+[DEFNAME craft_menu]
+CRAFT_PAGE_ROOT         1
+CRAFT_PAGE_LIST         2
+CRAFT_PAGE_INFO         3
+CRAFT_PAGE_CRAFT        4
+CRAFT_PAGE_EMPTY        5
+CRAFT_PAGE_ADD          6
+CRAFT_PAGE_ADD_MENU     7
+CRAFT_PAGE_ADD_FUNCTION 8
+CRAFT_PAGE_ADD_ITEM     9
+
+[TYPEDEF t_crafting_tool]
+ON=@DClick
+//Checks de CAN
+IF (<topobj>!=<src>)
+ IF (<cont>)
+  src.sysmessageyellow Nao da para usar <name> aonde esta.
+  return 1
+ ELIF (<distance <src>> > 1)
+  src.sysmessageyellow Muito longe...
+  return 1
+ ELIF (!<hits>)
+  return 0  //Behavior de item ou event
+ endif
+endif
+
+//Carrega o Craftmenu se houver
+if (<TDATA1>)
+ src.craftmenu <TDATA1>
+endif
+
+//Salva a ferramenta para consumir
+src.ctag.craft_tool=<uid>
+if (<TDATA1>)
+ return 1
+endif
+return 0
+
+ON=@ClientToolTip
+//bughunt
+if (!<maxhits>)
+ SERV.LOG [CRAFTMENU] Item criado sem maxhits! <name>::<defname>
+ if (!<TDATA4>)
+  SERV.LOG [CRAFTMENU] Item criado sem TDATA4! <name>::<defname>
+  maxhits=100
+  hits=100
+ else
+  maxhits=<TDATA4>
+  hits=<R5,<TDATA4>>
+ endif
+endif
+
+//bugtrap
+if (<TDATA4>)
+ local.max=<TDATA4>
+else
+ local.max=<maxhits>
+endif
+
+IF (<attr>&01)//Identificado
+ local.t=Estado: <EVAL <HITS>>/<EVAL <MAXHITS>><DEF.BR>
+ local.t .= Qualidade:
+ DOSWITCH <eval (<maxhits>*6)/<local.max>>
+  local.t .= " Pessima"
+  local.t .= " Duvidosa"
+  local.t .= " Media"
+  local.t .= " Boa"
+  local.t .= " Excelente"
+  local.t .= " Excelente"
+  local.t .= " Excelente"
+ ENDDO
+ELSE
+ local.t="Estado: "
+ DOSWITCH <eval (<hits>*5)/<maxhits>>
+  local.t .= " Quebrando-se"
+  local.t .= " Deteriorado"
+  local.t .= " Boas condicoes"
+  local.t .= " Semi-novo"
+  local.t .= " Novo em folha"
+  local.t .= " Novo em folha"
+ ENDDO
+ local.t .= "<DEF.BR>Qualidade: "
+ DOSWITCH <eval (<maxhits>*3)/<local.max>>
+  local.t .= " Duvidosa"
+  local.t .= " Media"
+  local.t .= " Boa"
+  local.t .= " Boa"
+ ENDDO
+ENDIF
+src.f_sendTooltipData <name>
+src.f_sendTooltip <name>,<local.t>
+return 1
+
+[FUNCTION craftmenu]
+if (<IsEmpty <args>>)
+ if (<IsGM>)
+  craft_loadLevel 0
+ else
+  return 0
+ endif
+elif (<IsNum <argv0>>)
+ craft_loadLevel <argn>
+elif (<serv.itemdef.<args>>)
+ ctag.craft_item=<args>
+ ctag.craft_task=<DEF.CRAFT_PAGE_CRAFT>
+ SDIALOG d_crafting
+endif
+return 1
+
+[FUNCTION craft_setTool]
+//Seta <args> como DEFNAME da ferramenta que será gasta.
+if (<IsGm>)
+ ctag.craft_tool=
+elif (<findlayer.layer_hand1.defname>==<args>)
+ ctag.craft_tool=<findlayer.layer_hand1.uid>
+elif (<restest 1 <args>>)
+ ctag.craft_tool=<findid.<args>>
+elif (<serv.itemdef.0<DEF.<args>_exp>>)
+ if (STRMATCH(<args>_exp,<findlayer.layer_hand1.defname>))
+  ctag.craft_tool=<findlayer.layer_hand1.uid>
+ elif (<restest 1 <args>_exp>)
+  ctag.craft_tool=<findid.<args>_exp>
+ else
+  return 0
+ endif 
+else
+ return 0
+endif
+return 1
+
+[FUNCTION craft_clear]
+//limpa as tags do sistema, menos tabelas.
+ctag.craft_item=
+ctag.craft_task=
+ctag.craft_level=
+ctag.craft_father=
+ctag.craft_pages=
+ctag.craft_page=
+ctag.craft_Restriction=
+
+[FUNCTION craft_flush]
+//Limpa a tabela do sistema
+ctag.craft_itens=0
+local.r=1
+WHILE (!<IsEmpty <ctag.craft_menu_button_<dlocal.r>>>)
+ try ctag.craft_menu_id_<dlocal.r>=
+ try ctag.craft_menu_button_<dlocal.r>=
+ try ctag.craft_menu_name_<dlocal.r>=
+ try ctag.craft_menu_type_<dlocal.r>=
+ try ctag.craft_menu_code_<dlocal.r>=
+ local.r += 1
+end
+
+[FUNCTION craft_TestIf]
+FOR i 0 <eval <argv>-1>
+ local.try=<STRSUB 0 50 <explode ;,<argv[<dlocal.i>]>>>
+ if (STRMATCH(*>*,<local.try>)
+  local.skill=<<STRARG <local.try>>>
+  local.skill=<hval <local.skill>>
+  local.diff=<streat <streat <local.try>>>
+  local.diff=<eval <local.diff>>
+  if (<local.skill> >= <local.diff>)
+   local.do=1
+  else
+   local.do=0
+  endif
+ else
+  try local.do=<<local.try>>
+ endif
+ if (!<local.do>)
+  return 0
+ endif
+END
+return 1
+
+[FUNCTION craft_loadLevel]
+IF (!<argn>) && (!<IsGM>)
+    SDIALOG d_crafting
+    return 1
+ENDIF
+craft_clear
+ctag.craft_level=<argn>
+DB.QUERY="SELECT father, def FROM craftmenu WHERE id=<eval <argn>>;"
+ctag.craft_father=<DB.ROW.0.father>
+ctag.craft_menu_name=<qval <IsEmpty <DB.ROW.0.def>>?Raiz (GM):<DB.ROW.0.def>>
+craft_flush
+DB.QUERY="SELECT * FROM craftmenu WHERE father=<eval <argn>> ORDER BY type,def;"
+if (<DB.ROW.NUMROWS>)
+ local.i=0
+ for r 0 <eval <DB.ROW.NUMROWS>-1>
+  local.do=1
+  if ( (strmatch(menu,<DB.ROW.<dlocal.r>.type>)) || (strmatch(item,<DB.ROW.<dlocal.r>.type>)) ) && (!<IsNum <DB.ROW.<dlocal.r>.code>>) && (!<IsGM>)
+   local.do=<craft_TestIf <STRSUB 0 50 <explode ;,<DB.ROW.<dlocal.r>.code>>>>//<DB.ROW.<dlocal.r>.code>>
+  endif
+  if (<local.do>)
+   local.i += 1
+   try ctag.craft_menu_id_<dlocal.i>=<DB.ROW.<dlocal.r>.id>
+   try ctag.craft_menu_button_<dlocal.i>=<eval <DB.ROW.<dlocal.r>.id>+1000>
+   try ctag.craft_menu_name_<dlocal.i>=<DB.ROW.<dlocal.r>.def>
+   try ctag.craft_menu_type_<dlocal.i>=<DB.ROW.<dlocal.r>.type>
+   try ctag.craft_menu_code_<dlocal.i>=<DB.ROW.<dlocal.r>.code>
+  endif
+ end
+ ctag.craft_itens=0<local.i>
+ ctag.craft_pages=<eval (0<local.i>/27)+1>
+ ctag.craft_page=1
+ ctag.craft_task=<DEF.CRAFT_PAGE_LIST>
+endif
+if (!<DB.ROW.NUMROWS>) || (!<local.i>)
+ ctag.craft_task=<DEF.CRAFT_PAGE_EMPTY>
+endif
+SDIALOG d_crafting
+
+[FUNCTION craft_loadItem]
+craft_clear
+craft_flush
+DB.QUERY="SELECT father, def FROM craftmenu WHERE id=<eval <argn>>;"
+ctag.craft_father=<DB.ROW.0.father>
+ctag.craft_item=<DB.ROW.0.def>
+ctag.craft_task=<DEF.CRAFT_PAGE_CRAFT>
+SDIALOG d_crafting
+
+[FUNCTION craft_deleteItem]
+if !(STRCMP(s,<argv1>))
+ DB.EXECUTE="DELETE FROM craftmenu WHERE id=<eval <argv0>>;"
+endif
+craft_loadLevel <ctag0.craft_level>
+
+[FUNCTION craft_addMenu]
+sysmessagered Guardando menu.
+IF (!<IsEmpty <ctag.craft_Restriction>>)
+ DB.EXECUTE="INSERT INTO craftmenu SET def='<DB.ESCAPEDATA <argtxt[0]>>', type='menu', father=<dctag0.craft_level>, code='<ctag.craft_Restriction>';"
+ELSE 
+ DB.EXECUTE="INSERT INTO craftmenu SET def='<DB.ESCAPEDATA <argtxt[0]>>', type='menu', father=<dctag0.craft_level>;"
+ENDIF
+craft_loadLevel <ctag0.craft_level>
+
+[FUNCTION craft_addFunction]
+ctag.craft_item=<ARGTXT[0]>
+ctag.craft_restriction=<ARGTXT[1]>
+IF (<eval STRLEN(<argtxt[0]>)> < 2) || (<eval STRLEN(<argtxt[1]>)> < 3)
+ sysmessagered Parametros invalidos. Tente novamente.
+ SDIALOG d_crafting
+ELSE
+ sysmessagered Guardando funcao.
+ DB.EXECUTE="INSERT INTO craftmenu SET def='<DB.ESCAPEDATA <argtxt[0]>>', type='function', father=<dctag0.craft_level>, code='<ARGTXT[1]>';"
+ craft_loadLevel <ctag0.craft_level>
+ENDIF
+
+[FUNCTION craft_addItem]
+sysmessagered Guardando item.
+IF (!<IsEmpty <ctag.craft_Restriction>>)
+ //Tem restrição. Guarde o TESTIF
+ DB.EXECUTE="INSERT INTO craftmenu SET def='<DB.ESCAPEDATA <argtxt[0]>>', type='item', father=<dctag0.craft_level>, code='<ctag.craft_Restriction>';"
+ELSE
+ //Não tem restrição. Default Behavior da tabela é code='1'.
+ DB.EXECUTE="INSERT INTO craftmenu SET def='<DB.ESCAPEDATA <argtxt[0]>>', type='item', father=<dctag0.craft_level>;"
+ENDIF
+craft_loadLevel <ctag0.craft_level>
+
+[FUNCTION craft_TargItemAdd]
+if (<argo>) && (<argo.IsItem>)
+ ctag.craft_item=<argo.baseid>
+else
+ sysmessagered Item invalido.
+ENDIF
+SDIALOG d_crafting
+
+[FUNCTION craft_ItemForgeListCatAdd]
+list_new "ItemForge -  Selecione a categoria"
+list_newDbCol 25,category,Categoria
+list_setAction craft_ItemForgeListSubAdd
+list_setActionBack SDIALOG d_crafting
+list_loadFromDb "SELECT DISTINCT category FROM itemforge ORDER BY category"
+list_show 1
+
+[FUNCTION craft_ItemForgeListSubAdd]
+if <argn>
+    LOCAL.category_id=<argn>
+    CTAG.itemforge_category=<cTAG.list_row<LOCAL.category_id>_01>
+endif
+list_new "ItemForge - <CTAG.itemforge_category> -> Selecione a secao"
+list_newDbCol 25,subsection,Secao
+list_setAction craft_ItemForgeListItemAdd
+list_setActionBack itemforge_DBlistCats
+list_loadFromDb "SELECT DISTINCT subsection FROM itemforge WHERE category='<CTAG.itemforge_category>' ORDER BY subsection"
+list_show 1
+
+[FUNCTION  craft_ItemForgeListItemAdd]
+LOCAL.subsection_id=<argn>
+CTAG.itemforge_subsection=<cTAG.list_row<LOCAL.subsection_id>_01>
+//sysmessageyellow [LIST] - Procurando por category='<CTAG.itemforge_category>' and subsection='<CTAG.itemforge_subsection>'
+list_new "ItemForge - <CTAG.itemforge_category> -> <CTAG.itemforge_subsection> -> Selecione o item"
+list_newDbCol 25,itemdef,Itemdef
+list_newDbCol 200,name,Nome
+list_setAction craft_ItemForgeListItemAddItem
+list_setActionBack craft_ItemForgeListSubAdd
+list_loadFromDb "SELECT itemdef,name FROM itemforge WHERE category='<CTAG.itemforge_category>' and subsection='<CTAG.itemforge_subsection>' ORDER BY itemdef"
+list_show 1
+
+[FUNCTION craft_ItemForgeListItemAddItem]
+LOCAL.id=<argn>
+ctag.craft_item=<cTAG.list_row<LOCAL.id>_01>
+SDIALOG d_crafting
+
+[FUNCTION craft_addRestrictionSkill]
+ctag.craft_addRestriction=
+list_new Escolha a skill:
+list_newCol 35,Skill
+cTAG.list_numItems=55
+for s 0 54
+ try cTAG.list_row<local.s>_01=<serv.skill.<local.s>.name>
+end
+list_setActionBack SDIALOG d_crafting
+list_setAction craft_setRestrictionSkill
+cTAG.list_numPages=4
+list_show 1
+
+[FUNCTION craft_setRestrictionSkill]
+ctag.craft_addRestriction=<serv.skill.<argn>.name> >
+prompt_new Especifique um valor de 0.0 a 124.9 para <serv.skill.<argn>.name>:<DEF.BR>Ex.: 55.0, 65.5 ou 12.3
+prompt_setActionBack craft_addRestrictionSkill
+prompt_setAction craft_setRestrictionSkillVal
+prompt_show
+
+[FUNCTION craft_addRestrictionItem]
+prompt_new Entre com um valor de ITEMDEF para o item de restricao ou 't' para escolher um item no world:
+prompt_setActionBack SDIALOG d_crafting
+prompt_setAction craft_setRestrictionItemVal
+prompt_show
+
+[FUNCTION craft_setRestrictionItemVal]
+IF (<argo>)
+ if (<argo.IsItem>)
+  ctag.craft_RestictionItem = <argo.baseid>
+ else
+  sysmessagered Item invalido.
+  craft_addRestrictionItem
+  return 0
+ endif
+ELIF (STRMATCH(t,<args>))
+ sysmessageyellow Selecione um item no mundo:
+ targetf craft_setRestrictionItemVal
+ return 0
+ELIF (!<IsEmpty <args>>)
+ if (<DEF.<serv.itemdef.<args>.baseid>>)
+  ctag.craft_RestictionItem = <args>
+ else
+  sysmessagered Item invalido.
+  craft_addRestrictionItem
+  return 0
+ endif
+ENDIF
+prompt_new Qual a quantidade de <serv.itemdef.<ctag.craft_RestictionItem>.name> necessaria?
+prompt_setActionBack craft_addRestrictionItem
+prompt_setAction craft_setRestrictionItem2
+prompt_show
+
+[FUNCTION craft_setRestrictionItem2]
+if (<IsNum <argn>>)
+ if (<IsEmpty <ctag.craft_Restriction>>)
+  ctag.craft_Restriction = restest <eval <argn>> <ctag.craft_RestictionItem>
+ else
+  ctag.craft_Restriction .= ; restest <eval <argn>> <ctag.craft_RestictionItem>
+ endif
+ ctag.craft_RestictionItem=
+ SDIALOG d_crafting
+else
+ sysmessagered valor invalido.
+ craft_setRestrictionSkill <ctag.craft_addRestriction>
+endif
+
+[FUNCTION craft_setRestrictionSkillVal]
+if (<IsNum <argn>>)
+ if (<IsEmpty <ctag.craft_Restriction>>)
+  ctag.craft_Restriction = <ctag.craft_addRestriction> <fval <argn>>
+ else
+  ctag.craft_Restriction .= ; <ctag.craft_addRestriction> <fval <argn>>
+ endif
+ ctag.craft_addRestriction=
+ SDIALOG d_crafting
+else
+ sysmessagered valor invalido.
+ craft_setRestrictionSkill <ctag.craft_addRestriction>
+endif
+
+[FUNCTION craft_addRestrictionCustom]
+IF (<IsEmpty <args>>)
+ prompt_new Digite uma linha de scritp de teste que nao contenha ',' e nem ';':
+ prompt_setActionBack SDIALOG d_crafting
+ prompt_setAction craft_addRestrictionCustom
+ prompt_show
+else
+ if (<IsEmpty <ctag.craft_Restriction>>)
+  ctag.craft_Restriction = <args>
+ else
+  ctag.craft_Restriction .= ; <args>
+ endif
+ SDIALOG d_crafting
+endif
+
+[FUNCTION craft_deleteRestriction]
+//Delerta a restrição ARGN
+ctag.b=<eval <argn>-1>
+craft_deleteRestriction2 <explode ;, <ctag.craft_Restriction>>
+
+[FUNCTION craft_deleteRestriction2]
+ctag.craft_Restriction=
+//Auxiliar de craft_deleteRestriction
+for i 0 <argv>  //Começa no 2 pq a função Explode retorna ';xxx;yyy;zzz...'
+ if (<local.i>!=<ctag.b>)
+  if (<IsEmpty <ctag.craft_Restriction>>)
+   ctag.craft_Restriction = <argv[<local.i>]>
+  else
+   ctag.craft_Restriction .= ; <argv[<local.i>]>
+  endif
+ endif
+end
+ctag.b=
+
+
+//*********************************************************************
+[FUNCTION craftmenu_backup]
+//*********************************************************************
+//cria um arquivo scp com uma função craftmenu_loadbackup com todos os
+//dados da tabela 'craftmenu'.
+
+FILE.MODE.CREATE=1
+local.filen=scripts/myt/craftmenu_backup.scp
+LOCAL.file=<FILE.OPEN <local.filen>>
+file.writeline=<DEF.SECTION>FUNCTION craftmenu_loadbackup<DEF.SECTIONE>
+
+//Apagar tudo que existia sobre este item.
+file.writeline=DB.EXECUTE="DELETE FROM craftmenu;"
+ 
+//Carregar conteúdo da DB
+SERV.LOG [CRAFTMENU BACKUP] Carregando da DB (pode demorar)
+DB.QUERY="SELECT * FROM craftmenu;"
+ 
+FOR r 0 <eval <DB.ROW.NUMROWS>-1> 
+ //Colocar nova entrada
+ LOCAL.q = INSERT INTO craftmenu SET id=<EVAL <DB.ROW.<dlocal.r>.id>>,
+ LOCAL.q .= " def='<DEF.L1>DB.ESCAPEDATA <DB.ROW.<dlocal.r>.def><DEF.R1>',"
+ LOCAL.q .= " type='<DB.ROW.<dlocal.r>.type>',"
+ LOCAL.q .= " father=<eval <DB.ROW.<dlocal.r>.father>>,"
+ LOCAL.q .= " code='<DB.ROW.<dlocal.r>.code>';"
+ file.writeline=DB.EXECUTE "<LOCAL.q>"
+ SERV.LOG [CRAFTMENU BACKUP] <dlocal.r>/<eval <DB.ROW.NUMROWS>-1> :: id=<EVAL <DB.ROW.<dlocal.r>.id>>
+end
+file.writeline=<DEF.SECTION>EOF<DEF.SECTIONE>
+file.close=1
+SERV.LOG [CRAFTMENU BACKUP] FIM DO SCRIPT DE BACKUP!
+
+[FUNCTION craft_expChance]
+try local.exp=<DEF.<args>_exp>
+if (<local.exp>)
+ try LOCAL.SKILL=<fval <src.<DEF.<serv.itemdef.<args>.skillmake.0.key>>>>
+ LOCAL.DIFFIC=<serv.itemdef.<args>.skillmake.0.val>
+ LOCAL.dSKILL=<eval <LOCAL.SKILL>-<LOCAL.DIFFIC>>
+ LOCAL.CHANCE=<MINIMUMN 7.5,<eval <local.dskill>/13>>
+ if (<LOCAL.CHANCE>)
+  local.t .= <fval <local.chance>>% de chance para Excepcional<DEF.BR>
+  return <LOCAL.CHANCE>
+ endif
+endif
+return 0
+
+[FUNCTION craft_drawRestriction]
+dorigin 30 195
+for i 2 <argv>  //Começa no 2 pq a função Explode retorna ';xxx;yyy;zzz...'
+ button - *20 4017 4017 1 0 <eval 5000+<local.i>>
+ dtext +35 +1 2100 <argv[<eval <local.i>-1>]>
+end
+local.restrictions = <eval <argv>-1>
+
+[FUNCTION craft_info_craft]
+local.t=<DEF.BFONT_DCYAN>DIFICULDADE:<DEF.BFONT_WHITE><DEF.BR>
+local.t .= <fval <serv.itemdef.<args>.skillmake.0.val>>% <serv.skill.<serv.itemdef.<args>.skillmake.0.key>.name><DEF.BR>
+call craft_expChance <args>
+local.t .=<DEF.BR>
+local.t .=<DEF.BFONT_DCYAN>MATERIA PRIMA:<DEF.BFONT_WHITE><DEF.BR>
+local.i=1
+WHILE (<serv.itemdef.<args>.resources.<local.i>.val>)
+ local.t .= -<eval <serv.itemdef.<args>.resources.<local.i>.val>> <idname <serv.itemdef.<args>.resources.<local.i>.key>><DEF.br>
+ local.i += 1
+END
+
+return <local.t>
+
+[FUNCTION craft_info_general]
+local.t=<DEF.BFONT_DCYAN>MERCADO:<DEF.BFONT_WHITE><DEF.BR>
+local.t .= Negociado por no maximo <STRTRESURE <serv.itemdef.<args>.value>> quando a qualidade for suprema.<DEF.BR>
+if (<IsItemdef <args>_exp>)
+ local.t .= Um item excepcional vale <STRTRESURE <serv.itemdef.<args>_exp.value>><DEF.BR>
+endif
+local.t .= Peso: <fval <serv.itemdef.<args>.weight>><DEF.BR>
+
+if (STRMATCH(*weapon*,<serv.itemdef.<args>.type>)) && !(STRMATCH(*arrow,<serv.itemdef.<args>.type>)) && !(STRMATCH(*bolt,<serv.itemdef.<args>.type>))
+ if (<armslore> > <serv.itemdef.<args>.skillmake.0.val>+15.0>
+  local.c=1
+ endif
+ local.t .=<DEF.BR><DEF.BFONT_DCYAN>ARMA:<DEF.BFONT_WHITE><DEF.BR>
+ local.t .=Skill: <serv.skill.<serv.itemdef.<args>.skill>.key><DEF.BR>
+ LOCAL.dn=<eval (<serv.itemdef.<args>.dam.lo>+<serv.itemdef.<args>.dam.hi>)/2>
+ LOCAL.s = <eval <serv.itemdef.<args>.speed>*(<src.dex>+100)> 
+ FLOAT.sw=<fval 150000/<LOCAL.s>>
+ FLOAT.ss=<eval <LOCAL.dn>*10>
+ local.sw=<fval <float.sw>/100000>
+ local.dps=<fval <FLOAT.ss>/<FLOAT.sw>>
+ local.t .="Dano: "
+ if (<LOCAL.dn><5)
+     LOCAL.t .= Fraco
+ elif (<LOCAL.dn><10)
+     LOCAL.t .= Baixo
+ elif (<LOCAL.dn><25)
+     LOCAL.t .= Medio
+ elif (<LOCAL.dn><40)
+     LOCAL.t .= Forte
+ else
+     LOCAL.t .= Muito forte
+ endif
+ if (<local.c>)
+  LOCAL.t .= " (<serv.itemdef.<args>.dam>)"
+ endif
+ local.t .= <DEF.BR>Velocidade:
+ if (<local.sw> < 10)
+  local.t .= " Nao ha nada mais rapido!"
+ elif (<local.sw> < 16)
+  local.t .= " Muito rapida"
+ elif (<local.sw> < 21)
+  local.t .= " Rapida"
+ elif (<local.sw> < 26)
+  local.t .= " Normal"
+ elif (<local.sw> < 31)
+  local.t .= " Lenta"
+ else
+  local.t .= " Muito lenta"
+ endif
+ if (<local.c>)
+  LOCAL.t .= " (<fval <local.sw>> segundos)"
+ endif
+ local.t .= <DEF.BR>DPS:
+ if (<local.dps> < 41)
+  local.t .= " Mal faz cocegas"
+ elif (<local.dps> < 66)
+  local.t .= " Como uma ferramenta"
+ elif (<local.dps> < 81)
+  local.t .= " Nada letal"
+ elif (<local.dps> < 91)
+  local.t .= " Pouco letal"
+ elif (<local.dps> < 101)
+  local.t .= " Mediano"
+ elif (<local.dps> < 116)
+  local.t .= " Letal"
+ elif (<local.dps> < 126)
+  local.t .= " Muito letal"
+ elif (<local.dps> < 166)
+  local.t .= " Absurdamente letal"
+ else
+  local.t .= " Corta um dragao que nem manteiga!"
+ endif
+ if (<local.c>)
+  local.t .= " (<local.dps> hits/segundo)"
+ endif
+ local.t .= <DEF.BR>Maxima qualidade: <eval <serv.itemdef.<args>.TDATA4>> hits
+ 
+elif (STRMATCH(*armor*,<serv.itemdef.<args>.type>)) || (STRMATCH(*shield,<serv.itemdef.<args>.type>))
+ if (<armslore> > <serv.itemdef.<args>.skillmake.0.val>+15.0>
+  local.c=1
+ endif
+ local.t .=<DEF.BR><DEF.BFONT_DCYAN>ARMADURA:<DEF.BFONT_WHITE><DEF.BR>
+ local.ar=<serv.itemdef.<args>.armor.lo>
+ local.t .= Protecao:
+ doswitch <eval <local.ar>/10>
+  local.t .= " Quase nada"
+  local.t .= " Muito baixa"
+  local.t .= " Baixa"
+  local.t .= " Boa"
+  local.t .= " Muito boa"
+  local.t .= " Alta"
+  local.t .= " Muito alta"
+  local.t .= " Extremamente alta"
+  local.t .= " Nada mais seguro!"
+  local.t .= " Nada mais seguro!"
+  local.t .= " Nem Alkron te acerta, <sex Ze Pequeno/Sra. Smith>!"  
+ end
+ if (<local.c>
+  local.rar = <RealAR <args>>
+  local.t .= <DEF.BR>AR sozinha: <dlocal.rar>%
+  local.t .= <DEF.BR>AR completa: <dlocal.ar>%
+ endif
+ local.t .= <DEF.BR>Maxima qualidade: <eval <serv.itemdef.<args>.TDATA4>> hits
+ 
+elif (<serv.itemdef.<args>.type>==t_potion)
+ if (!<IsEmpty <DEF.<args>_IDTIP>>
+  local.t .=<DEF.BR><DEF.BFONT_DCYAN>Efeito:<DEF.BFONT_WHITE> <DEF.<args>_IDTIP><DEF.BR>
+ else
+  local.t .=<DEF.BR><DEF.BFONT_DCYAN>Efeito desconhecido.
+ endif
+endif
+RETURN <local.t>
+
+[FUNCTION d_crafting_solve]
+if (<ctag.craft_task>==<DEF.CRAFT_PAGE_EMPTY>)
+        resizepic 20 40 2620 460 320
+        IF (<ctag0.craft_father>) || (<IsGM>)
+         button 25 365 5603 5607 1 0 3
+        ENDIF
+        dorigin 150 130
+        dtext +33 *20 66 Essa lista esta vazia.
+        if (<IsGM>) && (<ctag0.craft_page> == <ctag0.craft_pages>)
+         button +70 *20 2224 2224 1 0 7
+         dtext +90 -4 24 Add
+        else
+         dtext +13 *20 66 Possivelmente voce nao tem
+         dtext +35 *20 66 skill suficiente para
+         dtext - *20 66 fazer nada do que consta nela.
+        endif
+        
+elif (<ctag.craft_task>==<DEF.CRAFT_PAGE_CRAFT>)
+         resizepic 20 40 2620 150 175
+         tilepichue 28 50 <eval <serv.itemdef.<ctag.craft_item>.id>> <itemforge_DBColor <ctag.craft_item>>
+         resizepic 180 40 2620 300 320
+         dtext 190 50 3 Item:
+         if (!<IsEmpty <DEF.<ctag.craft_item>_IDNAME>>)
+          local.name=<DEF.<ctag.craft_item>_IDNAME>
+         else
+          local.name=<serv.itemdef.<ctag.craft_item>.name>
+         endif
+         dtext 228 50 86 <local.name>//<serv.itemdef.<ctag.craft_item>.name> //Mostrar nome identificado
+         dhtmlgump 190 74 284 278 0 1 <craft_info_craft <ctag.craft_item>>
+         resizepic 20 225 2620 150 136
+         button 29 239 2224 2224 1 0 4
+         dtext 51 235 66 Geral
+         button 29 256 2224 2224 1 0 5
+         dtext 51 252 66 Manufatura
+         dtext 57 286 86 Qtd.:
+         resizepic 93 284 9200 31 26
+         dtextentry 100 287 18 20 0 0 1
+         button 61 319 2443 2444 1 0 6
+         dtext 75 320 33 Fazer
+         if (!<IsEmpty <ctag0.craft_father>>)
+          button 25 365 5603 5607 1 0 3
+         endif
+
+elif (<ctag.craft_task>==<DEF.CRAFT_PAGE_INFO>)
+         resizepic 20 40 2620 150 175
+         tilepichue 28 50 <eval <serv.itemdef.<ctag.craft_item>.id>> <itemforge_DBColor <ctag.craft_item>>
+         resizepic 180 40 2620 300 320
+         dtext 190 50 3 Item:
+         if (!<IsEmpty <DEF.<ctag.craft_item>_IDNAME>>)
+          local.name=<DEF.<ctag.craft_item>_IDNAME>
+         else
+          local.name=<serv.itemdef.<ctag.craft_item>.name>
+         endif
+         dtext 228 50 86 <local.name>
+         dhtmlgump 190 74 284 278 0 1 <craft_info_general <ctag.craft_item>>
+         resizepic 20 225 2620 150 136
+         button 29 239 2224 2224 1 0 4
+         dtext 51 235 66 Geral
+         button 29 256 2224 2224 1 0 5
+         dtext 51 252 66 Manufatura
+         if (!<IsEmpty <ctag0.craft_father>>)
+          button 25 365 5603 5607 1 0 3
+         endif        
+
+
+elif (<ctag.craft_task>==<DEF.CRAFT_PAGE_ROOT>) || (<ctag.craft_task>==<DEF.CRAFT_PAGE_LIST>)
+        resizepic 20 40 2620 460 320
+        dhtmlgump 30 50 440 18 0 0 <DEF.BFONT_GREEN><DEF.CENTER><ctag.craft_menu_name><DEF.DIV_E>
+        dorigin 30 54
+        if (<IsGM>)
+         dorigin 60 54
+        endif
+        local.first=<eval ((<dctag.craft_page>-1)*28)+1>
+        local.last=<minimum <dctag.craft_page>*28,<dctag.craft_itens>>
+        local.j=<local.first>+14
+        FOR i <local.first> <local.last>
+         if (<local.i>==<local.j>)
+          dorigin *215 54
+          local.j += 14
+         endif
+         if (STRMATCH(menu,<ctag.craft_menu_type_<dlocal.i>>))
+          button - *20 2224 2224 1 0 <eval 1000+<local.i>>
+          dtext +20 -4 54 <QVAL <IsGM>?(<dctag.craft_menu_id_<dlocal.i>>): ><strsub 0 1 <STRTOUPPER <ctag.craft_menu_name_<dlocal.i>>>><strsub 1 32 <STRTOLOWER <ctag.craft_menu_name_<dlocal.i>>>>
+         elif (STRMATCH(function,<ctag.craft_menu_type_<dlocal.i>>))
+          button - *20 2224 2224 1 0 <eval 1000+<local.i>>
+          dtext +20 -4 44 <QVAL <IsGM>?(<dctag.craft_menu_id_<dlocal.i>>): ><ctag.craft_menu_name_<dlocal.i>>
+         else
+          button +3 *20 2103 2104 1 0 <eval 1000+<local.i>>
+          if (!<IsEmpty <DEF.<ctag.craft_menu_name_<dlocal.i>>_IDNAME>>)
+           local.name=<DEF.<ctag.craft_menu_name_<dlocal.i>>_IDNAME>
+          else
+           local.name=<serv.itemdef.<ctag.craft_menu_name_<dlocal.i>>.name>
+          endif
+          dtext +20 -4 2100 <QVAL <IsGM>?(<dctag.craft_menu_id_<dlocal.i>>): ><strsub 0 1 <STRTOUPPER <local.name>>><strsub 1 32 <STRTOLOWER <local.name>>>
+          //dtext +20 -4 2100 <QVAL <IsGM>?(<dctag.craft_menu_id_<dlocal.i>>): ><strsub 0 1 <STRTOUPPER <serv.itemdef.<ctag.craft_menu_name_<dlocal.i>>.name>>><strsub 1 32 <STRTOLOWER <serv.itemdef.<ctag.craft_menu_name_<dlocal.i>>.name>>>
+         endif
+         if (<IsGM>)
+          button -30 -6 4017 4017 1 0 <eval 5000+<local.i>>
+         endif
+        END
+        if (<IsGM>) && (<ctag0.craft_page> == <ctag0.craft_pages>)
+         button - *20 2224 2224 1 0 7
+         dtext +20 -4 24 Add
+        endif
+        if (<ctag0.craft_page> > 1)
+         button 25 365 5603 5607 1 0 1
+        else
+         IF (<ctag0.craft_father>) || (<IsGM>)
+          button 25 365 5603 5607 1 0 3
+         ENDIF
+        endif
+        if (<ctag0.craft_page> != <ctag0.craft_pages>)
+         button 465 365 5601 5605 1 0 2
+        endif
+        if (<ctag0.craft_pages> > 1)
+         dtext 232 365 2100 <dctag0.craft_page>/<dctag0.craft_pages>
+        endif
+
+elif (<ctag.craft_task>==<DEF.CRAFT_PAGE_ADD>)        
+        resizepic 20 40 2620 460 320
+        dhtmlgump 25 48 448 172 0 0 <DEF.BFONT_DCYAN>  Adicionar um novo item em <ctag.craft_menu_name>:<DEF.BFONTE>
+        button 178 228 2151 2151 1 0 8
+        dtext 213 232 152 Novo sub-menu aqui
+        button 178 266 2151 2151 1 0 9
+        dtext 213 270 152 Nova funcao aqui
+        button 178 305 2151 2151 1 0 10
+        dtext 213 309 152 Novo item aqui
+        button 25 365 5603 5607 1 0 3
+        
+elif (<ctag.craft_task>==<DEF.CRAFT_PAGE_ADD_MENU>)
+        resizepic 20 40 2620 460 320
+        dhtmlgump 25 48 448 83 0 0 <DEF.BFONT_DCYAN>  Preencha o nome imediatamente.<DEF.BR>  Caso seja necessario que o item so apareca no menu em casos especiais, crie uma ou mais condicoes de teste pelos botoes na parte de baixo.<DEF.BFONTE>
+        resizepic 37 144 9200 431 26
+        dtext 44 146 4 Nome:
+        dtextentry 100 147 300 20 0 0 <QVAL <IsEmpty <ctag.craft_item>>?<DEF.L1>NOME<DEF.R1>:<ctag.craft_item>>
+        if (!<IsEmpty <ctag.craft_Restriction>>)
+         call craft_drawRestriction <explode ;, <ctag.craft_Restriction>>
+        endif
+        if (<local.restrictions> != 4)
+         //Máximo de 4 restrições
+         button 29 327 4005 4005 1 0 11
+         dtext 63 329 2100 Testar skill
+         button 140 327 4005 4005 1 0 12
+         dtext 174 329 2100 Testar item
+         button 253 327 4005 4005 1 0 13
+         dtext 285 328 2100 Receita
+         button 340 327 4005 4005 1 0 14
+         dtext 372 328 2100 Personalizado
+        endif
+        button 410 365 247 248 1 0 100//OK
+        button 25 365 241 242 1 0 3
+        
+elif (<ctag.craft_task>==<DEF.CRAFT_PAGE_ADD_FUNCTION>)
+        resizepic 20 40 2620 460 320
+        dhtmlgump 25 48 448 120 0 0 <DEF.BFONT_DCYAN>  Preencha o nome imediatamente. O nome aparecera no meu para os jogadores<DEF.BR>  Abaixo digite a linha de comando que não deve conter variaveis como amount, tag.xxx, ArmsLore entre sinais de menor e maior.<DEF.BFONTE>
+        resizepic 37 144 9200 431 26
+        dtext 44 146 4 Nome:
+        dtextentry 100 147 300 20 0 0 <QVAL <IsEmpty <ctag.craft_item>>?<DEF.L1>NOME<DEF.R1>:<ctag.craft_item>>
+        resizepic 37 184 9200 431 66
+        dtext 44 186 4 Funcao:
+        dtextentry 100 187 300 60 0 1 <QVAL <IsEmpty <ctag.craft_Restriction>>?<DEF.L1>FUNCAO<DEF.R1>:<ctag.craft_Restriction>>
+        button 410 365 247 248 1 0 100//OK
+        button 25 365 241 242 1 0 3
+        
+elif (<ctag.craft_task>==<DEF.CRAFT_PAGE_ADD_ITEM>)
+        ctag.craft_father=<ctag.craft_level>
+        resizepic 20 40 2620 460 320
+        dhtmlgump 25 48 448 83 0 0 <DEF.BFONT_DCYAN>  Preencha o DEFNAME do item imediatamente.<DEF.BR>  Caso seja necessario que o item so apareca no menu em casos especiais, crie uma ou mais condicoes de teste pelos botoes na parte de baixo.<DEF.BFONTE>
+        resizepic 37 144 9200 431 26
+        dtext 44 146 4 Defname:
+        dtextentry 100 147 300 20 0 0 <QVAL <IsEmpty <ctag.craft_item>>?i_:<ctag.craft_item>>
+        button 50 175 9011 9011 1 0 15//Itemforge
+        dtext 75 175 152 Procurar no Item Forge
+        button 50 195 9011 9011 1 0 16//Targ no world
+        dtext 75 195 152 Selecionar no world
+        if (!<IsEmpty <ctag.craft_Restriction>>)
+         call craft_drawRestriction <explode ;, <ctag.craft_Restriction>>
+        endif
+        if (<local.restrictions> != 4)
+         //Máximo de 4 restrições
+         button 29 327 4005 4005 1 0 11
+         dtext 63 329 2100 Testar skill
+         button 140 327 4005 4005 1 0 12
+         dtext 174 329 2100 Testar item
+         button 253 327 4005 4005 1 0 13
+         dtext 285 328 2100 Receita
+         button 340 327 4005 4005 1 0 14
+         dtext 372 328 2100 Personalizado
+        endif
+        button 410 365 247 248 1 0 100//OK
+        button 25 365 241 242 1 0 3
+endif
+[DIALOG d_crafting]
+100,75
+page 0
+resizepic 0 0 2620 500 400
+checkertrans 5 7 490 385
+gumppic 175 14 2501
+dtext 185 14 26 Mystical Tales Shard
+call d_crafting_solve
+
+[DIALOG d_crafting text]
+
+[DIALOG d_crafting button]
+//ON=0 12000
+ON=1
+// -pg
+ctag.craft_page -= 1
+SDIALOG d_crafting
+
+ON=2
+// +pg
+ctag.craft_page += 1
+SDIALOG d_crafting
+
+ON=3
+// Back
+ctag.craft_task=<DEF.CRAFT_PAGE_LIST>
+craft_loadLevel <ctag.craft_father>
+
+ON=4
+// Info geral
+ctag.craft_task=<DEF.CRAFT_PAGE_INFO>
+SDIALOG d_crafting
+
+ON=5
+// info craft
+ctag.craft_task=<DEF.CRAFT_PAGE_CRAFT>
+SDIALOG d_crafting
+
+ON=6
+// Craft item
+craftItem <ctag.craft_item>,<argtxt[0]>
+
+ON=7
+//Add here
+ctag.craft_task=<DEF.CRAFT_PAGE_ADD>
+SDIALOG d_crafting
+
+ON=8
+//Add Menu here
+ctag.craft_task=<DEF.CRAFT_PAGE_ADD_MENU>
+SDIALOG d_crafting
+
+ON=9
+//Add Function here
+ctag.craft_task=<DEF.CRAFT_PAGE_ADD_FUNCTION>
+SDIALOG d_crafting
+
+ON=10
+//Add Item here
+ctag.craft_task=<DEF.CRAFT_PAGE_ADD_ITEM>
+SDIALOG d_crafting
+
+ON=11
+//Add restrição por skill
+ctag.craft_item=<ARGTXT[0]>
+craft_addRestrictionSkill
+
+ON=12
+//Add restrição por item
+ctag.craft_item=<ARGTXT[0]>
+craft_addRestrictionItem
+
+ON=13
+//Add restricao por projeto/recipe
+ctag.craft_item=<ARGTXT[0]>
+sysmessagered Nao implementado. PASSA AMANHA!
+SDIALOG d_crafting
+
+ON=14
+//Custom Restriction
+ctag.craft_item=<ARGTXT[0]>
+craft_addRestrictionCustom
+
+ON=15
+//Pegar itemdef pelo Itemforge
+craft_ItemForgeListCatAdd
+
+ON=16
+//Selecionar do world
+sysmessageyellow Selecione o item:
+targetf craft_TargItemAdd
+
+ON=100
+//Botão OKAY
+DOSWITCH <ctag.craft_task>
+ return 1                       //Sem CRAFT_PAGE_*
+ return 1                       //CRAFT_PAGE_ROOT
+ return 1                       //CRAFT_PAGE_LIST
+ return 1                       //CRAFT_PAGE_INFO
+ return 1                       //CRAFT_PAGE_CRAFT
+ return 1                       //CRAFT_PAGE_EMPTY
+ return 1                       //CRAFT_PAGE_ADD
+ call CRAFT_ADDMENU             //CRAFT_PAGE_ADD_MENU
+ call CRAFT_ADDFUNCTION         //CRAFT_PAGE_ADD_FUNCTION
+ call CRAFT_ADDITEM             //CRAFT_PAGE_ADD_ITEM
+END
+
+ON=1000 5000
+// Itens
+local.b=<eval <argn>-1000>
+if (strmatch(item,<ctag.craft_menu_type_<dlocal.b>>))
+ craft_loadItem <ctag.craft_menu_id_<dlocal.b>>
+elif (strmatch(function,<ctag.craft_menu_type_<dlocal.b>>))
+ try <ctag.craft_menu_code_<dlocal.b>>
+ craft_flush
+else
+ craft_loadLevel <ctag.craft_menu_id_<dlocal.b>>
+endif
+
+ON=5000 10000
+local.b=<eval <argn>-5000>
+IF (<ctag.craft_task>==<DEF.CRAFT_PAGE_ADD_FUNCTION>)||(<ctag.craft_task>==<DEF.CRAFT_PAGE_ADD_ITEM>)
+ //Remover uma restrição de TESTIF
+ ctag.craft_item=<ARGTXT[0]>
+ craft_deleteRestriction <local.b>
+ SDIALOG d_crafting
+ELIF (<ctag.craft_task>==<DEF.CRAFT_PAGE_ROOT>)||(<ctag.craft_task>==<DEF.CRAFT_PAGE_LIST>)
+ //Remover item da lista de crafting
+ prompt_new Apagar <ctag.craft_menu_name_<dlocal.b>> deste menu?<DEF.BR>(s/n)
+ prompt_setAction craft_deleteItem <ctag.craft_menu_id_<dlocal.b>>,
+ prompt_setActionBack SDIALOG d_crafting
+ prompt_show
+ENDIF
+[EOF]

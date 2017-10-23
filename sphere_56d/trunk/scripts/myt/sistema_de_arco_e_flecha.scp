@@ -1,0 +1,1428 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE ARCO E FLECHA por 
+//
+//    Galthar
+//    Metus
+//    Silver
+//    UsMarine (vinicius.arroyo at gmail.com)
+//    Septimus
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+//-corrigir RESOURCES e SKILLMAKE de todos os ITENS para novo sistema de craft
+//-verificar como ficara as mascaras de uso dos barbantes/engrenagens com 
+//a multiplicacao dos itens ou mesmo itemforge
+
+//WEAPON
+//more2                     Magia/Efeito
+//morex                     Força da magia/efeito
+//morey                     Hits do barbante/engrenagem
+//morez                     1 se coletável (do corpo). 0 se a flecha some pra sempre quando atirada.
+//AMMOTYPE     				Que flecha consome
+//AMMOANIMHUE  				Cor da animação da flecha disparada
+//AMMOANIM    				Animação da flecha disparada
+
+//AMMO
+//more1                     Magia/Efeito
+//more2                     MODAR
+//morex                     DMGFIRE
+//morey                     DMGCOLD
+//morez                     DMGPOISON
+//morem                     DMGENERGY
+//TAG.anim                  
+//TAG.sfx                   Som do disparo
+//TAG.colect                1 se flecha coletavel
+//TAG.effect                Força da magia/efeito
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+
+[DEFNAME arcos]
+arrow_i_arco_curto          001
+arrow_i_arco                001
+arrow_i_arco_long           002
+arrow_i_arco_longo          002
+arrow_i_arco_composto       004
+arrow_i_arco_elfico         008
+arrow_i_besta               010
+arrow_i_besta_pesada        020
+arrow_i_besta_repeticao     020
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_weapon_bolt
+//*****************************************************************************
+[TYPEDEF t_weapon_bolt]
+//MORE1 = Effeito de Spell no cara atingido
+//MORE2 = Bônus de dano físico
+//MOREX = Bônus de dano fire
+//MOREY = Bônus de dano cold
+//MOREZ = Bônus de dano poison
+//MOREM = Bônus de dano energy
+//TAG.COLECT=1 = Arrow PODE ficar no loot do alvo (nem sempre fica)
+//tag.anim=i_fx_firesnake = Muda o anim da flecha
+//tag.sfx=05c3 = Muda o som da flecha
+ON=@DCLICK
+correctammo
+return 1
+
+//*****************************************************************************
+// t_weapon_arrow
+//*****************************************************************************
+[TYPEDEF t_weapon_arrow] 
+//MORE1 = Effeito de Spell no cara atingido
+//MORE2 = Bônus de dano físico
+//MOREX = Bônus de dano fire
+//MOREY = Bônus de dano cold
+//MOREZ = Bônus de dano poison
+//MOREM = Bônus de dano energy
+//TAG.COLECT=1 = Arrow PODE ficar no loot do alvo (nem sempre fica)
+//tag.anim=i_fx_firesnake = Muda o anim da flecha
+//tag.sfx=05c3 = Muda o som da flecha
+ON=@DCLICK
+correctammo
+return 1
+
+//*****************************************************************************
+// t_preitem_bowcraft
+//*****************************************************************************
+[TYPEDEF t_preitem_bowcraft]
+ON=@DClick
+IF <src.restest 1 i_talhadeira>
+    src.skillmenu sm_cr_flechas
+else
+    src.sysmessage Utilize uma talhadeira para montar as pontas de flecha nas varetas.
+endif
+return 1
+
+[TYPEDEF t_ponta_flecha]
+//Compatibilidade com vendar e crafting
+
+//*****************************************************************************
+// t_string
+//*****************************************************************************
+[TYPEDEF t_string]
+//tdata1=hitmin
+//tdata2=hitmax
+ON=@ClientToolTip
+src.addcliloc 1070722,Durabilidade: <dtdata1> a <dtdata2>
+
+ON=@DCLICK
+src.sysmessageyellow Selecione o arco para reparar...
+targetf f_use_string <UID>
+return 1
+
+//*****************************************************************************
+// t_weapon_ammo
+//*****************************************************************************
+[TYPEDEF t_weapon_ammo]
+
+   
+//*****************************************************************************
+// t_weapon_xbow
+//*****************************************************************************
+[TYPEDEF t_weapon_xbow]
+
+ON=@EQUIP
+    if !<AMMOANIM>
+        AMMOANIM=i_xbolt_x
+    endif
+
+    if (!<src.npc>) && (<morey> <= 0)
+       src.sysmessagered Besta sem engrenagem
+       unequip
+       return 1
+    endif
+   
+[EVENTS e_arco]
+
+[EVENTS e_besta]
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+
+//*****************************************************************************
+// correctammo
+//*****************************************************************************
+//Corrige o arco de acordo com a munição
+[FUNCTION correctammo] 
+
+LOCAL.wtype=<src.weapon.type>
+
+//garante que esta com arco/dardo e flecha correspondente
+if <topobj>!=<src>
+    return 1
+elif (<LOCAL.wtype>!=t_weapon_bow) && (<LOCAL.wtype>!=t_weapon_xbow)
+    return 1
+elif  (<LOCAL.wtype>==t_weapon_bow) && (<type>!=T_WEAPON_ARROW)
+    return 1
+elif  (<LOCAL.wtype>==t_weapon_xbow) && (<type>!=T_WEAPON_BOLT)
+    return 1
+endif
+
+src.weapon.AMMOTYPE=<baseid>
+src.weapon.AMMOANIMHUE=<color>
+
+src.weapon.more2=<more1>
+if (!<TAG0.effect>)
+    src.weapon.morex=500
+else
+    src.weapon.morex=<TAG0.effect>
+endif
+
+if (<tag0.anim>)
+    src.weapon.AMMOANIM=<tag0.anim>
+else
+    src.weapon.AMMOANIM=
+endif
+
+src.weapon.tag.sfx=<tag0.sfx>
+src.weapon.tag.colect=<tag0.colect>
+src.weapon.morez=<morez>
+src.weapon.modAR=<more2>
+src.weapon.dmgfire=<morex>
+src.weapon.dmgcold=<morey>
+src.weapon.dmgpoison=<morez>
+src.weapon.dmgenergy=<morem>
+src.sysmessageblue Agora usando <name>!
+
+//*****************************************************************************
+// f_use_string
+//*****************************************************************************
+[FUNCTION f_use_string]
+OBJ=<argv0>
+if !<argo>
+    src.sysmessageyellow Deve selecionar um arco ou besta.
+    return 1
+elif (<argo.type>!=t_weapon_bow) && (<argo.type>!=t_weapon_xbow)
+    src.sysmessageyellow Isso nao e um arco ou besta.
+    return 1
+elif (<argo.type>==t_weapon_bow) && (<obj.type>!=t_string) || (<obj.id>=01053)
+    src.sysmessageyellow Use apenas barbantes em arcos.
+    return 1
+elif (<argo.type>==t_weapon_xbow) && (<obj.id>!=01053)  // id do i_gears
+    src.sysmessageyellow Use apenas engrenagens em bestas.
+    return 1
+//tem barbante/engrenagem antiga?    
+elif <argo.morey>
+    if (<argo.type>==t_weapon_bow)
+        src.sysmessagered Voce substituiu o barbante antigo.
+    else
+        src.sysmessagered Voce substituiu a engrenagem antiga.
+    endif
+    argo.name=<serv.itemdef.<argo.baseid>.name>
+endif
+
+if <archery> > <bowcraft>
+    LOCAL.skill=<archery>
+else
+    LOCAL.skill=<bowcraft>
+endif
+
+ARGO.morey=<f_rangeValue <obj.tdata1>,<obj.tdata2>,<LOCAL.skill>>
+LOCAL.hits=<eval <argo.maxhits>-<argo.hits>>
+LOCAL.hits=<f_rangeValue 0,<LOCAL.hits>,<bowcraft>>
+argo.hits=<eval <argo.hits>+{1 <LOCAL.hits>}>
+
+//Bônus para barbante abençoado
+if (<obj.attr>&0401) //attr_blessed|attr_identified
+    ARGO.morey=<eval (<ARGO.morey>*125)/100>
+    obj.name=<obj.name> abencoado
+    sfx 0f6
+else
+    sfx 04f
+endif
+
+LOCAL.name=<serv.itemdef.<argo.baseid>.name>
+emoteorange reparando <LOCAL.name>
+sysmessageblue <LOCAL.name> reparado com sucesso!
+argo.name=<LOCAL.name> (<obj.name>)
+obj.decrement
+argo.update
+
+//*****************************************************************************
+// f_fire_arrow_consume
+//*****************************************************************************
+[FUNCTION f_fire_arrow_consume]
+if <topobj.IsPlayer>
+    topobj.sysmessageyellow As flechas de fogo se consumiram.
+endif
+remove
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - DARDOS
+//*****************************************************************************
+//*****************************************************************************
+
+
+//*****************************************************************************
+// i_xbolt
+//*****************************************************************************
+[ITEMDEF 01bfb]
+NAME=dardo%s% de madeira
+DEFNAME=i_xbolt
+TYPE=T_WEAPON_BOLT
+FLIP=1
+REPLICATE=1
+RESOURCES=1 i_vareta, 2 i_pena
+SKILLMAKE=15.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=dardo de madeira
+DUPELIST=01bfc,01bfd,01bfe
+
+//*****************************************************************************
+// i_xbolt_cobre
+//*****************************************************************************
+[ITEMDEF i_xbolt_cobre]
+ID=01bfb
+NAME=dardo%s% com ponta de cobre
+TYPE=T_WEAPON_BOLT
+FLIP=1
+REPLICATE=1
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_cobre
+SKILLMAKE=25.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=dardo de cobre
+DUPELIST=01bfc,01bfd,01bfe
+
+ON=@CREATE
+color=0641
+more2=3     //MODAR
+
+//*****************************************************************************
+// i_xbolt_prata
+//*****************************************************************************
+[ITEMDEF i_xbolt_prata]
+ID=01bfb
+NAME=dardo%s% com ponta de prata
+TYPE=T_WEAPON_BOLT
+FLIP=1
+REPLICATE=1
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_prata
+SKILLMAKE=40.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=dardo de prata
+DUPELIST=01bfc,01bfd,01bfe
+
+ON=@CREATE
+color=02b3
+more1=s_exorcizar
+more2=3
+tag.colect=1    //coletável
+
+//*****************************************************************************
+// i_xbolt_bronze
+//*****************************************************************************
+[ITEMDEF i_xbolt_bronze]
+ID=01bfb
+NAME=dardo%s% com ponta de bronze
+TYPE=T_WEAPON_BOLT
+FLIP=1
+REPLICATE=1
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_bronze
+SKILLMAKE=40.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=dardo de bronze
+DUPELIST=01bfc,01bfd,01bfe
+
+ON=@CREATE
+color=06d6
+more2=4         //MODAR
+tag.colect=1    //coletável
+
+///*****************************************************************************
+// i_xbolt_obsidiana
+//*****************************************************************************
+[ITEMDEF i_xbolt_obsidiana]
+ID=01bfb
+NAME=dardo%s% com ponta de obsidiana
+TYPE=T_WEAPON_BOLT
+FLIP=1
+REPLICATE=1
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_obsidiana
+SKILLMAKE=60.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=dardo de obsidiana
+DUPELIST=01bfc,01bfd,01bfe
+
+ON=@CREATE
+color=0ad3
+more2=5         //MODAR
+tag.colect=1    //coletável
+
+///*****************************************************************************
+// i_xbolt_ferro
+//*****************************************************************************
+[ITEMDEF i_xbolt_ferro]
+ID=01bfb
+NAME=dardo%s% com ponta de ferro
+TYPE=T_WEAPON_BOLT
+FLIP=1
+REPLICATE=1
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_ferro
+SKILLMAKE=65.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=dardo de ferro
+DUPELIST=01bfc,01bfd,01bfe
+
+ON=@CREATE
+color=0842
+more2=4         //MODAR
+tag.colect=1    //coletável
+
+///*****************************************************************************
+// i_xbolt_ouro
+//*****************************************************************************
+[ITEMDEF i_xbolt_ouro]
+ID=01bfb
+NAME=dardo%s% com ponta de ouro
+TYPE=T_WEAPON_BOLT
+FLIP=1
+REPLICATE=1
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_ouro
+SKILLMAKE=65.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=dardo de ouro
+DUPELIST=01bfc,01bfd,01bfe
+
+ON=@CREATE
+color=045e
+more2=5         //MODAR
+tag.colect=1    //coletável
+
+
+///*****************************************************************************
+// i_xbolt_ebano
+//*****************************************************************************
+[ITEMDEF i_xbolt_ebano]
+ID=01bfb
+NAME=dardo%s% com ponta de ebano
+TYPE=T_WEAPON_BOLT
+FLIP=1
+REPLICATE=1
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_ebano
+SKILLMAKE=85.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=dardo de ebano
+DUPELIST=01bfc,01bfd,01bfe
+
+ON=@CREATE
+color=0455
+more2=7         //MODAR
+tag.colect=1    //coletável
+
+///*****************************************************************************
+// i_xbolt_rubridium
+//*****************************************************************************
+[ITEMDEF i_xbolt_rubridium]
+ID=01bfb
+NAME=dardo%s% com ponta de rubridium
+TYPE=T_WEAPON_BOLT
+FLIP=1
+REPLICATE=1
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_rubridium
+SKILLMAKE=75.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=dardo de rubridium
+DUPELIST=01bfc,01bfd,01bfe
+
+ON=@CREATE
+color=04c2
+more2=7         //MODAR
+tag.colect=1    //coletável
+
+///*****************************************************************************
+// i_xbolt_mythril
+//*****************************************************************************
+[ITEMDEF i_xbolt_mythril]
+ID=01bfb
+NAME=dardo%s% com ponta de mythril
+TYPE=T_WEAPON_BOLT
+FLIP=1
+REPLICATE=1
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_mythril
+SKILLMAKE=95.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=dardo de mythril
+DUPELIST=01bfc,01bfd,01bfe
+
+ON=@CREATE
+color=052d
+more2=9         //MODAR
+tag.colect=1    //coletável
+
+///*****************************************************************************
+// i_xbolt_eldasthar
+//*****************************************************************************
+[ITEMDEF i_xbolt_eldasthar]
+ID=01bfb
+NAME=dardo%s% com ponta de eldasthar
+TYPE=T_WEAPON_BOLT
+FLIP=1
+REPLICATE=1
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_eldasthar
+SKILLMAKE=105.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=dardo de eldasthar
+DUPELIST=01bfc,01bfd,01bfe
+
+ON=@CREATE
+color=07d1
+more2=12         //MODAR
+tag.colect=1    //coletável
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - FLECHAS
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_arrow
+//*****************************************************************************
+[ITEMDEF 0f3f]
+DEFNAME=i_arrow
+NAME=flecha%s% de madeira
+TYPE=T_WEAPON_ARROW
+FLIP=1
+REPLICATE=1
+RESOURCES=1 i_vareta, 1 i_pena
+SKILLMAKE=15.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=flecha de madeira
+DUPELIST=0f40,0f41,0f42
+
+ON=@CREATE
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_crane
+//*****************************************************************************
+[ITEMDEF i_arrow_crane]
+ID=0f3f
+NAME=flecha%s% de pena de Crane
+TYPE=T_WEAPON_ARROW
+RESOURCES=1 i_vareta, 1 i_pena_crane
+SKILLMAKE=60.0 BOWCRAFT
+WEIGHT=0.0
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=@
+
+ON=@CREATE
+color=04
+more2=4                 //MODAR
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_cobre
+//*****************************************************************************
+[ITEMDEF i_arrow_cobre]
+ID=0f3f
+NAME=flecha%s% com ponta de cobre
+TYPE=T_WEAPON_ARROW
+RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_cobre
+SKILLMAKE=25.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=@
+
+ON=@CREATE
+color=0641
+more2=3                 //MODAR
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_prata
+//*****************************************************************************
+[ITEMDEF i_arrow_prata]
+ID=i_arrow
+NAME=flecha%s% de prata
+TYPE=T_WEAPON_ARROW
+RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_prata
+SKILLMAKE=40.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=@
+
+ON=@CREATE
+color=038a
+more1=s_exorcizar
+more2=3
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_bronze
+//*****************************************************************************
+[ITEMDEF i_arrow_bronze]
+ID=0f3f
+NAME=flecha%s% com ponta de bronze
+TYPE=T_WEAPON_ARROW
+RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_bronze
+SKILLMAKE=40.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=@
+
+ON=@CREATE
+color=06d6
+more2=4                 //MODAR
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_obsidiana
+//*****************************************************************************
+[ITEMDEF i_arrow_obsidiana]
+ID=0f3f
+NAME=flecha%s% com ponta de obsidiana
+TYPE=T_WEAPON_ARROW
+RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_obsidiana
+SKILLMAKE=60.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=@
+
+ON=@CREATE
+color=0ad3
+more2=4                 //MODAR
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_ferro
+//*****************************************************************************
+[ITEMDEF i_arrow_ferro]
+ID=0f3f
+NAME=flecha%s% com ponta de ferro
+TYPE=T_WEAPON_ARROW
+RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_ferro
+SKILLMAKE=65.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=@
+
+ON=@CREATE
+color=0842
+more2=5                 //MODAR
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_ouro
+//*****************************************************************************
+[ITEMDEF i_arrow_ouro]
+ID=0f3f
+NAME=flecha%s% com ponta de ouro
+TYPE=T_WEAPON_ARROW
+RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_ouro
+SKILLMAKE=65.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=@
+
+ON=@CREATE
+color=045e
+more2=5                 //MODAR
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_ebano
+//*****************************************************************************
+[ITEMDEF i_arrow_ebano]
+ID=0f3f
+NAME=flecha%s% com ponta de ebano
+TYPE=T_WEAPON_ARROW
+RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_ebano
+SKILLMAKE=85.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=@
+
+ON=@CREATE
+color=0455
+more2=7                 //MODAR
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_rubridium
+//*****************************************************************************
+[ITEMDEF i_arrow_rubridium]
+ID=0f3f
+NAME=flecha%s% com ponta de rubridium
+TYPE=T_WEAPON_ARROW
+RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_rubridium
+SKILLMAKE=75.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=@
+
+ON=@CREATE
+color=04c2
+more2=7                 //MODAR
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_mythril
+//*****************************************************************************
+[ITEMDEF i_arrow_mythril]
+ID=0f3f
+NAME=flecha%s% com ponta de mythril
+TYPE=T_WEAPON_ARROW
+RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_mythril
+SKILLMAKE=95.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=@
+
+ON=@CREATE
+color=052d
+more2=9                 //MODAR
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_eldasthar
+//*****************************************************************************
+[ITEMDEF i_arrow_eldasthar]
+ID=0f3f
+NAME=flecha%s% com ponta de eldasthar
+TYPE=T_WEAPON_ARROW
+RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_eldasthar
+SKILLMAKE=105.0 BOWCRAFT
+WEIGHT=0.1
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=@
+
+ON=@CREATE
+color=07d1
+more2=12                 //MODAR
+tag.colect=1            //coletável
+
+//*****************************************************************************
+// i_arrow_fire
+//*****************************************************************************
+[ITEMDEF i_arrow_fire]
+ID=i_arrow
+NAME=flecha%s% de Fogo
+TYPE=T_WEAPON_ARROW
+
+ON=@CREATE
+color=030
+tag.anim=i_fx_fireball_small
+tag.sfx=<def.snd_SPELL_FIREBALL>
+morex=6                 //DMGFIRE
+
+ON=@DCLICK
+correctammo
+src.weapon.AMMOANIMHUE
+return 1
+
+//*****************************************************************************
+// i_arrow_poison_lo
+//*****************************************************************************
+[ITEMDEF i_arrow_poison_lo]
+ID=i_arrow
+NAME=flecha%s% envenenadas (fraco)
+TYPE=T_WEAPON_ARROW
+
+ON=@CREATE
+more1=20//Poison
+morez=2
+color=0455
+TAG.effect=31.3
+
+//*****************************************************************************
+// i_arrow_poison
+//*****************************************************************************
+[ITEMDEF i_arrow_poison]
+ID=i_arrow
+NAME=flecha%s% envenenadas
+TYPE=T_WEAPON_ARROW
+
+ON=@CREATE
+more1=20//Poison
+morez=3
+color=0455
+TAG.effect=62.6
+
+//*****************************************************************************
+// i_arrow_poison_hi
+//*****************************************************************************
+[ITEMDEF i_arrow_poison_hi]
+ID=i_arrow
+NAME=flecha%s% envenenadas (forte)
+TYPE=T_WEAPON_ARROW
+
+ON=@CREATE
+more1=20//Poison
+morez=5
+color=0455
+TAG.effect=93.9
+
+//*****************************************************************************
+// i_arrow_poison_xhi
+//*****************************************************************************
+[ITEMDEF i_arrow_poison_xhi]
+ID=i_arrow
+NAME=flecha%s% envenenadas (concentrado)
+TYPE=T_WEAPON_ARROW
+
+ON=@CREATE
+more1=20//Poison
+morez=7
+color=0455
+TAG.effect=125.0
+
+//*****************************************************************************
+// i_arrow_ice
+//*****************************************************************************
+[ITEMDEF i_arrow_ice]
+ID=i_arrow
+NAME=flecha%s% de gelo
+TYPE=T_WEAPON_ARROW
+
+ON=@CREATE
+//more1=026           //paralyze Trocar por CHILL quando existir
+morey=8             //DMGCOLD
+color=0480
+attr=04020          //attr_can_decay|attr_magic
+
+//*****************************************************************************
+// i_arrow_stun
+//*****************************************************************************
+//[ITEMDEF i_arrow_stun]
+//ID=i_arrow
+//NAME=flecha%s% de paralizia
+//TYPE=T_WEAPON_ARROW
+
+//ON=@CREATE
+//more1=026           //Paralyze
+//color=01a
+//attr=04020          //attr_can_decay|attr_magic
+
+//*****************************************************************************
+// i_arrow_energy
+//*****************************************************************************
+[ITEMDEF i_arrow_energy]
+ID=i_arrow
+NAME=flecha%s% de energia
+TYPE=T_WEAPON_ARROW
+
+ON=@CREATE
+morem=16                    //DMGENERGY
+color=0d3
+tag.anim=i_fx_firesnake
+tag.sfx=05c3
+attr=04020          //attr_can_decay|attr_magic
+
+//*****************************************************************************
+// i_flecha_fogo_apagada
+//*****************************************************************************
+[ITEMDEF i_flecha_fogo_apagada]
+ID=0f3f
+NAME=flecha%s% (com oleo)
+TYPE=t_weapon_ammo //somente para venda
+
+ON=@CREATE
+maxhits=1
+
+ON=@DCLICK
+if <topobj> != <src>
+    src.sysmessagered Voce tem que ter as flechas em seu poder
+    return 1
+endif
+
+src.emotered acende as flechas
+
+if <src.restest i_arrow_fire>
+    LOCAL.amount=<src.findid.i_arrow_fire.amount>
+    src.findid.i_arrow_fire.remove
+endif
+
+serv.newitem i_arrow_fire
+new.amount=<amount>+<LOCAL.amount>
+new.timerf 240,f_fire_arrow_consume
+src.bounce <new>
+remove
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - barbantes
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_barbante_algodao
+//*****************************************************************************
+[ITEMDEF 01420]
+DEFNAME=i_barbante_algodao
+RESOURCES=i_cloth
+TYPE=t_string
+NAME=Barbante de Algodao
+WEIGHT=.1
+tdata1=75
+tdata2=400
+SKILLMAKE=tailoring 10.0
+
+//*****************************************************************************
+// i_barbante_cobre
+//*****************************************************************************
+[ITEMDEF i_barbante_cobre]
+ID=01420
+TYPE=t_string
+NAME=barbante de cobre
+WEIGHT=0.5
+SKILLMAKE=tinkering 19.5
+tdata1=143
+tdata2=235
+RESOURCES=i_wire_copper
+
+ON=@CREATE
+color=0641
+
+//*****************************************************************************
+// i_barbante_bronze
+//*****************************************************************************
+[ITEMDEF i_barbante_bronze]
+ID=01420
+TYPE=t_string
+NAME=barbante de bronze
+WEIGHT=0.5
+SKILLMAKE=tinkering 29.0
+tdata1=210
+tdata2=320
+RESOURCES=i_wire_bronze
+
+ON=@CREATE
+color=06d6
+
+//*****************************************************************************
+// i_barbante_ferro
+//*****************************************************************************
+[ITEMDEF i_barbante_ferro]
+ID=01420
+TYPE=t_string
+NAME=barbante de ferro
+WEIGHT=0.5
+SKILLMAKE=tinkering 38.5
+tdata1=278
+tdata2=405
+RESOURCES=i_wire_iron
+
+ON=@CREATE
+color=0842
+
+//*****************************************************************************
+// i_barbante_prata
+//*****************************************************************************
+[ITEMDEF i_barbante_prata]
+ID=01420
+TYPE=t_string
+NAME=Barbante de Prata
+WEIGHT=0.5
+SKILLMAKE=tinkering 48.0
+tdata1=345
+tdata2=490
+RESOURCES=i_wire_silver
+
+ON=@CREATE
+color=02b3
+
+//*****************************************************************************
+// i_barbante_ouro
+//*****************************************************************************
+[ITEMDEF i_barbante_ouro]
+ID=01420
+TYPE=t_string
+NAME=Barbante de Ouro
+WEIGHT=0.5
+SKILLMAKE=tinkering 57.5
+tdata1=413
+tdata2=575
+RESOURCES=i_wire_gold
+
+ON=@CREATE
+color=045e
+
+//*****************************************************************************
+// i_barbante_mythril
+//*****************************************************************************
+[ITEMDEF i_barbante_mythril]
+ID=01420
+TYPE=t_string
+NAME=Barbante de Mythril
+WEIGHT=0.5
+SKILLMAKE=tinkering 67.0
+tdata1=480
+tdata2=660
+RESOURCES=i_wire_mithril
+
+ON=@CREATE
+color=052d
+
+//*****************************************************************************
+// i_barbante_ebano
+//*****************************************************************************
+[ITEMDEF i_barbante_ebano]
+ID=01420
+TYPE=t_string
+NAME=Barbante de Ebano
+WEIGHT=0.5
+SKILLMAKE=tinkering 76.0
+tdata1=548
+tdata2=745
+RESOURCES=i_wire_ebano
+
+ON=@CREATE
+color=0455
+
+//*****************************************************************************
+// i_barbante_rubridium
+//*****************************************************************************
+[ITEMDEF i_barbante_rubridium]
+ID=01420
+TYPE=t_string
+NAME=Barbante de Rubridium
+WEIGHT=0.5
+SKILLMAKE=tinkering 86.0
+tdata1=615
+tdata2=830
+RESOURCES=i_wire_rubridium
+
+ON=@CREATE
+color=04c2
+
+//*****************************************************************************
+// i_barbante_obsidiana
+//*****************************************************************************
+[ITEMDEF i_barbante_obsidiana]
+ID=01420
+TYPE=t_string
+NAME=barbante de obsidiana
+WEIGHT=0.5
+SKILLMAKE=tinkering 95.5
+tdata1=683
+tdata2=915
+RESOURCES=i_wire_obsidian
+
+ON=@CREATE
+color=0ad3
+
+//*****************************************************************************
+// i_barbante_eldasthar
+//*****************************************************************************
+[ITEMDEF i_barbante_eldasthar]
+ID=01420
+TYPE=t_string
+NAME=Barbante de Eldasthar
+WEIGHT=0.5
+SKILLMAKE=tinkering 105.0
+tdata1=750
+tdata2=1000
+RESOURCES=i_wire_eldasthar
+
+ON=@CREATE
+color=07d1
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - engrenagens
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_gears_cobre
+//*****************************************************************************
+[ITEMDEF i_gears_cobre]
+ID=01053
+TYPE=t_string
+NAME=Engrenagens de cobre
+WEIGHT=1
+SKILLMAKE=tinkering 25.0
+tdata1=143
+tdata2=235
+RESOURCES=1 i_ingot_copper
+
+ON=@CREATE
+color=0641
+//more2=0ffff       //serve em todas as bestas
+//more1l=10
+//more1h=25
+
+//*****************************************************************************
+// i_gears_prata
+//*****************************************************************************
+[ITEMDEF i_gears_prata]
+ID=01053
+TYPE=t_string
+NAME=Engrenagens de prata
+WEIGHT=1
+SKILLMAKE=tinkering 40.0
+tdata1=345
+tdata2=490
+RESOURCES=1 i_ingot_silver
+
+ON=@CREATE
+color=02b3
+//more2=0ffff       //serve em todas as bestas
+//more1l=15
+//more1h=30
+
+//*****************************************************************************
+// i_gears_bronze
+//*****************************************************************************
+[ITEMDEF i_gears_bronze]
+ID=01053
+TYPE=t_string
+NAME=Engrenagens de bronze
+WEIGHT=1
+SKILLMAKE=tinkering 40.0
+tdata1=210
+tdata2=320
+RESOURCES=1 i_ingot_bronze
+
+ON=@CREATE
+color=06d6
+//more2=0ffff       //serve em todas as bestas
+//more1l=15
+//more1h=35
+
+//*****************************************************************************
+// i_gears_obsidiana
+//*****************************************************************************
+[ITEMDEF i_gears_obsidiana]
+ID=01053
+TYPE=t_string
+NAME=Engrenagens de obsidiana
+WEIGHT=1
+SKILLMAKE=tinkering 60.0
+tdata1=683
+tdata2=915
+RESOURCES=1 i_ingot_obsidian
+
+ON=@CREATE
+color=0ad3
+//more2=0ffff       //serve em todas as bestas
+//more1l=17
+//more1h=37
+
+//*****************************************************************************
+// i_gears_ferro
+//*****************************************************************************
+[ITEMDEF i_gears_ferro]
+ID=01053
+TYPE=t_string
+NAME=Engrenagens de ferro
+WEIGHT=1
+SKILLMAKE=tinkering 65.0
+tdata1=280
+tdata2=430
+RESOURCES=1 i_ingot_iron
+
+ON=@CREATE
+color=0842
+//more2=0ffff       //serve em todas as bestas
+//more1l=20
+//more1h=40
+
+//*****************************************************************************
+// i_gears_ouro
+//*****************************************************************************
+[ITEMDEF i_gears_ouro]
+ID=01053
+TYPE=t_string
+NAME=Engrenagens de ouro
+WEIGHT=1
+SKILLMAKE=tinkering 65.0
+tdata1=413
+tdata2=575
+RESOURCES=1 i_ingot_gold
+
+ON=@CREATE
+color=045e
+//more2=0ffff       //serve em todas as bestas
+//more1l=25
+//more1h=45
+
+//*****************************************************************************
+// i_gears_ebano
+//*****************************************************************************
+[ITEMDEF i_gears_ebano]
+ID=01053
+TYPE=t_string
+NAME=Engrenagens de ebano
+WEIGHT=1
+SKILLMAKE=tinkering 85.0
+tdata1=548
+tdata2=745
+RESOURCES=1 i_ingot_ebano
+
+ON=@CREATE
+color=0455
+//more2=0ffff       //serve em todas as bestas
+//more1l=25
+//more1h=55
+
+//*****************************************************************************
+// i_gears_rubridium
+//*****************************************************************************
+[ITEMDEF i_gears_rubridium]
+ID=01053
+TYPE=t_string
+NAME=Engrenagens de rubridium
+WEIGHT=1
+SKILLMAKE=tinkering 75.0
+tdata1=615
+tdata2=830
+RESOURCES=1 i_ingot_rubridium
+
+ON=@CREATE
+color=04c2
+//more2=0ffff       //serve em todas as bestas
+//more1l=25
+//more1h=55
+
+//*****************************************************************************
+// i_gears_mythril
+//*****************************************************************************
+[ITEMDEF i_gears_mythril]
+ID=01053
+TYPE=t_string
+NAME=Engrenagens de mythril
+WEIGHT=1
+SKILLMAKE=tinkering 95.0
+tdata1=480
+tdata2=660
+RESOURCES=1 i_ingot_mythril
+
+ON=@CREATE
+color=052d
+//more2=0ffff       //serve em todas as bestas
+//more1l=30
+//more1h=80
+
+//*****************************************************************************
+// i_gears_eldasthar
+//*****************************************************************************
+[ITEMDEF i_gears_eldasthar]
+ID=01053
+TYPE=t_string
+NAME=Engrenagens de eldasthar
+WEIGHT=1
+SKILLMAKE=tinkering 105.0
+tdata1=750
+tdata2=1000
+RESOURCES=1 i_ingot_eldasthar
+
+ON=@CREATE
+color=07d1
+//more2=0ffff       //serve em todas as bestas
+//more1l=40
+//more1h=110
+
+//*****************************************************************************
+// i_gears_especial
+//*****************************************************************************
+[ITEMDEF i_gears_especial]
+ID=01053
+NAME=Engranagem especial
+WEIGHT=1
+CATEGORY=Myt - Items by professions
+SUBSECTION=Tinker
+DESCRIPTION=Engrenagem Especial
+
+ON=@CREATE
+more1l=50
+//more1h=120
+color 003b3
+//more2=0ffff     //serve em todas bestas
+
+ON=@DCLICK
+src.sysmessageyellow Usado somente na construcao de bestas especiais...
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - PRE-ITENS
+//*****************************************************************************
+//*****************************************************************************
+
+[ITEMDEF i_ponta_cobre]
+id=0f83
+TYPE=t_ponta_flecha
+NAME=ponta%s% de cobre
+SKILLMAKE=blacksmithing 25.0, armslore 12.0
+RESOURCES=i_ingot_copper
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de cobre
+
+ON=@CREATE
+color=0641
+
+[ITEMDEF i_ponta_prata]
+ID=0f83
+TYPE=t_ponta_flecha
+NAME=ponta%s% de prata
+SKILLMAKE=blacksmithing 40.0, armslore 20.0
+RESOURCES=i_ingot_silver
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de prata
+
+ON=@CREATE
+color=02b3
+
+
+[ITEMDEF i_ponta_bronze]
+ID=0f83
+TYPE=t_ponta_flecha
+NAME=ponta%s% de bronze
+SKILLMAKE=blacksmithing 40.0, armslore 20.0
+RESOURCES=i_ingot_bronze
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de bronze
+
+ON=@CREATE
+color=06d6
+
+[ITEMDEF i_ponta_obsidiana]
+ID=0f83
+TYPE=t_ponta_flecha
+NAME=ponta%s% de obsidiana
+SKILLMAKE=blacksmithing 60.0, armslore 30.0
+RESOURCES=i_ingot_obsidian
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de obsidiana
+
+ON=@CREATE
+color=0ad3
+
+[ITEMDEF i_ponta_ferro]
+ID=0f83
+TYPE=t_ponta_flecha
+NAME=ponta%s% de ferro
+SKILLMAKE=blacksmithing 65.0, armslore 32.0
+RESOURCES=i_ingot_iron
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de ferro
+
+ON=@CREATE
+color=0842
+
+[ITEMDEF i_ponta_ouro]
+ID=0f83
+TYPE=t_ponta_flecha
+NAME=ponta%s% de ouro
+SKILLMAKE=blacksmithing 65.0, armslore 32.0
+RESOURCES=i_ingot_gold
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de ouro
+
+ON=@CREATE
+color=045e
+
+[ITEMDEF i_ponta_ebano]
+ID=0f83
+TYPE=t_ponta_flecha
+NAME=ponta%s% de ebano
+SKILLMAKE=blacksmithing 85.0, armslore 65.0
+RESOURCES=i_ingot_ebano
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de ebano
+
+ON=@CREATE
+color=0455
+
+[ITEMDEF i_ponta_rubridium]
+ID=0f83
+TYPE=t_ponta_flecha
+NAME=ponta%s% de rubridium
+SKILLMAKE=blacksmithing 75.0, armslore 65.0
+RESOURCES=i_ingot_rubridium
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de rubridium
+
+ON=@CREATE
+color=04c2
+
+[ITEMDEF i_ponta_mythril]
+ID=0f83
+TYPE=t_ponta_flecha
+NAME=ponta%s% de mythril
+SKILLMAKE=blacksmithing 95.0, armslore 70.0
+RESOURCES=i_ingot_mythril
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de mythril
+
+ON=@CREATE
+color=052d
+
+[ITEMDEF i_ponta_eldasthar]
+ID=0f83
+TYPE=t_ponta_flecha
+NAME=ponta%s% de eldasthar
+SKILLMAKE=blacksmithing 105.0, armslore 75.0
+RESOURCES=i_ingot_eldasthar
+CATEGORY=MyT - Provisions - Weapons
+SUBSECTION=Bows
+DESCRIPTION=ponta de eldasthar
+
+ON=@CREATE
+color=07d1
+
+[EOF]

@@ -1,0 +1,782 @@
+////////////////////////////////////////////////////////
+//////////  Função ".abordar" (Myt)  //////////////////
+//////////   Jean Gabin & Galthar    /////////////////
+//////////        beta v.02          ////////////////
+////////////////////////////////////////////////////
+
+
+// qualquer um que tenha uma arma cortante na mão pode dar o .abordar não só o ladrão
+
+// ele não é letal. A vitima tem chance de escapar sem se ferir se:
+// se a str da vitima for maior do que a do agressor tem 2 chances em 5 de escapar ileso, 2 chances em 5 de sair ferido e 1 chance em 5 de morrer.
+// se a str da vitima for menor testa a dex do agressor:
+// se a dex da vitima for maior que a do agressor tem 3 chances em 5 de sair ferido e 2 chances em 5 de morrer
+// se a dex da vitima também for menor que a do agressor:
+// quanto maior for a skill wrestling da vitima, maior a chande de escapar ferida, mas tem grande chance de morrer
+
+// quem tá abordando a vitima, pode arrastar ela para qualquer lugar, desde que ela não tente escapar, daí entra nos testes citados acima
+
+// para soltar a vítima o agressor tem que dar o comando .liberta
+
+// Para matar a vítima o char agressor pode usar o comando .matar
+
+// o agressor não precisa estar escondido ou em stealth, mas se fizer isso tem mais chances de pegar a vítima despervinida.
+
+// não importa se o char abordado tá de gorget, pois o abordar é um "mata-leão" com um braço e com uma faca na outra mão apontando para a vitima. ele pode apontar para onde quiser. mesmo em uma fullplate tem vãos que podem ser enfiadas uma faca. chega da moda de gorget nas cidades. era um tal de nego andar sem camisa e gorget que era ridículo.
+
+// a vantagem do ladino nessa função é a de imobilizar a vitima completamente, como se fosse uma técnica especial de imobilizar qualquer char, independente da força, destreza ou wrestling da vítima
+// ao abordar alguém o ladino fica temporáriamente com 100% nas skills snooping e stealing, pois imobilizando a vitima ele pode mexer na bag de alguem com a mão da faca que nao tem problema pois sua vitima está imobilizada.
+// a vítima tem chance de escapar somente se o ladrao arrastar a vitima, pois nessa hora ele "pode se distrair" (cada vez que o ladrão dá um passo a vitima que é mais forte ou mais ágil tem 1 chance em 3 de sair da imobilização e se preparar para escapar, se não for mais forte nem mais ágil ainda testa a skill wrestling para ver se tem chance de sair da imobilização e poder fugir)
+
+// com a função liberada para todos também a gente não taxa o char por ladrão simplesmente por dar o .abordar, e em uma batalha esse comando pode ser útil
+
+
+[PLEVEL 6]
+abordar
+liberta
+matar
+
+[FUNCTION matar]
+IF (<SRC.FINDlayer(30).baseid>==i_mry_abordando)
+	if (strmatch(<cont.tag.classe>, Ladrao))
+	 src.findid.i_mry_abordando.link.cont.tag.desmaios=5
+	 src.findid.i_mry_abordando.link.cont.suicide
+	 src.snooping=<src.findid.i_mry_abordando.more1>
+	 src.stealing=<src.findid.i_mry_abordando.more2>
+	 src.findid.i_mry_abordando.link.cont.flags=<src.findid.i_mry_abordando.link.cont.flags> &~ 04
+	 src.findid.i_mry_abordando.link.remove
+	 src.findid.i_mry_abordando.remove
+	 src.say *Com frieza e maldade voce corta a garganta de sua vítima*
+	 src.tag.pontosdemorte=<src.tag.pontosdemorte> + (-2)
+	return 1
+	else
+	 src.findid.i_mry_abordando.link.cont.tag.desmaios=5
+	 src.findid.i_mry_abordando.link.cont.suicide
+	 src.findid.i_mry_abordando.link.remove
+	 src.findid.i_mry_abordando.remove
+	 src.say *Com frieza e maldade voce corta a garganta de sua vítima*
+	 src.tag.pontosdemorte=<src.tag.pontosdemorte> + (-2)
+	return 1
+	endif
+return 1
+else
+ src.message Voce nao esta abordando ninguem.
+return 1
+endif
+return 1
+
+
+
+[FUNCTION liberta]
+IF (<SRC.FINDlayer(30).baseid>==i_mry_abordando)
+	if (<src.findid.i_mry_abordando.link.cont.flags> & 04)
+	 src.snooping=<src.findid.i_mry_abordando.more1>
+	 src.stealing=<src.findid.i_mry_abordando.more2>
+	 src.findid.i_mry_abordando.link.cont.flags=<src.findid.i_mry_abordando.link.cont.flags> &~ 04
+	 src.findid.i_mry_abordando.link.remove
+	 src.findid.i_mry_abordando.remove
+	 src.say *tira a arma do pescoco da vitima e desimobilizando ela*
+	return 1
+	else
+	 src.findid.i_mry_abordando.link.remove
+	 src.findid.i_mry_abordando.remove
+	 src.say *tira a arma do pescoco da vitima e solta ela*
+	return 1
+	endif
+return 1
+else
+ src.message Voce nao esta abordando ninguem.
+return 1
+endif
+return 1
+
+
+[FUNCTION abordar]
+
+IF (<SRC.FINDLAYER(30).baseid>==i_mry_abordando)
+ src.message Voce ja esta abordando alguem. para soltar use o comando .liberta
+return 1
+else
+	IF (<SRC.FINDLAYER(25)>==0)  // se o char não está montado em nada
+		IF (<SRC.FINDLAYER(1).ID>==0f51)||(<SRC.FINDLAYER(1).ID>==0f5e)||(<SRC.FINDLAYER(1).ID>==013f6)||(<SRC.FINDLAYER(1).ID>==013fe)||(<SRC.FINDLAYER(1).ID>==0ec4) // se ele tem uma arma adequada para isso(adaga,broadsword,faca de açogueiro ou faca de pelar)
+		 src.newitem=i_mry_abordando
+		 src.act.equip
+		 src.act.use
+		 return 1
+		else
+		 src.message Use uma faca ou uma espada pequena para abordar alguem.
+		 return 1
+		endif
+	return 1
+	else
+	 src.message Voce precisa descer da montaria para poder abordar alguem.
+return 1
+endif
+return 1
+
+
+[ITEMDEF i_mry_abordando]
+id=i_memory
+layer=30  // Se for equipado e ou mandar ir par aum CONT, vai ser nessa layer.
+name=Abordando
+type=t_eq_script
+
+on=@dclick
+TARGET Abordar quem?
+return 1
+
+on=@Targon_Char
+if !(<cont.flags> & 020)
+if !(<cont.targ.flags> & 020)
+  if (<cont.TARG.UID>!=<cont.UID>) 													// se vc nao ta clicando em vc mesmo
+	if (<cont.STAMINA> > <EVAL <cont.DEX>/10>)										// se a stamina está abaixo dos 10%
+		if !(<cont.targ.brain>)  											// Se não tem cérebro é player
+			If (<cont.TARG.DISTANCE> < 2)  										// se ele está a 1 tile da vitima 
+				if (<cont.DIR>==<cont.TARG.DIR>)									// se a direção da vitima é a mesma de quem a aborda, presume-se que estão em fila
+					if (<cont.dir>==0) && (<cont.targ.p.x>==<cont.p.x>) && (<cont.targ.p.y>==<cont.p.y>+(-1)) 	// se o src tá virado para o norte, a vitima tem que estar um tile a sua frente.
+						if (strmatch(<cont.tag.classe>, Ladrao)) 				 	// se o char atacante é da classe ladina
+						  more1=<cont.snooping>
+						  cont.snooping=1000
+						  more2=<cont.stealing>
+						  cont.stealing=1000
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado_ladrao    						//Mry da vítima
+						  cont.act.cont=<cont.targ.uid>   						//equipa a mry na vítima
+						  cont.act.link=<uid>  							// o link da memória da vítima é essa memoria
+						  link=<cont.act.uid>    							// O link dessa memory é a memory da vítima
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1   								//tempo da mry da vítima=1
+						  timer=1   									//tempo dessa mry=1
+						  cont.targ.flags=(<cont.targ.flags> | 04)					// paraliza a vitima
+						  cont.targ.say *Voce foi imobilizado e ameacado com uma arma*
+ 						return 1
+						else										// se o atacante não for ladrão
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado    						// Mry da vítima
+						  cont.act.cont=<cont.targ.uid>   						// equipa a mry na vítima
+						  cont.act.link=<uid>  							// o link da memória da vítima é essa memoria
+						  link=<cont.act.uid>    							// O link dessa memory é a memory da vítima
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1   								// tempo da mry da vítima=1
+						  timer=1   									// tempo dessa mry=1
+						  cont.targ.say *Voce foi abordado e ameacado com uma arma*
+						return 1
+						endif
+					return 1
+					elif (<cont.dir>==1) && (<cont.targ.p.x>==<cont.p.x>+1) && (<cont.targ.p.y>==<cont.p.y>+(-1)) // nordeste
+						if (strmatch(<cont.tag.classe>, Ladrao))
+						  more1=<cont.snooping>
+						  cont.snooping=1000
+						  more2=<cont.stealing>
+						  cont.stealing=1000
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado_ladrao
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.flags=(<cont.targ.flags> | 04)
+						  cont.targ.say *Voce foi imobilizado e ameacado com uma arma*
+						return 1
+						else
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.say *Voce foi abordado e ameacado com uma arma*
+						return 1
+						endif
+					return 1
+					elif (<cont.dir>==2) && (<cont.targ.p.x>==<cont.p.x>+1) && (<cont.targ.p.y>==<cont.p.y>) // leste
+						if (strmatch(<cont.tag.classe>, Ladrao))
+						  more1=<cont.snooping>
+						  cont.snooping=1000
+						  more2=<cont.stealing>
+						  cont.stealing=1000
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado_ladrao
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.flags=(<cont.targ.flags> | 04)
+						  cont.targ.say *Voce foi imobilizado e ameacado com uma arma*
+						return 1
+						else
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.say *Voce foi abordado e ameacado com uma arma*
+						return 1
+						endif
+					return 1
+					elif (<cont.dir>==3) && (<cont.targ.p.x>==<cont.p.x>+1) && (<cont.targ.p.y>==<cont.p.y>+1) // sudeste
+						if (strmatch(<cont.tag.classe>, Ladrao))
+						  more1=<cont.snooping>
+						  cont.snooping=1000
+						  more2=<cont.stealing>
+						  cont.stealing=1000
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado_ladrao
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.flags=(<cont.targ.flags> | 04)
+						  cont.targ.say *Voce foi imobilizado e ameacado com uma arma*
+						return 1
+						else
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.say *Voce foi abordado e ameacado com uma arma*
+						return 1
+						endif
+					return 1
+					elif (<cont.dir>==4) && (<cont.targ.p.x>==<cont.p.x>) && (<cont.targ.p.y>==<cont.p.y>+1) // sul
+						if (strmatch(<cont.tag.classe>, Ladrao))
+						  more1=<cont.snooping>
+						  cont.snooping=1000
+						  more2=<cont.stealing>
+						  cont.stealing=1000
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado_ladrao
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.flags=(<cont.targ.flags> | 04)
+						  cont.targ.say *Voce foi imobilizado e ameacado com uma arma*
+						return 1
+						else
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.say *Voce foi abordado e ameacado com uma arma*
+						return 1
+						endif
+					return 1
+					elif (<cont.dir>==5) && (<cont.targ.p.x>==<cont.p.x>+(-1)) && (<cont.targ.p.y>==<cont.p.y>+1) // sudoeste
+						if (strmatch(<cont.tag.classe>, Ladrao))
+						  more1=<cont.snooping>
+						  cont.snooping=1000
+						  more2=<cont.stealing>
+						  cont.stealing=1000
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado_ladrao
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.flags=(<cont.targ.flags> | 04)
+						  cont.targ.say *Voce foi imobilizado e ameacado com uma arma*
+						return 1
+						else
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.say *Voce foi abordado e ameacado com uma arma*
+						return 1
+						endif
+					return 1
+					elif (<cont.dir>==6) && (<cont.targ.p.x>==<cont.p.x>+(-1)) && (<cont.targ.p.y>==<cont.p.y>) // oeste
+						if (strmatch(<cont.tag.classe>, Ladrao))
+						  more1=<cont.snooping>
+						  cont.snooping=1000
+						  more2=<cont.stealing>
+						  cont.stealing=1000
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado_ladrao
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.flags=(<cont.targ.flags> | 04)
+						  cont.targ.say *Voce foi imobilizado e ameacado com uma arma*
+						return 1
+						else
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.say *Voce foi abordado e ameacado com uma arma*
+						return 1
+						endif
+					return 1
+					elif (<cont.dir>==7) && (<cont.targ.p.x>==<cont.p.x>+(-1)) && (<cont.targ.p.y>==<cont.p.y>+(-1)) // noroeste
+						if (strmatch(<cont.tag.classe>, Ladrao))
+						  more1=<cont.snooping>
+						  cont.snooping=1000
+						  more2=<cont.stealing>
+						  cont.stealing=1000
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado_ladrao
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.flags=(<cont.targ.flags> | 04)
+						  cont.targ.say *Voce foi imobilizado e ameacado com uma arma*
+						return 1
+						else
+						  morep=<cont.p>
+						  cont.newitem=i_mry_abordado
+						  cont.act.cont=<cont.targ.uid>
+						  cont.act.link=<uid>
+						  link=<cont.act.uid>
+						  cont.act.morep=<cont.targ.p>
+						  cont.act.timer=1
+						  timer=1
+						  cont.targ.say *Voce foi abordado e ameacado com uma arma*
+						return 1
+						endif
+					return 1
+					endif
+				return 1
+				else
+				  cont.sysmessage Voce tem que estar bem atras de sua vitima senao ela podera perceber suas intencoes.
+				  remove
+				return 1
+				endif
+			return 1
+			else
+			  cont.sysmessage Chegue mais perto de sua vitima.
+			  remove
+			return 1
+			endif
+		return 1
+		else
+		  cont.sysmessage Voce nao consegue abordar monstros nem animais.
+		  remove
+		return 1
+		endif
+	return 1
+	else
+	  cont.sysmessage Voce esta muito cansado para abordar alguem. recupere o folego primeiro.
+	  remove
+	return 1
+	endif
+  return 1
+  else
+    cont.sysmessage Voce quer abordar a si mesmo???
+    remove
+  return 1
+  endif
+return 1
+else
+  cont.sysmessage Sua vitima esta muito atenta para ser surpreendida assim.
+  remove
+return 1
+endif
+return 1
+else
+  cont.sysmessage Nao se aproxime de sua vitima com uma atitude agressiva! ela ira perceber suas intencoes.
+  remove
+return 1
+endif
+
+
+on=@timer
+if (<cont.flags> & 020)
+  cont.flags=(<cont.flags> &~ 020)
+  cont.update
+  cont.sysmessage Voce esta abordando alguem. se quer lutar solte a vitima primeiro.
+  timer=1
+return 1
+elif (<link.cont.flags>&statf_dead)
+ cont.sysmessage Sua vitima esta inconsciente.
+ cont.say *larga o corpo*
+ remove
+ return 1
+
+elif (<cont.p.x> != <morex>) || (<cont.p.y> != <morey>) || (<cont.p.z> != <morez>) // Se o agressor se mexer..
+	if (<cont.dir>==0)
+	  link.cont.p <cont.p>
+	  //link.cont.p.y=<link.cont.p.y>+1
+	  link.cont.dir=4
+	  link.cont.update
+	  link.cont.move 0 1 0
+	  link.morep=<link.cont.p>
+	  morep=<cont.p>
+	 dorand (2)
+	  cont.say *arrastando a vitima*
+	 enddo
+	  timer=1
+	return 1
+	elif (<cont.dir>==1)
+	  link.cont.p <cont.p>
+	  //link.cont.p.x=<link.cont.p.x>+(-1)
+	  //link.cont.p.y=<link.cont.p.y>+1
+	  link.cont.dir=5
+	  link.cont.update
+	  link.cont.move -1 1 0
+	  link.morep=<link.cont.p>
+	  morep=<cont.p>
+	 dorand (2)
+	  cont.say *arrastando a vitima*
+	 enddo
+	  timer=1
+	return 1
+	elif (<cont.dir>==2)
+	  link.cont.p <cont.p>
+	  //link.cont.p.x=<link.cont.p.x>+(-1)
+	  link.cont.dir=6
+	  link.cont.update
+	  link.cont.move 0 -1 0
+	  link.morep=<link.cont.p>
+	  morep=<cont.p>
+	 dorand (2)
+	  cont.say *arrastando a vitima*
+	 enddo
+	  timer=1
+	return 1
+	elif (<cont.dir>==3)
+	  link.cont.p <cont.p>
+	  //link.cont.p.x=<link.cont.p.x>+(-1)
+	  //link.cont.p.y=<link.cont.p.y>+(-1)
+	  link.cont.dir=7
+	  link.cont.update
+	  link.cont.move -1 -1 0
+	  link.morep=<link.cont.p>
+	  morep=<cont.p>
+	 dorand (2)
+	  cont.say *arrastando a vitima*
+	 enddo
+	  timer=1
+	return 1
+	elif (<cont.dir>==4)
+	  link.cont.p <cont.p>
+	  //link.cont.p.y=<link.cont.p.y>+(-1)
+	  link.cont.dir=0
+	  link.cont.update
+	  link.cont.move 0 -1 0
+	  link.morep=<link.cont.p>
+	  morep=<cont.p>
+	 dorand (2)
+	  cont.say *arrastando a vitima*
+	 enddo
+	  timer=1
+	return 1
+	elif (<cont.dir>==5)
+	  link.cont.p <cont.p>
+	  //link.cont.p.x=<link.cont.p.x>+1
+	  //link.cont.p.y=<link.cont.p.y>+(-1)
+	  link.cont.dir=1
+	  link.cont.update
+	  link.cont.move 1 -1 0
+	  link.morep=<link.cont.p>
+	  morep=<cont.p>
+	 dorand (2)
+	  cont.say *arrastando a vitima*
+	 enddo
+	  timer=1
+	return 1
+	elif (<cont.dir>==6)
+	  link.cont.p <cont.p>
+	  //link.cont.p.x=<link.cont.p.x>+1
+	  link.cont.dir=2
+	  link.cont.update
+	  link.cont.move 1 0 0
+	  link.morep=<link.cont.p>
+	  morep=<cont.p>
+	 dorand (2)
+	  cont.say *arrastando a vitima*
+	 enddo
+	  timer=1
+	return 1
+	elif (<cont.dir>==7)
+	  link.cont.p <cont.p>
+	  //link.cont.p.x=<link.cont.p.x>+1
+	  //link.cont.p.y=<link.cont.p.y>+1
+	  link.cont.dir=3
+	  link.cont.update
+	  link.cont.move 1 1 0
+	  link.morep=<link.cont.p>
+	  morep=<cont.p>
+	 dorand (2)
+	  cont.say *arrastando a vitima*
+	 enddo
+	  timer=1
+	return 1
+	endif
+return 1
+else
+  timer=1
+  return 1
+endif
+return 1
+
+//////////////////////////////////////////////////////////////////
+
+
+[ITEMDEF i_mry_abordado_ladrao]
+id=i_memory//desenhinho
+layer=30// Se for equipado e ou mandar ir para um CONT, vai ser nessa layer.
+name=vitima de abordar ladrao
+type=t_eq_script
+
+on=@timer
+if (<link.cont.p.x> != <link.morex>) || (<link.cont.p.y> != <link.morey>) || (<link.cont.p.z> != <link.morez>)  // se o agressor arrasta a vitima
+	if (<cont.str> > <link.cont.str>)					// se a vitima é mais forte que o agressor
+	 dorand (3)
+	  abordar_ladrao
+	 enddo
+	return 1
+	else
+		if (<cont.dex> > <link.cont.dex>)				// se a vitima é mais ágil que o agressor
+		 dorand (3)
+		  abordar_ladrao
+		 enddo
+		return 1
+		else
+			if ({1 (200 / <eval <cont.wrestling>>)}==1)	// a vitima ainda tem chance de escapar (ferido) baseada na sua skill wrestling
+			 abordar_ladrao
+			return 1
+			else
+			  timer=1
+			return 1
+			endif
+		return 1
+		endif
+	return 1
+	endif
+return 1
+else
+timer=1
+return 1
+endif
+return 1
+
+//////////////////////////////////////////////////////////////////
+
+[function abordar_ladrao]
+  cont.flags=(<cont.flags> &~ 04)		// desparaliza a vitima
+  cont.newitem=i_mry_abordado			// cria memory abordado comum
+  cont.act.cont=<cont.uid>			// joga ela para a vitima
+  cont.act.link=<link.uid>			// linka a nova memory criada com a memory do agressor
+  link.link=<cont.act.uid>			// linka a memory do agressor com a nova memória criada
+  cont.act.morep=<cont.p>			// seta o morep da nova memory com o p da vitima
+  cont.act.timer=1				// seta a memory nova com timer=0.3
+  cont.sysmessage *Seu agressor se distraiu. Voce pode tentar fugir*
+  remove
+return 1
+
+//////////////////////////////////////////////////////////////////
+
+
+
+[ITEMDEF i_mry_abordado]
+id=i_memory//desenhinho
+layer=30// Se for equipado e ou mandar ir para um CONT, vai ser nessa layer.
+name=vitima de abordar
+type=t_eq_script
+
+on=@timer
+if (<cont.flags> & 020)
+  cont.tag.desmaios=5
+  cont.say *Voce tentou atacar seu agressor, e ele lhe cortou a garganta!!!*
+  link.cont.tag.pontosdemorte=<link.cont.tag.pontosdemorte> + (-1)
+  cont.suicide
+ dorand 5
+  cont.newitem=0122a
+  cont.newitem=0122b
+  cont.newitem=0122d
+  cont.newitem=0122e
+  cont.newitem=0122f
+ enddo
+  cont.act.attr=02
+  cont.act.p=<cont.p>
+  cont.act.timer={60 80]
+	if (strmatch(<cont.tag.classe>, Ladrao))
+	  link.cont.snooping=<link.more1>
+	  link.cont.stealing=<link.more1>
+	  link.remove 	
+	  remove
+	return 1
+	else
+	  link.remove 	
+	  remove
+	return 1
+	endif
+return 1
+elif (<cont.DIR> != <link.cont.DIR>)
+ cont.dir=<link.cont.dir>
+ cont.update
+ timer=1
+return 1
+elif (<cont.p.x> != <morex>) || (<cont.p.y> != <morey>) || (<cont.p.z> != <morez>)
+	if (<cont.str> > <link.cont.str>)					// se a vitima é mais forte que o agressor
+	 cont.say *Voce tenta se soltar usando sua forca*
+	 dorand (5)
+	  abordar_escapa
+	  abordar_escapa
+	  abordar_machuca
+	  abordar_machuca
+	  abordar_morre
+	 enddo
+	return 1
+	else
+		if (<cont.dex> > <link.cont.dex>)				// se a vitima é mais ágil que o agressor
+		 cont.say *Voce tenta se soltar usando sua agilidade*
+		 dorand (5)
+		  abordar_escapa
+		  abordar_machuca
+		  abordar_machuca
+		  abordar_morre
+		  abordar_morre
+		 enddo
+		return 1
+		else
+			if ({1 (200 / <eval <cont.wrestling>>)}==1)	// a vitima ainda tem chance de escapar (ferido) baseada na sua skill wrestling
+			 cont.say *Voce tenta se soltar usando seus conhecimentos de luta*
+			 abordar_machuca
+			return 1
+			else
+			  abordar_morre
+			return 1
+			endif
+		return 1
+		endif
+	return 1
+	endif
+return 1
+else
+timer=1
+return 1
+endif
+return 1
+
+/////////////////////////////////////////////////////////
+
+[function abordar_escapa]
+  cont.say *Voce se soltou!!!*
+	if (strmatch(<cont.tag.classe>, Ladrao))
+	  link.cont.snooping=<link.more1>
+	  link.cont.stealing=<link.more1>
+	  link.remove 	
+	  remove
+	return 1
+	else
+	  link.remove 	
+	  remove
+	return 1
+	endif
+return 1
+
+
+[function abordar_machuca]
+  cont.damage=<cont.hitpoints>+(-5)
+  cont.say *Voce se soltou, mas se feriu gravemente!!!*
+ dorand 5
+  cont.newitem=0122a
+  cont.newitem=0122b
+  cont.newitem=0122d
+  cont.newitem=0122e
+  cont.newitem=0122f
+ enddo
+  cont.act.attr=02
+  cont.act.p=<cont.p>
+  cont.act.timer={60 80]
+	if (strmatch(<cont.tag.classe>, Ladrao))
+	  link.cont.snooping=<link.more1>
+	  link.cont.stealing=<link.more1>
+	  link.remove 	
+	  remove
+	return 1
+	else
+	  link.remove 	
+	  remove
+	return 1
+	endif
+return 1
+
+
+[function abordar_morre]
+  link.cont.say *A vitima tentou escapar e voce cortou a garganta dela sem dó*
+ dorand 5
+  cont.newitem=0122a
+  cont.newitem=0122b
+  cont.newitem=0122d
+  cont.newitem=0122e
+  cont.newitem=0122f
+ enddo
+  cont.act.attr=02
+  cont.act.p=<cont.p>
+  cont.act.timer={60 80]
+  link.cont.tag.pontosdemorte=<link.cont.tag.pontosdemorte> + (-1)
+  cont.tag.desmaios=5
+  cont.suicide
+	if (strmatch(<cont.tag.classe>, Ladrao))
+	  link.cont.snooping=<link.more1>
+	  link.cont.stealing=<link.more1>
+	  link.remove 	
+	  remove
+	return 1
+	else
+	  link.remove 	
+	  remove
+	return 1
+	endif
+return 1
+
+
+
+
+
+
+//if ({1 (100 / <eval <cont.tactics>>)}==1)
+
+//if ({1 (<eval <cont.str>>/5)}==1)
+
+//if ({1 <eval (<tailoring>/10)>}==1)
+
+//SRC.TARG.DAMAGE=<EVAL((<SRC.ARCHERY>) / 14)>
+
+//say *consegue se soltar*
+
+[eof]
+
+
+

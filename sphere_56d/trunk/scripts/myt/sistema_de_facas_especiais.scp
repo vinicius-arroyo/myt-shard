@@ -1,0 +1,430 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE FACAS ESPECIAIS
+// 
+//  Jean Gabin
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//TAGS usadas:
+
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+[DEFNAME HIDE_COLOR]
+HIDE_53_COLOR=03BA      //Troll
+HIDE_54_COLOR=03BA      //Troll
+HIDE_55_COLOR=03BA      //Troll
+HIDE_42_COLOR=0158      //Ratman
+HIDE_44_COLOR=0158      //Ratman
+HIDE_45_COLOR=0158      //Ratman
+HIDE_207_COLOR=031c     //Ovelha
+HIDE_223_COLOR=031c     //Ovelha
+HIDE_209_COLOR=031c     //Bode
+HIDE_202_COLOR=02F7     //Crocodilo
+HIDE_29_COLOR=03C3      //Gorila
+HIDE_214_COLOR=03C2     //Pantera
+HIDE_211_COLOR=0422     //Urso
+HIDE_212_COLOR=015E     //Urso cinzento
+HIDE_213_COLOR=031c     //Urso polar
+HIDE_80_COLOR=038       //Sapo gigante
+HIDE_256_COLOR=03EA     //Proparoxítono
+HIDE_173_COLOR=03C2     //A Aragnia
+HIDE_11_COLOR=03C2      //Aranha terrivel
+HIDE_70_COLOR=0170      //Teradan
+HIDE_152_COLOR=017C     //Teradan
+HIDE_71_COLOR=0EC       //Teradan
+HIDE_72_COLOR=015D      //Teradan
+HIDE_307_COLOR=0128     //Gibberling
+HIDE_242_COLOR=0241     //Kith
+HIDE_776_COLOR=0C8      //Tricrin
+HIDE_241_COLOR=006d5    //Demonio corredor
+HIDE_785_COLOR=0c8      //Baal o demonio
+HIDE_248_COLOR=0015e    //Bahamuth
+HIDE_174_COLOR=00763    //Senhora do abismo
+HIDE_149_COLOR=00763    //Sukkubus
+HIDE_784_COLOR=00158    //Senhor do abismo
+HIDE_314_COLOR=00014    //demonho carniceiro
+HIDE_192_COLOR=00158    //Demonio do Caos
+HIDE_755_COLOR=00032    //Mestre Gargula
+HIDE_102_COLOR=00152    //Senhor dos demonios
+HIDE_122_COLOR=00128    //Unicornio
+HIDE_316_COLOR=00138    //Andarilho do vacuo
+HIDE_788_COLOR=00128    //Esfinge
+HIDE_62_COLOR=00092     //Dragao aquatico
+HIDE_9_COLOR=00152      //Demonio grande normal
+HIDE_10_COLOR=0454      //Demonio grande espada
+HIDE_59_COLOR=00152     //Dragao Vemelho
+HIDE_12_COLOR=0015e     //Dragao cinzento
+HIDE_60_COLOR=0015e     //Dragao pequeno preto
+HIDE_61_COLOR=00152     //Dragao pequeno vermelho
+HIDE_265_COLOR=0010a    //Hydra
+HIDE_276_COLOR=00164    //Quimera
+
+
+FE_PENAS    01
+FE_CARNE    02
+FE_MIUDOS   04
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// f_sistemaFacas( <ferramenta>,<corpse/peixe>
+//*****************************************************************************
+//escolhe o tipo de corte feito baseado na ferramenta usada
+[FUNCTION f_sistemaFacas]
+obj=<argv0>
+ref1=<argv1>
+if (<ref1.type>==t_fish)
+    corte_peixe <argv1>
+elif (<src.targ.topobj.uid> == <src.uid>)
+    sysmessagered A carne deve estar em um apoio!
+else
+    if <obj.baseid>==i_faca_pelar
+        pelar <argv1>
+    elif <obj.baseid>==i_knife_butcher  
+        acogueiro <argv1>
+    elif <obj.baseid>==i_cutelo  
+        acogueiro_cutelo <argv1>
+    else    
+        corte_normal <argv1>
+    endif
+endif
+
+//*****************************************************************************
+// sangrar
+//*****************************************************************************
+//cria poca de sangue no corpse E próximo na cor do sangue do NPC
+[FUNCTION sangrar]
+sfx 059
+if (<isempty <serv.chardef.<morex>.bloodcolor>>)
+    return 1
+endif
+local.color=<serv.chardef.<morex>.bloodcolor>
+
+//cria poca de sangue no corpse
+dorand 5
+    serv.newitem=0122a
+    serv.newitem=0122b
+    serv.newitem=0122d
+    serv.newitem=0122e
+    serv.newitem=0122f
+enddo
+new.color=<LOCAL.color>
+new.attr=attr_decay|attr_move_never
+new.p=<p>
+new.timer=60
+
+if <argn1>
+    return 1
+endif
+
+//cria poca de sangue proximo ao corpse
+dorand 5
+    serv.newitem=0122a
+    serv.newitem=0122b
+    serv.newitem=0122d
+    serv.newitem=0122e
+    serv.newitem=0122f
+enddo
+new.color=<LOCAL.color>
+new.attr=attr_decay|attr_move_never
+new.movenear <uid> 1
+new.timer=60
+
+//*****************************************************************************
+// corte_normal
+//*****************************************************************************
+//Retirar pelo, pele, penas e carne do corpo com penalidade.
+[FUNCTION corte_normal]
+obj=<argn>
+if ((<obj.distance> >1) && (<gm>==0))
+    sysmessageyellow Longe demais...
+    return 1
+elif (<obj.tag0.carve>&07)
+    sysmessageyellow Nao ha nada para tirar nesse corpo.
+    return 1
+endif
+obj.tag0.carve |= 07
+obj.sangrar
+anim 32
+emoteyellow Cortando corpo
+ctag.penalty=1
+f_get_corpse_resources <obj.uid>,t_feather;t_hide;t_fur;t_reagente;t_script;i_ribs_raw;i_chicken_leg_raw
+
+//*****************************************************************************
+// corte_peixe
+//*****************************************************************************
+[FUNCTION corte_peixe]
+obj=<argn>
+if ((<obj.distance> >1) && (<gm>==0))
+    sysmessageyellow Longe demais...
+    return 1
+endif
+anim 9
+emoteyellow Cortando peixe
+f_get_corpse_resources <argn>,t_food_raw
+uid.<argn>.decrement
+
+//*****************************************************************************
+// pelar
+//*****************************************************************************
+[FUNCTION pelar]
+//Retirar pelo, pele, penas do corpo.
+obj=<argn>
+if ((<obj.distance> >1) && (<gm>==0))
+    sysmessageyellow Longe demais...
+    return 1
+elif (<obj.tag0.carve>&01)
+    sysmessageyellow Este corpo ja foi depenado.
+    return 1
+endif
+obj.tag0.carve |= 01
+obj.sangrar
+anim 32
+emoteyellow depenando corpo
+f_get_corpse_resources <obj.uid>,t_feather;t_hide;t_fur;t_reagente;t_script
+
+//*****************************************************************************
+// acogueiro
+//*****************************************************************************
+[FUNCTION acogueiro]
+//Retirar carne do corpo
+obj=<argn>
+if ((<obj.distance> >1) && (<gm>==0))
+    sysmessageyellow Longe demais...
+    return 1
+elif (<obj.tag0.carve>&02)
+    sysmessageyellow Este corpo ja foi retalhado.
+    return 1
+endif
+obj.tag0.carve |= 02
+obj.sangrar
+anim 32
+emoteyellow Retalhando corpo
+f_get_corpse_resources <obj.uid>,i_ribs_raw;i_bird_raw;i_chicken_leg_raw
+
+//*****************************************************************************
+// acogueiro_cutelo
+//*****************************************************************************
+[FUNCTION acogueiro_cutelo]
+//Retirar miudos do corpo
+obj=<argn>
+if ((<obj.distance> >1) && (<gm>==0))
+    sysmessageyellow Longe demais...
+    return 1
+elif (<obj.tag0.carve>&04)
+    sysmessageyellow Este corpo nao tem mais miudos.
+    return 1
+endif
+obj.tag0.carve |= 04
+obj.sangrar
+anim 32
+emoteyellow Retirando miudos do corpo
+f_get_corpse_resources <obj.uid>,i_lamb_leg_raw;i_rabbit_raw;i_ham_raw;i_pig_raw;i_bacon_slab_raw;i_reag_worm_heart;i_flesh_heart;i_flesh_liver;i_flesh_brain
+
+//*****************************************************************************
+// f_get_corpse_resources
+//*****************************************************************************
+//<argv[0]> = UID do corpse
+//<argv[1]> = string com os TYPEs e/ou ITEMDEFs separador por ; (ex.: t_meat_raw;t_feather;t_hide;i_ribs_raw)
+[FUNCTION f_get_corpse_resources]
+obj=<argv[0]>
+
+//corpse ou fish?
+if (<obj.type>==t_corpse)
+    LOCAL.resources=<SERV.CHARDEF.<obj.morex>.resources>
+elif (<obj.type>==t_fish)
+    LOCAL.resources=<obj.TAG.fish>
+endif
+
+LOCAL.count=<f_count_resources <LOCAL.resources>>
+//para cada resource do corpse/fish
+for r 1 <LOCAL.count>
+    //le resource e quantidade
+    LOCAL.res=<f_strip_resources <LOCAL.r>,<LOCAL.resources>>
+    LOCAL.amt=<strarg <LOCAL.res>>
+    if (<LOCAL.amt>)
+        LOCAL.res=<streat <LOCAL.res>>
+    endif
+    
+    //se o tipo ou o itemdef estiver na lista de permitidos
+    if (strmatch(*<serv.itemdef.<LOCAL.res>.type>*,<argv[1]>)) || (strmatch(*<LOCAL.res>*,<argv[1]>))
+        if (<f_try_get_corpse_resource <LOCAL.res>>)
+            //indica que um item foi extraido
+            LOCAL.done=1
+
+            if (<LOCAL.amt> > 2)
+                LOCAL.amt=<BETWEEN 0,<LOCAL.amt>,<anatomy>,100.0>
+            endif
+            
+            skill_gain Skill_Anatomy
+            serv.newitem <LOCAL.res>
+            if (<LOCAL.amt>)
+                //aplica penalidade se estiver usando uma ferramenta que não seja uma faca especial.
+                if (<ctag0.penalty>)
+                    new.amount=<EVAL (<local.amt>*3)/5>
+                else
+                    new.amount=<LOCAL.amt>
+                endif
+                if (!<new.amount>)
+                    new.amount 1
+                endif
+            endif
+            //Salva que tipo de couro é
+            if (<new.type>==t_fur) || (<new.type>==t_hide)
+                new.more2=<uid.<argv0>.morex>
+                if (!<IsEmpty <DEF.HIDE_<uid.<argv[0]>.morex>_COLOR>>)
+                    new.color=<DEF.HIDE_<uid.<argv[0]>.morex>_COLOR>
+                else
+                    new.color=<uid.<argv0>.color>
+                endif
+            endif
+            //Se é corpo, põe dentro do corpo. Se não é corpo, bounce.
+            if (<uid.<argv[0]>.type>==t_corpse)
+                new.cont=<argv[0]>
+            else
+                bounce <new>
+            endif
+        endif
+    endif
+endfor
+
+if (<LOCAL.done>)
+    sysmessagegreen Voce pode cortar e retirar alguma coisa.
+else
+    sysmessagegreen Voce corta mas nao tira nada de util.
+endif
+ctag.penalty
+
+//Deteriora a ferramenta
+weapon.hits -= 1
+if (!<weapon.hits>)
+ sysmessageorange <weapon.name> se quebrou.
+ weapon.remove
+endif
+
+//*****************************************************************************
+// f_try_get_corpse_resource
+//*****************************************************************************
+//Checa skill para tirar aquele resource em específico
+//Testa o SKILLMAKE do itemdef (ex.: SKILLMAKE=ANATOMY 60.0)
+//<args> = ITEMDEF
+[FUNCTION f_try_get_corpse_resource]
+if (<IsEmpty <serv.itemdef.<args>.SKILLMAKE>>)
+    //não precisa de skill
+    return 1
+else
+    try LOCAL.skill=<src.<streat <serv.itemdef.<args>.SKILLMAKE>>>
+    if (<ctag0.penaly>)
+        //aplica penalidade se estiver usando uma ferramenta que não seja uma faca especial.
+        LOCAL.skill=<eval (<LOCAL.skill>*3)/5>
+    endif
+
+    //faz teste de skill, retorna 1 se ok
+    if (<BELLTEST <LOCAL.skill>,<strarg <serv.itemdef.<args>.SKILLMAKE>>>)
+        return 1
+    endif
+endif
+//não consegue tirar o resource.
+return 0
+
+//*****************************************************************************
+// f_strip_resources
+//*****************************************************************************
+//Explode e retorna a resource ARGN
+[FUNCTION f_strip_resources]
+return <argv[<eval <argn>>]>
+
+//*****************************************************************************
+// f_count_resources
+//*****************************************************************************
+//Conta quantas resources tem <args>
+[FUNCTION f_count_resources]
+return <argv>
+
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_faca_pelar
+//*****************************************************************************
+[TYPEDEF t_faca_pelar]  //Skinning kinife - usada para tirar o couro dos seres
+
+ON=@Carving
+src.equip <UID>
+src.sysmessageyellow Em que voce deseja usar isso?
+target
+return 1
+
+ON=@TARGON_GROUND 
+src.sysmessagered Use esta faca para tirar couro ou pelo de seres mortos.
+return 1  
+
+ON=@TARGON_CHAR
+src.sysmessagered Use esta faca para tirar couro ou pelo de seres mortos.
+return 1
+
+//ON=@TARGON_ITEM 
+//esta sendo chamado no skill_armslore.scp
+
+//*****************************************************************************
+// t_faca_corte
+//*****************************************************************************
+[TYPEDEF t_faca_acougue]
+on=@Carving
+src.equip <UID>
+src.sysmessageyellow Em que voce deseja usar isso?
+target
+return 1
+
+ON=@TARGON_GROUND 
+src.sysmessagered Use esta faca apenas para extrair carne e orgaos de seres mortos.
+return 1  
+
+ON=@TARGON_CHAR
+src.sysmessagered Use esta faca apenas para extrair carne e orgaos de seres mortos.
+return 1
+
+//ON=@TARGON_ITEM 
+//esta sendo chamado no skill_armslore.scp
+
+
+//*****************************************************************************
+// t_cutelo
+//*****************************************************************************
+[TYPEDEF t_cutelo]
+//Cleaver - usada para cortar a cabeça de alguns animais e seres para fazer troféu e/ou mascara. corta o corpo humano em partes também
+ON=@Carving
+src.equip <UID>
+src.sysmessageyellow Em que voce deseja usar isso?
+target
+return 1
+
+ON=@TARGON_GROUND 
+src.sysmessagered Use o cutelo apenas para cortar carne de seres mortos.
+return 1  
+
+ON=@TARGON_CHAR
+src.sysmessagered Use o cutelo apenas para cortar carne de seres mortos.
+return 1
+
+//ON=@TARGON_ITEM 
+//esta sendo chamado no skill_armslore.scp
+
+[EOF]

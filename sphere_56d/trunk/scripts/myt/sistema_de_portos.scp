@@ -1,0 +1,286 @@
+//  ########################################################
+//  ########################################################
+//          Sistema de Portos Baía dos Mortos
+//           Para ganhar os mares moderadamente
+//
+//          Misliti
+//
+//  ########################################################
+//  ########################################################
+//  TODO:
+//  - Permitir uso de prata e ouro no i_guiche_docas
+//  - Scriptar em cima do gump para substituir o atual i_guiche_docas
+//  - Fazer multi sem spk ship cammands
+//  - Tornar barco comercializável
+//
+//  TAGs utilizadas:
+//   tag.direcao    informa em qual direção o usuário é movido. Utilize N, NE, E, SE, S, SW, W ou NW
+//   tag.porto      informa a quantos tiles precisa haver um t_ship para a catraca permitir a entrada. Usa valor numerico.
+//   tag.price      informa o valor do preço em moedas de cobre. Neste script, o valor do bilhete nautico
+//
+//  ########################################################
+//
+// COMO USAR mimimi
+// adicione o multi de barco.
+// adicione a i_catraca e ajuste a tag.porto com a distancia do barco mais proximo e a tag.direcao para o sentido de entrada no porto
+// adicione o i_guiche_docas e ajuste a tag.price com o preço em moedas de cobre do bilhete de passagem
+// adicione o i_embarque a até 2 tiles de distância de uma das bordas do barco
+// adicione o i_desembarque a até 2 tiles de distância de dentro do barco
+// adicione o i_nau se quiser barcos acionaveis por dclicks. O More2 dira por quanto tempo ela navegará antes de girar 180graus.
+// adicione o i_nau_automatica se quiser barcos que se acionam sozinhos. O More2 define o tempo padrão, mas
+//                             para começar é preciso que de um primeiro set timer como ignição.
+// tanto a i_nau quanto o i_nau_automatica precisam ser linkados a um item guia de multi com type t_ship.
+//
+//  ########################################################
+
+               //////////////////////////
+/////////////////   NAU AUTOMÁTICA   ///////////////////
+             //////////////////////////
+// Item adicionado dentro de um t_ship e faz
+// com que o ship turn around e siga no sentido oposto
+// sempre que o timer é zerado.
+// o timer é definido pelo more2.
+// Invisível aos players!
+
+[ITEMDEF i_nau_automatica]
+id = 014f8
+name = Barco Automatico
+type = t_buy_misc
+CATEGORY = MyT - Items buy professions
+SUBSECTION = Fisherman
+DESCRIPTION = Gira 180o e da a partida em itens t_ship ligados
+
+on=@Create
+    ATTR = 090
+    color = 1578
+    
+on=@Clienttooltip
+    src.f_sendTooltip <name>,MORE2 de intervalo entre cada partida
+    return 1
+
+on=@DClick
+    src.sysmessageyellow Selecione o mastro de um t_ship para linkar...
+    target
+return 1
+
+on=@Targon_Item
+if (<<targ.type>!<t_ship>>)
+    src.sysmessagered Isso nao eh um t_ship
+    return 1
+    else
+    link <src.targ.uid>
+    sysmessageyellow Linkado com sucesso!
+    return 0
+endif
+
+on=@timer
+    link.say @38 Ahooooy!
+    link.shipturn
+    link.say @26 Velas ao maaar!
+    link.shipfore
+    link.shipfore
+    serv.newitem i_no_auto //gera um novo pq o shipturn apaga os itens sobre o barco
+    new.p=<link.p> // novo sobre o mastro
+    new.nudgeup 10
+    new.link=<link> //mantém linkado ao mesmo mastro
+    new.more2=<more2> //mantem o tempo que estava setado
+    return 0
+    
+               ////////////////////////////
+/////////////////    NAU ACIONÁVEL   ///////////////////
+             //////////////////////////
+//item com aparencia de corda que se der 2 clicks da partida no item t_ship
+//more 2 determina tempo de navegacao antes do navio virar.
+//É visível aos players.
+
+[ITEMDEF i_nau]
+id = 014f8
+name = No de Marinheiro
+type = t_buy_misc
+CATEGORY = MyT - Items buy professions
+SUBSECTION = Fisherman
+DESCRIPTION = Navega por certo tempo antes de girar 180o
+
+on=@Create
+    attr = 010
+    
+on=@Clienttooltip
+if (<src.isgm>)
+    src.f_sendTooltip <name>,MORE2 segundos navegacao antes de girar,LINKAR a um t_ship
+    return 1
+    else
+        src.f_sendTooltip <name>,clique duas vezes para desatar
+        return 1
+endif
+    
+on=@DClick
+IF (<src.distance <UID>> > 1) && (!<SRC.IsGM>)
+ src.sysmessageyellow Muito longe...
+ return 1
+endif
+    src.emotered Solta as amarras liberando as velas ao vento!
+    link.shipfore
+    link.shipfore
+    timer <more2>
+    attr = 090
+    update
+    return 1
+
+on=@timer
+    link.shipturn
+    serv.newitem i_nau
+    new.p=<link.p>
+    new.nudgeup 10
+    new.link=<link>
+    new.more2=<more2>
+    remove
+    return 0
+    
+
+             /////////////////////////////
+///////////////    ACESSO ÀS DOCAS    //////////////
+           /////////////////////////////
+//  TAGs utilizadas:
+// tag.porto        informa a quantos tiles precisa haver um t_ship para a catraca permitir a entrada. Usa valor numerico.
+// tag.direcao    informa em qual direção o usuário é movido. Utilize N, NE, E, SE, S, SW, W ou NW
+
+[ITEMDEF i_catraca]
+id = 085c
+name = Catraca
+type = t_normal
+CATEGORY = MyT - Items buy professions
+SUBSECTION = Fisherman
+DESCRIPTION = libera a passagem de quem possui o bilhete adequado
+on=@create
+    color = 38
+    attr
+
+On=@Clienttooltip
+if (<src.isgm>)
+    if (<tag.porto> > 1>
+        src.f_sendTooltip <name>,Ajuste a tag.porto com a distancia do barco mais proximo
+        return 1
+        else
+            src.f_sendTooltip <name>,tag.porto ajustada em <tag.porto> tiles
+        return 1
+    endif
+    return 1
+    else
+        src.f_sendTooltip <name>,clique duas vezes para passar
+        return 1
+endif
+
+On=@Dclick;
+if (<IsNearType t_ship <tag.porto>>); //testa se ha navio disponivel no porto
+    if (<src.findid.i_bilhete_nautico>)
+        src.findid.i_bilhete_nautico.remove
+        flip;
+        src.move <tag.direcao> 2 //move o char 2 tiles na direcao informada pela tag
+        say @43 Crac!
+        dispid 085c
+        update
+        return 1
+    else
+        src.sysmessage Voce precisa ter um bilhete na mochila. Procure um guiche.
+        return 1
+    endif
+    return 1
+else
+    sysmessagered Nao ha barcos disponiveis nas docas. Aguarde.
+    return 1
+endif
+return 0
+
+//////////////////////////////////////////////////////
+
+[ITEMDEF i_bilhete_nautico]
+id = 014ed
+name = Bilhete de Passagem
+type = t_normal
+
+on=@Clienttooltip
+    src.f_sendTooltip <name>,vale um translado
+    return 1
+    
+on=@Dclick
+    src.sysmessage Com esse bilhete na mochila, va para uma catraca.
+    return 1
+    
+//////////////////////////////////////////////////////
+
+[ITEMDEF i_embarque]
+id = 07cd
+name = Tabua de Embarque
+type = t_normal
+//quando o player pisa em cima, ele empurra o player 3 tiles na
+//direção de tag.direcao se houver um mastro a até 4 tiles de distancia.
+
+On=@step
+if (<IsNearType t_ship 4>)
+    src.move <tag.direcao> 3
+    return 1
+    else
+        sysmessagered Aguarde a chegada de um barco.
+    return 1
+endif
+
+//////////////////////////////////////////////////////
+
+[ITEMDEF i_desembarque]
+id = 01e9b
+name = Apoio de Desembarque
+type = t_normal
+//quando o player dá 2clicks ele puxa o char para a mesma posição que ele.
+
+on=@create
+attr = 010
+
+on=@dclick
+if (<distance> > 2)
+src.sysmessagered Muito longe...
+else
+src.p <p>
+src.update
+endif
+return 1
+
+//////////////////////////////////////////////////////
+
+[ITEMDEF i_guiche_docas]
+id = 02af9
+name = Guiche das Docas
+type = t_normal
+//quando o player dá 2clicks ele cobra <tag.price> moedas de cobre e da um i_bilhete_nautico
+//direção de tag.direcao se houver um mastro a até 4 tiles de distancia.
+
+on=@Clienttooltip
+    src.f_sendTooltip <name>,Compre aqui seu Bilhete de Passagem.
+    return 1
+    
+on=@dclick
+src.sysmessageblue Lembre-se que as Docas só trabalham com cobre!
+if (<src.restest <tag.price> i_coin_copper>)
+    src.consume <tag.price> i_coin_copper
+    src.sysmessageyellow Comprou um Bilhete de Passagem!
+    src.sysmessage O bilhete curstou-lhe <tag.price> moedas de cobre...
+    src.newitem i_bilhete
+    src.act.bounce
+    return 1
+else
+    src.susmessagered Voce nao tem as moedas necessarias...
+    return 1
+endif
+
+
+      ////////  ////////  ////////  ////////  ////////  ////////  ////////  ////////
+////////  ////////  ////////  ////////  ////////  ////////  ////////  ////////  ////////
+    ////////  ////////  ////////  ////////  ////////  ////////  ////////  ////////
+    
+                          ///     ///  ///   //////   //////
+                         ///\\ / ///  ///  ///      ///  
+                        /// \\/ ///  ///    /////    /////
+                       ///     ///  ///    ____///  ____///
+                       
+      ////////  ////////  ////////  ////////  ////////  ////////  ////////  ////////
+////////  ////////  ////////  ////////  ////////  ////////  ////////  ////////  ////////
+    ////////  ////////  ////////  ////////  ////////  ////////  ////////  ////////

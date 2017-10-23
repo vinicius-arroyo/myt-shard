@@ -1,0 +1,1211 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL ARMS LORE
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//TAGS usadas:
+
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+[DEFNAME armslore_msg]
+arml_dam1= Nao parece nem um pouco perigoso.
+arml_dam2= Pode machucar alguem um pouco.
+arml_dam3= Causa pouco dano.
+arml_dam4= Causa um dano razoavel.
+arml_dam5= Causa um dano consideravel.
+arml_dam6= E uma arma perigosa.
+arml_dam7= Causa um dano grande.
+arml_dam8= Causa um dano mortal.
+arml_dam9= E mortal.
+arml_dam10= E extremamente mortal.
+arml_dam11= E sobrenatural.
+ 
+arml_arm1= Nao oferece protecao.
+arml_arm2= Pode proteger um pouco.
+arml_arm3= Protege pouco.
+arml_arm4= Oferece uma protecao razoavel.
+arml_arm5= Oferece uma protecao consideravel.
+arml_arm6= Protege bem.
+arml_arm7= Protege muito bem.
+arml_arm8= E uma excelente protecao.
+arml_arm9= E quase a melhor protecao.
+arml_arm10= Te faz quase invencivel.
+arml_arm11= Tem uma protecao sobrenatural
+
+arml_dur1= quebrando.
+arml_dur2= em boas condicoes.
+arml_dur3= perfeito.
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// sk_armslore - armslore skill
+//*****************************************************************************
+//Função inicial chamada pelo botão da skill
+[FUNCTION sk_armslore]
+if (<src.findid.i_armslore_mry>)
+    src.sysmessagered Voce ainda nao pode analisar outro item.
+else
+    sysmessageyellow O que gostaria de analisar?
+    targetf sk_armslore_
+endif    
+return 1
+
+[FUNCTION sk_armslore_]
+
+if (!<Skill_InUse SKILL_ARMSLORE>)
+    src.sysmessagered Voce so pode fazer uma coisa por vez
+    src.Skill_InUse 0
+    return 1
+elif !<argo>
+    src.sysmessagered Isto nao pode ser identificado.
+    return 1
+elseif (<argo.canseelos> == 0)
+    src.sysmessagered Seu alvo esta fora da linha de visao.
+    return 1
+elif (!<argo.isweapon>) && (!<argo.isarmor>)
+    src.sysmessagered Use arms lore em armas ou armaduras.
+    return 1
+elif (<argo.attr>&attr_identified)
+    src.sysmessagered Este item ja foi identificado.
+    return 1
+endif
+
+src.emoteyellow observando <argo.name>
+src.ctag.disturb=0
+src.newitem i_armslore_mry
+NEW.more=<eval 11-(<src.armslore>/100)>
+
+if ( <NEW.more> <= 0 )
+    NEW.more=1
+endif
+
+NEW.link=<argo>
+NEW.cont=<src>
+NEW.timer=1
+
+return 1    
+
+//*****************************************************************************
+// f_weaponTargetItem
+//*****************************************************************************
+//evita que os corpos dos players sejam cortados sem perder ponto de alma
+[FUNCTION f_weaponTargetItem]
+if (<src.targ.type>==t_corpse)
+    if (<src.targ.link>!=04fffffff)
+        src.sysmessageyellow Nao pode fazer isso. Para assassinar esse jogador de double click e utilize o menu.
+        return 1
+    else
+        src.f_sistemaFacas <uid>,<src.targ>
+    endif
+elif (<src.targ.type>==t_fish)
+    src.f_sistemaFacas <uid>,<src.targ>
+elif (<src.targ.type>==t_log)
+    src.ctag.craft_tool=<src.weapon>
+    src.craftItem i_kindling,<MINIMUMN <src.targ.amount>,10>
+else
+    src.sysmessageyellow Nao sabe o que fazer com isso.
+endif
+return 1
+
+//*****************************************************************************
+// f_weaponTargetGround
+//*****************************************************************************
+//evita acoes muito distantes
+[FUNCTION f_weaponTargetGround]
+if <src.distance <src.targp>> > 1 
+    src.sysmessageyellow Muito longe!!
+    return 1
+endif
+return 0
+
+//*****************************************************************************
+// f_weaponDclick
+//*****************************************************************************
+//Evita criação de arcos complexos com dagger e strip de resources padrão dos corpses
+[FUNCTION f_weaponDclick]
+if (<defname>==i_faca_pelar) || (<defname>==i_knife_butcher) || (<defname>==i_cutelo)
+ trigger=@Carving
+ return 1
+endif
+return 2
+
+//*****************************************************************************
+// f_weaponTooltip( [skipTooltipAndReturnText] )
+//*****************************************************************************
+//mostra tooltip de armas de acordo com armslore
+//**** ATENCAO ***
+//LOCAL.t NAO PODE ULTRAPASSAR 512 bytes, contando tags (<BR>,<BASEFONT>.etc)
+//CRASH NO CLIENT SE PASSAR
+//****************
+
+[FUNCTION f_weaponTooltip]
+//bug do sistema de vendas
+if (<type>==t_weapon_arrow)
+    return 
+endif
+if (!<maxhits>)
+    serv.log ALOOOW: <name> <type> <uid> <src>
+    maxhits=1
+endif
+//gm ve tudo
+if (<src.isgm>) || (<attr>&attr_identified)
+    LOCAL.c=1
+else
+    LOCAL.c=0
+endif
+
+//definir nome de exibição
+LOCAL.name=<name>
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
+  LOCAL.name=<DEF.<baseid>_IDNAME>
+endif
+
+//mostrar atributos
+if !(<LOCAL.c>)
+    LOCAL.t = (nao identificado)<DEF.br>
+else
+
+    LOCAL.t = "<DEF.br>"
+    
+    if (<attr>&attr_cursed)
+        LOCAL.t .= <DEF.bfont_lpurple>amaldiçoado<DEF.br>
+    endif
+    if (<attr>&attr_cursed2)
+        LOCAL.t .= <DEF.bfont_lpurple>maldito<DEF.br>
+    endif
+    if (<attr>&attr_blessed)
+        LOCAL.t .= <DEF.bfont_dcyan>abençoado<DEF.br>
+    endif
+    if (<attr>&attr_blessed2)
+        LOCAL.t .= <DEF.bfont_dcyan>sagrado<DEF.br>
+    endif
+
+    if (<morex>==s_poison)
+        LOCAL.t .= <DEF.bfont_dcyan>Envenenado<DEF.br>
+    elif (<attr>&attr_magic)
+        if (<morex>) && (<morex>!=s_poison)
+            LOCAL.t .= <DEF.bfont_dcyan>Magia:<DEF.bfont_white> <serv.spell.<more2>.name><DEF.br>
+        else
+            LOCAL.t .= <DEF.bfont_dcyan>Mágico<DEF.br>
+        endif
+    endif
+    
+    if (<damfire>)
+        LOCAL.t .= "<DEF.bfont_dcyan>Fogo:<DEF.bfont_white> +<eval <damfire>><DEF.br>"
+    endif
+    if (<damcold>)
+        LOCAL.t .= "<DEF.bfont_dcyan>Gelo:<DEF.bfont_white> +<eval <damcold>><DEF.br>"
+    endif
+    if (<dampoison>)
+        LOCAL.t .= "<DEF.bfont_dcyan>Veneno:<DEF.bfont_white> +<eval <dampoison>><DEF.br>"
+    endif
+    if (<damenergy>)
+        LOCAL.t .= "<DEF.bfont_dcyan>Eletricidade:<DEF.bfont_white> +<eval <damenergy>><DEF.br>"
+    endif
+    if (<tag0.modskillval>)
+        LOCAL.t .= "<DEF.bfont_dcyan><tag.modskill>:<DEF.bfont_white> +<fval <tag.modskillval>><DEF.br>"
+    endif
+    
+endif
+
+//mostra dano
+LOCAL.t .= "<DEF.bfont_dcyan>Dano:<DEF.bfont_white> "
+LOCAL.min=<dam.lo>
+LOCAL.max=<dam.hi>
+LOCAL.d=<eval (<dam.hi>+<dam.lo>)/2>
+if (<LOCAL.d><5)
+    LOCAL.t .= Fraco
+elif (<LOCAL.d><10)
+    LOCAL.t .= Baixo
+elif (<LOCAL.d><25)
+    LOCAL.t .= Medio
+elif (<LOCAL.d><40)
+    LOCAL.t .= Forte
+else
+    LOCAL.t .= Muito forte
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+//mostra durabilidade
+LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Qualidade:<DEF.bfont_white> "
+LOCAL.min=<hits>
+LOCAL.max=<maxhits>
+LOCAL.d=<eval (<hits>*100)/<maxhits>>
+if (<LOCAL.d><25)
+    LOCAL.t .= Pessimo
+elif (<LOCAL.d><50)
+    LOCAL.t .= Degradado
+elif (<LOCAL.d><75)
+    LOCAL.t .= Bom
+else
+    LOCAL.t .= Perfeito
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+//forca necessaria
+LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Forca para uso:<DEF.bfont_white> "
+LOCAL.min=<reqstr>
+if (<reqstr><25)
+    LOCAL.t .= Nenhuma
+elif (<reqstr><50)
+    LOCAL.t .= Pouca
+elif (<reqstr><75)
+    LOCAL.t .= Moderada
+else
+    LOCAL.t .= Alta
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>)"
+endif
+
+//duas maos?
+if (<TWOHANDS>)
+    LOCAL.t .= "<DEF.br><DEF.bfont_dcyan>Duas Maos<DEF.bfont_white>"
+endif
+
+//definir TOOLTIP se houver
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDTIP>>)
+  LOCAL.t .= <DEF.br><DEF.bfont_cyan><DEF.<baseid>_IDTIP>
+endif
+
+//sneek peak de gm?
+if !(<attr>&attr_identified) && (<src.isgm>)
+ LOCAL.t .= <DEF.br><DEF.br><DEF.bfont_lred>[MODO GM]<DEF.br><DEF.bfont_white>(nao identificado)
+endif
+
+if !( 0<argv0> )
+    src.addcliloc 1042971,<LOCAL.name>
+    src.addcliloc 1070722,<LOCAL.t>
+else
+    return <LOCAL.t>
+endif
+
+//*****************************************************************************
+// tooltip_weapons( [skipTooltipAndReturnText] )
+//*****************************************************************************
+// retorna tooltip. deve sempre retornar POUCAS informacoes, somente para dar
+//uma ideia geral sobre o item. use info_weapons para informacoes mais detalhadas
+//****************
+
+[FUNCTION tooltip_weapons]
+//bug do sistema de vendas
+//if (<type>==t_weapon_arrow)
+//    return 
+//endif
+if (!<maxhits>)
+    serv.log [TOOLTIP]: NO MAXHITS: <name> <type> <uid> <src>
+    maxhits=1
+endif
+
+//gm ve tudo
+if (<src.isgm>) || (<attr>&attr_identified)
+    LOCAL.c=1
+else
+    LOCAL.c=0
+endif
+
+//definir nome de exibição
+LOCAL.name=<name>
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
+  LOCAL.name=<DEF.<baseid>_IDNAME>
+endif
+
+//stats principais, de dano e durabilidade
+
+//mostra dano
+LOCAL.t = "Dano: "
+LOCAL.min=<dam.lo>
+LOCAL.max=<dam.hi>
+LOCAL.d=<eval (<dam.hi>+<dam.lo>)/2>
+if (<LOCAL.d><5)
+    LOCAL.t .= Fraco
+elif (<LOCAL.d><10)
+    LOCAL.t .= Baixo
+elif (<LOCAL.d><25)
+    LOCAL.t .= Medio
+elif (<LOCAL.d><40)
+    LOCAL.t .= Forte
+else
+    LOCAL.t .= Muito forte
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+//mostra durabilidade
+LOCAL.t .= "<DEF.br>Qualidade: "
+LOCAL.min=<hits>
+LOCAL.max=<maxhits>
+LOCAL.d=<eval (<hits>*100)/<maxhits>>
+if (<LOCAL.d><25)
+    LOCAL.t .= Pessimo
+elif (<LOCAL.d><50)
+    LOCAL.t .= Degradado
+elif (<LOCAL.d><75)
+    LOCAL.t .= Bom
+else
+    LOCAL.t .= Perfeito
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+//Range
+if (<LOCAL.c>)
+    if (0<STREAT <serv.itemdef.<defname>.range>>)
+        LOCAL.t .= "<DEF.BR>Alcance: <STRARG <serv.itemdef.<defname>.range>> a <STREAT <serv.itemdef.<defname>.range>>"
+    else
+        LOCAL.t .= "<DEF.BR>Alcance: <serv.itemdef.<defname>.range>"
+    endif
+endif
+
+//mostra a durabilidade dos barbantes em arcos
+if (<type>==t_weapon_bow)
+    LOCAL.t .= "<DEF.BR>Barbante: "
+    if (<morey>==0)
+        LOCAL.t .= Sem barbante
+    elif (<morey><25)
+        LOCAL.t .= Prestes a arrebentar
+    elif (<morey><50)
+        LOCAL.t .= Degradado
+    else
+        LOCAL.t .= Bom
+    endif
+endif
+
+//mostra a durabilidade das engrenagens em bestas
+if (<type>==t_weapon_xbow)
+    LOCAL.t .= "<DEF.br>Engrenagem: "
+    if (<morey>==0)
+        LOCAL.t .= Sem engrenagem
+    elif (<morey><25)
+        LOCAL.t .= Prestes a quebrar
+    elif (<morey><50)
+        LOCAL.t .= Degradada
+    else
+        LOCAL.t .= Boa
+    endif
+endif
+
+if !(<attr>&attr_identified)
+    //nao identificado
+    LOCAL.t .= <DEF.br><DEF.bfont_yellow>
+    LOCAL.t .= (nao identificado)
+endif
+
+//mostrar atributos
+if <LOCAL.c>
+    //stats de magia
+    LOCAL.tm = <DEF.bfont_lpurple>
+
+    LOCAL.x=0
+    if (<attr>&attr_cursed)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_lpurple>amaldiçoado
+    endif
+    if (<attr>&attr_cursed2)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_lpurple>maldito
+    endif
+    if (<attr>&attr_blessed)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>abençoado
+    endif
+    if (<attr>&attr_blessed2)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>sagrado
+    endif
+
+    if (<morex>==s_poison)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>Envenenado
+    elif (<attr>&attr_magic)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>Mágico
+    endif
+
+    if <LOCAL.x>
+        LOCAL.t .= <LOCAL.tm>
+    endif
+    
+    
+    LOCAL.x=0
+    
+    //stats de danos magicos
+    LOCAL.tm = <DEF.bfont_green>
+       
+    if (<damfire>)
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Fogo: +<eval <damfire>>"
+    endif
+    if (<damcold>)
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Gelo: +<eval <damcold>>"
+    endif
+    if (<dampoison>)
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Veneno: +<eval <dampoison>>"
+    endif
+    if (<damenergy>)
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Eletricidade: +<eval <damenergy>>"
+    endif
+    
+    if <LOCAL.x>
+        LOCAL.t .= <LOCAL.tm>
+    endif
+
+    
+    LOCAL.x=0
+
+    //modstats e modskills
+    LOCAL.tm = <DEF.bfont_cyan>
+    if (<tag0.modskillval>)
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br><tag.modskill>: +<fval <tag.modskillval>>"
+    endif
+
+    if (<tag0.modstr>)
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Forca: +<dtag.modstr>"
+    endif
+
+    if (<tag0.moddex>)
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Destreza: +<dtag.moddex>"
+    endif
+
+    if (<tag0.modint>)
+        LOCAL.x=1
+        LOCAL.tm .= "<DEF.br>Inteligencia: +<dtag.modint>"
+    endif
+
+    if <LOCAL.x>
+        LOCAL.t .= <LOCAL.tm>
+    endif
+endif
+
+//serv.log <LOCAL.t>
+
+if !( 0<argv0> )
+    src.addcliloc 1042971,<LOCAL.name>
+    src.addcliloc 1070722,<LOCAL.t>
+else
+    return <LOCAL.t>
+endif
+
+//*****************************************************************************
+// f_armorTooltip
+//*****************************************************************************
+//mostra tooltip de armaduras de acordo com armslore
+//**** ATENCAO ***
+//LOCAL.t NAO PODE ULTRAPASSAR 512 bytes, contando tags (<BR>,<BASEFONT>.etc)
+//CRASH NO CLIENT SE PASSAR
+//****************
+[FUNCTION f_armorTooltip]
+
+if (!<maxhits>)
+    serv.log [TOOLTIP]: NO MAXHITS: <name> <type> <uid> <src>
+    maxhits=1
+endif
+
+//gm ve tudo
+if (<src.isgm>) || (<attr>&attr_identified)
+    LOCAL.c=1
+else
+    LOCAL.c=0
+endif
+
+//definir nome de exibição
+LOCAL.name=<name>
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
+  LOCAL.name=<DEF.<baseid>_IDNAME>
+endif
+
+//mostrar atributos
+if !(<LOCAL.c>)
+    LOCAL.t = (nao identificado)<DEF.br>
+else
+
+    LOCAL.t = "<DEF.br>"
+
+    if (<attr>&attr_cursed)
+        LOCAL.t .= <DEF.bfont_lpurple>amaldiçoado<DEF.br>
+    endif
+    if (<attr>&attr_cursed2)
+        LOCAL.t .= <DEF.bfont_lpurple>maldito<DEF.br>
+    endif
+    if (<attr>&attr_blessed)
+        LOCAL.t .= <DEF.bfont_dcyan>abençoado<DEF.br>
+    endif
+    if (<attr>&attr_blessed2)
+        LOCAL.t .= <DEF.bfont_dcyan>sagrado<DEF.br>
+    endif
+
+
+    if (<attr>&attr_magic)
+
+//        if (<morex>) && (<morex>!=s_poison)
+//            LOCAL.t .= <DEF.bfont_dcyan>Magia:<DEF.bfont_white> <serv.spell.<more2>.name><DEF.br>
+//        else
+            LOCAL.t .= <DEF.bfont_dcyan>Mágico<DEF.br>
+//        endif
+    endif
+
+
+    if <morex>
+        LOCAL.t .= "<DEF.bfont_dcyan>Fogo:<DEF.bfont_white> +<eval <morex>><DEF.br>"
+    endif
+    if <morey>y
+        LOCAL.t .= "<DEF.bfont_dcyan>Gelo:<DEF.bfont_white> +<eval <morey>><DEF.br>"
+    endif
+    if <morez>
+        LOCAL.t .= "<DEF.bfont_dcyan>Veneno:<DEF.bfont_white> +<eval <morez>><DEF.br>"
+    endif
+    if <morem>
+        LOCAL.t .= "<DEF.bfont_dcyan>Eletricidade:<DEF.bfont_white> +<eval <morem>><DEF.br>"
+    endif
+        
+endif
+
+
+//mostra dano
+//LOCAL.t .= "<DEF.bfont_dcyan>Protecao:<DEF.bfont_white> "
+LOCAL.t .= "Protecao: "
+LOCAL.min=<armor.lo>
+LOCAL.max=<armor.hi>
+LOCAL.d=<eval (<armor.hi>+<armor.lo>)/2>
+if (<LOCAL.d><5)
+    LOCAL.t .= Fraca
+elif (<LOCAL.d><10)
+    LOCAL.t .= Pouca
+elif (<LOCAL.d><25)
+    LOCAL.t .= Media
+elif (<LOCAL.d><40)
+    LOCAL.t .= Forte
+else
+    LOCAL.t .= Muito forte
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+
+//mostra durabilidade
+//LOCAL.t .= "<def.br><DEF.bfont_dcyan>Qualidade:<DEF.bfont_white> "
+LOCAL.t .= "<def.br>Qualidade: "
+LOCAL.min=<hits>
+LOCAL.max=<maxhits>
+LOCAL.d=<eval (<hits>*100)/<maxhits>>
+if (<LOCAL.d><25)
+    LOCAL.t .= Pessimo
+elif (<LOCAL.d><50)
+    LOCAL.t .= Degradado
+elif (<LOCAL.d><75)
+    LOCAL.t .= Bom
+else
+    LOCAL.t .= Perfeito
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+//forca necessaria
+//LOCAL.t .= "<def.br><DEF.bfont_dcyan>Forca para uso:<DEF.bfont_white>"
+LOCAL.t .= "<def.br>Forca para uso: "
+LOCAL.min=<reqstr>
+if (<reqstr><25)
+    LOCAL.t .= Nenhuma
+elif (<reqstr><50)
+    LOCAL.t .= Pouca
+elif (<reqstr><75)
+    LOCAL.t .= Moderada
+else
+    LOCAL.t .= Alta
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>)"
+endif
+
+
+//definir TOOLTIP se houver
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDTIP>>)
+  LOCAL.t .= <DEF.br><DEF.bfont_cyan><DEF.<baseid>_IDTIP>
+endif
+
+//sneek peak de gm?
+if !(<attr>&attr_identified) && (<src.isgm>)
+ LOCAL.t .= <DEF.br><DEF.br><DEF.bfont_lred>[MODO GM]<DEF.br><DEF.bfont_white>(nao identificado)
+endif
+
+if !( 0<argv0> )
+    src.addcliloc 1042971,<LOCAL.name>
+    src.addcliloc 1070722,<LOCAL.t>
+else
+    return <LOCAL.t>
+endif
+
+//*****************************************************************************
+// tooltip_armors
+//*****************************************************************************
+// retorna tooltip. deve sempre retornar POUCAS informacoes, somente para dar
+//uma ideia geral sobre o item. use info_ARMORS para informacoes mais detalhadas
+//****************
+[FUNCTION tooltip_armors]
+
+if (!<maxhits>)
+    serv.log [TOOLTIP]: NO MAXHITS: <name> <type> <uid> <src>
+    maxhits=1
+endif
+
+//gm ve tudo
+if (<src.isgm>) || (<attr>&attr_identified)
+    LOCAL.c=1
+else
+    LOCAL.c=0
+endif
+
+//definir nome de exibição
+LOCAL.name=<name>
+if (<LOCAL.c>) && !(<isempty <DEF.<baseid>_IDNAME>>)
+  LOCAL.name=<DEF.<baseid>_IDNAME>
+endif
+
+
+LOCAL.t = "Protecao: "
+LOCAL.min=<armor.lo>
+LOCAL.max=<armor.hi>
+LOCAL.d=<eval (<armor.hi>+<armor.lo>)/2>
+if (<LOCAL.d><5)
+    LOCAL.t .= Fraca
+elif (<LOCAL.d><10)
+    LOCAL.t .= Pouca
+elif (<LOCAL.d><25)
+    LOCAL.t .= Media
+elif (<LOCAL.d><40)
+    LOCAL.t .= Forte
+else
+    LOCAL.t .= Muito forte
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+
+LOCAL.t .= "<DEF.br>Qualidade: "
+LOCAL.min=<hits>
+LOCAL.max=<maxhits>
+LOCAL.d=<eval (<hits>*100)/<maxhits>>
+if (<LOCAL.d><25)
+    LOCAL.t .= Pessimo
+elif (<LOCAL.d><50)
+    LOCAL.t .= Degradado
+elif (<LOCAL.d><75)
+    LOCAL.t .= Bom
+else
+    LOCAL.t .= Perfeito
+endif
+if (<LOCAL.c>)
+    LOCAL.t .= " (<eval <LOCAL.min>>/<eval <LOCAL.max>>)"
+endif
+
+if !(<attr>&attr_identified)
+    //nao identificado
+    LOCAL.t .= <DEF.br><DEF.bfont_yellow>
+    LOCAL.t .= (nao identificado)
+endif
+
+//mostrar atributos
+if <LOCAL.c>
+
+    //stats de magia
+    LOCAL.tm = <DEF.bfont_lpurple>
+
+    LOCAL.x=0
+    if (<attr>&attr_cursed)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_lpurple>amaldiçoado
+    endif
+    if (<attr>&attr_cursed2)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_lpurple>maldito
+    endif
+    if (<attr>&attr_blessed)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>abençoado
+    endif
+    if (<attr>&attr_blessed2)
+        LOCAL.x=1
+        LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>sagrado
+    endif
+
+
+    if (<attr>&attr_magic)
+        LOCAL.x=1
+
+//        if (<morex>) && (<morex>!=s_poison)
+//            LOCAL.tm .= <DEF.bfont_dcyan>Magia:<DEF.bfont_white> <serv.spell.<more2>.name><DEF.br>
+//        else
+            LOCAL.tm .= <DEF.br><DEF.bfont_dcyan>Mágico
+//        endif
+    endif
+
+    if <LOCAL.x>
+        LOCAL.t .= <LOCAL.tm>
+    endif
+
+    LOCAL.t .= <tooltip_armors_resmod <tag.resmod>>
+
+endif
+
+if !( 0<argv0> )
+    src.addcliloc 1042971,<LOCAL.name>
+    src.addcliloc 1070722,<LOCAL.t>
+else
+    return <LOCAL.t>
+endif
+
+//*****************************************************************************
+// tooltip_armors_resmod
+//*****************************************************************************
+//facilita captura dos valores de resmod q estao em tag
+[FUNCTION tooltip_armors_resmod]
+//stats de protecoes magicas
+LOCAL.tm = <DEF.bfont_green>
+LOCAL.x = 0
+
+if <argv0>
+    LOCAL.x=1
+    LOCAL.tm .= "<DEF.br>Fogo: +<eval <argv0>>"
+endif
+if <argv1>
+    LOCAL.x=1    
+    LOCAL.tm .= "<DEF.br>Gelo: +<eval <argv1>>"
+endif
+if <argv2>
+    LOCAL.x=1
+    LOCAL.tm .= "<DEF.br>Veneno: +<eval <argv2>>"
+endif
+if <argv3>
+    LOCAL.x=1
+    LOCAL.tm .= "<DEF.br>Eletricidade: +<eval <argv3>>"
+endif
+
+if <LOCAL.x>
+    return <LOCAL.tm>
+endif
+
+[FUNCTION ATTUNEWEAPON]
+//Adiciona <argn1> de dano durante <argn2> segundos ou <argn3> hits a arma DEFAULT.
+//Opcionalmente, <argn4> pode ser o tipo de dano DAM_*
+IF (!<IsWeapon>) || ( (<argn2> < 1) && (<argn3> == 0) )
+    return 0
+ELIF (<tag0.ATTUNEWEAPON_TYPE>)
+    UNATTUNEWEAPON
+ENDIF
+
+if (<IsEmpty <argv3>>)
+    local.type=0
+elif (<argv3>&dam_fire)
+    local.type=1
+elif (<argv3>&dam_cold)
+    local.type=2
+elif (<argv3>&dam_poison)
+    local.type=3
+elif (<argv3>&dam_energy)
+    local.type=4
+else
+    local.type=0
+endif
+
+tag.ATTUNEWEAPON_TYPE=<local.type>
+tag.ATTUNEWEAPON_MOD=<argn1>
+if (0<argn3>)
+    tag.ATTUNEWEAPON_HITS=<argn3>
+else
+    tag.ATTUNEWEAPON_HITS
+endif
+
+DOSWITCH (<local.type>)
+    MODAR = <eval <MODAR>+<argn1>>
+    DAMFIRE = <eval <DAMFIRE>+<argn1>>
+    DAMCOLD = <eval <DAMCOLD>+<argn1>>
+    DAMPOISON = <eval <DAMPOISON>+<argn1>>
+    DAMENERGY = <eval <DAMENERGY>+<argn1>>
+ENDDO
+
+TIMERF <argn2> UNATTUNEWEAPON
+
+EVENTS +t_attune_weapon
+
+UPDATE
+
+[FUNCTION UNATTUNEWEAPON]
+//Desliga o ATTUNEWEAPON
+DOSWITCH (<tag0.ATTUNEWEAPON_TYPE>)
+    MODAR = <eval <MODAR>-<tag0.ATTUNEWEAPON_MOD>>
+    DAMFIRE = <eval <DAMFIRE>-<tag0.ATTUNEWEAPON_MOD>>
+    DAMCOLD = <eval <DAMCOLD>-<tag0.ATTUNEWEAPON_MOD>>
+    DAMPOISON = <eval <DAMPOISON>-<tag0.ATTUNEWEAPON_MOD>>
+    DAMENERGY = <eval <DAMENERGY>-<tag0.ATTUNEWEAPON_MOD>>
+ENDDO
+tag.ATTUNEWEAPON_TYPE=
+tag.ATTUNEWEAPON_MOD=
+EVENTS -t_attune_weapon
+tag.ATTUNEWEAPON_HITS=
+topobj.sysmessagered <name> peddeu seu dano extra.
+UPDATE
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs - ARMAS
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_weapon_mace_smith
+//*****************************************************************************
+[TYPEDEF t_weapon_mace_smith]
+ON=@CLIENTTOOLTIP
+tooltip_weapons
+return 1
+
+ON=@DCLICK
+IF (<src.IsNearType t_anvil,1>) || (<src.IsGM>)
+    src.craft_loadLevel 1
+ELSE
+    src.sysmessagered Voce presisa estar perto de uma bigorna.
+ENDIF
+return 1
+
+//*****************************************************************************
+// t_weapon_mace_sharp
+//*****************************************************************************
+[TYPEDEF t_weapon_mace_sharp]
+ON=@TARGON_ITEM
+return <f_weaponTargetItem>
+
+ON=@CLIENTTOOLTIP
+tooltip_weapons
+return 1
+
+//*****************************************************************************
+// t_weapon_mace_staff
+//*****************************************************************************
+[TYPEDEF t_weapon_mace_staff]
+ON=@CLIENTTOOLTIP
+tooltip_weapons
+return 1
+
+//*****************************************************************************
+// t_weapon_mace_crook
+//*****************************************************************************
+[TYPEDEF t_weapon_mace_crook]
+ON=@CLIENTTOOLTIP
+tooltip_weapons
+return 1
+
+//*****************************************************************************
+// t_weapon_mace_pick
+//*****************************************************************************
+[TYPEDEF t_weapon_mace_pick]
+ON=@CLIENTTOOLTIP
+tooltip_weapons
+return 1
+
+//use it for custom sand mining
+ON=@TARGON_GROUND
+
+// check for distance to mining point
+if <src.distance <src.targp>> > 3 
+    src.sysmessageyellow Muito longe!!
+    return 1
+// if not sand, use HC mining    
+elif <src.targp.type>!=t_sand
+    return 0
+endif
+
+//use gold trick to check nearby itens
+serv.newitem i_gold
+new.attr=090
+new.p=<src.targp>
+ref1=<new>
+
+//create sand worldgem if necessary
+if (!<ref1.fHasSandWG>)
+    // no worldgem bits were found, so make one
+    serv.newitem i_worldgem_bit
+    new.attr=092
+    new.color=02
+    new.p=<src.targp>
+    new.timer=<r35000,45000>
+    new.morex=<r100>
+    
+    //if faile, mine 0 rock
+    new.type=t_rock
+    new.more1=mr_nothing
+    new.amount=0
+    
+    // skilltest for mining
+    if <new.morex> < <src.mining> 
+        new.more1=mr_sand
+        new.amount=<r1,3>
+    endif
+endif
+
+ref1.remove
+return 0
+
+[FUNCTION fHasSandWG]
+foritems 0
+    if (<baseid>==i_worldgem_bit) && (<type>==t_rock)
+        return 1
+    endif
+endfor
+return 0
+
+//*****************************************************************************
+// t_weapon_axe
+//*****************************************************************************
+[TYPEDEF t_weapon_axe]
+ON=@TARGON_ITEM
+return <f_weaponTargetItem>
+
+ON=@CLIENTTOOLTIP
+tooltip_weapons
+return 1
+
+ON=@DClick
+return <f_weaponDclick>
+
+ON=@TARGON_GROUND
+return <f_weaponTargetGround>
+
+//*****************************************************************************
+// t_weapon_sword
+//*****************************************************************************
+[TYPEDEF t_weapon_sword]
+ON=@TARGON_ITEM
+return <f_weaponTargetItem>
+
+ON=@CLIENTTOOLTIP
+tooltip_weapons
+return 1
+
+ON=@DClick
+return <f_weaponDclick>
+
+//*****************************************************************************
+// t_weapon_fence
+//*****************************************************************************
+[TYPEDEF t_weapon_fence]
+ON=@TARGON_ITEM
+return <f_weaponTargetItem>
+
+ON=@CLIENTTOOLTIP
+tooltip_weapons
+return 1
+
+ON=@DClick
+return <f_weaponDclick>
+
+//use it for custom kindling haverhest
+ON=@TARGON_GROUND
+
+// check for distance to loggig point
+if <src.distance <src.targp>> > 3 
+    src.sysmessageyellow Muito longe!!
+    return 1
+// if not tree, use HC behavior
+elif <serv.map(<src.targp.x>,<src.targp.y>).statics>
+    for i 0 <eval <serv.map(<src.targp.x>,<src.targp.y>).statics>-1>
+        if (<serv.map(<src.targp.x>,<src.targp.y>).statics(<dlocal.i>).type>==t_tree)
+            local.can=1
+        endif
+    end
+    if (!<local.can>)
+        return 2
+    endif
+else
+    return 2
+endif
+
+//use gold trick to check nearby itens
+serv.newitem i_gold
+new.attr=090
+new.p=<src.targp>
+ref1=<new>
+
+//create kindling worldgem if necessary
+if (!<ref1.fHasKindlingWG>)
+    // no worldgem bits were found, so make one
+    serv.newitem i_worldgem_bit
+    new.attr=092
+    new.color=010A
+    new.p=<src.targp>
+    new.timer=<r35000,45000>
+    new.morex=<r50>
+    
+    //if faile, mine 0 rock
+    new.type=t_tree
+    new.more1=mr_nothing
+    new.amount=0
+    
+    // skilltest for mining
+    if (<src.belltest <new.morex>,<src.lumberjacking> >
+        new.more1=mr_kindling
+        new.amount=<r1,<r3,8>>//lesser than more
+    endif
+endif
+
+ref1.remove
+return 0
+
+[FUNCTION fHasKindlingWG]
+foritems 0
+    if (<baseid>==i_worldgem_bit) && (<type>==t_tree)
+        return 1
+    endif
+endfor
+return 0
+
+//*****************************************************************************
+// t_weapon_bow
+//*****************************************************************************
+[TYPEDEF t_weapon_bow]
+ON=@CLIENTTOOLTIP
+tooltip_weapons
+return 1
+
+ON=@EQUIP
+    if !<TAG0.OVERRIDE.AMMOANIM>
+        TAG.OVERRIDE.AMMOANIM=i_arrow_x
+    endif
+
+ON=@EQUIPTEST
+    if (!<src.npc>) && (<morey> <= 0)
+        src.sysmessagered Arco sem barbante
+        return 1
+    endif
+
+//*****************************************************************************
+// t_weapon_xbow
+//*****************************************************************************
+[TYPEDEF t_weapon_xbow]
+ON=@CLIENTTOOLTIP
+tooltip_weapons
+return 1
+
+//*****************************************************************************
+// t_attune_weapon
+//*****************************************************************************
+[TYPEDEF t_attune_weapon]
+//Arma melhorada artificialmente. Pedra de amolar, emplastros (t_plaster) e etc.
+ON=@CDAMAGE
+if (<tag0.ATTUNEWEAPON_HITS>)
+    tag0.ATTUNEWEAPON_HITS -= 1
+    serv.log tag0.ATTUNEWEAPON_HITS=<dtag0.ATTUNEWEAPON_HITS>
+    if !(<tag0.ATTUNEWEAPON_HITS>)
+        UNATTUNEWEAPON
+    endif
+endif
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+[ITEMDEF i_armslore_mry]
+id=i_deed
+name=Armslore
+type=t_eq_script
+layer=layer_special
+weight=0
+
+ON=@TIMER
+
+// Se estiver fora de visao
+if (<cont>!=<link.topobj>) && (<cont.canseelos <link.topobj>> == 0)
+    cont.sysmessageyellow Seu alvo esta fora da linha de visao.
+    remove
+    return 1
+endif 
+
+// Se for perturbado ou estiver incapacitado:
+if (<cont.f_isDisturbed>) || (!<Skill_InUse SKILL_ARMSLORE>)
+    cont.sysmessageyellow Voce nao esta em condicoes de analisar nada.
+    Skill_InUse 0
+    remove
+    return 1
+endif
+
+//loop de animacao
+if (<more>)
+    more=<more>-1
+    timer=1
+    return 1 
+endif
+
+LOCAL.d=<eval (<link.dam.lo>+<link.dam.hi>)/2>
+LOCAL.a=<eval (<link.armor.lo>+<link.armor.hi>)/2>
+LOCAL.dam=<eval (<LOCAL.d>/5)+1>
+LOCAL.armor=<eval (<LOCAL.d>/5)+1>
+
+if ( <LOCAL.dam> > 11 )
+    LOCAL.dam = 11
+endif
+if ( <LOCAL.armor> > 11 )
+    LOCAL.armor = 11
+endif
+
+if (<link.isweapon>)
+    LOCAL.t=<link.name>: <DEF.arml_dam<eval <LOCAL.dam>>>
+else
+    LOCAL.t=<link.name>: <DEF.arml_arm<eval <LOCAL.armor>>>
+endif
+
+LOCAL.h=<eval ((<link.hits>*3)/<link.maxhits>)+1>
+
+if ( <LOCAL.h> > 3 )
+  LOCAL.h = 3
+endif
+
+cont.sysmessagegreen <LOCAL.t> Esta <DEF.arml_dur<eval <LOCAL.h>>>
+
+if (<R1000> < <cont.armslore>)
+    link.attr |= attr_identified
+    link.update
+    
+    if (<link.isweapon>)
+        cont.sysmessagegreen A arma foi totalmente analisada.
+    else
+        cont.sysmessagegreen A armadura foi totalmente analisada.
+    endif
+endif
+cont.skill_gain skill_armslore
+Skill_InUse 0
+remove
+return 1
+
+
+[EOF]

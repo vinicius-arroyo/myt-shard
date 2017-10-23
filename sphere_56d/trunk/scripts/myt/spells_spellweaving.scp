@@ -1,0 +1,1594 @@
+//###################################################################################
+//                         Mystical Tales Shard
+//                      MAGIAS DE DOMINIO "Alteração"
+//                          Galthar, o Errante
+//                                04/2009
+//###################################################################################
+//
+//                              RANGE: 250 a 300
+//
+//###################################################################################
+
+[COMMENT spells_spellweaving]]
+nº      Ataque
+256     Dardos gélidos
+266     Cone de gelo
+        
+        Buff
+251     Resistência ao frio
+254     Rapidês do tigre
+260     Intligência da coruja
+264     Força do touro
+        
+        Debuff
+252     Sensibilidade ao frio
+258     Congelar arma
+        
+        Summon
+253     Pardal
+259     Leão marinho
+262     Animais da floresta
+265     Urso cinzento
+268     Dríade
+        
+        Poly
+255     Gaivota
+257     Macaco
+263     Corso
+267     Urso polar
+269     Grande urso polar
+        
+        RP
+261     Criar água
+250     Ensopar
+
+Ast     Terra
+Ben     Sem
+Cot     Inimigo
+Dur     Escuro
+Ehte    Lança
+Fir     Mortal
+Gal     Luz
+Hel     Gelo
+Ing     Sábio
+Jux     Comando/vontade
+Kel     Animal
+Lum     Tempo
+Men     Lugar
+Nen     Água
+Or      Física
+Pit     Pequeno
+Quen    Pessoa
+Rin     Frio
+Sure    Vento
+Tau     Poderoso, forte
+Ume     Maligno
+Vil     Ar
+Win     Aerosol
+Xin     Fim, morte
+Yar     Sangue
+Zan     Conjurar, chamar
+
+//***********************************************************
+//              SPELL ALTERATION Ensopar
+//***********************************************************
+
+[ITEMDEF i_scroll_ensopar]
+ID=0E35
+NAME=Pergaminho ensopar
+RESOURCES=i_carta,i_r_raiz_de_mandrake
+SKILLMAKE=INSCRIPTION 20.0, Spellweaving 10.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Ensopar
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=250
+        MOREY={30 70}
+
+[Spell 250]
+DEFNAME=s_ensopar
+NAME=Ensopar
+SOUND=05A4
+RUNES=PN
+CAST_TIME=20
+RESOURCES=i_r_raiz_de_mandrake
+RUNE_ITEM=2303
+SCROLL_ITEM=i_scroll_ensopar
+FLAGS=spellflag_targ_char | spellflag_scripted
+MANAUSE=5
+EFFECT = 5,10
+SKILLREQ=SPELLWEAVING 10.0
+INTERRUPT=15.0,100.0
+
+on=@Start
+sfx 01E0
+
+on=@Effect
+if (<IsEvent.e_firemade>) || (STRMATCH(*fire*,<ID>))
+local.dam=<EFFECTSPELL s_ensopar,<argn2>,<src.uid>>
+local.dam += <eval <src.evaluatingintel>/200>
+DAMAGE <local.dam>, DAM_COLD, <src.uid>
+if !(<R0,11>)
+  emotered fica puto//hidden feature
+ else
+  emotered fsss
+ endif
+ effect 3 i_fx_smoke_small 0 32 0
+else
+ newitem i_pool_chuva
+ new.p=<p>
+ emotered ensopado
+ timerf 3 f_spl_ensopado
+endif
+
+
+src.skill_gain skill_evalint
+return 0
+
+[FUNCTION f_spl_ensopado]
+emoteyellow resmunga
+cry
+if (<stam> > 15)
+ stam -= <R5,10>
+endif
+
+//TODO: colocar firemade de volta em uns npcs?
+//colocar funcao de ganho de skill em algumas das magias
+
+
+//***********************************************************
+//              SPELL ALTERATION Resistencia ao frio
+//***********************************************************
+
+[ITEMDEF i_scroll_resistencia_frio]
+ID=0E36
+NAME=Pergaminho resistencia ao frio
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_alho
+SKILLMAKE=INSCRIPTION 20.0, Spellweaving 10.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Resistência ao frio
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=251
+        MOREY={30 70}
+
+[Spell 251]
+DEFNAME=s_resistencia_frio
+NAME=Resistencia ao frio
+SOUND=01ED
+RUNES=BR
+CAST_TIME=40
+RESOURCES=i_r_raiz_de_mandrake,i_r_alho
+RUNE_ITEM=2286
+SCROLL_ITEM=i_scroll_resistencia_frio
+FLAGS=spellflag_targ_char | spellflag_scripted | spellflag_good
+MANAUSE=20
+EFFECT=10,60
+DURATION=5*60,15*60
+SKILLREQ=SPELLWEAVING 10.0
+INTERRUPT=15.0,100.0
+
+ON=@Success
+if <restest i_mry_RESBUFF>
+src.sysmessageyellow Voce pode ter apenas um buff de protecao ativo num dado momento. 
+return 1
+endif
+
+serv.newitem i_fx_sparkle
+new.attr = attr_static|attr_decay
+new.timer = 2
+new.p = <act.p>
+
+
+on=@Effect
+local.time=<DURATIONSPELL s_resistencia_frio,<argn2>,<src.uid>>
+
+local.prot= <EFFECTSPELL s_resistencia_frio,<argn2>,<src.uid>>
+local.prot=<minimumN <eval 60-<RESCOLD>>,<local.prot>>
+ IF (<argn2> > 750)
+ local.buffar=<eval(<local.prot>/3)>
+ local.buffar=<minimumN <eval 30-<AR>>,<local.buffar>>
+     Buff_Armor <local.buffar>,<local.time>
+ ENDIF
+        Buff_rescold <local.prot>,<local.time>
+
+
+newitem i_mry_RESBUFF
+new.equip
+new.timer <local.time>
+new.link=<uid>
+
+src.skill_gain skill_evalint
+return 1
+    
+    
+[ITEMDEF i_mry_RESBUFF]
+ID=i_rune_poison
+name=memory buff de resistencia
+type=t_eq_script
+layer=layer_special
+TEVENTS=e_BuffRes
+    
+ON=@Create
+ATTR=attr_blessed2
+    
+on=@equip
+timer 1
+cont.sysmessagegreen As resistencias do alvo foram aumentadas.
+    
+on=@timer
+cont.sysmessagegreen O efeito de sua magia protetora acabou.
+remove
+return 1
+
+
+//***********************************************************
+//              SPELL ALTERATION Sensibilidade ao frio
+//***********************************************************
+
+[ITEMDEF i_scroll_sens_frio]
+ID=0E37
+NAME=Pergaminho sensibilidade ao frio
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_nightshade
+SKILLMAKE=INSCRIPTION 30.0, Spellweaving 20.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Sensibilidade ao frio
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=252
+        MOREY={30 70}
+        
+[ITEMDEF i_rune_sens_frio]
+NAME=Cold Weakness
+ID=020A4
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@equip
+cont.sysmessagered Voce esta extremamente sensivel ao frio!
+cont.tag0.aggravate |= <DEF.DAM_COLD>
+ATTR=attr_cursed2
+
+on=@unequip
+cont.sysmessagered Sua sensibilidade ao frio passou.
+cont.sfx 0208
+cont.tag0.aggravate &= ~<DEF.DAM_COLD>
+
+on=@timer
+remove
+return 1
+
+[Spell 252]
+DEFNAME=s_sens_frio
+NAME=Sensibilidade ao frio
+SOUND=05C8
+RUNES=HY
+CAST_TIME=15
+RESOURCES=i_r_raiz_de_mandrake,i_r_nightshade
+RUNE_ITEM=21541
+SCROLL_ITEM=i_scroll_sens_frio
+FLAGS=spellflag_targ_char | spellflag_scripted | spellflag_harm
+MANAUSE=20
+EFFECT=
+DURATION=30,60
+SKILLREQ=SPELLWEAVING 20.0
+INTERRUPT=25.0,100.0
+
+on=@Effect
+IF (<tag0.aggravate>&DAM_COLD) //Já tem dano agravado por gelo?
+ if (<restest i_rune_sens_frio>) //O que agrava o dano é essa magia?
+  findid.i_rune_sens_frio.timerd 1 //Então cancele a magia e fim.
+ endif //Se ele já tiver agravamento por gelo, pode ser natural ou ter outra fonte. Abortar.
+ELIF (<tag0.immune>&DAM_COLD) || (<tag0.regendam>&DAM_COLD) //Ele pode sofrer agravante por gelo?
+ src.sysmessagered <name> eh imune ao frio!
+ELSE //Ele ainda não tem agravamento de dano para gelo, não é imune e nem se regenera com gelo.
+ newitem i_rune_sens_frio
+ trysrc <uid> src.new.equip
+ new.timer=<DURATIONSPELL s_sens_frio,<src.spellweaving>,<src.uid>>
+ effect 3 i_fx_curse 0 33 0
+ENDIF
+
+src.skill_gain skill_evalint
+return 1
+
+
+//***********************************************************
+//              SPELL ALTERATION Pardal
+//***********************************************************
+
+[ITEMDEF i_scroll_conj_pardal]
+ID=0E38
+NAME=Pergaminho Chamado do Bando
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_alho,i_r_asa_morcego
+SKILLMAKE=INSCRIPTION 30.0, Spellweaving 20.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Chamado do Bando
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=253
+        MOREY={30 70}
+
+[Spell 253]
+DEFNAME=s_summon_pardal
+NAME=Chamado do Bando
+SOUND=0
+RUNES=ZPK
+CAST_TIME=15
+RESOURCES=i_r_raiz_de_mandrake,i_r_alho,i_r_alho,i_r_asa_morcego
+RUNE_ITEM=23005
+SCROLL_ITEM=i_scroll_conj_pardal
+FLAGS=spellflag_targ_char | spellflag_scripted | spellflag_harm
+MANAUSE=16
+DURATION=60,90
+SKILLREQ=SPELLWEAVING 20.0
+INTERRUPT=25.0,100.0
+
+
+on=@Start
+SFX 0215
+
+on=@Select
+if (<argn3>==3)
+ sysmessageyellow Para atacar quem?
+endif
+
+on=@Effect
+FOR c 1 <eval <f_rangeValue 2,7,<src.spellweaving>,100.0>-1>
+ LOCAL.time=<DURATIONSPELL s_summon_pardal,<src.spellweaving>,<UID>>
+ obj=<src.f_summon_creature c_bird_sum,<LOCAL.time>>
+ if (!<R0,9>)
+  obj.str=<eval (<obj.str>*3>)/2>
+  obj.dex=<eval (<obj.dex>*3>)/2>
+  obj.aid
+  obj.tactics 30.0
+  obj.wrestling 40.0
+  obj.color <R88,109>
+  obj.name pardal de Belarin
+ elif (!<R0,89>)
+  obj.str=<eval <obj.str>*2>>
+  obj.dex=<eval <obj.dex>*2>>
+  obj.aid
+  obj.tactics 50.0
+  obj.wrestling 70.0
+  obj.color 06E7
+  obj.name Principe Pardal
+ else
+  obj.tactics 10.0
+  obj.wrestling 15.0
+  obj.name pardal
+ endif
+ obj.Update
+ obj.attack <uid>
+ENDFOR
+
+src.skill_gain skill_evalint
+return 0
+
+
+//***********************************************************
+//              SPELL ALTERATION Rapidez do tigre
+//***********************************************************
+
+[ITEMDEF i_scroll_rapidez_tigre]
+ID=0E39
+NAME=Pergaminho Agilidade Felina
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_perola_negra
+SKILLMAKE=INSCRIPTION 40.0, Spellweaving 30.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Rapidez do tigre
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=254
+        
+[ITEMDEF i_rune_rapid_tigre]
+NAME=Agilidade Felina
+ID=02088
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffSkill,e_BuffStats
+
+ON=@Create
+ATTR=attr_blessed2
+
+on=@equip
+cont.sysmessagegreen Voce se sente mais agil!
+
+on=@unequip
+cont.sysmessagegreen Sua agilidade comeca a passar
+cont.sfx snd_SPELL_CLUMSY
+
+on=@timer
+remove
+return 1
+
+[Spell 254]
+DEFNAME=s_rapidez_tigre
+NAME=Rapidez do tigre
+SOUND=01E7
+RUNES=QS
+CAST_TIME=30
+RESOURCES=i_r_raiz_de_mandrake,i_r_alho,i_r_perola_negra
+RUNE_ITEM=2248
+SCROLL_ITEM=i_scroll_rapidez_tigre
+FLAGS=spellflag_targ_char | spellflag_scripted | spellflag_good
+MANAUSE=15 
+EFFECT=
+DURATION=5*60,15*60
+SKILLREQ=SPELLWEAVING 30.0
+INTERRUPT=35.0,100.0
+
+on=@START
+if <act.restest i_rune_rapid_tigre>
+src.sysmessageyellow Esse alvo ja tem esse efeito.
+return 1
+endif
+
+on=@SUCCESS
+serv.newitem = i_fx_sparkle_2
+new.attr=attr_static|attr_decay
+new.timer=1
+new.p=<act.p>
+
+on=@Effect
+LOCAL.EFFECT=<eval ((<src.spellweaving>*2)+<src.evaluatingintel>+750)/150> //5,25(30)
+LOCAL.DURATION=<DURATIONSPELL 254,<argn2>,<src.uid>>
+newitem=i_rune_rapid_tigre
+new.tag.moddex=<minimumN 125-<dex>,<LOCAL.EFFECT>>
+IF (<src.evaluatingintel> > 80.0)
+ new.tag.modskill=Tactics
+ new.tag.modskillval=<eval <local.effect>*5>
+ENDIF
+new.link <uid>
+trysrc <uid> src.new.equip
+new.timer=<local.duration>
+
+src.skill_gain skill_evalint
+return 0
+
+
+
+
+//***********************************************************
+//              SPELL ALTERATION Polimorfar para gaivota
+//***********************************************************
+
+[ITEMDEF i_scroll_poly_gaivota]
+ID=0E3A
+NAME=Pergaminho forma de Aguia
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_asa_morcego
+SKILLMAKE=INSCRIPTION 40.0, Spellweaving 30.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Forma de Aguia
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=255
+        
+[Spell 255]
+DEFNAME=s_forma_gaivota
+NAME=Forma de Aguia
+SOUND=0
+RUNES=OBA
+CAST_TIME=10
+RESOURCES=i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_asa_morcego
+RUNE_ITEM=2295
+SCROLL_ITEM=i_scroll_poly_gaivota
+FLAGS=spellflag_scripted | spellflag_good
+MANAUSE=20
+DURATION=60,120
+SKILLREQ=SPELLWEAVING 30.0
+INTERRUPT=35.0,100.0
+
+on=@Effect
+local.time=<DURATIONSPELL s_forma_gaivota,<argn2>,<src.uid>>
+src.f_polymorph c_aguia_poly,0,<local.time>
+src.haste <local.time>
+
+
+src.skill_gain skill_evalint
+return 1
+
+
+
+
+//***********************************************************
+//              SPELL ALTERATION Dardos gelidos
+//***********************************************************
+
+[ITEMDEF i_scroll_derdos_gelidos]
+ID=0E35
+NAME=Pergaminho dardos gelidos
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_cinza_sulfurosa
+SKILLMAKE=INSCRIPTION 50.0, Spellweaving 40.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Dardos gélidos
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=256
+
+[ITEMDEF i_rune_dardos_gelidos]
+NAME=Dardos gelidos
+ID=0E35
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@timer
+if (<more2>)
+ link.spelleffect 256,<more1>,<cont>
+ cont.anim 16
+ cont.action -1
+ cont.disturb
+ more2 -= 1
+ timerd 1
+else
+ remove
+endif
+return 1
+
+[Spell 256]
+DEFNAME=s_dardos_gelidos
+NAME=Dardos gelidos
+SOUND=0
+RUNES=EH
+CAST_TIME=16 
+RESOURCES=i_r_raiz_de_mandrake,i_r_cinza_sulfurosa
+RUNE_ITEM=2290
+SCROLL_ITEM=i_scroll_derdos_gelidos
+FLAGS=spellflag_targ_char | spellflag_scripted | spellflag_harm
+MANAUSE=8
+EFFECT=3,7
+SKILLREQ=SPELLWEAVING 40.0
+INTERRUPT=45.0,100.0
+
+on=@Start
+sfx 02B
+
+on=@Effect
+if (<src.restest i_rune_dardos_gelidos>)
+ SFX 0520
+ EFFECT 0 i_fx_fireball_small 6 16 0 91 3
+ DAMAGESPELL s_dardos_gelidos,dam_cold,<argn2>,<src.uid>
+else
+ src.newitem i_rune_dardos_gelidos
+ src.new.more2=<BETWEEN 2,6,<argn2>,125.0>
+ src.new.cont=<src.uid>
+ src.new.link=<uid>
+ src.new.more1=<eval <argn2>+<MULDIV <src.EvaluatingIntel>,2,10>>
+ src.new.timerd 1
+ src.skill_gain skill_evalint
+endif
+return 0
+
+
+//***********************************************************
+//              SPELL ALTERATION Polimorfar para gorila
+//***********************************************************
+
+[ITEMDEF i_scroll_poly_gorila]
+ID=0E36
+NAME=Pergaminho Forma Lupina
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_ginseng
+SKILLMAKE=INSCRIPTION 50.0, Spellweaving 40.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Forma Lupina
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=257
+        
+[Spell 257]
+DEFNAME=s_forma_gorila
+NAME=Forma Lupina
+SOUND=0
+RUNES=OQA
+CAST_TIME=30
+RESOURCES=i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_ginseng
+RUNE_ITEM=2295
+SCROLL_ITEM=i_scroll_poly_gorila
+FLAGS=spellflag_scripted | spellflag_good
+MANAUSE=22
+DURATION=5*60,10*60
+EFFECT=5,25
+SKILLREQ=SPELLWEAVING 40.0
+INTERRUPT=45.0,100.0
+
+
+on=@EFFECT
+//Determina se pode morphar (anti-exploit)
+if (<restest 1 i_spl_polymorph>)
+sysmessayellow voce ja possui um efeito desses ativo.
+ return 1
+endif
+
+//Determina o tempo de duração
+local.time=<DURATIONSPELL s_forma_gorila,<argn2>,<src.uid>>
+local.body=c_lobo_poly
+
+
+local.dex=<EFFECTSPELL s_forma_gorila,<argn2>,<src.uid>>
+local.dex=<minimumN 65-<dex>,<local.dex>>
+    Buff_DEX,<local.dex>,<local.time>
+
+
+local.str=<EFFECTSPELL s_forma_gorila,<argn2>,<src.uid>>
+local.str=<minimumN 65-<str>,<local.str>>
+    Buff_STR,<local.str>,<local.time>
+
+
+
+//buffa skills
+local.wrestling= <eval(<EFFECTSPELL s_forma_gorila,<argn2>,<src.uid>>) *20>
+local.wrestling= <minimumN 600-<wrestling>,<local.wrestling>>
+    BuffSkill Wrestling,<local.wrestling>,<local.time>
+
+local.tactics= <eval(<EFFECTSPELL s_forma_gorila,<argn2>,<src.uid>>) *20>
+local.tactics=<minimumN 400-<tactics>,<local.tactics>>
+    BuffSkill Tactics,<local.tactics>,<local.time>
+
+local.tracking= <eval(<EFFECTSPELL s_forma_gorila,<argn2>,<src.uid>>) *20>
+local.tracking= <minimumN 500-<tracking>,<local.tracking>>
+    BuffSkill tracking,<local.tracking>,<local.time>
+
+hits += <local.str>
+stam += <local.dex>
+
+
+//Polimorpha
+src.f_polymorph <local.body>,0,<local.time>
+
+src.skill_gain skill_evalint
+return 1
+
+
+
+//***********************************************************
+//              SPELL ALTERATION Congelar arma
+//***********************************************************
+
+[ITEMDEF i_scroll_congelar_arma]
+ID=0E37
+NAME=Pergaminho congelar arma
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_musgo_sangue,i_r_olho_morto_vivo
+SKILLMAKE=INSCRIPTION 70.0, Spellweaving 50.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Congelar arma
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=258
+
+[Spell 258]
+DEFNAME=s_congelar_arma
+NAME=Congelar arma
+SOUND=05A9
+RUNES=RUE
+CAST_TIME=40
+RESOURCES=i_r_raiz_de_mandrake,i_r_musgo_sangue,i_r_olho_morto_vivo
+RUNE_ITEM=20741
+SCROLL_ITEM=i_scroll_congelar_arma
+FLAGS=spellflag_targ_char | spellflag_scripted | spellflag_harm
+MANAUSE=22
+DURATION=3,10
+SKILLREQ=SPELLWEAVING 60.0
+INTERRUPT=45.0,100.0
+
+on=@Start
+IF !(<act.weapon>)
+ src.mage_ClearTags
+ src.sysmessageyellow Seu alvo nao esta armado!
+ return 1
+endif
+
+on=@Effect
+serv.newitem i_fx_curse
+new.color = 08be
+new.attr = attr_static|attr_decay
+new.timer = 2
+new.p = <p>
+
+weapon.timerf <DURATIONSPELL 258,<argn2>,<src.uid>>,f_cold_weapon
+weapon.f_cold_weapon
+sysmessagered Sua arma esta muito fria para segurar!
+return 1
+
+[FUNCTION f_cold_weapon]
+if (<tag0.s258>)
+ tag.s258=
+ color=<tag.s258.color>
+ tag.s258.color=
+ name=<tag.s258name>
+ tag.s258name=
+ if (<tag0.s258nofragile>)
+  tag0.s258nofragile=
+  events -e_fragile
+ endif
+ attr &= ~012
+ emoteyellow desgelou
+ newitem i_pool
+ new.p=<p>
+ update
+else
+ tag.s258=1
+ tag.s258.color=<color>
+ color=08be
+ tag.s258.name=<name>
+ name=<name> (congelado)
+ //if (!<IsEvent.e_fragile>)
+ // tag.s258nofragile=1
+ // events +e_fragile
+ //endif
+ if (<cont.IsChar>)
+     cont.damage <R1,3>,dam_cold,<src>
+  movenear <cont>,2
+ endif
+ timer=60*20
+ ATTR |= 012
+ emotered congelou
+ update
+endif
+
+
+
+
+//***********************************************************
+//              SPELL ALTERATION Leão Marinho
+//***********************************************************
+
+[ITEMDEF i_scroll_conj_leaom]
+ID=0E38
+NAME=Pergaminho conjurar leao-marinho
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_alho,i_r_musgo_sangue
+SKILLMAKE=INSCRIPTION 60.0, Spellweaving 50.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Conjurar leão-marinho
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=259
+
+[Spell 259]
+DEFNAME=s_summon_leaom
+NAME=Conjurar leao-marinho
+SOUND=0
+RUNES=ZNK
+CAST_TIME=40
+RESOURCES=i_r_raiz_de_mandrake,i_r_alho,i_r_musgo_sangue
+RUNE_ITEM=2279
+SCROLL_ITEM=i_scroll_conj_leaom
+FLAGS=spellflag_scripted | spellflag_harm | spellflag_summon
+MANAUSE=24
+EFFECT=10,40
+DURATION=2*60,5*60
+SKILLREQ=SPELLWEAVING 50.0
+INTERRUPT=55.0,100.0
+
+on=@Start
+SFX 0215
+
+on=@SUCCESS  //on=@Effect
+LOCAL.TIME=<DURATIONSPELL s_summon_leaom,<argn2>,<UID>>
+LOCAL.EFFECT=<EFFECTSPELL s_summon_leaom,<argn2>,<UID>>
+obj=<src.f_summon_creature c_walrus_sum,<LOCAL.TIME>>
+obj.Wrestling= <eval(<local.effect>*10)>
+obj.tag0.moddam += <eval <local.effect>/10>
+obj.rescold= <eval(<local.effect>*5)/3>
+
+src.skill_gain skill_evalint
+return 0
+
+
+
+//***********************************************************
+//              SPELL ALTERATION Inteligencia da coruja
+//***********************************************************
+
+[ITEMDEF i_scroll_int_coruja]
+ID=0E39
+NAME=Pergaminho Bencao de Metryah
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_olho_morto_vivo
+SKILLMAKE=INSCRIPTION 70.0, Spellweaving 60.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Inteligencia da coruja
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=260
+        
+[ITEMDEF i_rune_int_coruja]
+NAME=Bencao de Metryah
+ID=02089
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffSkill,e_BuffStats
+
+ON=@Create
+ATTR=attr_blessed2
+
+on=@equip
+cont.sysmessagegreen Voce se sente mais sabio!
+
+on=@unequip
+cont.sysmessagegreen Sua sabedoria comeca a passar.
+cont.sfx 01E4
+
+on=@timer
+remove
+return 1
+
+[Spell 260]
+DEFNAME=s_int_coruja
+NAME=Inteligencia da coruja
+SOUND=01EB
+RUNES=JI
+CAST_TIME=20
+RESOURCES=i_r_raiz_de_mandrake,i_r_olho_morto_vivo
+RUNE_ITEM=2249
+SCROLL_ITEM=i_scroll_int_coruja
+FLAGS=spellflag_targ_char | spellflag_scripted | spellflag_good
+MANAUSE=15
+EFFECT=
+DURATION=5*60,15*60
+SKILLREQ=SPELLWEAVING 60.0
+INTERRUPT=65.0,100.0
+
+on=@START
+if <act.restest i_rune_int_coruja>
+src.sysmessageyellow Esse alvo ja tem esse efeito.
+return 1
+endif
+
+on=@SUCCESS
+serv.newitem = i_fx_sparkle_2
+new.attr=attr_static|attr_decay
+new.timer=1
+new.p=<act.p>
+
+on=@Effect
+LOCAL.EFFECT=<eval ((<src.spellweaving>*2)+<src.evaluatingintel>+750)/150> //5,25(30)
+LOCAL.DURATION=<DURATIONSPELL 260,<argn2>,<src.uid>>
+newitem=i_rune_int_coruja
+new.tag.modint=<minimumN 125-<int>,<LOCAL.EFFECT>>
+IF (<src.evaluatingintel> > 80.0)
+ new.tag.modskill=EvaluatingIntel
+ new.tag.modskillval=<eval <local.effect>*5>
+ENDIF
+new.link <uid>
+trysrc <uid> src.new.equip
+new.timer=<local.duration>
+
+
+src.skill_gain skill_evalint
+return 0
+
+
+
+//***********************************************************
+//              SPELL ALTERATION Criar Agua
+//***********************************************************
+
+[ITEMDEF i_scroll_criar_agua]
+ID=0E3A
+NAME=Pergaminho criar agua
+RESOURCES=i_carta,i_r_raiz_de_mandrake
+SKILLMAKE=INSCRIPTION 60.0, Spellweaving 50.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Criar agua
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=261
+
+[Spell 261]
+DEFNAME=s_criar_agua
+NAME=Criar agua
+SOUND=05A4
+RUNES=TN
+CAST_TIME=60
+RESOURCES=i_r_raiz_de_mandrake
+RUNE_ITEM=2303
+SCROLL_ITEM=i_scroll_criar_agua
+FLAGS=spellflag_targ_char | spellflag_targ_obj | spellflag_scripted
+MANAUSE=5
+EFFECT=3,15
+SKILLREQ=SPELLWEAVING 50.0
+INTERRUPT=55.0,100.0
+
+on=@Start
+sfx 01E0
+
+on=@Effect
+IF (<IsChar>)//Ni alguem?
+ spelleffect s_ensopar,<argn2>,<src.uid>
+ELIF (<TYPE>==t_recipient)||(<IsContainerRecipient>)//Num recipiente?
+ if (!<more1>) || (<more2>==<DEF.LIQUID_WATER>)//Vazio
+  FillRecipient <DEF.LIQUID_WATER_HEAL>,<EFFECTSPELL 261,<argn2>,<uid>>
+ else
+  src.sysmessage Isso esta cheio com outra coisa!
+  src.newitem i_pool_water_heal
+  new.p=<p>
+ endif
+ effect 2 i_fx_sparkle_2 0 16 0
+else
+ src.newitem i_pool
+ src.new.p=<src.targp>
+ new.effect 2 i_fx_sparkle_2 0 16 0
+ENDIF
+
+src.skill_gain skill_evalint
+return 0
+
+
+
+//***********************************************************
+//              SPELL ALTERATION Conjurar animal
+//***********************************************************
+
+[ITEMDEF i_scroll_conj_animal]
+ID=0E35
+NAME=Pergaminho Chamado Selvagem
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_alho,i_r_musgo_sangue,i_r_perola_negra
+SKILLMAKE=INSCRIPTION 80.0, Spellweaving 70.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Conjurar animais
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=262
+
+[Spell 262]
+DEFNAME=s_summon_animais
+NAME=Chamado Selvagem
+SOUND=0
+RUNES=ZQM
+CAST_TIME=28
+RESOURCES=i_r_raiz_de_mandrake,i_r_alho,i_r_musgo_sangue,i_r_perola_negra
+RUNE_ITEM=2279
+SCROLL_ITEM=i_scroll_conj_animal
+FLAGS=spellflag_scripted | spellflag_harm | spellflag_summon
+MANAUSE=25
+EFFECT=2,20
+DURATION=30,90
+SKILLREQ=SPELLWEAVING 70.0
+INTERRUPT=75.0,100.0
+
+on=@Start
+SFX 0215
+
+on=@SUCCESS  //on=@Effect
+LOCAL.timer=<DURATIONSPELL s_summon_animais,<src.spellweaving>,<UID>>
+LOCAL.EFFECT=<EFFECTSPELL s_summon_animais,<src.spellweaving>,<UID>>
+LOCAL.points=<eval <LOCAL.EFFECT>/2>
+WHILE (<local.points> > 0)
+ local.s=<R0,<LOCAL.points>>
+ DOSWITCH <local.s>
+  local.a=c_bird_sum
+  local.a=c_rabbit_sum
+  local.a=c_eagle_sum
+  local.a=c_dog_sum
+  local.a=c_goat_sum
+  local.a=c_wolf_sum
+  local.a=c_gorilla_sum
+  local.a=c_panther_sum
+  local.a=c_bear_brown_sum
+
+ ENDDO
+ obj=<src.f_summon_creature <local.a>,<LOCAL.timer>>
+ local.points -= <local.s>
+END
+
+src.skill_gain skill_evalint
+return 0
+
+
+//***********************************************************
+//              SPELL ALTERATION Polimorfar para corso
+//***********************************************************
+
+[ITEMDEF i_scroll_poly_corso]
+ID=0E36
+NAME=Pergaminho Avatar de Aranrosse
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_alho
+SKILLMAKE=INSCRIPTION 80.0, Spellweaving 70.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Forma de corso
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=263
+        
+[Spell 263]
+DEFNAME=s_forma_corso
+NAME=Avatar de Aranrosse
+SOUND=0
+RUNES=OKA
+CAST_TIME=40
+RESOURCES=i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_alho
+RUNE_ITEM=2295
+SCROLL_ITEM=i_scroll_poly_corso
+FLAGS=spellflag_scripted | spellflag_good
+MANAUSE=30
+DURATION=5*60,10*60
+EFFECT=20,40
+SKILLREQ=SPELLWEAVING 70.0
+INTERRUPT=75.0,100.0
+
+on=@EFFECT
+//Determina se pode morphar (anti-exploit)
+if (<restest 1 i_spl_polymorph>)
+sysmessayellow voce ja possui um efeito desses ativo.
+ return 1
+endif
+
+//Determina o tempo de duração
+local.time=<DURATIONSPELL s_forma_corso,<argn2>,<src.uid>>
+local.body=c_veado_poly
+
+//buffa stats
+local.str=<EFFECTSPELL s_forma_corso,<argn2>,<src.uid>>
+local.str=<minimumN 70-<str>,<local.str>>
+    Buff_STR,<local.str>,<local.time>
+    
+local.dex=<EFFECTSPELL s_forma_corso,<argn2>,<src.uid>>
+local.dex=<minimumN 70-<dex>,<local.dex>>
+    Buff_DEX,<local.dex>,<local.time>
+    
+
+//buffa skills
+local.wrestling= <eval(<EFFECTSPELL s_forma_corso,<argn2>,<src.uid>>) *20>
+local.wrestling=<minimumN 700-<wrestling>,<local.wrestling>>
+    BuffSkill Wrestling,<local.wrestling>,<local.time>
+
+local.tactics= <eval(<EFFECTSPELL s_forma_corso,<argn2>,<src.uid>>) *20>
+local.tactics=<minimumN 500-<tactics>,<local.tactics>>
+    BuffSkill Tactics,<local.tactics>,<local.time>
+    
+local.DetectingHidden= <eval(<EFFECTSPELL s_forma_corso,<argn2>,<src.uid>>) *10>
+local.DetectingHidden=<minimumN 500-<DetectingHidden>,<local.DetectingHidden>>
+    BuffSkill DetectingHidden,<local.DetectingHidden>,<local.time>    
+    
+stam += <local.dex>
+hits += <local.str>
+
+
+
+
+//Polimorpha
+src.f_polymorph <local.body>,0,<local.time>
+
+LOCAL.SUMMON=<eval <src.spellweaving> / 300>
+while (<local.summon> > 0)
+src.f_summon_creature c_doe,<LOCAL.TIME>
+local.summon -= 1
+endwhile
+
+src.skill_gain skill_evalint
+return 0
+
+
+
+//***********************************************************
+//              SPELL ALTERATION Força do touro
+//***********************************************************
+
+[ITEMDEF i_scroll_for_touro]
+ID=0E37
+NAME=Pergaminho Crescimento Desenfreado
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_perola_negra
+SKILLMAKE=INSCRIPTION 90.0, Spellweaving 80.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Força do touro
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=264
+        
+[ITEMDEF i_rune_for_touro]
+NAME=Forca do touro
+ID=0208F
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffSkill,e_BuffStats
+
+ON=@Create
+ATTR=attr_blessed2
+
+on=@equip
+cont.sysmessagegreen Voce se sente mais forte!
+
+on=@unequip
+cont.sysmessagegreen Sua forca comeca a passar
+cont.sfx 01E6
+
+on=@timer
+remove
+return 1
+
+[Spell 264]
+DEFNAME=s_for_touro
+NAME=Crescimento Desenfreado
+SOUND=01EE
+RUNES=OT
+CAST_TIME=45
+RESOURCES=i_r_raiz_de_mandrake,i_r_perola_negra
+RUNE_ITEM=2255
+SCROLL_ITEM=i_scroll_for_touro
+FLAGS=spellflag_targ_char | spellflag_scripted | spellflag_good
+MANAUSE=15
+EFFECT=
+DURATION=5*60,15*60
+SKILLREQ=SPELLWEAVING 80.0
+INTERRUPT=85.0,100.0
+
+on=@START
+if <act.restest i_rune_for_touro>
+src.sysmessageyellow Esse alvo ja tem esse efeito.
+return 1
+endif
+
+on=@SUCCESS
+serv.newitem = i_fx_sparkle_2
+new.attr=attr_static|attr_decay
+new.timer=1
+new.p=<act.p>
+
+on=@Effect
+LOCAL.EFFECT=<eval ((<src.spellweaving>*2)+<src.evaluatingintel>+750)/150> //5,25(30)
+LOCAL.DURATION=<DURATIONSPELL 264,<argn2>,<src.uid>>
+newitem=i_rune_for_touro
+new.tag.modstr=<minimumN 125-<str>,<LOCAL.EFFECT>>
+IF (<src.evaluatingintel> > 80.0)
+ new.tag.modskill=Wrestling
+ new.tag.modskillval=<eval <local.effect>*10>
+ENDIF
+new.link <uid>
+trysrc <uid> src.new.equip
+new.timer=<local.duration>
+
+src.skill_gain skill_evalint
+return 0
+
+
+//***********************************************************
+//              SPELL ALTERATION Urso cinzento
+//***********************************************************
+
+[ITEMDEF i_scroll_conj_ursoc]
+ID=0E38
+NAME=Pergaminho conjurar urso Pardo
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_alho,i_r_musgo_sangue,i_r_perola_negra
+SKILLMAKE=INSCRIPTION 90.0, Spellweaving 80.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Conjurar urso cinzento
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=265
+
+[Spell 265]
+DEFNAME=s_summon_ursoc
+NAME=Conjurar Urso
+SOUND=0
+RUNES=ZTK
+CAST_TIME=60
+RESOURCES=i_r_raiz_de_mandrake,i_r_alho,i_r_musgo_sangue,i_r_perola_negra
+RUNE_ITEM=2279
+SCROLL_ITEM=i_scroll_conj_ursoc
+FLAGS=spellflag_scripted | spellflag_harm | spellflag_summon
+MANAUSE=28
+EFFECT=10,40
+DURATION=2*60,4*60
+SKILLREQ=SPELLWEAVING 80.0
+INTERRUPT=85.0,100.0
+
+on=@Start
+SFX 0215
+
+on=@SUCCESS  //on=@Effect
+LOCAL.TIME=<DURATIONSPELL s_summon_ursoc,<argn2>,<UID>>
+LOCAL.EFFECT=<EFFECTSPELL s_summon_ursoc,<argn2>,<UID>>
+obj=<src.f_summon_creature c_bear_brown_sum,<LOCAL.TIME>>
+obj.Wrestling= <eval(<local.effect>*20)>
+obj.tag0.moddam += <eval <local.effect>/5>
+
+src.skill_gain skill_evalint
+return 0
+
+
+//***********************************************************
+//              SPELL ALTERATION Cone de gelo
+//***********************************************************
+
+[ITEMDEF i_scroll_cone_gelo]
+ID=0E39
+NAME=Pergaminho Furia de Metryah
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_musgo_sangue,i_r_asa_morcego
+SKILLMAKE=INSCRIPTION 100.0, Spellweaving 90.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Cone de gelo
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=266
+
+[ITEMDEF i_rune_cone_gelo]
+NAME=Cone de gelo (cooldown)
+ID=020B2
+TYPE=t_eq_script
+LAYER=layer_special
+
+
+ON=@Create
+ATTR=attr_blessed2
+
+on=@timer
+remove
+return 1
+
+[Spell 266]
+DEFNAME=s_cone_gelo
+NAME=Furia de Metryah
+SOUND=05CF
+RUNES=WH
+CAST_TIME=20
+RESOURCES=i_r_raiz_de_mandrake,i_r_musgo_sangue,i_r_asa_morcego
+RUNE_ITEM=20496
+SCROLL_ITEM=i_scroll_cone_gelo
+FLAGS=spellflag_targ_char | spellflag_scripted | spellflag_harm
+MANAUSE=18
+EFFECT=18,28
+SKILLREQ=SPELLWEAVING 90.0
+INTERRUPT=95.0,100.0
+
+on=@START
+if (<src.act.distance <UID>> > 4)
+ sysmessageyellow Muito longe...
+ return 1
+endif
+
+
+
+on=@Effect
+forchars 2
+ IF (<UID>!=<src.uid>)
+  DAMAGESPELL s_cone_gelo,dam_cold,<src.EvaluatingIntel>,<src.uid>
+  EFFECT 0 i_fx_fireball 6 16 1 91 3
+ ENDIF
+end
+if (!<src.restest i_rune_cone_gelo>) && (!<R2>)//Cooldown
+ if (!<BELLTEST <MagicResistance>,30.0>)
+  EFFECT 3 i_fire_column 0 16 0 91 3
+  stonned <eval <EFFECTSPELL s_cone_gelo,dam_cold,<src.Spellweaving>,<src.uid>>/2>
+  src.newitem i_rune_cone_gelo
+  src.new.equip
+  src.new.timer=60*3
+ endif
+endif
+
+src.skill_gain skill_evalint
+return 0
+
+
+//***********************************************************
+//              SPELL ALTERATION Polimorfar para urso pardo
+//***********************************************************
+
+[ITEMDEF i_scroll_poly_urso]
+ID=0E3A
+NAME=Pergaminho Licantropia
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_alho,i_r_asa_morcego
+SKILLMAKE=INSCRIPTION 100.0, Spellweaving 90.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Forma de urso pardo
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=267
+        
+[Spell 267]
+DEFNAME=s_forma_urso
+NAME=Animalismo
+SOUND=0
+RUNES=OKTA
+CAST_TIME=50
+RESOURCES=i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_alho,i_r_asa_morcego
+RUNE_ITEM=2295
+SCROLL_ITEM=i_scroll_poly_urso
+FLAGS=spellflag_scripted | spellflag_good
+MANAUSE=30
+DURATION=5*60,10*60
+EFFECT=15,30
+SKILLREQ=SPELLWEAVING 90.0
+INTERRUPT=95.0,100.0
+
+
+on=@EFFECT
+//Determina se pode morphar (anti-exploit)
+if (<restest 1 i_spl_polymorph>)
+sysmessayellow voce ja possui um efeito desses ativo.
+ return 1
+endif
+
+//Determina o tempo de duração
+local.time=<DURATIONSPELL s_forma_urso,<argn2>,<src.uid>>
+local.body=c_urso1_poly
+
+//buffa stats
+local.str=<EFFECTSPELL s_forma_urso,<argn2>,<src.uid>>
+local.str=<minimumN 150-<str>,<local.str>>
+    Buff_STR,<local.str>,<local.time>
+    
+local.dex=<EFFECTSPELL s_forma_urso,<argn2>,<src.uid>>
+local.dex=<minimumN 100-<dex>,<local.dex>>
+    Buff_DEX,<local.dex>,<local.time>
+    
+
+//buffa skills
+local.wrestling= <eval(<EFFECTSPELL s_forma_urso,<argn2>,<src.uid>>) *20>
+local.wrestling=<minimumN 1250-<wrestling>,<local.wrestling>>
+    BuffSkill Wrestling,<local.wrestling>,<local.time>
+    
+local.tactics= <eval(<EFFECTSPELL s_forma_urso,<argn2>,<src.uid>>) *15>
+local.tactics=<minimumN 1250-<tactics>,<local.tactics>>
+    BuffSkill Tactics,<local.tactics>,<local.time>
+    
+
+stam += <local.dex>
+hits += <local.str>
+
+//Polimorpha
+src.f_polymorph <local.body>,0,<local.time>
+
+src.skill_gain skill_evalint
+return 1
+
+
+
+
+//***********************************************************
+//              SPELL ALTERATION Driade
+//***********************************************************
+
+[ITEMDEF i_scroll_conj_driade]
+ID=0E35
+NAME=Pergaminho Revolta da Natureza
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_alho,i_r_musgo_sangue,i_r_perola_negra,i_r_nightshade
+SKILLMAKE=INSCRIPTION 100.0, Spellweaving 100.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Conjurar driade
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=268
+
+[Spell 268]
+DEFNAME=s_summon_driade
+NAME=Revolta da Natureza
+SOUND=0
+RUNES=ZFR
+CAST_TIME=50
+RESOURCES=i_r_raiz_de_mandrake,i_r_alho,i_r_musgo_sangue,i_r_perola_negra,i_r_nightshade
+RUNE_ITEM=23011
+SCROLL_ITEM=i_scroll_conj_driade
+FLAGS=spellflag_scripted | spellflag_harm | spellflag_summon
+MANAUSE=36
+EFFECT=10,40
+DURATION=60,3*60
+SKILLREQ=SPELLWEAVING 100.0
+INTERRUPT=100.0,100.0
+
+on=@Start
+SFX 0215
+
+on=@SUCCESS  //on=@Effect
+LOCAL.TIME=<DURATIONSPELL s_summon_driade,<src.spellweaving>,<UID>>
+LOCAL.EFFECT=<EFFECTSPELL s_summon_driade,<src.spellweaving>,<UID>>
+obj=<src.f_summon_creature c_kaze_kemono_sum,<LOCAL.TIME>>
+obj.Wrestling = <eval(<local.effect>*20)>
+obj.tag0.moddam += <eval <local.effect>/5>
+obj.rescold = <eval <local.effect>*2>
+obj.resenergy = <eval <local.effect>*2>
+obj.resfire = <eval <local.effect>*2>
+obj.modar += <eval <local.effect>>
+
+src.skill_gain skill_evalint
+return 0
+
+
+
+//***********************************************************
+//              SPELL ALTERATION Polimorfar para urso polar
+//***********************************************************
+
+[ITEMDEF i_scroll_poly_ursop]
+ID=0E3A
+NAME=Pergaminho Licantropia Maior
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_alho,i_r_asa_morcego,i_r_musgo_sangue
+SKILLMAKE=INSCRIPTION 100.0, Spellweaving 100.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Spellweaving
+DESCRIPTION=Forma de urso polar
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=269
+        
+[Spell 269]
+DEFNAME=s_forma_ursop
+NAME=Animalismo Maior
+SOUND=0
+RUNES=OKTAR
+CAST_TIME=70
+RESOURCES=i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_alho,i_r_asa_morcego,i_r_musgo_sangue
+RUNE_ITEM=2295
+SCROLL_ITEM=i_scroll_poly_ursop
+FLAGS=spellflag_scripted | spellflag_good
+MANAUSE=35
+DURATION=5*60,10*60
+EFFECT=20,40,
+SKILLREQ=SPELLWEAVING 100.0
+INTERRUPT=100.0,100.0
+
+on=@EFFECT
+//Determina se pode morphar (anti-exploit)
+if (<restest 1 i_spl_polymorph>)
+sysmessayellow voce ja possui um efeito desses ativo.
+ return 1
+endif
+
+//Determina o tempo de duração
+local.time=<DURATIONSPELL s_forma_ursop,<argn2>,<src.uid>>
+local.body=c_urso2_poly
+
+//buffa stats
+local.str=<EFFECTSPELL s_forma_ursop,<argn2>,<src.uid>>
+local.str=<minimumN 250-<str>,<local.str>>
+    Buff_STR,<local.str>,<local.time>
+    
+local.dex=<EFFECTSPELL s_forma_ursop,<argn2>,<src.uid>>
+local.dex=<minimumN 70-<dex>,<local.dex>>
+    Buff_DEX,<local.dex>,<local.time>
+    
+
+//buffa skills
+local.wrestling=  <eval(<EFFECTSPELL s_forma_ursop,<argn2>,<src.uid>>) *20>
+local.wrestling=<minimumN 1250-<wrestling>,<local.wrestling>>
+    BuffSkill Wrestling,<local.wrestling>,<local.time>
+    
+    local.tactics=  <eval(<EFFECTSPELL s_forma_ursop,<argn2>,<src.uid>>) *10>
+local.tactics=<minimumN 1250-<tactics>,<local.tactics>>
+    BuffSkill Tactics,<local.tactics>,<local.time>
+    
+
+stam += <local.dex>
+hits += <local.str>
+
+//Polimorpha
+src.f_polymorph <local.body>,0,<local.time>
+
+
+src.skill_gain skill_evalint
+return 1
+
+
+
+
+
+
+[FUNCTION spelleffect_chill]
+IF (!<ISNUM <ARGV0>>)
+ LOCAL.effect=<eval {200 900}>
+else
+ LOCAL.effect=<argn1>
+endif
+if (<skilltest MagicResistance <LOCAL.effect>>)
+ emotered resistiu
+ return 0
+endif
+//nível 1, dano
+LOCAL.dam=<BETWEEN 3,10,<LOCAL.EFFECT>,1000>
+LOCAL.dam=<R3,<LOCAL.dam>>
+DAMAGE <LOCAL.dam> dam_cold <src.uid>
+
+//nivel 2, stam
+LOCAL.EFFECT -= <R200,500>
+IF (<LOCAL.EFFECT>) && (<STAM> > 10)
+ LOCAL.dam=<BETWEEN 3,10,<LOCAL.EFFECT>,1000>
+ LOCAL.dam=<R3,<LOCAL.dam>>
+ STAM -= <LOCAL.dam>
+ENDIF
+
+//nivel 3, stone
+LOCAL.EFFECT -= <R100,300>
+IF (<LOCAL.EFFECT>) && (!<R2>)
+ emotered congela
+ SFX 0187
+ Stonned <R7,15>
+ENDIF
+
+
+[EOF]

@@ -1,0 +1,180 @@
+[COMMENT SKILL_REMOVE_TRAP]
+                #########################################################
+                #                                                       #
+                #                    Mystical Tales Shard               #
+                #                   Skill Remove Trap v1.1              #
+                #                                                       #
+                #               Jean Gabin                              #
+                #               US Marine                               #
+                #               Galthar, o Errante 05/05/2009           #
+                #                                                       #
+                #########################################################
+
+        -=Tags Utilizadas=-
+-tag.tool
+
+//************************************************************************************
+//      Functions
+//************************************************************************************
+
+[FUNCTION sk_removetrap]
+//Function principal da skill removetrap
+if (!<argo>)
+ sysmessageyellow Remover armadilha de onde?
+ targetf sk_removetrap
+else
+obj=<argo>
+ if (<obj.distance <src>> > 1) && (!<src.IsGm>)
+   src.sysmessageyellow Longe demais...
+ elif !(<obj.tag0.trap_flags>&<DEF.TRAP_FOUND>)
+   src.sysmessagegreen Este objeto aparentemente nao contem nenhuma armadilha.
+ else
+   src.emoteyellow desativando armadilha
+   src.anim 020
+   src.sfx 86
+   src.face = <obj>
+   src.newitem=i_mry_desativando_trap
+   CALL trap_calcDisarm <obj>
+   new.more2=<local.time>
+   new.more1=<local.diff>
+   new.morep=<src.p>                                         // se o cara se mexer cancela 
+   new.link=<obj>                                            // linka a memory a armadilha
+   new.timer=1
+   new.equip
+ endif
+endif
+return 1
+
+
+[FUNCTION trap_calcDisarm]
+//CALL trap_calcDisarm <uid>
+//Calcula o tempo e dificuldade para desarmar a armadilha de UID <ARGN>
+//e retorna local.time e local.diff
+ref1=<argn1>
+local.diff=<eval (<ref1.tag0.trap_power>+(<ref1.tag0.trap_difficult>*2))/3>
+local.time=<eval ((100.0-<src.removetrap>)/200)+(<ref1.tag0.trap_power>/200)+(<ref1.tag0.trap_difficult>/200)>
+
+[FUNCTION trap_wasteTool]
+//Gasta a ferramenta de desarmar armadilha, se tiver
+if (<tag0.tool>)
+ obj=<tag0.tool>
+  if (<obj.baseid>==i_lockpick) && (!<BELLTEST <cont.removetrap>,30.0>)
+   obj.decrement
+  elif (<obj.baseid>==i_lockpick_set) && (!<BELLTEST <cont.removetrap>,60.0>)
+   obj.decrement
+  elif (<obj.baseid>==i_kit_removetrap)
+   obj.more1 -= 1
+   if (!<obj.more1>)
+    obj.remove
+   else
+    obj.update
+   endif
+  endif
+ endif
+
+//************************************************************************************
+//      ITEMDEFS
+//************************************************************************************
+
+[ITEMDEF i_kit_removetrap]
+ID=01ebb
+NAME=Kit contra armadilhas
+Weight=5
+SKILLMAKE=Tinkering 86.2
+RESOURCES=i_ferramentas_artesao, 10 i_springs, 2 i_axel_and_gears, 3 i_tabua
+VALUE=56
+
+ON=@Create 
+  type=t_script
+  more1=<R10,18>
+
+on=@clienttooltip
+src.f_sendTooltipData Ferramenta para<DEF.BR> remover armadilhas<DEF.BR> Usos: <eval <more1>>x
+
+on=@dclick
+if (<topobj.uid> != <src.uid>)
+  src.sysmessageyellow O kit precisa estar com voce.
+elif   (<src.restest i_mry_desativando_trap>)
+  src.sysmessageyellow Voce ja esta usando o kit...
+else
+  src.sysmessageyellow Selecione a armadilha que deseja desarmar:
+  target//src.targetf f_removendo_trap
+endif
+return 1
+
+ON=@Targon_Item
+obj=<src.targ>
+if (<obj.distance <src>> > 1) && (!<src.IsGm>)
+  src.sysmessageyellow Longe demais...
+elif !(<obj.tag0.trap_flags>&<DEF.TRAP_FOUND>)
+  src.sysmessagegreen Este objeto aparentemente nao contem nenhuma armadilha.
+else
+  src.emoteyellow desativando armadilha
+  src.anim 020
+  src.sfx 86
+  src.face = <obj>
+  src.newitem=i_mry_desativando_trap
+  CALL trap_calcDisarm <obj>
+  new.more2=<eval <local.time>/2>           //Bônus de 50% no tempo
+  new.more1=<eval (<local.diff>*7)/10>      //Bônus de 30% na chance
+  new.morep=<src.p>                                         // se o cara se mexer cancela 
+  new.link=<obj>                                            // linka a memory a armadilha
+  new.tag.tool=<uid>
+  new.timer=1
+  new.equip
+endif
+return 1
+
+[ITEMDEF i_mry_desativando_trap]
+//link:objeto com armadilha
+//more1:dificuldade de desarmar
+//more2:timer
+//[tag.tool]: ferramenta utilizada para desarmar armadilha
+id=i_rune_magic_untrap
+NAME=Desativando armadilha
+TYPE=T_eq_script
+WEIGHT=0
+
+on=@Create
+    ATTR=attr_newbie
+
+on=@TIMER
+if !(<cont.p.x> == <morex>) || !(<cont.p.y> == <morey>)
+  //Andou. Parar
+  cont.sysmessagered Voce interrompeu o processo.
+  remove
+  return 1
+elif ((!<more2>) && (<link.IsEvent.e_trapped>) && (<BELLTEST <cont.removetrap>,<more1>>)) || (<link.tag0.trap_owner> == <cont.uid>)   // skill + 0-25% de chance
+  //Desarmou
+  sfx 511
+  cont.sysmessagegreen Voce desarmou !!  
+  link.emotegreen desarmou
+  link.trap_untrap 1
+  link.update
+elif (!<more2>) && (<cont.BELLTEST <cont.removetrap>,<eval <more1>/2>>)
+  //Não conseguiu, mas não acionou
+  cont.sysmessagegreen Voce nao conseguiu desativar a armadilha, mas ela nao foi disparada.
+elif (!<more2>) 
+  //Acionar a armadilha
+  cont.act=<link>
+  trysrc <cont> src.act.use
+else
+  dorand 2
+    cont.emoteyellow mexendo em <link.name>
+    cont.anim 020
+    sfx 86
+  enddo
+  timer=1
+  more2 -= 1
+  return 1
+endif
+
+//Gasta a ferramenta
+trap_wasteTool
+  
+cont.skill_gain skill_remove_trap
+remove
+return 1
+
+
+[EOF]

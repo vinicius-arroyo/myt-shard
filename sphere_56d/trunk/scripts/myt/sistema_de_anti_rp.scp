@@ -1,0 +1,396 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE ANTI-RP 
+//
+//	Galthar
+//	UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//TAGS usadas:
+//tag.warn						numero de avisos de falta de rp
+//tag.arp_jail_time		quantidade de minutos da ultima vez que foi preso
+
+//VARS usadas:
+//var.rpoff						habilita/desabilita sistema
+
+[PLEVEL 0]
+denunciar
+
+[PLEVEL 4]
+rp
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// rp - Habilita sistema de controle de qualidade do RP
+//*****************************************************************************
+[FUNCTION RP]
+if (0<var.rpoff>==1)
+ var.rpoff=0
+ serv.allclients sysmessage SYSTEMA DE ANTI-RP LIGADO!!!
+else
+ var.rpoff=1
+ serv.allclients sysmessage SYSTEMA DE ANTI-RP DESLIGADO...
+endif
+
+//*****************************************************************************
+// denunciar - Exibe UID do alvo para denuncia.
+//*****************************************************************************
+[FUNCTION denunciar]
+src.newitem i_mry_denunciar
+src.act.equip
+src.act.use
+src.sysmessage Tire um ScreenShoot e poste no forum.
+src.sysmessage Se aplicavel, adicione o Journal.
+return 1
+
+//*****************************************************************************
+// put_rp - Habilita captura de fala em um char
+//*****************************************************************************
+[FUNCTION PUT_RP]
+src.consume 30 i_speech_detect
+src.newitem i_speech_detect
+src.act.equip
+return 1
+
+//*****************************************************************************
+// rp_warn0 - Emite aviso de falta de RP
+//*****************************************************************************
+[FUNCTION rp_warn0]
+if (0<var.rpoff>) || (0<src.restest 1 i_mry_arp_jail>) || (0<src.isgm>)
+ return 1
+endif
+sysmessage <argv[0]>
+return 1
+
+//*****************************************************************************
+// rp_warn1 - Emite aviso de falta de RP, soma pontos e prende se atingir limite
+//*****************************************************************************
+[FUNCTION rp_warn1]
+if (0<var.rpoff>) || (0<src.restest 1 i_mry_arp_jail>) || (0<src.isgm>)
+ return 1
+endif
+if !(0<src.tag.warn>)
+ src.tag.warn=1
+else
+ src.tag.warn=(<src.tag.warn>+1)
+endif
+sysmessage Cuidado com seu RP.
+sysmessage <argv[0]>
+sysmessage Voce foi adicionado ao nivel N.<eval <src.tag.warn>> de avisos.
+sysmessage No nivel N.10 voce sera preso.
+src.checkwarn
+return 1
+
+//*****************************************************************************
+// rp_warn2 - Emite aviso de falta de RP, soma pontos e prende se atingir limite
+//*****************************************************************************
+[FUNCTION rp_warn2]
+if (0<var.rpoff>) || (<src.restest 1 i_mry_arp_jail>) || (0<src.isgm>)
+ return 1
+endif
+if !(<src.tag.warn>)
+ src.tag.warn=3
+else
+ src.tag.warn=(<src.tag.warn>+3)
+endif
+sysmessage OFENSA!!! 3 niveis de ANTI-RP!
+sysmessage <argv[0]>
+sysmessage Voce foi adicionado ao nivel N.<eval <src.tag.warn>> de avisos.
+sysmessage No nivel N.10 voce sera preso.
+src.checkwarn
+return 1
+
+//*****************************************************************************
+// checkwarn - Verifica se pode prender por excesso de avisos
+//*****************************************************************************
+[FUNCTION checkwarn]
+if (<src.tag.warn> > 9) && !(<restest 1 i_mry_arp_jail>)
+ src.consume 30 i_mry_arp_jail
+ src.tag.warn=0
+ if !(0<src.tag.arp_jail_time>)
+  src.tag.arp_jail_time=5
+ else
+  src.tag.arp_jail_time=<src.tag.arp_jail_time>+2
+ endif
+ sysmessage Voce teve a sua chance.
+ sysmessage Ficara preso por <eval <src.tag.arp_jail_time>> minutos.
+ src.newitem i_mry_arp_jail
+ src.act.morep=<src.p>
+ src.act.equip
+ src.act.timer=<src.tag.arp_jail_time>*60
+ tryp 0 src.jail
+ src.p = <serv.area.a_prisao.p>
+ src.update
+endif
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_mry_arp_jail
+//*****************************************************************************
+[ITEMDEF i_mry_arp_jail]
+id=i_memory
+name=Preso por falta de RP
+type=t_eq_script
+layer=layer_special
+
+on=@timer
+cont.p=<morep>
+cont.update
+cont.sysmessage Certo, voce cumpriu sua pena. Cuidado com a sua RePresentacao.
+tryp 0 cont.forgive
+cont.consume 30 i_mry_arp_jail
+remove
+return 1
+
+//*****************************************************************************
+// i_mry_denunciar
+//*****************************************************************************
+[ITEMDEF i_mry_denunciar]
+id=i_deed
+type=t_eq_script
+name=denunciando Anti-RP
+layer=layer_special
+
+on=@dclick
+timer=30
+TARGET Denunciar quem?
+return 1
+
+on=@Targon_item
+src.sysmessage alvo invalido.
+remove
+return 1
+
+on=@Targon_ground
+src.sysmessage alvo invalido.
+remove
+return 1
+
+on=@targon_char
+if (<src.targ.npc>)
+ src.sysmessage alvo invalido.
+ remove
+ return 1
+endif
+src.message Eh o <src.targ.uid>.
+remove
+return 1
+
+on=@timer
+remove
+return 1
+
+//*****************************************************************************
+// i_speech_detect
+//*****************************************************************************
+[ITEMDEF i_speech_detect]
+ID=i_worldgem_bit
+NAME=un-roleplaying
+TYPE=t_comm_crystal
+LAYER=layer_special
+
+ON=@Create
+SPEECH=spk_speech_detect
+TYPE=t_eq_script
+
+ON=@Equip
+//TYPE=t_comm_crystal
+//LAYER=99
+SRC.FLAGS=<SRC.FLAGS>|statf_commcrystal
+ATTR=<ATTR>|attr_newbie|attr_move_never
+
+//*****************************************************************************
+//*****************************************************************************
+// SPEECHes
+//*****************************************************************************
+//*****************************************************************************
+
+
+//*****************************************************************************
+// spk_speech_detect
+//*****************************************************************************
+[SPEECH spk_speech_detect]
+on=*vc*
+on=*vcs*
+on=*v6*
+on=*vo6*
+src.rp_warn0 '<args>': Use 'voce', 'tu', 'ti', 'vossa pessoa', 'vos'
+
+on=*kd*
+src.rp_warn0 'KD': Use 'cade', 'onde estaria', 'por onde anda'.
+
+
+on=*qd*
+src.rp_warn0 'QD': Use 'quando'.
+
+on=* tah *
+on=* ta *
+on=* tah *
+on=ta.
+on=ta!
+on=ta?
+on=ta
+on=tah
+src.rp_warn0 '<args>': Use 'esta'. A menos que voce seja um ORC.
+
+on=* sampa *
+on=* rock *
+on=* heal *
+on=* potion *
+on=* plate *
+on=* ingot *
+on=* iron *
+on=*game*
+on=*gold*
+on=*city*
+on=*town*
+on=*pizza*
+on=*block*
+on=*caraca*
+on=*caramba*
+on=*poxa*
+on=*mew*
+on=ow*
+on=*kaza*
+on=*kasa*
+on=*zoio*
+on=*nadave*
+on=*login*
+on=*PK*
+on=*password*
+on=* pass *
+src.rp_warn1 '<args>': Palavra fora do contexto do jogo.
+
+on=*=-)*
+on=*:-)*
+on=*;-)*
+on=*=)*
+on=*:)*
+on=*;)*
+on=*=/*
+on=*=\*
+on=*:/*
+on=*:\*
+on=*:P*
+on=*:D*
+on=*¬¬*
+on==-)*
+on=:-)*
+on=;-)*
+on==)*
+on=:)*
+on=;)*
+on==/*
+on==\*
+on=:/*
+on=:\*
+on=:P*
+on=:D*
+on=¬¬
+on=*=)*
+on=*:)*
+on=*;)*
+on=*=/*
+on=*=\*
+on=*:/*
+on=*:\*
+on=*:P*
+on=*:D*
+on=*¬¬*
+on=*;O)*
+on=:*O)*
+src.rp_warn1 '<args>': Use '*sorri*', '*gargalha*', '*muxoxo*'...
+
+on=* cu
+on=cu *
+on=* cu *
+on=cu
+on=* puta*
+on=puta *
+on=* puta *
+on=* puta*
+on=puta
+on=*merda*
+on=merda*
+on=*merda *
+on=* merda*
+on=merda
+on=* cagada*
+on=cagada*
+on=*cagada *
+on=* cagada*
+on=cagada
+on=*filha*puta*
+on=filha*puta*
+on=*filha*puta *
+on=* filha*puta*
+on=filha*puta
+on=*filho*puta*
+on=filho*puta*
+on=*filho*puta *
+on=* filho*puta*
+on=filho*puta
+on=*caralho*
+on=caralho*
+on=*caralho *
+on=* caralho*
+on=caralho
+on=*caraleow*
+on=caraleow*
+on=*caraleow *
+on=* caraleow*
+on=caraleow
+on=*porra *
+on=porra *
+on=*porra *
+on=* porra *
+on=porra
+on=*poha*
+on=poha*
+on=*poha *
+on=* poha*
+on=poha
+on=*buceta*
+on=buceta*
+on=*buceta *
+on=* buceta*
+on=buceta
+on=*boceta*
+on=boceta*
+on=*boceta *
+on=* boceta*
+on=boceta
+on=*vagina*
+on=vagina*
+on=*vagina *
+on=* vagina*
+on=vagina
+on=*penis *
+on=penis *
+on=* penis *
+on=* penis * 
+on=penis
+on=*pênis*
+on=pênis*
+on=*pênis *
+on=* pênis*
+on=pênis
+src.rp_warn2 '<args>': Nao ofenda.
+
+[EOF]

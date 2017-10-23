@@ -1,0 +1,787 @@
+[COMMENT class_forge]
+
+#################################################################################
+#                               MyT - Mystical Tales Shard                      #
+#                                                                               #
+#                            Class Forge, o criador de classes                  #
+#                                   v1.1 - 03/2009                              #
+#                                 Galthar, o Errante                            #
+#################################################################################
+
+Para utilizar:
+- Crie as tabelas abaixo no banco de dados
+- digite .classforge [new | edit] ingame
+
+
+
+        -=TAGs utilizadas=-
+
+ctag.cforge_page
+ctag.cforge_classID
+ctag.cforge_className
+ctag.cforge_revision
+ctag.cforge_date
+ctag.cforge_superclass
+ctag.cforge_background
+ctag.cforge_flags
+ctag.cforge_skill.{0~54}
+ctag.cforge_itemID
+ctag.cforge_itemDefName
+ctag.cforge_itemColor
+ctag.sforge_itemAmt
+
+
+
+
+        -=CREATE STATEMENTS para tabelas na DB:=-
+
+CREATE TABLE  `mytserver`.`classes` (
+  `ID` int(10) unsigned NOT NULL auto_increment,
+  `classname` varchar(45) NOT NULL,
+  `flags` int(10) unsigned zerofill NOT NULL default '0000000001',
+  `revision` int(10) unsigned NOT NULL,
+  `udate` timestamp NOT NULL default CURRENT_TIMESTAMP,
+  `background` text NOT NULL,
+  `superclass` varchar(45) NOT NULL,
+  `Alchemy` int(10) unsigned NOT NULL default '0',
+  `Anatomy` int(10) unsigned NOT NULL default '0',
+  `AnimalLore` int(10) unsigned NOT NULL default '0',
+  `Archery` int(10) unsigned NOT NULL default '0',
+  `ArmsLore` int(10) unsigned NOT NULL default '0',
+  `Begging` int(10) unsigned NOT NULL default '0',
+  `Blacksmithing` int(10) unsigned NOT NULL default '0',
+  `Bowcraft` int(10) unsigned NOT NULL default '0',
+  `Bushido` int(10) unsigned NOT NULL default '0',
+  `Camping` int(10) unsigned NOT NULL default '0',
+  `Carpentry` int(10) unsigned NOT NULL default '0',
+  `Cartography` int(10) unsigned NOT NULL default '0',
+  `Chivalry` int(10) unsigned NOT NULL default '0',
+  `Cooking` int(10) unsigned NOT NULL default '0',
+  `DetectingHidden` int(10) unsigned NOT NULL default '0',
+  `Enticement` int(10) unsigned NOT NULL default '0',
+  `EvaluatingIntel` int(10) unsigned NOT NULL default '0',
+  `Fencing` int(10) unsigned NOT NULL default '0',
+  `Fishing` int(10) unsigned NOT NULL default '0',
+  `Focus` int(10) unsigned NOT NULL default '0',
+  `Forensics` int(10) unsigned NOT NULL default '0',
+  `Healing` int(10) unsigned NOT NULL default '0',
+  `Herding` int(10) unsigned NOT NULL default '0',
+  `Hiding` int(10) unsigned NOT NULL default '0',
+  `Inscription` int(10) unsigned NOT NULL default '0',
+  `ItemId` int(10) unsigned NOT NULL default '0',
+  `LockPicking` int(10) unsigned NOT NULL default '0',
+  `Lumberjacking` int(10) unsigned NOT NULL default '0',
+  `Macefighting` int(10) unsigned NOT NULL default '0',
+  `Magery` int(10) unsigned NOT NULL default '0',
+  `MagicResistance` int(10) unsigned NOT NULL default '0',
+  `Meditation` int(10) unsigned NOT NULL default '0',
+  `Mining` int(10) unsigned NOT NULL default '0',
+  `Musicianship` int(10) unsigned NOT NULL default '0',
+  `Necromancy` int(10) unsigned NOT NULL default '0',
+  `Ninjitsu` int(10) unsigned NOT NULL default '0',
+  `Parrying` int(10) unsigned NOT NULL default '0',
+  `Peacemaking` int(10) unsigned NOT NULL default '0',
+  `Poisoning` int(10) unsigned NOT NULL default '0',
+  `Provocation` int(10) unsigned NOT NULL default '0',
+  `RemoveTrap` int(10) unsigned NOT NULL default '0',
+  `Snooping` int(10) unsigned NOT NULL default '0',
+  `Spellweaving` int(10) unsigned NOT NULL default '0',
+  `SpiritSpeak` int(10) unsigned NOT NULL default '0',
+  `Stealing` int(10) unsigned NOT NULL default '0',
+  `Stealth` int(10) unsigned NOT NULL default '0',
+  `Swordsmanship` int(10) unsigned NOT NULL default '0',
+  `Tactics` int(10) unsigned NOT NULL default '0',
+  `Tailoring` int(10) unsigned NOT NULL default '0',
+  `Taming` int(10) unsigned NOT NULL default '0',
+  `TasteId` int(10) unsigned NOT NULL default '0',
+  `Tinkering` int(10) unsigned NOT NULL default '0',
+  `Tracking` int(10) unsigned NOT NULL default '0',
+  `Veterinary` int(10) unsigned NOT NULL default '0',
+  `Wrestling` int(10) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`ID`),
+  KEY `index_2` USING BTREE (`superclass`)
+) ENGINE=MyISAM
+
+
+CREATE TABLE  `mytserver`.`class_inventory` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `classid` int(10) unsigned NOT NULL,
+  `defname` varchar(255) NOT NULL default 'i_adaga',
+  `amount` int(10) unsigned NOT NULL default '1',
+  `color` varchar(16) NOT NULL default '0',
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM
+
+
+
+                -=TODO=-
+
+
+
+[DEFNAME class_forge]
+StartSkillSum=300.0
+
+////////////////////////////
+// Funções do sistema
+///////////
+
+[FUNCTION classforge]
+//Função de chamada do sistema no jogo
+IF (STRMATCH(<args>,new)
+ sysmessagegreen Nova classe
+ cforge_clear
+ ctag.cforge_flags=01
+ DIALOG d_forge_class 4
+ELIF (STRMATCH(<args>,edit)
+ DIALOG d_forge_class 2
+ELIF (STRMATCH(<args>,export)
+ cforge_export
+ELSE
+ DIALOG d_forge_class 1
+ sysmessageyellow Carregando suas ultimas mudancas.
+ENDIF
+return 1
+
+[FUNCTION cforge_export]
+FILE.MODE.CREATE=1
+local.filen=scripts/myt/classes_export.html
+LOCAL.file=<FILE.OPEN <local.filen>>
+serv.log OpenFile=<dlocal.file> para <local.filen>
+DB.QUERY="SELECT * FROM `classes` WHERE NOT flags&01 ORDER BY superclass, classname;"
+local.superclass=<DB.ROW.0.superclass>
+FILE.WRITELINE &#61;&#61;<local.superclass>&#61;&#61;<DEF.BR>
+FOR r 0 <eval <DB.ROW.NUMROWS>-1>
+ serv.log <DB.ROW.<dlocal.r>.superclass>,<local.superclass>
+ if !(STRMATCH(<DB.ROW.<dlocal.r>.superclass>,<local.superclass>))
+  local.superclass=<DB.ROW.<dlocal.r>.superclass>
+  FILE.WRITELINE <DEF.BR>
+  FILE.WRITELINE &#61;&#61;<local.superclass>&#61;&#61;<DEF.BR>
+ endif
+ FILE.WRITELINE &#61;&#61;&#61;<DB.ESCAPEDATA <DB.ROW.<dlocal.r>.classname>>&#61;&#61;&#61;<DEF.BR>
+ FILE.WRITELINE <DB.ESCAPEDATA <DB.ROW.<dlocal.r>.background>><DEF.BR>
+ for s 0 54
+  local.skill=<DB.ROW.<dlocal.r>.<serv.skill.<dlocal.s>.name>>
+  if (<local.skill> > 0)
+   FILE.WRITELINE &#42;<serv.skill.<dlocal.s>.name>   <fval <DB.ROW.<dlocal.r>.<serv.skill.<dlocal.s>.name>>><DEF.BR>
+  endif
+ end
+ FILE.WRITELINE <DEF.BR>
+END
+FILE.CLOSE
+serv.log Exportadoas <eval <DB.ROW.NUMROWS>> classes emformato texto para <local.filen>.
+return 1
+
+[FUNCTION cforge_clear]
+//Limpa as ctags utilizadas no sistema
+ctag.cforge_page=
+ctag.cforge_classID=
+ctag.cforge_className=
+ctag.cforge_superclass=
+ctag.cforge_revision=
+ctag.cforge_date=
+ctag.cforge_background=
+ctag.cforge_flags=
+ctag.cforge_itemID=
+ctag.cforge_itemDefName=
+ctag.cforge_itemColor=
+ctag.cforge_itemAmt=
+for s 0 54
+ ctag.cforge_skill.<dlocal.s>=
+end
+
+[FUNCTION cforge_skillSum]
+//Retorna a soma das skills selecionadas no gump (cache)
+local.ret=0
+for s 0 54
+ local.ret += <ctag0.cforge_skill.<dlocal.s>>
+end
+return <local.ret>
+
+[FUNCTION cforge_ClassExists]
+//Verifica se a classe <args> existe e retorna sua ID ou 0.
+DB.QUERY "SELECT ID FROM classes WHERE classname LIKE '<DB.ESCAPEDATA <args>>';"
+if (!<DB.ROW.NUMROWS>)
+ return 0
+endif
+return <DB.ROW.0.ID>
+
+[FUNCTION cforge_SuperlassExists]
+//Verifica se a superclasse <args> existe e retorna o numero de classes ou 0.
+DB.QUERY "SELECT COUNT(ID) as cnt from classes WHERE superclass LIKE '<DB.ESCAPEDATA <args>>';"
+return <DB.ROW.0.cnt>
+
+[FUNCTION cforge_TrySave]
+//Verifica se todas as variáveis estão certas antes de salvar.
+if (!<ctag0.cforge_classID>) && (<cforge_ClassExists <ctag.cforge_className>>)
+ MENU m_cforge_replace
+elif (!<cforge_SuperlassExists <ctag.cforge_superclass>>)
+ MENU m_cforge_newsuperclass
+elif (<ctag0.cforge_classID>) && (<cforge_ClassExists <ctag.cforge_className>>)
+ cforge_Update
+else
+ cforge_Save
+endif
+return 0
+
+[FUNCTION cforge_LoadClass]
+//Carrega para o buffer a classe com ID <argn>
+DB.QUERY "SELECT * from classes WHERE ID=<DB.ESCAPEDATA <eval <argn>>>;"
+if (!<DB.ROW.NUMROWS>)
+ sysmessagered Classe nao encontrada
+ return 0
+endif
+ctag.cforge_classID=<DB.ROW.0.ID>
+ctag.cforge_className=<DB.ROW.0.className>
+ctag.cforge_superclass=<DB.ROW.0.superclass>
+ctag.cforge_background=<DB.ROW.0.background>
+ctag.cforge_revision=<DB.ROW.0.revision>
+ctag.cforge_date=<DB.ESCAPEDATA <DB.ROW.0.udate>>
+ctag.cforge_flags=<DB.ROW.0.flags>
+for s 0 54
+ try ctag.cforge_skill.<dlocal.s>=<DB.ROW.0.<serv.skill.<local.s>.name>>
+end
+return 1
+
+[FUNCTION cforge_Save]
+//Salva os dados no cache numa nova classe e muda no cache o ID, revisão e data de update
+local.q=INSERT INTO classes SET classname='<DB.ESCAPEDATA <ctag.cforge_className>>', superclass='<DB.ESCAPEDATA <ctag.cforge_superclass>>', background='<DB.ESCAPEDATA <ctag.cforge_background>>', flags='<dctag.cforge_flags>', udate=CURRENT_TIMESTAMP
+for s 0 54
+ local.q =<local.q>, <serv.skill.<dlocal.s>.name>=<dctag0.cforge_skill.<dlocal.s>>
+end
+local.q .= ;
+DB.QUERY <local.q>
+DB.QUERY SELECT ID, revision, udate FROM classes WHERE classname='<DB.ESCAPEDATA <ctag.cforge_className>>';
+if (0<DB.ROW.0.ID>)
+ sysmessagegreen Classe <ctag.cforge_className> salva com sucesso!
+ ctag.cforge_classID=<DB.ROW.0.ID>
+ ctag.cforge_revision=<DB.ROW.0.revision>
+ ctag.cforge_udate=<DB.ROW.0.date>
+else
+ sysmessagered Erro! A classe <ctag.cforge_className> nao foi salva.
+endif
+DIALOG d_forge_class 5
+
+[FUNCTION cforge_Update]
+//Faz UPDATE na entrada da DB
+DB.QUERY SELECT revision AS rev FROM classes WHERE ID=<dctag.cforge_classID>;
+local.nRev=<eval <DB.ROW.0.rev>+1>
+local.q=UPDATE classes SET classname='<DB.ESCAPEDATA <ctag.cforge_className>>', superclass='<DB.ESCAPEDATA <ctag.cforge_superclass>>', background='<DB.ESCAPEDATA <ctag.cforge_background>>', flags='<dctag.cforge_flags>', revision=<dlocal.nRev>, udate=CURRENT_TIMESTAMP
+for s 0 54
+ local.q =<local.q>, <serv.skill.<dlocal.s>.name>=<dctag0.cforge_skill.<dlocal.s>>
+end
+local.q = <local.q> WHERE ID=<dctag.cforge_classID>;
+DB.QUERY <local.q>
+DB.QUERY SELECT revision, udate FROM classes WHERE ID=<dctag.cforge_classID>;
+if (<DB.ROW.0.revision>==<local.nRev>)
+ sysmessagegreen Classe '<ctag.cforge_className>' agora tem revisao <dlocal.nRev>
+ ctag.cforge_revision=<DB.ROW.0.revision>
+ ctag.cforge_date=<DB.ROW.0.date>
+else
+ sysmessagered Erro! A classe <ctag.cforge_className> nao foi revisada.
+endif
+DIALOG d_forge_class 5
+
+[FUNCTION cforge_CopyClass]
+//Cria uma nova classe baseada nos dados do cache
+if (!<ctag0.cforge_ClassID>)
+ sysmessagered Esta classe ainda nao existe!
+ return 0
+endif
+ctag.cforge_classID=
+ctag.cforge_className .= (NOVO)
+ctag.cforge_flags=01//Cria a classe como Bloqueada
+ctag.cforge_itemID=
+ctag.cforge_itemDefName=
+ctag.cforge_itemColor=
+ctag.sforge_itemAmt=
+DIALOG d_forge_class 4
+
+[FUNCTION cforge_Delete]
+//Deleta a classe com ID=<dctag.cforge_classID>
+DB.QUERY=DELETE from classes WHERE ID=<dctag.cforge_classID>
+DB.QUERY=DELETE from class_inventory WHERE classid=<dctag.cforge_classID>
+sysmessageorange Classe '<ctag.cforge_className>' excluida!
+sysmessageblue Voce pode reinviar a classe conforme modificada recentemente. Os dados permanecem na tela.
+ctag.cforge_classID=
+DIALOG d_forge_class 4
+
+[FUNCTION cforge_AddItem]
+//Adiciona um item na inventory inicial da classe. NÃO USA CACHE
+IF (<IsEmpty <ctag.cforge_itemDefName>>) || (<IsEmpty <ctag.cforge_itemAmt>>) || (<IsEmpty <ctag.cforge_ClassID>>)
+ sysmessagered Erro! Item ou classe inexistente.
+ DIALOG d_forge_class 6
+ return 1
+ENDIF
+DB.QUERY "INSERT INTO class_inventory SET classid=<dctag0.cforge_ClassID>, defname='<DB.ESCAPEDATA <ctag.cforge_ItemDefName>>', color=<dctag0.cforge_itemColor>, amount=<dctag0.cforge_itemAmt>;"
+DIALOG d_forge_class 5
+
+[FUNCTION cforge_UpdateItem]
+//Modifica um item na inventory inicial da classe. NÃO USA CACHE
+IF (<IsEmpty <ctag.cforge_itemDefName>>) || (<IsEmpty <ctag.cforge_itemAmt>>) || (<IsEmpty <ctag.cforge_ClassID>>) || (<IsEmpty <ctag.cforge_ItemID>>)
+ sysmessagered Erro! Item ou classe inexistente.
+ DIALOG d_forge_class 6
+ return 1
+ENDIF
+DB.QUERY "UPDATE class_inventory SET classid=<dctag0.cforge_ClassID>, defname='<DB.ESCAPEDATA <ctag.cforge_itemID>>', color=<dctag0.cforge_itemColor>, amount=<dctag0.cforge_itemAmt> WHERE id=<dctag0.cforge_ItemID>;"
+DIALOG d_forge_class 5
+
+[FUNCTION cforge_DeleteItem]
+//Exclui um item na inventory inicial da classe. NÃO USA CACHE
+DB.QUERY "DELETE from class_inventory WHERE id=<eval <argn>>;"
+DIALOG d_forge_class 5
+
+[FUNCTION cforge_LoadItem]
+//Mostra propiedades de um item na inventory inicial da classe.
+DB.QUERY "SELECT * FROM class_inventory WHERE id=<eval <argn>>;"
+ctag.cforge_itemID=<DB.ROW.0.id>
+ctag.cforge_itemDefName=<DB.ROW.0.defname>
+ctag.cforge_itemColor=<DB.ROW.0.color>
+ctag.sforge_itemAmt=<DB.ROW.0.amount>
+DIALOG d_forge_class 6
+
+
+
+////////////////////////////
+// Funções do dialog
+///////////
+
+[FUNCTION cforge_changeClassName]
+//Troca o nome da classe no cache por <args>
+ctag.cforge_className=<args>
+DIALOG d_forge_class 4
+
+[FUNCTION cforge_changeSuperclass]
+//Troca o nome da superclasse no cache por <args>
+ctag.cforge_superclass=<args>
+DIALOG d_forge_class 4
+
+[FUNCTION cforge_updateBackground]
+//Troca o background da classe no cache por <args>
+ctag.cforge_background=<args>
+DIALOG d_forge_class 4
+
+[FUNCTION cforge_changeItem]
+//Carrega dados de um item do world para o cache via TARGETF
+if (!<argo>)
+ DIALOG d_forge_class 6
+ sysmessagered Item invalido.
+ return 0
+elif (!<argo.IsItem>)
+ DIALOG d_forge_class 6
+ sysmessagered Nada de pets ou itens dinamicos.
+ return 0
+endif
+ctag.cforge_itemDefName=<argo.defname>
+ctag.cforge_itemColor=<argo.color>
+ctag.cforge_itemAmt=<argo.amount>
+DIALOG d_forge_class 6
+return 1
+
+[FUNCTION dcforge_DrawButtons]
+//Desenha os botões padrão da edição de classe no gump
+if (!<IsEmpty <ctag.cforge_className>>) && (!<IsEmpty <ctag.cforge_superclass>>) && (!<IsEmpty <ctag.cforge_background>>)
+ button 24 402 18 19 0 3 301//skill
+endif
+if (<local.skillsum>==<DEF.StartSkillSum>)
+ button 261 401 2443 2444 1 0 304//Enviar
+ dtext 274 402 62 Enviar
+endif
+if (<ctag0.cforge_classID>)
+ button 329 401 2443 2444 1 0 305
+ dtext 340 402 62 Excluir
+endif
+button 110 402 16 17 0 4 302//BG
+dtext 580 403 <QVAL <local.skillsum>==<DEF.StartSkillSum>?62:32> Soma de skills: <fval <local.skillsum>>/<fval <DEF.StartSkillSum>>
+//Só deixar configurar loot ou copiar se a classe já existe
+if (<ctag0.cforge_classID>)
+ button 210 393 4037 4037 1 0 303
+ button 394 401 2443 2444 1 0 306
+ dtext 406 402 62 Copiar
+endif
+
+[FUNCTION cforge_wm]
+//Define a mensagem de topo
+if (<IsEmpty <ctag.cforge_classID>>)
+ local.wm=<DEF.center><DEF.BFONT_BLUE>Nova classe
+else
+ local.wm=<DEF.center><DEF.BFONT_GREEN>Editando classe
+endif
+if (!<IsEmpty <ctag.cforge_superclass>>)
+ local.wm .= : <ctag.cforge_superclass> -
+else
+ local.wm .= : Defina nome, superclasse e texto.
+endif
+if (!<IsEmpty <ctag.cforge_classname>>)
+ local.wm .= > <ctag.cforge_classname>
+endif
+return <local.wm>
+
+[FUNCTION cforge_sumarie]
+//Cria e retorna estatísticas do sistema
+DB.QUERY "SELECT COUNT(ID) AS cnt FROM classes;"
+local.t=<DB.ROW.0.cnt>
+DB.QUERY "SELECT COUNT(DISTINCT superclass) AS cnt FROM classes;"
+local.s=<DB.ROW.0.cnt>
+DB.QUERY "SELECT (SELECT COUNT(ID) FROM classes)-(SELECT COUNT(ID) FROM classes WHERE flags&01) AS cnt;"
+local.j=<DB.ROW.0.cnt>
+DB.QUERY "SELECT COUNT(ID) as cnt FROM classes WHERE flags&01;"
+local.b=<DB.ROW.0.cnt>
+DB.QUERY "SELECT classname, udate FROM classes WHERE udate=(SELECT MAX(udate) FROM classes);"
+local.d=<DB.ESCAPEDATA <DB.ROW.0.udate>>
+local.c=<DB.ROW.0.classname>
+local.sm=Existem <dlocal.t> classes distribuidas em <dlocal.s> superclasses. Destas, <dlocal.j> sao jogavies e <dlocal.b> estao bloqueadas.<def.br><def.br>A ultima edicao foi na classe <local.c> em <local.d>.
+return <local.sm>
+
+
+
+////////////////////////////
+// Dialogs
+///////////
+
+// Created 4/3/2009 01:34:09, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+
+[DIALOG d_forge_class]
+0,0
+page 0
+//Coisas
+local.skillsum=<cforge_skillSum>
+resizepic 0 0 9270 790 450
+checkertrans 13 13 765 425
+gumppic 210 17 10500
+gumppic 574 17 10502
+gumppictiled 226 17 350 36 10501
+dhtmlgump 226 26 346 22 0 0 <cforge_wm>
+
+page 1
+//Sumario do sistema
+resizepic 30 72 9200 734 135
+dhtmlgump 42 84 709 114 0 1 <cforge_sumarie>
+button 18 410 2443 2444 1 0 101
+dtext 34 411 62 Nova
+button 86 410 2443 2444 0 2 102
+dtext 98 411 62 Editar
+
+
+page 2
+//Lista de superclasses e classes
+//Popular superclasses
+DB.QUERY SELECT DISTINCT superclass FROM classes ORDER BY superclass;
+local.total_superclasses=<minimum 10,<eval <DB.ROW.NUMROWS>-1>>
+for i 0 <dlocal.total_superclasses>
+ try local.cforge_superclass.<dlocal.i>=<DB.ROW.<dlocal.i>.superclass>
+end
+dorigin 20 45
+for i 0 <local.total_superclasses>
+ DB.QUERY "SELECT ID FROM classes WHERE superclass='<local.cforge_superclass.<dlocal.i>>' LIMIT 1";
+ button - *30 <QVAL STRMATCH(<local.cforge_superclass.<dlocal.i>>,<ctag.cforge_superclass>)?2154:2472> 2154 1 0 <eval 2000+<DB.ROW.0.ID>>
+ dtext +32 +3 2100 <local.cforge_superclass.<dlocal.i>>
+end
+
+//Popular classes
+if (!<IsEmpty <ctag.cforge_superclass>>)
+ dorigin 175 62
+ DB.QUERY "SELECT ID, classname, flags FROM classes WHERE superclass='<DB.ESCAPEDATA <ctag.cforge_superclass>>';"
+ local.j.max=14
+ if (<DB.ROW.NUMROWS>)
+  for j 0 <eval <DB.ROW.NUMROWS>-1>
+   if (<local.j> > <local.j.max>)//nova coluna
+    local.j.max += 15
+    dorigin *140 62
+   endif
+   //Determina cor do botão
+   IF (<DB.ROW.<dlocal.j>.ID>==<ctag0.cforge_ClassID>)//Classe em edição
+    local.but=2362
+   ELIF (0<DB.ROW.<dlocal.j>.flags>&01)//classe bloqueada
+    local.but=2360
+   ELSE//Classe jogavel
+    local.but=2361
+   ENDIF
+   button - *20 <dlocal.but> 2362 1 0 <eval <DB.ROW.<dlocal.j>.ID>+3000> //<QVAL <DB.ROW.<dlocal.j>.ID>==<ctag0.cforge_ClassID>?2362:2360>
+   dtext +16 -4 2100 <DB.ROW.<dlocal.j>.classname>
+  end
+ endif
+ button 18 410 2443 2444 0 1 201
+ dtext 28 411 62 Voltar
+ button 86 410 2443 2444 1 0 101
+ dtext 101 411 62 Nova
+endif
+
+
+page 3
+//Lista de skills para modificar
+resizepic 19 60 9200 752 371
+//desenhar skills
+dorigin 23 34
+for s 0 10
+ local.bot=<eval (10*<local.s>)+1000>
+ if (<ctag0.cforge_skill.<dlocal.s>> < 650)
+  button - *30 2435 2436 1 0 <dlocal.bot>
+ else
+  gumppic - *30 2436
+ endif
+ if (<ctag0.cforge_skill.<dlocal.s>> > 0)
+  button - +15 2437 2438 1 0 <eval <local.bot>+1>
+ else
+  gumppic - +15 2438
+ endif
+ dtext +11 +2 2100 <serv.skill.<local.s>.name> <fval <ctag0.cforge_skill.<dlocal.s>>>
+end 
+
+dorigin 163 34
+for s 11 21
+ local.bot=<eval (10*<local.s>)+1000>
+ if (<ctag0.cforge_skill.<dlocal.s>> < 650)
+  button - *30 2435 2436 1 0 <dlocal.bot>
+ else
+  gumppic - *30 2436
+ endif
+ if (<ctag0.cforge_skill.<dlocal.s>> > 0)
+  button - +15 2437 2438 1 0 <eval <local.bot>+1>
+ else
+  gumppic - +15 2438
+ endif
+ dtext +11 +2 2100 <serv.skill.<local.s>.name> <fval <ctag0.cforge_skill.<dlocal.s>>>
+end
+
+dorigin 303 34
+for s 22 32
+ local.bot=<eval (10*<local.s>)+1000>
+ if (<ctag0.cforge_skill.<dlocal.s>> < 650)
+  button - *30 2435 2436 1 0 <dlocal.bot>
+ else
+  gumppic - *30 2436
+ endif
+ if (<ctag0.cforge_skill.<dlocal.s>> > 0)
+  button - +15 2437 2438 1 0 <eval <local.bot>+1>
+ else
+  gumppic - +15 2438
+ endif
+ dtext +11 +2 2100 <serv.skill.<local.s>.name> <fval <ctag0.cforge_skill.<dlocal.s>>>
+end
+
+dorigin 443 34
+for s 33 43
+ local.bot=<eval (10*<local.s>)+1000>
+ if (<ctag0.cforge_skill.<dlocal.s>> < 650)
+  button - *30 2435 2436 1 0 <dlocal.bot>
+ else
+  gumppic - *30 2436
+ endif
+ if (<ctag0.cforge_skill.<dlocal.s>> > 0)
+  button - +15 2437 2438 1 0 <eval <local.bot>+1>
+ else
+  gumppic - +15 2438
+ endif
+ dtext +11 +2 2100 <serv.skill.<local.s>.name> <fval <ctag0.cforge_skill.<dlocal.s>>>
+end
+
+dorigin 583 34
+for s 44 54
+ local.bot=<eval (10*<local.s>)+1000>
+ if (<ctag0.cforge_skill.<dlocal.s>> < 650)
+  button - *30 2435 2436 1 0 <dlocal.bot>
+ else
+  gumppic - *30 2436
+ endif
+ if (<ctag0.cforge_skill.<dlocal.s>> > 0)
+  button - +15 2437 2438 1 0 <eval <local.bot>+1>
+ else
+  gumppic - +15 2438
+ endif
+ dtext +11 +2 2100 <serv.skill.<local.s>.name> <fval <ctag0.cforge_skill.<dlocal.s>>>
+end
+call dcforge_DrawButtons
+
+
+page 4
+//Sumário da classe
+resizepic 19 60 9200 752 371
+dhtmlgump 28 71 735 100 1 1 <QVAL <IsEmpty <ctag.cforge_background>>?Escreva a descricao da classe abaixo e precione 'Modificar'.:Revisao <dctag0.cforge_revision> de <ctag.cforge_date><DEF.BR><ctag.cforge_background>>
+resizepic 28 188 9350 733 100
+button 535 297 2445 2445 1 0 403
+dtext 559 298 62 Modificar
+dtextentry 36 196 714 83 0 0 <QVAL <IsEmpty <ctag.cforge_background>>? :<ctag.cforge_background>>
+button 112 289 2440 2440 1 0 401
+dtext 30 290 32 Superclasse
+dtext 120 290 0 <QVAL <IsEmpty <ctag.cforge_superclass>>?Sem superclasse:<ctag.cforge_superclass>>
+button 112 312 2440 2440 1 0 402
+dtext 65 313 32 Classe
+dtext 120 313 0 <QVAL <IsEmpty <ctag.cforge_className>>?Sem classe:<ctag.cforge_className>>
+call dcforge_DrawButtons
+button 470 402 <QVAL <ctag0.cforge_flags>&01?211:210> 210 1 0 307
+dtext 496 402 2100 Bloqueada
+
+
+page 5
+//Lista de itens da inventory inicial
+resizepic 19 60 9200 752 371
+call dcforge_DrawButtons
+
+dorigin 27 51
+DB.QUERY "SELECT * FROM class_inventory WHERE classid=<dctag.cforge_ClassID>;"
+for i 0 <DB.ROW.NUMROWS>
+ if (<local.i> < <DB.ROW.NUMROWS>)
+  button - *20 3 4 1 0 <eval 4000+<DB.ROW.<dlocal.i>.id>>
+  button +20 - 216 216 1 0 <eval 7000+<DB.ROW.<dlocal.i>.id>>
+  dtext +37 -3 <QVAL <DB.ROW.<dlocal.i>.color>?<eval <DB.ROW.<dlocal.i>.color>>:2100> <serv.itemdef.<DB.ROW.<dlocal.i>.defname>.name> (<eval <DB.ROW.<dlocal.i>.amount>>)
+ else
+  button - *20 2103 2104 1 0 501
+  dtext +16 -5 2100 Add
+ endif
+end
+
+
+page 6
+//Detalhes de um item da inventory inicial
+resizepic 19 60 9200 752 371
+button 702 404 247 248 1 0 602
+button 23 403 241 242 1 0 601
+dorigin 31 70
+
+dtext - - 32 ID do item: <QVAL <dctag0.cforge_ItemID>?<dctag0.cforge_ItemID>:Nao criado>
+
+dtext +20 *30 2100 DefName: <ctag.cforge_ItemDefName>
+dtext +20 *30 <QVAL <ctag0.cforge_ItemColor>?<dctag0.cforge_ItemColor>:2100> Cor: <ctag0.cforge_ItemColor>
+dtext +20 *30 2100 Quantidade: <dctag.cforge_ItemAmt>
+dtext +20 *50 4 Selecionar item no mundo
+button - +3 1209 1210 1 0 603
+
+
+[DIALOG d_forge_class text]
+
+
+[DIALOG d_forge_class button]
+//ON=0 10000
+//sysmessagered <eval <argn>>
+
+ON=101
+// Nova
+classforge new
+
+ON=303
+// Ver loot inicial
+DIALOG d_forge_class 5
+
+ON=304
+// Enviar
+cforge_TrySave
+
+ON=305
+// Excluir
+MENU m_cforge_deleteclass
+
+ON=306
+// Copiar
+cforge_CopyClass
+
+ON=307
+// bloquear/desbloquear
+if (<ctag.cforge_flags>&01)
+ ctag.cforge_flags &= ~01
+else
+ ctag.cforge_flags |= 01
+endif
+DIALOG d_forge_class 4
+
+ON=401
+// Modificar superclasse
+sysmessageorange Escreva o nome da Superclasse (mago, guerreiro, clerigo...)
+promptconsole cforge_changeSuperclass
+
+ON=402
+// Modificar classe
+sysmessageorange Escreva o nome da Classe
+promptconsole cforge_changeClassName
+
+ON=403
+// Modificar background
+cforge_updateBackground <argtxt[0]>
+sysmessageorange Background modificado!
+
+ON=501
+// Add item
+ctag.cforge_ItemID=
+ctag.cforge_ItemDefName=
+ctag.cforge_ItemColor=
+ctag.cforge_ItemAmt=
+DIALOG d_forge_class 6
+
+ON=602
+// EditItem Okay
+if (<ctag0.cforge_ItemID>)
+ cforge_UpdateItem
+else
+ cforge_AddItem
+endif
+
+ON=601
+// EditItem Cancel
+DIALOG d_forge_class 5
+
+ON=603
+// Item Change
+targetf cforge_changeItem
+Sysmessageyellow Selecione o item para copiar para o loot de '<ctag.cforge_classname>'.
+
+ON=1000 1541
+//Subir ou descer skill
+local.b=<eval (<argn>-1000)>
+local.s=<eval <local.b>/10>
+if (0<argn>&01)
+ local.newval=<eval <ctag0.cforge_skill.<dlocal.s>>-50>
+ ctag0.cforge_skill.<dlocal.s> -=50
+else
+ ctag0.cforge_skill.<dlocal.s> +=50
+endif
+DIALOG d_forge_class 3
+
+ON=2000 2999
+//Selecionar Superclasse
+local.ID=<eval <argn>-2000>
+DB.QUERY SELECT superclass FROM classes WHERE id=<dlocal.id>
+ctag.cforge_superclass=<DB.ROW.0.superclass>
+DIALOG d_forge_class 2
+
+ON=3000 3999
+//Carregar classe
+local.ID=<eval <argn>-3000>
+cforge_LoadClass <local.ID>
+DIALOG d_forge_class 4
+
+ON=4000 6999
+//Deletar item da inventory inicial
+local.ID=<eval <argn>-4000>
+cforge_DeleteItem <local.ID>
+
+ON=7000 9999
+//Mostrar item da inventory inicial
+local.ID=<eval <argn>-7000>
+cforge_LoadItem <local.ID>
+
+[MENU m_cforge_replace]
+A classe '<ctag.cforge_className>' ja existe. Deseja sobrescrever?
+ON=0 SIM
+cforge_Save
+
+ON=0 NAO
+DIALOG d_forge_class 4
+
+[MENU m_cforge_newsuperclass]
+A superclasse '<ctag.cforge_superclass>' nao existe. Deseja criar a superclasse?
+ON=0 SIM
+cforge_Save
+
+ON=0 NAO
+DIALOG d_forge_class 4
+
+[MENU m_cforge_deleteclass]
+Tem certeza que deseja EXCLUIR PERMANENTEMENTE a classe '<ctag.cforge_className>'?
+ON=0 SIM
+cforge_Delete
+
+ON=0 NAO
+DIALOG d_forge_class 4
+
+[EOF]

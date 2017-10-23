@@ -1,0 +1,2032 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL ALCHEMY
+//
+//  Mestre Galthar
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//TAGS usadas:
+
+//REAGENTES (máscaras - more1)
+//i_r_perola_negra    =0001
+//i_r_musgo_sangue    =0002
+//i_r_alho            =0004
+//i_r_ginseng         =0008
+//i_r_raiz_de_mandrake=0010
+//i_r_nightshade      =0020
+//i_r_cinza_sulfurosa =0040
+//i_r_teia_de_aranha  =0080
+//i_r_asa_morcego     =0100
+//i_r_olho_morto_vivo =0200
+//i_r_rocha_negra
+//i_r_sangue_invocado
+//i_r_frasco_sangue
+//i_r_osso
+//i_r_enxofre
+//i_r_osso_demonio
+//i_r_poeira_fertil
+//i_r_sangue_dragao
+//i_r_capuz_algoz
+//i_r_vidro_vulcanico
+//i_r_ferro_guza
+//i_r_pomis
+//i_r_ectoplasma
+//i_r_cinza_vulcanica
+//i_r_madeira_morta
+//i_r_coracao_dragao
+
+[COMMENT alchemy]
+DROP TABLE IF EXISTS `mytserver`.`alchemy`;
+CREATE TABLE  `mytserver`.`alchemy` (
+  `mask` int(10) unsigned NOT NULL,
+  `potion` varchar(45) NOT NULL,
+  PRIMARY KEY  (`mask`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+t_misturador
+more1       Hits/Maxhits
+morex       Componente 1
+morey       Componente 2
+morez       Flag. Já fui preparado
+TDATA1      % de chance de explodir em falha
+TDATA2      Que tipo de frasco sou (alc_balao, alc_balao2...)
+TDATA3      Tempo de preparo
+TDATA4      Maxhits cap
+
+Bancada de alquimia 03077
+
+[DEFNAME alch]
+alch_dif_t_balao    51
+alch_dif_t_destilador   61
+alch_dif_t_misturador   75
+alc_balao       1
+alc_balao2      2
+alc_destilador  3
+alc_misturador  4
+
+ALC_REAG_01     i_r_perola_negra
+ALC_REAG_02     i_r_musgo_sangue
+ALC_REAG_04     i_r_alho
+ALC_REAG_08     i_r_ginseng
+ALC_REAG_010    i_r_raiz_de_mandrake
+ALC_REAG_020    i_r_nightshade
+ALC_REAG_040    i_r_cinza_sulfurosa
+ALC_REAG_080    i_r_teia_de_aranha
+ALC_REAG_0100   i_r_asa_morcego
+ALC_REAG_0200   i_r_olho_morto_vivo
+
+[FUNCTION craft_t_potion]
+ local.skill=<serv.itemdef.<args>.skillmake.0.val>
+ obj.tag.delay=<between 5,20,<local.skill>,125.0>
+ obj.tag.f_step=alc_potStep
+ obj.tag.f_done=alc_potEnd
+ local.craftable 1
+
+[FUNCTION alc_potStep]
+DOSWITCH <ctag0.alc_step>
+    emoteyellow moendo
+    sfx {578 1 05ab 1}
+    local.n=
+    emoteyellow misturando
+    local.n=
+    sfx {578 1 05ac 1}
+    local.n=
+ENDDO
+ctag.alc_step = <ctag0.alc_step>+1
+if (<ctag0.alc_step> == 7)
+ctag.alc_step=0
+
+[FUNCTION alc_potEnd]
+if (<argn1>)
+    emoteyellow guarda mistura
+    sfx 0240
+    uid.<argn2>.attr |= 01  //Identificado
+else
+    emoteyellow joga fora
+    sfx 0364
+    obj=<findid.i_faz_item>
+    if (STRMATCH(*i_bottle_empty*,<serv.itemdef.<obj.tag.item>.resources>))
+        newitem i_bottle_empty
+        new.bounce
+    endif
+endif
+
+[FUNCTION alc_GetReagN]
+//Retorna o DEFNAME do reagente da mascara hexadecimal.
+return <DEF.ALC_REAG_<hval 2@<argn>>>
+
+[FUNCTION alc_GetCompName]
+//Retorna o nome da poção desta mascara hexadecimal.
+local.n=<EVAL LOGARITHM(<argn>,2)>
+DOSWITCH <local.n>
+ local.name Perolacao
+ local.name Visgo
+ local.name Ardor
+ local.name Elixir
+ local.name Seivume
+ local.name Extrato
+ local.name Borra
+ local.name Mosto
+ local.name Ester
+ local.name Residuo
+ENDDO
+
+local.n=<eval <argn>-<eval 2@<dlocal.n>>>
+return = <local.name> de <serv.itemdef.<DEF.ALC_REAG_<local.n>>.name>
+
+[FUNCTION alc_GetCompReagNames]
+//Retorna os nomes dos reagentes da máscara <argn>
+local.r1=<hVAL LOGARITHM(<argn>,2)>
+local.r1=<hval 2@<local.r1>>
+local.r2=<hval <argn>^<local.r1>>
+return <serv.itemdef.<DEF.ALC_REAG_<local.r1>>.name> e <serv.itemdef.<DEF.ALC_REAG_<local.r2>>.name>
+
+
+[FUNCTION alc_MakeComposite]
+//Cria na bag do player um tubo cheio, com nome, cor e máscara do <argn>
+newitem i_tubo_cheio
+new.more2=<argn>
+new.color=<argn>
+new.name=<alc_GetCompName <argn>>
+new.bounce
+
+[MENU m_alchemy_comp]
+O que deseja fazer?
+ON=0 Listar compostos
+alc_ListComp
+
+ON=0 Nova pocao de composto
+alc_NewComp
+
+[FUNCTION alquimia]
+MENU m_alchemy_comp
+
+[FUNCTION alc_NewComp]
+//Cria um novo composto para uma nova poção.
+
+//Máquina de estados:
+//0-Selecionar primeiro reag
+//1-Selecionar segundo reag
+//2-Teste de superposição. Selecionar a poção resultante
+//3-Teste de poção duplicata. Pula pro 5
+//4-Aceita sobrescrever composto. Pula pro 5
+//5-Guarda ou dá update na poção.
+if (!<argn>)
+ ctag.alc_mask=
+ ctag.alc_overwrite=
+ ctag.alc_oldreag=
+ sysmessageyellow Selecione primeiro reagente:
+ TARGETF alc_NewComp 1
+ 
+elif (<argn>==1)
+ if (<argo.type>!=t_reagente) || (!<argo.more1>)
+  sysmessagered Reagente inválido.
+  alquimia
+  return 1
+ endif
+ ctag.alc_mask=<argo.more1>
+ sysmessageyellow Selecione segundo reagente:
+ TARGETF alc_NewComp 2
+ 
+elif (<argn>==2)
+ if (<argo.type>!=t_reagente) || (!<argo.more1>)
+  sysmessagered Reagente inválido.
+  alquimia
+  return 1
+ endif
+ if (<argo.more1>==<ctag.alc_mask>)
+  sysmessagered Reagente inválido. Duplicado.
+  sysmessageyellow Selecione segundo reagente:
+  TARGETF alc_NewComp 2
+  return 1
+ endif
+ DB.QUERY="SELECT * from alchemy WHERE mask=<eval <ctag.alc_mask>|<argo.more1>>;"
+ if (<DB.ROW.NUMROWS>)
+  ctag.alc_oldreag=<argo>
+  prompt_new Este composto ja existe e resulta em <DEF.<DB.ROW.0.potion>_IDNAME>. Sobrescrever?
+  prompt_setAction alc_NewComp 4,
+  prompt_setActionBack alquimia
+  prompt_show
+  return 1
+ endif
+ ctag.alc_mask |= <argo.more1>
+ sysmessageyellow Selecione a pocao resultante:
+ TARGETF alc_NewComp 3
+ 
+elif (<argn>==3)
+ if (!<argo.IsItem>)
+  sysmessagered Item invalido.
+  sysmessageyellow Selecione a pocao resultante:
+  TARGETF alc_NewComp 3
+  return 1
+ endif
+ ctag.alc_potion=<argo.defname> 
+ DB.QUERY="SELECT * from alchemy WHERE potion='<argo.defname>';"
+ if (<DB.ROW.NUMROWS>)
+  ctag.alc_potion=<argo>
+  prompt_new Esta pocao ja existe se misturar <alc_GetCompReagNames <DB.ROW.0.mask>>. Criar duplicado?
+  prompt_setAction alc_NewComp 5,
+  prompt_setActionBack alquimia
+  prompt_show
+  return 1
+ endif 
+ alc_NewComp 5
+ 
+elif (<argn>==4)
+ ctag.alc_mask |= <ctag.alc_oldreag>
+ ctag.alc_overwrite=1
+ sysmessageyellow Selecione a pocao resultante:
+ TARGETF alc_NewComp 3
+elif (<argn>==5)
+ if (<ctag0.alc_overwrite>)
+  DB.EXECUTE="UPDATE alchemy SET potion='<ctag.alc_potion>' WHERE mask=<eval <ctag.alc_mask>>;"
+  sysmessageblue Mistura alterada!
+ else
+  DB.EXECUTE="INSERT INTO alchemy SET mask=<eval <ctag.alc_mask>>, potion='<ctag.alc_potion>';"
+  sysmessageblue Pocao salva!
+ endif
+ alquimia
+endif
+
+[FUNCTION alc_ListComp]
+//Lista todos os compostos registrados na DB para gerenciamento
+list_new Selecione o composto
+list_newDbCol 20,potion,Pocao
+list_newDbCol 200,mask,Composto
+list_setAction alc_ActionComp
+list_setActionBack alquimia
+list_loadFromDb "SELECT potion, mask FROM alchemy;"
+
+//Apurar os itens para melhor identificação
+for i <ctag.list_numitems>
+ TRY ctag.list_row<local.i>_01=<DEF.<ctag.list_row<local.i>_01>_IDNAME>
+ TRY ctag.list_row<local.i>_02=<alc_GetCompReagNames <ctag.list_row<local.i>_02>>
+end
+list_show 1
+
+[FUNCTION alc_GetPotionByMask]
+//Retorna o DEFNAME da pocao com mascara <argn>
+DB.QUERY="SELECT * from alchemy WHERE mask=<eval <argn>>;"
+return <DB.ROW.0.potion>
+
+[FUNCTION alc_GetCompDiff]
+//Retorna a dificuldade de criação da poção com a mascara <argn>
+local.pot=<alc_GetPotionByMask <argn>>
+local.diff=<serv.itemdef.<local.pot>.skillmake.0.val>
+if (!<local.diff>)
+ return <R1000>
+endif
+return <local.diff>
+
+[FUNCTION alc_ActionComp]
+//Chama o menu de ações da poção para a tabela
+ctag.alc_mask=<ctag.list_row<hval <argn>>_02>
+ctag.alc_potion=<ctag.list_row<hval <argn>>_01>
+ctag.alc_index=<argn>
+MENU m_alc_ActionComp
+
+[MENU m_alc_ActionComp]
+<ctag.alc_potion> eh feito com <ctag.alc_mask>. O que deseja fazer?
+ON=0 Abrir com Craftmenu
+DB.QUERY="SELECT potion FROM alchemy LIMIT <eval <ctag.alc_index>-1>,1;"
+craftmenu <DB.ROW.0.potion>
+
+ON=0 Editar com Itemforge
+DB.QUERY="SELECT potion FROM alchemy LIMIT <eval <ctag.alc_index>-1>,1;"
+newitem <DB.ROW.0.potion>
+new.bounce
+itemforge_insert <new>
+new.remove
+
+ON=0 Excluir este composto
+prompt_new Deseja excluir <ctag.alc_potion> (<ctag.alc_mask>)?
+prompt_setAction alc_DelComp
+prompt_setActionBack MENU m_alc_ActionComp
+prompt_show
+
+[FUNCTION alc_DelComp]
+//Deleta a poção com o indice ctag.alc_index.
+DB.QUERY="SELECT * FROM alchemy LIMIT <eval <ctag.alc_index>-1>,1;"
+DB.EXECUTE="DELETE FROM alchemy WHERE mask=<DB.ROW.0.mask> AND potion='<DB.ROW.0.potion>';"
+alc_ListComp
+
+[FUNCTION alc_gringReag]
+//Usa o almofariz para moer um reag
+IF (!<argn>)
+ sysmessageyellow Selecione o reagente:
+ TARGETF alc_gringReag 1
+ELIF (<argn>==1)
+ if (!<argo.IsItem>)
+  sysmessagered Isso nao tem cara de reagente. Isso anda?
+  return 1
+ elif (<argo.type>!=t_reagente) || (!<argo.more1>)
+  sysmessagered Isso nao parece ter propriedade medicinais.
+  return 1
+ endif
+ ref1=<argo>
+ obj=<src.findid.i_faz_item>
+ obj.cleartags
+ obj.tag.uid1=<ref1>
+ obj.tag.amt1=1
+ obj.tag.nam1=<ref1.name>
+ obj.tag.res2=i_tubo
+ obj.tag.amt2=1
+ obj.tag.nam2=tubo de ensaio vazio
+ obj.tag.skill=alchemy
+ obj.tag.dif=55
+ obj.tag.emote=misturando <ref1.name>
+ obj.tag.sfx=578
+ obj.tag.delay=<eval 13-(<src.alchemy>/100)> //3 a 13
+ obj.tag.item=i_tubo_cheio
+ obj.tag.color=<ref1.get_color>
+ obj.tag.more1=<argo.more1>
+ obj.tag.more2=0//extrato
+ obj.tag.name=<ref1.name> moido
+ obj.tag.f_end=despeja_tubo
+ obj.tag.f_done=f_checkExtrato
+ src.fazitem
+ENDIF
+
+[FUNCTION alc_FillBench]
+//Carrega uma bancada com tubos de ensaio
+if (0<argn>)    //Determina quem é a bancada
+    ctag0.craft_tool=<argn>
+elif (!<ctag0.craft_tool>)
+    return 1
+elif (<uid.<ctag0.craft_tool>.hits> >= <uid.<ctag0.craft_tool>.maxhits>)
+    sysmessageyellow Esta bancada nao precisa de tubos de ensaio.
+    return 1
+endif
+sysmessageyellow Selecione os tubos de ensaio:
+local.flags=<uid.<ctag.craft_tool>.attr>
+if !(<local.flags>&08040) || (<IsGm>)//Owned by town|static
+    sysmessageorange (ou clique selecione a bancada para encaixota-la)
+endif
+TARGETF alc_FillBench2
+return 1
+
+[FUNCTION alc_FillBench2]
+if (!<argo>) || (!<argo.IsItem>)
+    sysmessagered Alvo invalido.
+    return 1
+elif (<argo>==<ctag0.craft_tool>)//Estamos desmontando...
+    if (<argo.attr>&08040) && (!<IsGm>)//Owned by town|static
+        sysmessagered Isso nao parece tubo de ensaio. Cenouras tambem nao servirao.
+        return 1
+    else
+        alc_packBench 1
+        return 1
+    endif
+elif (<argo.type>!=t_tubo)
+    sysmessagered Isso nao parece tubo de ensaio. Cenouras tambem nao servirao.
+    return 1
+endif
+ref1=<argo>
+ref2=<ctag0.craft_tool>
+//Determina o máximo de hits possível e aplica
+local.max=<eval <ref2.maxhits>-<ref2.hits>>
+local.amt=<MINIMUMN <local.max>,<ref1.amount>>
+ref2.hits += <local.amt>
+ref1.decrement <local.amt>
+ref2.update
+sysmessagegreen Bancada abastecida!
+
+[FUNCTION alc_packBench]
+if (<argn>)
+    ref1=<ctag0.craft_tool>
+else
+    ref1=<uid>
+endif
+if (<ref1.attr>&08040) && (!<src.IsGm>)//Owned by town|static
+    sysmessagered Esta bancada eh publica e nao pode ser encaixotada.
+    return 1
+elif (<ref1.hits>)
+    src.newitem i_tubo
+    new.amount=<ref1.hits>
+    src.new.bounce
+endif
+ref1.hits=1 //Não pode remover sem hits.
+serv.newitem i_alc_bench_packed
+new.p=<ref1.p>
+new.decay=600
+ref1.remove
+
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_tubo
+//*****************************************************************************
+[TYPEDEF t_tubo]
+ON=@DCLICK
+src.sysmessageyellow Utilize o almofariz.
+return 1
+
+ON=@STEP
+src.emotered quebrou a vidraria
+sfx SND_GLASS
+remove
+return 1
+
+//*****************************************************************************
+// t_tubo_cheio
+//*****************************************************************************
+[TYPEDEF t_tubo_cheio]
+
+ON=@STEP
+src.emotered quebrou a vidraria
+sfx SND_GLASS
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessageyellow Selecione o outro recipiente ou o chao.
+TARGET
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.type>!=t_misturador) && (<src.targ.type>!=t_potion_empty)
+    src.sysmessageyellow Use em destiladores, baloes ou misturadores.
+    return 1
+endif
+
+if (<src.targ.type>==t_misturador)
+    if (<more2>)
+        src.sysmessageyellow Voce nao pode misturar isso.
+        return 1
+    elif ( (<src.targ.morex>) && (<src.targ.morey>) ) || (<src.targ.morez>)
+        src.sysmessageyellow Nao pode adicionar um terceiro produto
+        return 1
+    elif (<more1>==<src.targ.morex>)
+        src.sysmessageyellow Voce ja pois este componente. Use um diferente.
+        return 1
+    endif
+
+    decrement   
+    src.despeja_tubo 1
+
+    if (<src.targ.morex>)
+        src.targ.morey=<more1>
+    else
+        src.targ.morex=<more1>
+    endif
+
+    src.targ.TRIGGER @DROPON_ITEM
+    src.targ.update
+    return 1
+    
+elif (<src.targ.type>==t_potion_empty)
+    if (!<more2>)
+        src.sysmessageyellow Este composto nao esta pronto. Misture-o!
+        return 1
+    endif
+    decrement   
+    src.despeja_tubo 1
+    faz_pocao <more2>
+endif
+return 1
+
+ON=@TARGON_GROUND
+src.emoteyellow joga liquido fora
+src.newitem i_tubo
+src.new.bounce
+src.sfx 0364
+decrement
+return 1
+
+
+//*****************************************************************************
+// t_almofariz
+//*****************************************************************************
+[TYPEDEF t_almofariz]
+
+//*****************************************************************************
+// t_espiriteira
+//*****************************************************************************
+//link é quem está em cima
+[TYPEDEF t_espiriteira]
+ON=@ClientToolTip
+//bughunt
+if (!<maxhits>)
+ SERV.LOG [t_espiriteira] Item criado sem maxhits! <name>::<defname>
+ if (!<TDATA4>)
+  SERV.LOG [t_espiriteira] Item criado sem TDATA4! <name>::<defname>
+  maxhits=100
+  hits=100
+ else
+  maxhits=<TDATA4>
+  hits=<R5,<TDATA4>>
+ endif
+endif
+
+//bugtrap
+if (<TDATA4>)
+ local.max=<TDATA4>
+else
+ local.max=<maxhits>
+endif
+
+local.t =Tempo restante: <EVAL <HITS>>/<EVAL <MAXHITS>>seg<DEF.BR>
+local.t .= Qualidade:
+DOSWITCH <eval (<maxhits>*6)/<local.max>>
+ local.t .= " Pessima"
+ local.t .= " Duvidosa"
+ local.t .= " Media"
+ local.t .= " Boa"
+ local.t .= " Excelente"
+ local.t .= " Excelente"
+ local.t .= " Excelente"
+ENDDO
+src.f_sendTooltipData <name>
+src.f_sendTooltip <name>,<local.t>
+return 1
+
+ON=@DCLICK
+link=<src>
+if (<cont>)
+    src.sysmessageyellow A vela nao pode ser acesa onde esta.
+    return 1
+endif
+if (!<more2>) //se apagado
+    if (<hits> > 0) //se tem carga
+        more2=1
+        dispid=i_heating_stand_lit
+        sfx=054
+        timer=<hits>
+        update
+    else
+        src.sysmessageyellow A vela acabou. Selecione uma nova.
+        TARGET
+    endif
+else    //se aceso
+    apagaEspiriteira
+endif
+
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.baseid>=i_candle) || (<src.targ.baseid>=i_candle_lit) || (<src.targ.baseid>=i_candle_lg) || (<src.targ.baseid>=i_candle_lg_lit)
+    src.targ.decrement
+    local.waste=<eval (<MAXHITS>*<R3,8>)/100>
+    MAXHITS -= <local.waste>
+    hits=<maxhits>
+    src.sysmessagegreen Vela trocada.
+    update
+else
+    src.sysmessageyellow Deve selecionar uma vela.
+endif
+return 1
+
+ON=@PICKUP_GROUND
+if (<more2>) //se aceso
+    apagaEspiriteira
+endif
+
+ON=@TIMER
+emotered apagou
+apagaEspiriteira
+return 1
+
+
+//*****************************************************************************
+// t_misturador
+//*****************************************************************************
+[TYPEDEF t_misturador]
+
+ON=@STEP
+src.emotered quebrou a vidraria
+sfx SND_GLASS
+remove
+return 1
+
+ON=@ClientToolTip
+//bughunt
+if (!<maxhits>)
+ SERV.LOG [t_misturador] Item criado sem maxhits! <name>::<defname>
+ if (!<TDATA4>)
+  SERV.LOG [t_misturador] Item criado sem TDATA4! <name>::<defname>
+  maxhits=100
+  hits=100
+ else
+  maxhits=<TDATA4>
+  hits=<R5,<TDATA4>>
+ endif
+endif
+
+//bugtrap
+if (<TDATA4>)
+ local.max=<TDATA4>
+else
+ local.max=<maxhits>
+endif
+
+if (<morez>)//Já fui preparado?
+ local.t=Composto: <alc_GetCompName <morex>><DEF.BR>
+else
+ local.t=Componentes:
+ if !(<morex>)
+  local.t .= " Nenhum<DEF.BR>"
+ else
+  local.t .= " <serv.itemdef.<DEF.ALC_REAG_<hval <morex>>>.name>"
+  if (<morey>)
+   local.t .= " e <serv.itemdef.<DEF.ALC_REAG_<hval <morey>>>.name><DEF.BR>"
+  else
+   local.t .= <DEF.BR>
+  endif
+ endif
+endif
+
+IF (<attr>&01)//Identificado
+ local.t .=Estado: <EVAL <HITS>>/<EVAL <MAXHITS>><DEF.BR>
+ local.t .= Qualidade:
+ DOSWITCH <eval (<maxhits>*6)/<local.max>>
+  local.t .= " Pessima"
+  local.t .= " Duvidosa"
+  local.t .= " Media"
+  local.t .= " Boa"
+  local.t .= " Excelente"
+  local.t .= " Excelente"
+  local.t .= " Excelente"
+ ENDDO
+ELSE
+ local.t .="Estado: "
+ DOSWITCH <eval (<hits>*5)/<maxhits>>
+  local.t .= " Quebrando-se"
+  local.t .= " Deteriorado"
+  local.t .= " Boas condicoes"
+  local.t .= " Semi-novo"
+  local.t .= " Novo em folha"
+  local.t .= " Novo em folha"
+ ENDDO
+ local.t .= "<DEF.BR>Qualidade: "
+ DOSWITCH <eval (<maxhits>*3)/<local.max>>
+  local.t .= " Duvidosa"
+  local.t .= " Media"
+  local.t .= " Boa"
+  local.t .= " Boa"
+ ENDDO
+ENDIF
+local.t .=<DEF.BR>Falha fatal: <fval <TDATA1>> Alchemy
+
+src.f_sendTooltipData <name>
+src.f_sendTooltip <name>,<local.t>
+return 1
+
+ON=@DROPON_ITEM
+DOSWITCH <TDATA2>
+ local.blank        //Não sei quem sou
+ balao_setaCor      //Balão pequeno
+ balao2_setaCor     //Balão grande
+ dest_setaCor       //Destilador
+ mist_setaCor       //Misturador
+ENDDO 
+
+ON=@DROPON_GROUND
+TRIGGER @DROPON_ITEM
+
+ON=@DCLICK
+//Testes de prache
+if (<topobj> != <src>)
+ if (<src.distance> > 1)
+  src.sysmessagered Muito longe...
+  return 1
+ endif
+endif
+
+if (!<morez>)//Não preparado
+ if (<morex>)
+  if (<morey>)
+   src.sysmessageyellow Selecione espiriteira ou o chao:
+   target
+   return 1
+  else
+   src.sysmessagered Voce precisa colocar um outro componente antes de usar.
+  endif
+ else
+  src.sysmessageyellow Moa 2 reagentes diferentes e coloque-os aqui.
+ endif
+else //Já está pronto.
+ src.sysmessageyellow Selecione tubo de ensaio, garrafa elquimica ou o chao:
+ target
+ return 1
+endif
+return 1
+
+ON=@TARGON_GROUND
+src.emoteyellow joga liquido fora
+morep=0,0,0,<morem>
+src.sfx 0364
+TRIGGER @DROPON_ITEM
+return 1
+
+ON=@TARGON_CHAR
+src.sysmessagered Alvo errado...
+return 1
+
+ON=@TARGON_ITEM
+if (<morez>)//mistura pronta
+    if (<argo.topobj>!=<src>) && (<argo.topobj>!=<argo>)
+        src.sysmessagered Voce nao tem como manupular <argo.name> ai...
+        return 1
+    elif (<argo.distance <src>> > 1)
+        src.sysmessagered Muito longe...
+        return 1
+    elif (<argo.type>!=t_tubo) && (<argo.type>!=t_potion_empty)
+        src.sysmessagered Somente tubos de ensaio ou garrafas vazias.
+        return 1
+    elif (<argo.type>==t_tubo)
+        src.alc_MakeComposite <morex>
+        argo.decrement
+    elif (<argo.type>==t_potion_empty)
+        src.faz_pocao <morex>
+    endif
+    alc_damGlass <src>
+    morep=0,0,0,0
+    src.sfx 0240
+    TRIGGER @DROPON_ITEM
+    return 1
+        
+else        //mistura não cozida
+    if (<argo.type>!=t_espiriteira)
+        src.sysmessageyellow Isso nao eh uma espiriteira acesa...
+        return 1
+    elif (<argo.topobj>!=<argo>)
+        src.sysmessageyellow Ponha a espiriteira num local adequado para isto...
+        return 1
+    elif (<argo.more2>!=1)
+        src.sysmessageyellow A espiriteira deve estar acesa...
+        return 1
+    endif
+        //se ja tiver algo na espiriteira, tira antes.
+        if (<src.targ.link>) && (<src.targ.link.topobj>!=<src>)
+            link=04fffffff
+            src.targ.link=04fffffff
+            src.targ.link.bounce
+        endif
+        p=<src.targ.p>
+        src.targ.link=<uid>
+        link=<src>
+        tag.espiriteira=<src.targ>
+        obj=<src.findid.i_faz_item.uid>
+        obj.cleartags
+        obj.tag.skill=alchemy
+        obj.tag.dif=<eval <alc_GetCompDiff <hval <morex>|<morey>>>/10>
+        obj.tag.delay=<TDATA3>
+        obj.tag.item=1 
+        obj.tag.f_step=recpt_step <uid>,
+        obj.tag.f_done=recpt_end <uid>,
+        src.fazitem
+        return 1
+    endif
+endif
+return 1
+
+//*****************************************************************************
+// t_alc_bench
+//*****************************************************************************
+
+[TYPEDEF t_alc_bench]
+ON=@Destroy
+if (!<hits>)
+ update
+ return 1
+endif
+
+On=@Click
+message=@035 <name>
+message=@0c4 Tubos: <hits>/<maxhits>
+return 1
+
+ON=@DClick
+if (!<hits>)
+ src.sysmessageyellow A bancada esta sem tubos de ensaio!
+ src.alc_FillBench <uid>
+ return 1
+endif
+
+        
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// apagaEspiriteira
+//*****************************************************************************
+[FUNCTION apagaEspiriteira]
+more2=0
+dispid=i_heating_stand
+sfx=02b
+if (<timer> > 1)
+ HITS=<timer>
+else
+ HITS=0
+endif
+timer=-1
+update
+
+//*****************************************************************************
+// f_checkExtrato( fezExtrato, uidExtrato )
+//*****************************************************************************
+[FUNCTION f_checkExtrato]
+//se falhou, devolve tubo vazio
+if (!<argn1>)
+    serv.newitem i_tubo
+    new.cont=<uid>
+endif
+
+//*****************************************************************************
+// despeja_tubo( gera_tubo_vazio )
+//*****************************************************************************
+[FUNCTION despeja_tubo]
+sfx 0240
+if (0<argv[0]>)
+  serv.newitem i_tubo
+  new.cont=<uid>
+endif
+
+//*****************************************************************************
+// get_color
+//*****************************************************************************
+[function get_color]
+if (<more1><2)
+ return 0f
+elif (<more1> < 4)
+  return 028
+elif (<more1> < 8)
+ return 047e
+elif (<more1> < 10)
+ return 032
+elif (<more1> < 20)
+ return 02c
+elif (<more1> < 40)
+ return 016d
+elif (<more1> < 80)
+ return 09a
+elif (<more1> < 100)
+ return 03c1
+elif (<more1> < 200)
+ return 03be
+else
+ return 034
+endif
+
+//*****************************************************************************
+// find_name
+//*****************************************************************************
+[function find_name]
+
+DOSWITCH (<more2>)
+    LOCAL.px=extrato de
+    LOCAL.px=destilado de
+    LOCAL.px=borra de
+    LOCAL.px=composto de
+    LOCAL.px=
+    LOCAL.px=composto de
+    LOCAL.px=composto de
+ENDDO
+
+if (<more1>=0001)
+ return <LOCAL.px> perola negra
+elif (<more1>=0002)
+ return <LOCAL.px> musgo sangue
+elif (<more1>=0004)
+ return <LOCAL.px> alho
+elif (<more1>=0008)
+ return <LOCAL.px> ginseng
+elif (<more1>=0010)
+ return <LOCAL.px> raiz de mandrake
+elif (<more1>=0020)
+ return <LOCAL.px> nightshade
+elif (<more1>=0040)
+ return <LOCAL.px> cinza sulforoza
+elif (<more1>=0080)
+ return <LOCAL.px> teia de aranha
+elif (<more1>=0100)
+ return <LOCAL.px> asa de morcego
+elif (<more1>=0200)
+ return <LOCAL.px> olho de morto-vivo
+ 
+elif (<more1>=03)
+ return solucao rubra escura
+elif (<more1>=05)
+ return solucao negra
+elif (<more1>=06)
+ return solucao rubra
+elif (<more1>=09)
+ return composto de Deniz
+elif (<more1>=0a)
+ return composto benigno
+elif (<more1>=0c)
+ return composto de Belline
+elif (<more1>=011)
+ return sulucao alpha
+elif (<more1>=012)
+ return solucao raiz-de-fungo
+elif (<more1>=014)
+ return composto raiz forte
+elif (<more1>=018)
+ return composto de raizes
+elif (<more1>=021)
+ return solucao sombra de perola
+elif (<more1>=022)
+ return solucao sombra de musgo
+elif (<more1>=024)
+ return composto de Flamarion
+elif (<more1>=028)
+ return composto dos sonhos
+elif (<more1>=030)
+ return solucao de Pulliani
+elif (<more1>=041)
+ return solucao da chama
+elif (<more1>=042)
+ return composto maligno
+elif (<more1>=044)
+ return solucao Ohmega
+elif (<more1>=048)
+ return composto de Tearina
+elif (<more1>=050)
+ return sulucao de cinzadrake
+elif (<more1>=060)
+ return solucao fogo-da-noite
+elif (<more1>=081)
+ return composto de Simn
+elif (<more1>=082)
+ return solucao sangue-de-aranha
+elif (<more1>=084)
+ return solucao veneno de aranha
+elif (<more1>=088)
+ return composto 88
+elif (<more1>=090)
+ return solucao de aranha velha
+elif (<more1>=0a0)
+ return composto da aranha noturna
+elif (<more1>=0c0)
+ return solucao da teia de ouro
+elif (<more1>=0101)
+ return solucao vida voadora
+elif (<more1>=0102)
+ return composto de Vividus
+elif (<more1>=0104)
+ return solucao de Anelion
+elif (<more1>=0108)
+ return composto carnigolein
+elif (<more1>=0110)
+ return solucao de Hulier
+elif (<more1>=0120)
+ return composto sucarinus
+elif (<more1>=0140)
+ return solucao asa-morta
+elif (<more1>=0180)
+ return solucao asa de aranha
+elif (<more1>=0201)
+ return liquido olho-marinho
+elif (<more1>=0202)
+ return solucao de Anelion II
+elif (<more1>=0204)
+ return liquido ardente
+elif (<more1>=0208)
+ return ministrado de Sofia
+elif (<more1>=0210)
+ return composto firiudiplutal
+elif (<more1>=0220)
+ return solucao venen'Olhos
+elif (<more1>=0240)
+ return ministrado metoroidal
+elif (<more1>=0280)
+ return mistura de teia de aranha com olho de morto-vivo
+elif (<more1>=0300)
+ return coisa viscosa   
+else
+ return mistura
+endif
+update
+return 1
+
+//*****************************************************************************
+// faz_pocao
+//*****************************************************************************
+//default eh o item com a pocao (more1-mascara ingredientes more2-tipo)
+[function faz_pocao]
+local.potion=<alc_GetPotionByMask <argn>>
+if (<eval STRLEN(<local.potion>)> < 2)
+ src.sysmessageyellow Esta mistura nao resulta em pocal alguma!
+else
+ src.newitem <local.potion>
+ src.new.attr=01
+ src.new.bounce
+ src.consume i_bottle_empty
+endif
+
+//*****************************************************************************
+// recpt_step( recipiente )
+//*****************************************************************************
+//anima destilador em uso
+[FUNCTION recpt_step]
+obj=<argv[0]>
+ref1=<obj.tag.espiriteira>
+//verifica se apagou a espiriteira ou se moveu
+if (!<ref1.more2>) || (<obj.p.x>!=<ref1.p.x>) || (<obj.p.y>!=<ref1.p.y>)
+    ref1=<findid.i_faz_item.uid>
+    ref1.tag.falha=1
+    return 1
+endif
+
+    DORAND (10)
+        obj.link.emotegreen tens<obj.link.sex o/a>
+        obj.link.emotegreen preparando
+        obj.link.emotegreen preparando
+        obj.emoteyellow aquecendo
+        obj.emoteyellow aquecendo
+        obj.say @028 click!
+        obj.sfx 050
+        obj.sfx 020
+        obj.sfx 050
+        obj.sfx 024
+    ENDDO
+
+//*****************************************************************************
+// recpt_end( recipiente, sucesso, nada )
+//*****************************************************************************
+//termina destilacao
+[FUNCTION recpt_end]
+ref1=<argv[0]>
+if (<argv[1]>)
+    ref1.morez=1 //pronto
+    ref1.morex = <hval <ref1.morex>|<ref1.morey>>
+    ref1.morey=0
+    ref1.update
+    ref1.link.emotegreen terminou
+else
+    if (!<ref1.link.belltest <ref1.link.alchemy>,<ref1.tdata1>>)
+        ref1.link.spelleffect s_explosao,{50.0 125.0}
+        ref1.remove
+    else
+        ref1.morep=0,0,0,0 //vazio
+        ref1.link.emotegreen falhou
+        ref1.alc_damGlass <ref1.link>
+        ref1.trigger @DROPON_GROUND
+        endif
+    endif
+endif
+
+//impede uso do .fazitem
+obj=<findid.i_faz_item.uid>
+obj.tag.abort=1
+
+[FUNCTION alc_damGlass]
+//Gasta a vidraria DEFAULT e avisa <ARGN>, se quebrar e houver
+hits -= 1
+if (!<hits>)
+    if (<argn>)
+        ref2=<argn>
+        ref2.sysmessagered A vidraria se quebrou.
+    endif
+    sfx SND_GLASS
+    remove
+endif
+update
+
+//*****************************************************************************
+// alc_recptDclick
+//*****************************************************************************
+//funcao do dclick dos recipientes de alquimia (destilador,balao)
+[FUNCTION alc_recptDclick]
+ if (!<more2>) //vazio
+    src.sysmessageyellow Utilize um tubo cheio.
+ elif (<more2>==01)//com algo para destilar/aquecer
+    src.sysmessageyellow Selecione a espiriteira
+    TARGET
+ elif (<more2>==02)//com destilado/borra
+    src.sysmessageyellow Selecione outro recipiente
+    TARGET
+ endif
+
+//*****************************************************************************
+// alc_recptTarget
+//*****************************************************************************
+//funcao do target dos recipientes de alquimia (destilador,balao,misturador)
+[FUNCTION alc_recptTarget]
+if (<more2>==1) || (<more2>==6) //com algo para destilar/aquecer/misturar
+    if (<src.targ.type>==t_espiriteira)
+        if (<src.targ.cont>)
+            src.sysmessageyellow Nao pode usar a espiriteira ai.
+            return 1
+        elif (!<src.targ.more1>)//espiriteira apagada?
+            src.sysmessageyellow Acenda a espiriteira.
+            return 1
+        elif (<src.targ.distance>>1)//muito longe?
+            src.sysmessageyellow Chegue mais perto.
+            return 1
+        endif
+        //se ja tiver algo na espiriteira, tira antes.
+        if (<src.targ.link>) && (<src.targ.link.topobj>!=<src>)
+            src.targ.link.bounce
+        endif
+        p=<src.targ.p>
+        src.targ.link=<uid>
+        link=<src>
+        tag.espiriteira=<src.targ>
+        obj=<src.findid.i_faz_item.uid>
+        obj.cleartags
+        obj.tag.skill=alchemy
+        obj.tag.dif=<eval <DEF.alch_dif_<type>>>
+        obj.tag.delay=<eval 20-(<src.alchemy>/100)> //10 a 20
+        obj.tag.item=1 
+        obj.tag.f_step=recpt_step <uid>,
+        obj.tag.f_done=recpt_end <uid>,
+        src.fazitem     
+        return 1
+    else
+        src.sysmessageyellow Selecione uma espiriteira acesa.
+        return 1
+    endif
+elif (<more2>==2) || (<more2>==7)//com destilado/borra/mistura
+    if (<src.targ.type>==t_tubo)
+        src.targ.decrement
+//      src.despeja_tubo 1
+        sfx 0240
+    serv.newitem i_tubo_cheio
+        new.more1=<more1>
+        more1=0//vazio
+        more2=0//vazio
+
+        if (<type>==t_destilador)
+            new.more2=1 //destilado
+            new.name=<NEW.find_name>
+            name=destilador
+            dest_setaCor
+        elif (<type>==t_balao)
+            new.more2=2 //borra
+            new.name=<NEW.find_name>
+            name=balao
+            balao_setaCor
+        elif (<type>==t_misturador)
+            new.more2=3 //mistura
+            new.name=<NEW.find_name>
+            name=misturador
+            mist_setaCor
+        endif
+
+        new.color=<new.get_color>
+        new.cont=<src>
+        new.update
+    else
+        src.sysmessageyellow Selecione um tubo vazio.
+    endif
+endif
+return 1
+
+//*****************************************************************************
+// dest_setaCor
+//*****************************************************************************
+//seta dispid do destilador de acordo com conteudo
+[FUNCTION dest_setaCor]
+if (( <morex> | <morey> )&01)            //bp
+    dispid=i_beaker2_blue
+elif (( <morex> | <morey> )&02)      //bm
+    dispid=i_beaker2_red
+elif (( <morex> | <morey> )&04)      //g
+    dispid=i_beaker2_teal
+elif (( <morex> | <morey> )&08)      //g
+    dispid=i_beaker2_red
+elif (( <morex> | <morey> )&010)     //mr
+    dispid=i_beaker2_red
+elif (( <morex> | <morey> )&020)     //ns
+    dispid=01837                //verde
+elif (( <morex> | <morey> )&040)     //sa
+    dispid=01837                //verde
+elif (( <morex> | <morey> )&080)     //ss
+    dispid=i_beaker2_blue
+elif (( <morex> | <morey> )&0100)    //am
+    dispid=i_beaker2_blue
+elif (( <morex> | <morey> )&0200)    //om
+    dispid=i_beaker2_blue
+elif (( <morex> | <morey> )==0)
+    dispid=i_beaker2_empty
+else
+    dispid=i_beaker2_teal
+endif
+update
+
+//*****************************************************************************
+// balao_setaCor
+//*****************************************************************************
+//seta dispid do balao de acordo com conteudo
+[FUNCTION balao_setaCor]
+if (( <morex> | <morey> )&01)            //bp
+    dispid=0182a                //azul
+elif (( <morex> | <morey> )&02)      //bm
+    dispid=0182c                //vermelho
+elif (( <morex> | <morey> )&04)      //g
+    dispid=0182b                //amarelo
+elif (( <morex> | <morey> )&08)      //gi
+    dispid=0182b                //amarelo
+elif (( <morex> | <morey> )&010)     //mr
+    dispid=0182c                //vermelho
+elif (( <morex> | <morey> )&020)     //ns
+    dispid=0182a                //azul
+elif (( <morex> | <morey> )&040)     //sa
+    dispid=0182b                //amarelo
+elif (( <morex> | <morey> )&080)     //ss
+    dispid=0182a                //azul
+elif (( <morex> | <morey> )&0100)    //bw
+    dispid=0182c                //vermelho
+elif (( <morex> | <morey> )&0200)    //om
+    dispid=0182a                //azul
+elif (( <morex> | <morey> )==0)   
+    dispid=0182d                //vazio
+else
+    dispid=0182a                //desconhecido
+endif
+update
+
+//*****************************************************************************
+// balao2_setaCor
+//*****************************************************************************
+//seta dispid do balao grande de acordo com conteudo
+[FUNCTION balao2_setaCor]
+if (( <morex> | <morey> )&01)            //bp
+    dispid=0183c                //roxo
+elif (( <morex> | <morey> )&02)      //bm
+    dispid=0183c                //roxo
+elif (( <morex> | <morey> )&04)      //g
+    dispid=0183b                //amarelo
+elif (( <morex> | <morey> )&08)      //gi
+    dispid=0183b                //amarelo
+elif (( <morex> | <morey> )&010)     //mr
+    dispid=0183b                //vermelho
+elif (( <morex> | <morey> )&020)     //ns
+    dispid=0183c                //azul
+elif (( <morex> | <morey> )&040)     //sa
+    dispid=0183b                //amarelo
+elif (( <morex> | <morey> )&080)     //ss
+    dispid=0183c                //azul
+elif (( <morex> | <morey> )&0100)    //bw
+    dispid=0183c                //vermelho
+elif (( <morex> | <morey> )&0200)    //om
+    dispid=0183c                //azul
+elif (( <morex> | <morey> )==0)     //om
+    dispid=0183d                //vazio
+else
+    dispid=0183b                //cinza
+endif
+update
+
+//*****************************************************************************
+// mist_setaCor
+//*****************************************************************************
+//seta dispid do misturador de acordo com conteudo
+[FUNCTION mist_setaCor]
+if (( <morex> | <morey> )&01)        //bp
+    dispid=01839                //roxo
+elif (( <morex> | <morey> )&02)      //bm
+    dispid=01838                //vermelho
+elif (( <morex> | <morey> )&04)      //g
+    dispid=01839                //roxo
+elif (( <morex> | <morey> )&08)      //g
+    dispid=01838                //vermelho
+elif (( <morex> | <morey> )&010)     //mr
+    dispid=01839                //roxo
+elif (( <morex> | <morey> )&020)     //ns
+    dispid=01838                //vermelho
+elif (( <morex> | <morey> )&040)     //sa
+    dispid=01839                //roxo
+elif (( <morex> | <morey> )&080)     //ss
+    dispid=01839                //cinza
+elif (( <morex> | <morey> )&0100)    //bw
+    dispid=01839                //roxo
+elif (( <morex> | <morey> )&0200)    //om
+    dispid=01839                //roxo
+elif (( <morex> | <morey> )==0)       //vazio
+    dispid=0183a                //cinza
+else    
+    dispid=01838                //vermelho
+endif
+update
+
+//*****************************************************************************
+// ALQUIMIANOW
+//*****************************************************************************
+[FUNCTION ALQUIMIANOW]
+src.newitem=i_tubo
+src.act.amount=5
+src.act.bounce
+
+src.newitem=i_espiriteira
+src.act.maxhits=<src.act.tdata4>
+src.act.hits=<src.act.tdata4>
+src.act.attr=01
+src.act.bounce
+
+src.newitem=i_balao
+src.act.maxhits=<src.act.tdata4>
+src.act.hits=<src.act.tdata4>
+src.act.attr=01
+src.act.bounce
+
+src.newitem=i_destilador
+src.act.maxhits=<src.act.tdata4>
+src.act.hits=<src.act.tdata4>
+src.act.attr=01
+src.act.bounce
+
+src.newitem=i_balao2
+src.act.maxhits=<src.act.tdata4>
+src.act.hits=<src.act.tdata4>
+src.act.attr=01
+src.act.bounce
+
+src.newitem=i_misturador
+src.act.maxhits=<src.act.tdata4>
+src.act.hits=<src.act.tdata4>
+src.act.attr=01
+src.act.bounce
+
+src.newitem=i_almofariz
+src.act.maxhits=<src.act.tdata4>
+src.act.hits=<src.act.tdata4>
+src.act.attr=01
+src.act.bounce
+
+src.newitem=i_tubo
+src.act.amount=10
+src.act.bounce
+
+src.newitem=i_bottle_empty
+src.act.amount=10
+src.act.bounce
+
+src.newitem=i_r_alho
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_perola_negra
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_ginseng
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_musgo_sangue
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_raiz_de_mandrake
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_nightshade
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_cinza_sulfurosa
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_teia_de_aranha
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_olho_morto_vivo
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_asa_morcego
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_rocha_negra
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_sangue_invocado
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_frasco_sangue
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_osso
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_enxofre
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_osso_demonio
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_poeira_fertil
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_sangue_dragao
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_capuz_algoz
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_vidro_vulcanico
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_ferro_guza
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_pomis
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_ectoplasma
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_cinza_vulcanica
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_madeira_morta
+src.act.amount=30
+src.act.bounce
+
+src.newitem=i_r_coracao_dragao
+src.act.amount=30
+src.act.bounce
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs - Acessorios/Ferramentas
+//*****************************************************************************
+//*****************************************************************************
+[ITEMDEF 03078]
+DEFNAME=i_multi_alchemy_bench_e1
+NAME=Bancada de alquimia
+
+[ITEMDEF 03077]
+DEFNAME=i_multi_alchemy_bench_e
+NAME=Bancada de alquimia
+TYPE=t_multi
+MULTIREGION=0,-1,20,0
+COMPONENT=03078, 0, -1, 0
+TEVENTS=t_alc_bench,t_crafting_tool
+TDATA1=4310
+TDATA4=100
+
+on=@create  //Driblando sistema anti-bug de t_crafting_tool
+timerf 1,alc_benchInit
+
+[ITEMDEF 0307A]
+DEFNAME=i_multi_alchemy_bench_s1
+NAME=Bancada de alquimia
+
+[ITEMDEF 03079]
+DEFNAME=i_multi_alchemy_bench_s
+NAME=Bancada de alquimia
+TYPE=t_multi
+MULTIREGION=-1,0,20,0
+COMPONENT=0307A, -1, 0, 0
+TEVENTS=t_alc_bench,t_crafting_tool
+TDATA1=4310
+TDATA4=100
+
+on=@create  //Driblando sistema anti-bug de t_crafting_tool
+timerf 1,alc_benchInit
+
+[ITEMDEF i_alc_bench_packed]
+ID=0e3c
+NAME=bancada de alquimia (encaixotada)
+type=t_packed
+value=752
+SKILLMAKE=Carpentry 76.2
+RESOURCES=4 i_perna_p3, 2 i_suporte, 200 i_parafuso, 150 i_tubo
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Bancada
+
+ON=@Create
+tag.south=i_multi_alchemy_bench_s
+tag.east=i_multi_alchemy_bench_e
+
+[FUNCTION alc_benchInit]
+attr |= 01
+maxhits=<TDATA4>
+hits=0
+update
+
+//*****************************************************************************
+// i_tubo
+//*****************************************************************************
+[ITEMDEF i_tubo]
+NAME=tubo de ensaio
+ID=i_vial_empty
+TYPE=t_tubo
+RESOURCES=1 i_areia
+SKILLMAKE=Tinkering 5.0
+VALUE=1
+WEIGHT=0.1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=tubo de ensaio
+
+//*****************************************************************************
+// i_tubo_cheio
+//*****************************************************************************
+//more1 reagente
+//more2 tipo (extrato,destilado,borra,mistura)
+[ITEMDEF 021FE]
+DEFNAME=i_tubo_cheio
+NAME=BUG!
+ID=i_vial_empty
+TYPE=t_tubo_cheio
+WEIGHT=0.2
+
+
+//*****************************************************************************
+// i_almofariz
+//*****************************************************************************
+[ITEMDEF i_almofariz]
+NAME=almofariz
+ID=i_mortar_pestle
+TYPE=t_crafting_tool
+RESOURCES=2 i_log
+SKILLMAKE=Carpentry 32.1
+VALUE=14
+TDATA1=4306
+TDATA4=350
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Almofariz
+
+ON=@CREATE
+MAXHITS={33 66}
+HITS={10 <MAXHITS>}
+
+[ITEMDEF i_almofariz_exp]
+NAME=almofariz excepcional
+ID=i_mortar_pestle
+TYPE=t_crafting_tool
+RESOURCES=2 i_log
+SKILLMAKE=Carpentry 32.1
+VALUE=14
+TDATA1=4306
+TDATA4=700
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Almofariz
+
+ON=@CREATE
+MAXHITS={66 132}
+HITS={40 <MAXHITS>}
+
+ 
+//*****************************************************************************
+// i_espiriteira
+//*****************************************************************************
+//more2 desligada/ligada
+//HITS tempo de vida
+[ITEMDEF i_espiriteira]
+NAME=espiriteira
+ID=i_heating_stand
+TYPE=t_espiriteira
+RESOURCES=1 i_wire_iron, 1 i_candle
+VALUE=36
+SKILLMAKE=Tinkering 13.2
+TDATA4=1200
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Espiriteira
+
+ON=@CREATE
+MAXHITS=<R120,300>
+HITS=<R60,<MAXHITS>>
+attr=attr_can_decay
+
+//*****************************************************************************
+// i_espiriteira_exp
+//*****************************************************************************
+//more2 desligada/ligada
+//HITS tempo de vida
+[ITEMDEF i_espiriteira_exp]
+NAME=espiriteira excepcional
+ID=i_heating_stand
+TYPE=t_espiriteira
+RESOURCES=1 i_wire_iron, 1 i_candle
+VALUE=72
+SKILLMAKE=Tinkering 13.2
+TDATA4=2400
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Espiriteira
+
+ON=@CREATE
+MAXHITS=<R300,600>
+HITS=<R150,<MAXHITS>>
+attr=attr_can_decay
+
+
+//*****************************************************************************
+// i_balao
+//*****************************************************************************
+[ITEMDEF i_balao]
+NAME=balao
+ID=0182d
+TYPE=t_misturador
+RESOURCES=4 i_areia
+SKILLMAKE=15.0 Tinkering
+VALUE=18
+TDATA1=37.5
+TDATA2=1
+TDATA3=90
+TDATA4=80
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Balão
+
+ON=@CREATE
+MAXHITS={10 <TDATA4>}
+HITS={5 <MAXHITS>}
+
+//*****************************************************************************
+// i_balao_exp
+//*****************************************************************************
+[ITEMDEF i_balao_exp]
+NAME=balao excepcional
+ID=0182d
+TYPE=t_misturador
+RESOURCES=4 i_areia
+SKILLMAKE=15.0 Tinkering
+VALUE=35
+TDATA1=27.5
+TDATA2=1
+TDATA3=60
+TDATA4=160
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Balão excepcional
+
+ON=@CREATE
+MAXHITS={10 <TDATA4>}
+HITS={5 <MAXHITS>}
+
+//*****************************************************************************
+// i_destilador
+//*****************************************************************************
+[ITEMDEF i_destilador]
+NAME=destilador
+ID=i_beaker2_empty
+TYPE=t_misturador
+RESOURCES=6 i_areia
+SKILLMAKE=Tinkering 40.8
+VALUE=28
+TDATA1=52.0 //Explode se falhar na mistura e nesse teste
+TDATA2=3    //Destilador
+TDATA3=57   //Tempo de preparo
+TDATA4=120  //MAXHITS
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Destilador
+
+ON=@CREATE
+MAXHITS={10 <TDATA4>}
+HITS={5 <MAXHITS>}
+
+
+//*****************************************************************************
+// i_destilador_exp
+//*****************************************************************************
+[ITEMDEF i_destilador_exp]
+NAME=destilador excepcional
+ID=i_beaker2_empty
+TYPE=t_misturador
+RESOURCES=6 i_areia
+SKILLMAKE=Tinkering 40.8
+VALUE=56
+TDATA1=42.0 //Explode se falhar na mistura e nesse teste
+TDATA2=3    //Destilador
+TDATA3=40   //Tempo de preparo
+TDATA4=240  //MAXHITS
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Destilador excepcional
+
+ON=@CREATE
+MAXHITS={10 <TDATA4>}
+HITS={5 <MAXHITS>}
+
+
+//*****************************************************************************
+// i_balao2
+//*****************************************************************************
+[ITEMDEF i_balao2]
+NAME=balao grande
+ID=0183d
+TYPE=t_misturador
+RESOURCES=8 i_areia
+SKILLMAKE=66.7 Tinkering
+VALUE=39
+TDATA1=66.5
+TDATA2=2
+TDATA3=45
+TDATA4=160
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Balão grande
+
+ON=@CREATE
+MAXHITS={10 <TDATA4>}
+HITS={5 <MAXHITS>}
+
+//*****************************************************************************
+// i_balao2_exp
+//*****************************************************************************
+[ITEMDEF i_balao2_exp]
+NAME=balao grande excepcional
+ID=0183b
+TYPE=t_misturador
+RESOURCES=8 i_areia
+SKILLMAKE=66.7 Tinkering
+VALUE=77
+TDATA1=56.5
+TDATA2=2
+TDATA3=30
+TDATA4=320
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Balão grande excepcional
+
+ON=@CREATE
+MAXHITS={10 <TDATA4>}
+HITS={5 <MAXHITS>}
+
+//*****************************************************************************
+// i_misturador
+//*****************************************************************************
+[ITEMDEF i_misturador]
+NAME=misturador
+ID=0183a
+TYPE=t_misturador
+RESOURCES=10 i_areia
+SKILLMAKE=92.5 Tinkering
+VALUE=49
+TDATA1=81.0
+TDATA2=4
+TDATA3=25
+TDATA4=200
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Misturador
+
+ON=@CREATE
+MAXHITS={10 <TDATA4>}
+HITS={5 <MAXHITS>}
+
+//*****************************************************************************
+// i_misturador_exp
+//*****************************************************************************
+[ITEMDEF i_misturador_exp]
+NAME=misturador
+ID=0183a
+TYPE=t_misturador
+RESOURCES=10 i_areia
+SKILLMAKE=92.5 Tinkering
+VALUE=99
+TDATA1=71.0
+TDATA2=4
+TDATA3=15
+TDATA4=400
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Misturador excepcional
+
+ON=@CREATE
+MAXHITS={10 <TDATA4>}
+HITS={5 <MAXHITS>}
+
+//*****************************************************************************
+// i_balao_vividus
+//*****************************************************************************
+[ITEMDEF i_balao_vividus]
+NAME=balao de Vividus
+ID=0182d
+TYPE=t_misturador
+RESOURCES=12 i_areia
+SKILLMAKE=67.2 Tinkering
+VALUE=30
+TDATA1=39.7
+TDATA2=1
+TDATA3=52
+TDATA4=60
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Balão de Vividus
+
+ON=@CREATE
+MAXHITS={10 <TDATA4>}
+HITS={5 <MAXHITS>}
+
+[ITEMDEF i_recipe_balao_vividus]
+ID=i_map_rolled
+NAME=Projeto de balao de vividus
+TYPE=t_recipe
+VALUE=120
+CATEGORY=MyT - Projetos
+SUBSECTION=Tinkering
+DESCRIPTION=Balão de Vividus
+
+ON=@CREATE
+ ADDRECIPE i_balao_vividus
+
+//*****************************************************************************
+// i_destilador_noob
+//*****************************************************************************
+[ITEMDEF i_destilador_noob]
+NAME=destilador do iniciante
+ID=i_beaker2_empty
+TYPE=t_misturador
+RESOURCES=15 i_areia, 60 i_mring_copper
+SKILLMAKE=Tinkering 73.7
+VALUE=100
+TDATA1=50   //Explode se falhar na mistura e nesse teste
+TDATA2=3    //Destilador
+TDATA3=47   //Tempo de preparo
+TDATA4=100  //MAXHITS
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Destilador do iniciante
+
+ON=@CREATE
+MAXHITS={10 <TDATA4>}
+HITS={5 <MAXHITS>}
+
+[ITEMDEF i_recipe_dest_noob]
+ID=i_map_rolled
+NAME=Projeto de destilador do iniciante
+TYPE=t_recipe
+VALUE=400
+CATEGORY=MyT - Projetos
+SUBSECTION=Tinkering
+DESCRIPTION=Destilador do iniciante
+
+ON=@CREATE
+ ADDRECIPE i_destilador_noob
+ 
+//*****************************************************************************
+// i_balao2_met
+//*****************************************************************************
+[ITEMDEF i_balao2_met]
+NAME=balao Meteroidal
+ID=0183b
+TYPE=t_misturador
+RESOURCES=20 i_areia, 1 i_ingot_gold
+SKILLMAKE=90.0 Tinkering
+VALUE=150
+TDATA1=650
+TDATA2=2
+TDATA3=15
+TDATA4=140
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Balão Meteroidal
+
+ON=@CREATE
+MAXHITS={10 <TDATA4>}
+HITS={5 <MAXHITS>}
+
+[ITEMDEF i_recipe_balao_met]
+ID=i_map_rolled
+NAME=Projeto de balao do meteroidal
+TYPE=t_recipe
+VALUE=450
+CATEGORY=MyT - Projetos
+SUBSECTION=Tinkering
+DESCRIPTION=balao Meteroidal
+
+ON=@CREATE
+ ADDRECIPE i_balao2_met
+
+//*****************************************************************************
+// i_misturador_etereo
+//*****************************************************************************
+[ITEMDEF i_misturador_etereo]
+NAME=misturador etereo
+ID=0183a
+TYPE=t_misturador
+RESOURCES=30 i_areia, 1 i_ingot_rubridium
+SKILLMAKE=97.6 Tinkering
+VALUE=300
+TDATA1=60.0
+TDATA2=4
+TDATA3=10
+TDATA4=240
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Misturador etereo
+
+ON=@CREATE
+MAXHITS={10 <TDATA4>}
+HITS={5 <MAXHITS>}
+COLOR=0430
+
+[ITEMDEF i_recipe_mist_etereo]
+ID=i_map_rolled
+NAME=Projeto de misturador etereo
+TYPE=t_recipe
+VALUE=1200
+CATEGORY=MyT - Projetos
+SUBSECTION=Tinkering
+DESCRIPTION=Misturador etereo
+
+ON=@CREATE
+ ADDRECIPE i_misturador_etereo
+
+
+//*****************************************************************************
+// i_espiriteira_etrium
+//*****************************************************************************
+//more2 desligada/ligada
+//HITS tempo de vida
+[ITEMDEF i_espiriteira_etrium]
+NAME=espiriteira do etrium
+ID=i_heating_stand
+TYPE=t_espiriteira
+RESOURCES=2 i_wire_gold, 1 i_candle, 5 i_gem_diamond
+VALUE=600
+SKILLMAKE=Tinkering 82.2
+TDATA4=21600
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Espiriteira do etrium
+
+ON=@CREATE
+MAXHITS=<R3000,15000>
+HITS=<R1500,<MAXHITS>>
+attr=attr_can_decay
+COLOR=0a75
+
+[ITEMDEF i_recipe_espir_etrium]
+ID=i_map_rolled
+NAME=Projeto de espiriteira do Etrium
+TYPE=t_recipe
+VALUE=2400
+CATEGORY=MyT - Projetos
+SUBSECTION=Tinkering
+DESCRIPTION=Espiriteira do etrium
+
+ON=@CREATE
+ ADDRECIPE i_espiriteira_etrium
+
+//*****************************************************************************
+// i_almofariz_etrium
+//*****************************************************************************
+[ITEMDEF i_almofariz_etrium]
+NAME=almofariz do etrium
+ID=i_mortar_pestle
+TYPE=t_crafting_tool
+RESOURCES=2 i_log, 5 i_gem_diamond, 1 i_wire_rubridium
+SKILLMAKE=Carpentry 93.1
+VALUE=350
+TDATA1=4306
+TDATA4=1250
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Alchemist
+DESCRIPTION=Almofariz do etrium
+
+ON=@CREATE
+MAXHITS={120 500}
+HITS={100 <MAXHITS>}
+COLOR=0a75
+
+[ITEMDEF i_recipe_almof_etrium]
+ID=i_map_rolled
+NAME=Projeto de almofariz do Etrium
+TYPE=t_recipe
+VALUE=1400
+CATEGORY=MyT - Projetos
+SUBSECTION=Tinkering
+DESCRIPTION=Almofariz do etrium
+
+ON=@CREATE
+ ADDRECIPE i_almofariz_etrium
+
+[EOF]

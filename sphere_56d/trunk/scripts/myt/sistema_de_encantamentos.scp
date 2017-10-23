@@ -1,0 +1,1730 @@
+// Created 26/3/2010 17:29:11, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+
+[COMMENT enchant]
+                        -=  Mystical Tales Shard =-
+
+    Systema de entancamento de itens 1.0
+    Galthar, o Errante
+    1/04/2010
+
+[DEFNAME enchantments]
+CHANT_TASK_GEM          1
+CHANT_TASK_WAND         2
+CHANT_TASK_WEAPON       3
+CHANT_TASK_ARMOR        4
+CHANT_TASK_JEWEL        5
+CHANT_TASK_CLOTHE       6
+
+CHANT_1_HEAD            Encantar uma pedra para tornar-se gema
+CHANT_2_HEAD            Encantar ou carregar um foco magico
+CHANT_3_HEAD            Encantar uma arma
+CHANT_4_HEAD            Encantar uma armadura
+CHANT_5_HEAD            Encantar uma jóia
+
+[FUNCTION enchant_gem]
+//Abre dialog para encantar uma pedra
+clearctags chant_
+ctag.chant_task=CHANT_TASK_GEM
+dialogclose d_enchant
+dialog d_enchant
+
+[FUNCTION enchant_wand]
+//Abre dialog para encantar um foco
+clearctags chant_
+ctag.chant_task=CHANT_TASK_WAND
+dialogclose d_enchant
+dialog d_enchant
+
+[FUNCTION enchant_weapon]
+//Abre dialog para encantar uma arma
+clearctags chant_
+ctag.chant_task=CHANT_TASK_WEAPON
+dialogclose d_enchant
+dialog d_enchant
+
+[FUNCTION enchant_armor]
+//Abre dialog para encantar uma armadura
+clearctags chant_
+ctag.chant_task=CHANT_TASK_ARMOR
+dialogclose d_enchant
+dialog d_enchant
+
+[FUNCTION enchant_jewel]
+//Abre dialog para encantar uma jóia
+clearctags chant_
+ctag.chant_task=CHANT_TASK_JEWEL
+dialogclose d_enchant
+dialog d_enchant
+
+[FUNCTION chant_gem_select_stone]
+//Seleciona ou troca a pedra para encantar
+if (!<argo>)
+    sysmessageyellow Selecione uma pedra lapidada:
+    targetf chant_gem_select_stone
+    return
+elif (!<argo.IsItem>)
+    sysmessagered Isso nao eh uma pedra lapidada.
+elif (<argo.topobj>!=<UID>)
+    sysmessagered A pedra deve estar em sua posse.
+elif !(<argo.attr>&01)
+    sysmessagered Voce nao tem informacoes o suficiente sobre este item.
+    sysmessageyellow Itentifique <argo.name>.
+elif (<argo.attr>&020)
+    sysmessagered Ja ha mana contida ai.
+elif (<argo.type>!=t_gem_stoned)
+    sysmessagered Isso nao eh uma pedra lapidada.
+else
+    ctag0.chant_stone=<ARGO>
+    ctag0.chant_power =<MAXIMUM 1,<MINIMUM 10,<ctag0.chant_power>>>
+    ctag.chant_scroll=
+endif
+dialog d_enchant
+
+[FUNCTION chant_wand_select_wand]
+//Seleciona ou troca o foco para encantar
+if (!<argo>)
+    sysmessageyellow Selecione uma foco magico ou varinha:
+    targetf chant_wand_select_wand
+    return
+elif (!<argo.IsItem>)
+    sysmessagered Isso nao eh uma um foco magico.
+elif (<argo.topobj>!=<UID>)
+    sysmessagered O foco deve estar em seu poder.
+elif (<argo.type>!=t_wand) || (!<argo.layer>)
+    sysmessagered Isso nao eh um foco magico.
+elif !(<argo.attr>&01)
+    sysmessagered Voce nao tem informacoes o suficiente sobre este foco.
+    sysmessageyellow Itentifique <argo.name>.
+elif (<argo.more2>)
+    sysmessagered Ja ha mana contida ai.
+else
+    if (<argo.morex>)
+        ctag.chant_scroll=<findid.<serv.spell.<argo.morex>.scroll_item>>
+        if (!<ctag0.chant_scroll>)
+            sysmessagered Voce precisa de pelo menos um <serv.itemdef.<serv.spell.<argo.morex>.scroll_item>.name> para recarregar <argo.name>.
+            dialog d_enchant
+            return
+        endif
+    else
+        ctag.chant_scroll=
+    endif
+    ctag0.chant_wand=<ARGO>
+    ctag0.chant_power =<MAXIMUM 1,<MINIMUM 10,<ctag0.chant_power>>>
+endif
+dialog d_enchant
+
+[FUNCTION chant_weapon_select_gem]
+//Seleciona ou troca a pedra para encantar arma
+if (!<argo>)
+    sysmessageyellow Selecione uma gema sem magia:
+    targetf chant_weapon_select_gem
+    return
+elif (!<argo.IsItem>)
+    sysmessagered Isso nao eh uma gema.
+elif (<argo.topobj>!=<UID>)
+    sysmessagered A gema deve estar em sua posse.
+elif (<argo.type>!=t_gem_stoned)
+    sysmessagered Isso nao eh uma gema sem magia.
+elif !(<argo.attr>&020)
+    sysmessagered Nao ha mana contida nesta gema.
+else
+    ctag0.chant_gem=<ARGO>
+    ctag0.chant_power=<argo.more2>
+endif
+dialog d_enchant
+
+[FUNCTION chant_armor_select_gem]
+//Seleciona ou troca a pedra para encantar armadura
+call chant_weapon_select_gem
+
+[FUNCTION chant_jewel_select_gem]
+//Seleciona ou troca a pedra para encantar armadura
+call chant_weapon_select_gem
+
+[FUNCTION chant_wand_select_scroll]
+//Seleciona um scroll para servir de base ao encantar um foco.
+return <chant_gem_select_scroll>
+
+[FUNCTION chant_gem_select_scroll]
+//Seleciona um scroll para servir de base ao encantar uma gema.
+if (!<argo>)
+    sysmessageyellow Selecione uma pilha de pergaminhos:
+    targetf chant_gem_select_scroll
+    return
+elif (!<argo.IsItem>)
+    sysmessagered Isso nao eh um pergaminho.
+    dialog d_enchant
+    return 1
+elif (<argo.topobj>!=<UID>)
+    sysmessagered O pergaminho deve estar em sua posse.
+    dialog d_enchant
+    return 1
+elif (<argo.type>!=t_scroll)
+    sysmessagered Isso nao eh um pergaminho.
+    dialog d_enchant
+    return 1
+endif
+IF (<ctag0.chant_task>==CHANT_TASK_GEM)
+    ref1=<ctag.chant_stone>
+ELIF (<ctag0.chant_task>==CHANT_TASK_WAND)
+    ref1=<ctag.chant_wand>
+ENDIF
+IF (<hval <def.<streat <serv.spell.<argo.morex>.skillreq>>>>!=<ref1.tdata1>) && (<ref1.tdata1>)
+    local.s1=<serv.skill.<ref1.tdata1>.name>
+    local.s2=<serv.skill.<def.<streat <serv.spell.<argo.morex>.skillreq>>>.name>
+    sysmessagered Caminhos incompativeis. O item usa <local.s1> e o pergaminho <local.s2>
+ELSE
+    ctag0.chant_scroll=<ARGO>
+ENDIF
+dialog d_enchant
+
+[FUNCTION chant_weapon_select_weapon]
+//Seleciona uma arma para encantar.
+if (!<argo>)
+    sysmessageyellow Selecione uma arma para encantar:
+    targetf chant_weapon_select_weapon
+    return
+elif (!<argo.IsItem>)
+    sysmessagered Isso nao eh uma arma.
+elif (<argo.topobj>!=<UID>)
+    sysmessagered A arma deve estar em sua posse.
+elif (!<argo.IsWeapon>)
+    sysmessagered Isso nao eh uma arma.
+elif (!<argo.IsTEvent.e_exceptional_item>) && !(STRMATCH(*_exp,<argo.defname>))
+    sysmessagered Essa arma nao tem qualidade suficiente. Escolha uma excepcional.
+elif !(<argo.attr>&01)
+    sysmessagered Voce nao tem informacoes o suficiente sobre esta arma.
+    sysmessageyellow Itentifique <argo.name>.
+elif (<argo.dmgfire>) || (<argo.dmgcold>) || (<argo.dmgpoison>) || (<argo.dmgenergy>)
+    sysmessagered Essa arma ja esta encantada ou sua natureza belica nao permite ser encantada.
+else
+    ctag0.chant_weapon=<ARGO>
+endif
+dialog d_enchant
+
+[FUNCTION chant_armor_select_armor]
+//Seleciona uma armadura para encantar.
+if (!<argo>)
+    sysmessageyellow Selecione uma armadura para encantar:
+    targetf chant_armor_select_armor
+    return
+elif (!<argo.IsItem>)
+    sysmessagered Isso nao eh uma armadura.
+elif (<argo.topobj>!=<UID>)
+    sysmessagered A armadura deve estar em sua posse.
+elif (!<argo.IsArmor>)
+    sysmessagered Isso nao eh uma armadura.
+elif (!<argo.IsTEvent.e_exceptional_item>) && !(STRMATCH(*_exp,<argo.defname>))
+    sysmessagered Essa armadura nao tem qualidade suficiente. Escolha uma excepcional.
+elif !(<argo.attr>&01)
+    sysmessagered Voce nao tem informacoes o suficiente sobre esta armadura.
+    sysmessageyellow Itentifique <argo.name>.
+elif (<argo.attr>&020)
+    sysmessagered Essa armadura ja esta encantada.
+elif (<argo.cont.IsPlayer>)
+    sysmessagered A armadura nao pode estar sendo usada.
+else
+    if <IsEmpty <argo.tag.resmod>>
+        argo.tag.resmod = <argo.morex>,<argo.morey>,<argo.morez>,<argo.morem>
+        argo.morex=0
+        argo.morey=0
+        argo.morez=0
+        argo.morem=0
+    endif
+    ctag0.chant_armor=<ARGO>
+endif
+dialog d_enchant
+
+[FUNCTION chant_jewel_select_jewel]
+//Seleciona uma jóia para encantar.
+if (!<argo>)
+    sysmessageyellow Selecione uma joia para encantar:
+    targetf chant_jewel_select_jewel
+    return
+elif (!<argo.IsItem>)
+    sysmessagered Isso nao eh uma joia.
+elif (<argo.topobj>!=<UID>)
+    sysmessagered A joia deve estar em sua posse.
+elif (<argo.type>!=t_jewelry)
+    sysmessagered Isso nao eh uma joia.
+elif !(<argo.attr>&01)
+    sysmessagered Voce nao tem informacoes o suficiente sobre esta joia.
+    sysmessageyellow Itentifique <argo.name>.
+elif (<argo.attr>&020)
+    sysmessagered Essa joia ja esta encantada.
+elif (<argo.cont.IsPlayer>)
+    sysmessagered A joia nao pode estar sendo usada.
+else
+    ctag0.chant_jewel=<ARGO>
+endif
+dialog d_enchant
+
+[FUNCTION chant_gem_calc]
+//Calcula dificuldade e custos do encantamento de uma gema
+ref1=<ctag0.chant_stone>
+ref2=<ctag0.chant_scroll>
+
+if (!<ref1>)
+    return
+endif
+
+DOSWITCH <ctag0.chant_power>    //426,42*e^(0,2309*<power>)
+    local.diff=0
+    local.diff=53.7
+    local.diff=67.7
+    local.diff=85.2
+    local.diff=107.4
+    local.diff=135.3
+    local.diff=170.4
+    local.diff=214.7
+    local.diff=270.4
+    local.diff=340.7
+    local.diff=429.2
+ENDDO
+
+DOSWITCH <ctag0.chant_power>    //23,633*e^(0,2753*<power>)
+    local.mana=0
+    local.mana=37
+    local.mana=47
+    local.mana=60
+    local.mana=77
+    local.mana=100
+    local.mana=129
+    local.mana=168
+    local.mana=220
+    local.mana=288
+    local.mana=377
+ENDDO
+
+DOSWITCH <ctag0.chant_power>    //Chutometria não-linear descritiva
+    local.cost=0.0
+    local.cost=0.0
+    local.cost=0.0
+    local.cost=0.0
+    local.cost=0.2
+    local.cost=0.5
+    local.cost=1.5
+    local.cost=2.0
+    local.cost=2.5
+    local.cost=5.0
+    local.cost=10.0
+ENDDO
+
+local.CanStart=1
+
+if (<ref2>)
+    local.diff += <eval <strarg <serv.spell.<ref2.morex>.skillreq>>/3>
+    if (!<mage_knowSpell <ref2.morex>>)
+        local.unknow = <eval 250*<ctag0.chant_power>>
+        local.diff += <local.unknow>
+    else
+        local.unknow=0
+    endif
+    local.mana += <MULDIV <serv.spell.<ref2.morex>.manause>,<ctag0.chant_power>,3>
+    IF (<ctag0.chant_power> > 4)
+        local.cost += <eval <strarg <serv.spell.<ref2.morex>.skillreq>>/10>
+    ENDIF
+    args=<serv.spell.<ref2.morex>.resources>
+    local.s=<dctag0.chant_power> <ref2.defname>
+    for r 0 <eval <argv>-1>
+        local.s .= ", <eval <dctag0.chant_power>*<strarg <argv[<dlocal.r>]>>> <streat <argv[<dlocal.r>]>>"
+    endif
+    if (!<restest <local.s>>)
+        local.CanStart=0
+    endif
+endif
+
+local.test=999.9
+local.chars=0
+FORCLIENTS 1
+    if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+        local.test=<MINIMUM <eval <MULDIV <I.<ref1.tdata1>>,8,10>+<MULDIV <alchemy>,2,10>>,<local.test>>
+        local.chars += 1
+    endif
+ENDFOR
+
+local.chars=<MINIMUM <local.chars>,8>
+
+cTag.chant_CanStart=<local.CanStart>
+
+[FUNCTION chant_wand_calc]
+//Calcula dificuldade e custos do encantamento de uma wand
+ref1=<ctag0.chant_wand>
+ref2=<ctag0.chant_scroll>
+
+if (!<ref1>)
+    return
+endif
+
+DOSWITCH <ctag0.chant_power>    //426,42*e^(0,2309*<power>)
+    local.diff=0
+    local.diff=53.7
+    local.diff=67.7
+    local.diff=85.2
+    local.diff=107.4
+    local.diff=135.3
+    local.diff=170.4
+    local.diff=214.7
+    local.diff=270.4
+    local.diff=340.7
+    local.diff=429.2
+ENDDO
+
+DOSWITCH <ctag0.chant_power>    //34,293*e^(0,268*<power>)
+    local.mana=0
+    local.mana=45
+    local.mana=59
+    local.mana=77
+    local.mana=100
+    local.mana=131
+    local.mana=171
+    local.mana=224
+    local.mana=293
+    local.mana=383
+    local.mana=500
+ENDDO
+
+DOSWITCH <ctag0.chant_power>    //Chutometria não-linear descritiva
+    local.cost=0.0
+    local.cost=0.0
+    local.cost=0.1
+    local.cost=0.2
+    local.cost=0.4
+    local.cost=0.5
+    local.cost=0.6
+    local.cost=0.8
+    local.cost=1.0
+    local.cost=1.3
+    local.cost=1.8
+ENDDO
+
+local.CanStart=1
+
+if (<ref2>)
+    local.diff += <eval <strarg <serv.spell.<ref2.morex>.skillreq>>/3>
+    if (!<mage_knowSpell <ref2.morex>>)
+        local.unknow = <eval 250*<ctag0.chant_power>>
+        local.diff += <local.unknow>
+    else
+        local.unknow=0
+    endif
+    local.mana += <MULDIV <serv.spell.<ref2.morex>.manause>,<ctag0.chant_power>,3>
+    args=<serv.spell.<ref2.morex>.resources>
+    local.s=<dctag0.chant_power> <ref2.defname>
+    for r 0 <eval <argv>-1>
+        local.s .= ", <eval <dctag0.chant_power>*<strarg <argv[<dlocal.r>]>>> <streat <argv[<dlocal.r>]>>"
+    endif
+    if (!<restest <local.s>>)
+        local.CanStart=0
+    endif
+else
+    local.CanStart=0
+endif
+
+local.test=999.9
+local.chars=0
+FORCLIENTS 1
+    if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+        local.test=<MINIMUM <eval <MULDIV <I.<ref1.tdata1>>,8,10>+<MULDIV <alchemy>,2,10>>,<local.test>>
+        local.chars += 1
+    endif
+ENDFOR
+
+local.chars=<MINIMUM <local.chars>,8>
+
+cTag.chant_CanStart=<local.CanStart>
+
+[FUNCTION chant_weapon_calc]
+//Calcula dificuldade e custos do encantamento de uma arma
+ref1=<ctag0.chant_weapon>
+ref2=<ctag0.chant_gem>
+
+if (!<ref1>) || (!<ref2>)
+    return
+endif
+
+DOSWITCH <ctag0.chant_power>    //72,32*e^(0,1966*<power>)
+    local.diff=0
+    local.diff=88.0
+    local.diff=107.2
+    local.diff=130.4
+    local.diff=158.8
+    local.diff=193.3
+    local.diff=235.3
+    local.diff=286.4
+    local.diff=348.6
+    local.diff=424.3
+    local.diff=516.5
+ENDDO
+
+DOSWITCH <ctag0.chant_power>    //73*e^(0,211*<power>)
+    local.mana=0
+    local.mana=90
+    local.mana=111
+    local.mana=137
+    local.mana=170
+    local.mana=210
+    local.mana=259
+    local.mana=320
+    local.mana=395
+    local.mana=488
+    local.mana=602
+ENDDO
+
+DOSWITCH <ctag0.chant_power>    //0,3875*e^(0,275*<power>)
+    local.cost=0.0
+    local.cost=0.5
+    local.cost=0.7
+    local.cost=0.9
+    local.cost=1.2
+    local.cost=1.5
+    local.cost=2.0
+    local.cost=2.7
+    local.cost=3.5
+    local.cost=4.5
+    local.cost=6.0
+ENDDO
+
+//Decinde o resource da arma
+if (<ref1.type>==t_weapon_bow)
+    local.r1=i_r_madeira_morta
+elif (<ref1.type>==t_weapon_xbow)
+    local.r1=i_r_frasco_sangue
+elif (<ref1.type>==t_weapon_xbow)
+    local.r1=i_r_frasco_sangue
+elif (<ref1.type>==t_weapon_mace_smith)
+    local.r1=i_r_ferro_guza
+elif (<ref1.type>==t_weapon_mace_sharp)
+    local.r1=i_r_osso_demonio
+elif (<ref1.type>==t_weapon_sword)
+    local.r1=i_r_ferro_guza
+elif (<ref1.type>==t_weapon_fence)
+    local.r1=i_r_sangue_dragao
+elif (<ref1.type>==t_weapon_mace_staff)
+    local.r1=i_r_madeira_morta
+elif (<ref1.type>==t_weapon_mace_crook)
+    local.r1=i_r_sangue_invocado
+elif (<ref1.type>==t_weapon_mace_pick)
+    local.r1=i_r_poeira_fertil
+elif (<ref1.type>==t_weapon_axe)
+    local.r1=i_r_capuz_algoz
+else
+    local.r1=i_r_coracao_dragao
+endif
+
+//Decide o resource da gema
+if (<ref2.TDATA1>==Skill_Magery)
+    local.r2=i_r_cinza_sulfurosa
+elif (<ref2.TDATA1>==Skill_Spellweaving)
+    local.r2=i_r_raiz_de_mandrake
+elif (<ref2.TDATA1>==Skill_Necromancy)
+    local.r2=i_r_nightshade
+elif (<ref2.TDATA1>==Skill_Focus)
+    local.r2=i_r_ginseng
+else
+    local.r2=i_r_perola_negra
+endif
+local.CanStart=1
+
+local.diff += <eval <ref1.skillmake.0.val>/3>
+local.mana += <ref1.dam.hi>
+local.s = <eval 7*<ctag0.chant_power>> <local.r1>
+local.s .= ", <ref1.dam.hi> <local.r2>"
+if (!<restest <local.s>>)
+    local.CanStart=0
+endif
+
+local.test=999.9
+local.chars=0
+FORCLIENTS 1
+    if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+        local.test=<MINIMUM <eval <MULDIV <I.<ref2.tdata1>>,8,10>+<MULDIV <alchemy>,2,10>>,<local.test>>
+        local.chars += 1
+    endif
+ENDFOR
+
+local.chars=<MINIMUM <local.chars>,8>
+
+cTag.chant_CanStart=<local.CanStart>
+
+[FUNCTION chant_armor_calc]
+//Calcula dificuldade e custos do encantamento de uma arma
+ref1=<ctag0.chant_armor>
+ref2=<ctag0.chant_gem>
+
+if (!<ref1>) || (!<ref2>)
+    return
+endif
+
+DOSWITCH <ctag0.chant_power>    //72,32*e^(0,1966*<power>)
+    local.diff=0
+    local.diff=88.0
+    local.diff=107.2
+    local.diff=130.4
+    local.diff=158.8
+    local.diff=193.3
+    local.diff=235.3
+    local.diff=286.4
+    local.diff=348.6
+    local.diff=424.3
+    local.diff=516.5
+ENDDO
+
+DOSWITCH <ctag0.chant_power>    //18,4*e^(0,3*<power>)
+    local.mana=0
+    local.mana=25
+    local.mana=33
+    local.mana=45
+    local.mana=60
+    local.mana=82
+    local.mana=110
+    local.mana=150
+    local.mana=200
+    local.mana=275
+    local.mana=370
+ENDDO
+
+DOSWITCH <ctag0.chant_power>    //0,3875*e^(0,275*<power>)
+    local.cost=0.0
+    local.cost=0.5
+    local.cost=0.7
+    local.cost=0.9
+    local.cost=1.2
+    local.cost=1.5
+    local.cost=2.0
+    local.cost=2.7
+    local.cost=3.5
+    local.cost=4.5
+    local.cost=6.0
+ENDDO
+
+//Decinde o resource da armadura
+local.r1=i_r_coracao_dragao
+DOSWITCH <ref1.layer>
+ local.r1=i_r_perola_negra          //Sem layer 
+ local.r1=i_r_musgo_sangue          //layer_hand1
+ local.r1=i_r_alho                  //layer_hand2
+ local.r1=i_r_raiz_de_mandrake      //layer_shoes
+ local.r1=i_r_nightshade            //layer_pants
+ local.r1=i_r_cinza_sulfurosa       //layer_shirt
+ local.r1=i_r_teia_de_aranha        //layer_helm
+ local.r1=i_r_asa_morcego           //layer_gloves
+ local.r1=i_r_olho_morto_vivo       //layer_ring
+ local.r1=i_r_rocha_negra           //layer_talisman
+ local.r1=i_r_sangue_invocado       //layer_collar
+ local.r1=i_r_frasco_sangue         //layer_hair
+ local.r1=i_r_osso                  //layer_half_apron
+ local.r1=i_r_coracao_dragao        //layer_chest
+ local.r1=i_r_osso_demonio          //layer_wrist
+ local.r1=i_r_poeira_fertil         //layer_face
+ local.r1=i_r_sangue_dragao         //layer_beard
+ local.r1=i_r_capuz_algoz           //layer_tunic
+ local.r1=i_r_vidro_vulcanico       //layer_ears
+ local.r1=i_r_ferro_guza            //layer_arms
+ local.r1=i_r_pomis                 //layer_cape
+ local.r1=i_r_ectoplasma            //layer_pack
+ local.r1=i_r_cinza_vulcanica       //layer_robe
+ local.r1=i_r_madeira_morta         //layer_skirt
+ local.r1=i_r_enxofre               //layer_legs
+ENDDO
+
+//Decide o resource da gema
+if (<ref2.TDATA1>==Skill_Magery)
+    local.r2=i_r_cinza_sulfurosa
+elif (<ref2.TDATA1>==Skill_Spellweaving)
+    local.r2=i_r_raiz_de_mandrake
+elif (<ref2.TDATA1>==Skill_Necromancy)
+    local.r2=i_r_nightshade
+elif (<ref2.TDATA1>==Skill_Focus)
+    local.r2=i_r_ginseng
+else
+    local.r2=i_r_perola_negra
+endif
+local.CanStart=1
+
+local.diff += <fval <ref1.armor.lo>*5>
+local.mana += <eval <ref1.armor.lo>/5>
+local.s = <eval 4*<ctag0.chant_power>> <local.r1>
+local.s .= ", <eval <ref1.armor.lo>/3> <local.r2>"
+if (!<restest <local.s>>)
+    local.CanStart=0
+endif
+
+local.test=999.9
+local.chars=0
+FORCLIENTS 1
+    if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+        local.test=<MINIMUM <eval <MULDIV <I.<ref2.tdata1>>,8,10>+<MULDIV <alchemy>,2,10>>,<local.test>>
+        local.chars += 1
+    endif
+ENDFOR
+
+local.chars=<MINIMUM <local.chars>,8>
+
+cTag.chant_CanStart=<local.CanStart>
+
+[FUNCTION chant_jewel_calc]
+//Calcula dificuldade e custos do encantamento de uma jóia
+ref1=<ctag0.chant_jewel>
+ref2=<ctag0.chant_gem>
+
+if (!<ref1>) || (!<ref2>)
+    return
+endif
+
+DOSWITCH <ctag0.chant_power>    //72,32*e^(0,1966*<power>)
+    local.diff=0
+    local.diff=88.0
+    local.diff=107.2
+    local.diff=130.4
+    local.diff=158.8
+    local.diff=193.3
+    local.diff=235.3
+    local.diff=286.4
+    local.diff=348.6
+    local.diff=424.3
+    local.diff=516.5
+ENDDO
+
+DOSWITCH <ctag0.chant_power>    //73*e^(0,211*<power>)
+    local.mana=0
+    local.mana=90
+    local.mana=111
+    local.mana=137
+    local.mana=170
+    local.mana=210
+    local.mana=259
+    local.mana=320
+    local.mana=395
+    local.mana=488
+    local.mana=602
+ENDDO
+
+DOSWITCH <ctag0.chant_power>    //Aproximadamente 0,3875*e^(0,275*<power>)/5. O mesmo das armas, mas /5. Equivalente a 1/5 para cada layer de armadura.
+    local.cost=0.0
+    local.cost=0.1
+    local.cost=0.2
+    local.cost=0.3
+    local.cost=0.4
+    local.cost=0.5
+    local.cost=0.6
+    local.cost=0.7
+    local.cost=0.8
+    local.cost=0.9
+    local.cost=1.0
+ENDDO
+
+//Decinde o resource da jóia
+
+
+//Decide o resource da gema
+if (<ref2.TDATA1>==Skill_Magery)
+    local.r2=i_r_cinza_sulfurosa
+elif (<ref2.TDATA1>==Skill_Spellweaving)
+    local.r2=i_r_raiz_de_mandrake
+elif (<ref2.TDATA1>==Skill_Necromancy)
+    local.r2=i_r_nightshade
+elif (<ref2.TDATA1>==Skill_Focus)
+    local.r2=i_r_ginseng
+else
+    local.r2=i_r_perola_negra
+endif
+local.CanStart=1
+
+local.diff += <eval <ref1.skillmake.0.val>/3>
+local.mana += <ref1.dam.hi>
+local.s = <eval 7*<ctag0.chant_power>> <local.r1>
+local.s .= ", <ref1.dam.hi> <local.r2>"
+if (!<restest <local.s>>)
+    local.CanStart=0
+endif
+
+local.test=999.9
+local.chars=0
+FORCLIENTS 1
+    if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+        local.test=<MINIMUM <eval <MULDIV <I.<ref2.tdata1>>,8,10>+<MULDIV <alchemy>,2,10>>,<local.test>>
+        local.chars += 1
+    endif
+ENDFOR
+
+local.chars=<MINIMUM <local.chars>,8>
+
+cTag.chant_CanStart=<local.CanStart>
+
+[FUNCTION chant_gem_html]
+//Gera o HTML do encantamento de gema.
+call chant_gem_calc
+local.multipart=<eval <local.chars>-1>
+if (<ref1.IsItem>)
+    local.t = <DEF.BFONT_SIZE6>Encantando <ref1.name><DEF.BR>
+    local.t .= <DEF.BR><DEF.BFONT_SIZE3>Skill principal: <serv.skill.<ref1.tdata1>.name> (<src.<ref1.tdata1>>)
+    local.t .= <DEF.BR>Skill secundaria: Alchemy (<src.Alchemy>)
+    if (<local.multipart>)
+        local.t .= <DEF.BR>Participantes: <dlocal.chars>
+        local.t .= <DEF.BR><serv.skill.<ref1.tdata1>.name> x80% + Alchemy x20%
+        local.t .= <DEF.BR>Do participante menos experiente: <fval <local.test>>
+    else
+        local.t .= <DEF.BR><serv.skill.<ref1.tdata1>.name> x80% + Alchemy x20%
+        local.t .= <DEF.BR>Resuldato da combinacao: <fval <local.test>>
+    endif
+
+    if (<ref2.IsItem>)
+        local.t .= <DEF.BR>Magia escolhida: <serv.spell.<ref2.morex>.name> (<fval <strarg <serv.spell.<ref2.morex>.skillreq>>>)
+        if (<local.unknow>)
+            local.t .= <DEF.BR><DEF.BFONT_LRED>Magia desconhecida. Dificuldade + <fval <local.unknow>>
+        endif
+        local.t .= <DEF.BR><DEF.BR><DEF.BFONT_DGREEN>Reagentes:
+        local.t .= <DEF.BR>  <dctag0.chant_power> <ref2.name>
+        args=<serv.spell.<ref2.morex>.resources>
+        for r 0 <eval <argv>-1>
+            local.t .= <DEF.BR>  +<eval <dctag0.chant_power>*<strarg <argv[<dlocal.r>]>>> <serv.itemdef.<streat <argv[<dlocal.r>]>>.name>
+        endif
+    else
+        local.t .= <DEF.BR><DEF.BR><DEF.BFONT_DGREEN>Encantamento de gema para embutir em equipamentos dando bonus de dano ou resistencia.
+    endif
+    local.t .= <DEF.BR><DEF.BR><DEF.BFONT_LRED>Dificuldade: <fval <local.diff>> <QVAL <local.multipart>?(<fval <local.diff>/<local.chars>> para cada):>
+    if (<local.cost>)
+        local.t .= <DEF.BR>Custo: -<fval <local.cost>> <serv.skill.<ref1.tdata1>.name> <QVAL <local.multipart>?(-<fval <local.cost>/<local.chars>> para cada):>
+    endif
+    local.t .= <DEF.BR>Mana: <dlocal.mana> <QVAL <local.multipart>?(<eval <local.mana>/<local.chars>> para cada):>
+    local.t .= <DEF.BR>Chance de sucesso: <fval <skillchance <dlocal.test>,<eval <dlocal.diff>/<local.chars>>>> %
+else
+    local.t = <DEF.BFONT_LRED>Selecione uma pedra lapidada para criar uma gema ou uma gema do poder.
+endif
+return <local.t>
+
+[FUNCTION chant_wand_html]
+//Gera o HTML do encantamento do Wando (meu ia-ia meu io-io).
+call chant_wand_calc
+local.multipart=<eval <local.chars>-1>
+if (<ref1.IsItem>)
+    local.t = <DEF.BFONT_SIZE6>Encantando <ref1.name><DEF.BR>
+    local.t .= <DEF.BR><DEF.BFONT_SIZE3>Skill principal: <serv.skill.<ref1.tdata1>.name> (<src.<ref1.tdata1>>)
+    local.t .= <DEF.BR>Skill secundaria: Alchemy (<src.Alchemy>)
+    if (<local.multipart>)
+        local.t .= <DEF.BR>Participantes: <dlocal.chars>
+        local.t .= <DEF.BR><serv.skill.<ref1.tdata1>.name> x80% + Alchemy x20%
+        local.t .= <DEF.BR>Do participante menos experiente: <fval <local.test>>
+    else
+        local.t .= <DEF.BR><serv.skill.<ref1.tdata1>.name> x80% + Alchemy x20%
+        local.t .= <DEF.BR>Resuldato da combinacao: <fval <local.test>>
+    endif
+
+    if (<ref2.IsItem>)
+        local.t .= <DEF.BR>Magia escolhida: <serv.spell.<ref2.morex>.name> (<fval <strarg <serv.spell.<ref2.morex>.skillreq>>>)
+        if (<local.unknow>)
+            local.t .= <DEF.BR><DEF.BFONT_LRED>Magia desconhecida. Dificuldade + <fval <local.unknow>>
+        endif
+        local.t .= <DEF.BR><DEF.BR><DEF.BFONT_DGREEN>Reagentes:
+        local.t .= <DEF.BR>  <dctag0.chant_power> <ref2.name>
+        args=<serv.spell.<ref2.morex>.resources>
+        for r 0 <eval <argv>-1>
+            local.t .= <DEF.BR>  +<eval <dctag0.chant_power>*<strarg <argv[<dlocal.r>]>>> <serv.itemdef.<streat <argv[<dlocal.r>]>>.name>
+        endif
+    else
+        local.t .= <DEF.BR><DEF.BR><DEF.BFONT_LRED>Escolha pergaminho de magia.
+    endif
+    local.t .= <DEF.BR><DEF.BR><DEF.BFONT_LRED>Dificuldade: <fval <local.diff>> <QVAL <local.multipart>?(<fval <local.diff>/<local.chars>> para cada):>
+    if (<local.cost>)
+        local.t .= <DEF.BR>Custo: -<fval <local.cost>> <serv.skill.<ref1.tdata1>.name> <QVAL <local.multipart>?(-<fval <local.cost>/<local.chars>> para cada):>
+    endif
+    local.t .= <DEF.BR>Mana: <dlocal.mana> <QVAL <local.multipart>?(<eval <local.mana>/<local.chars>> para cada):>
+    local.t .= <DEF.BR>Chance de sucesso: <fval <skillchance <dlocal.test>,<eval <dlocal.diff>/<local.chars>>>> %
+else
+    local.t = <DEF.BFONT_LRED>Selecione uma varinha ou foco magico para encantar.
+endif
+return <local.t>
+
+[FUNCTION chant_weapon_html]
+//Gera o HTML do encantamento de uma arma
+call chant_weapon_calc
+local.multipart=<eval <local.chars>-1>
+if (!<ref1.IsItem>)
+    local.t = <DEF.BFONT_LRED>Selecione uma arma excepcional para encantar.
+elif (!<ref2.IsItem>)
+    local.t = <DEF.BFONT_SIZE6>Encantando <ref1.name><DEF.BR>
+    local.t .= <DEF.BFONT_SIZE3><DEF.BFONT_LRED>Selecione uma gema sem magia.
+else
+    local.t = <DEF.BFONT_SIZE6>Encantando <ref1.name><DEF.BR>
+    local.t .= <DEF.BR><DEF.BFONT_SIZE3>Skill principal: <serv.skill.<ref2.tdata1>.name> (<src.<ref2.tdata1>>)
+    local.t .= <DEF.BR>Skill secundaria: Alchemy (<src.Alchemy>)
+    if (<local.multipart>)
+        local.t .= <DEF.BR>Participantes: <dlocal.chars>
+        local.t .= <DEF.BR><serv.skill.<ref2.tdata1>.name> x80% + Alchemy x20%
+        local.t .= <DEF.BR>Do participante menos experiente: <fval <local.test>>
+    else
+        local.t .= <DEF.BR><serv.skill.<ref2.tdata1>.name> x80% + Alchemy x20%
+        local.t .= <DEF.BR>Resuldato da combinacao: <fval <local.test>>
+    endif
+    local.t .= <DEF.BR><DEF.BR><DEF.BFONT_DGREEN>Reagentes:
+    local.t .= <DEF.BR>  1 <ref2.name>
+    args=<local.s>
+    for r 0 <eval <argv>-1>
+        local.t .= <DEF.BR>  +<strarg <argv[<dlocal.r>]>> <serv.itemdef.<streat <argv[<dlocal.r>]>>.name>
+    endif
+    if (<ref2.tdata1>==Skill_Magery)
+        local.t .= <DEF.BR><DEF.BR><DEF.BFONT_DCYAN>Resultado: <ref1.name> (magico) +<dctag0.chant_power> (fogo)
+    elif (<ref2.tdata1>==Skill_Spellweaving)
+        local.t .= <DEF.BR><DEF.BR><DEF.BFONT_DCYAN>Resultado: <ref1.name> (magico) +<dctag0.chant_power> (gelo)
+    elif (<ref2.tdata1>==Skill_Necromancy)
+        local.t .= <DEF.BR><DEF.BR><DEF.BFONT_DCYAN>Resultado: <ref1.name> (magico) +<dctag0.chant_power> (veneno)
+    elif (<ref2.tdata1>==Skill_Focus)
+        local.t .= <DEF.BR><DEF.BR><DEF.BFONT_DCYAN>Resultado: <ref1.name> (magico) +<dctag0.chant_power> (energia)
+    endif
+    local.t .= <DEF.BR><DEF.BR><DEF.BFONT_LRED>Dificuldade: <fval <local.diff>> <QVAL <local.multipart>?(<fval <local.diff>/<local.chars>> para cada):>
+    if (<local.cost>)
+        local.t .= <DEF.BR>Custo: -<fval <local.cost>> <serv.skill.<ref2.tdata1>.name> <QVAL <local.multipart>?(-<fval <local.cost>/<local.chars>> para cada):>
+    endif
+    local.t .= <DEF.BR>Mana: <dlocal.mana> <QVAL <local.multipart>?(<eval <local.mana>/<local.chars>> para cada):>
+    local.t .= <DEF.BR>Chance de sucesso: <fval <skillchance <dlocal.test>,<eval <dlocal.diff>/<local.chars>>>> %
+endif
+return <local.t>
+
+[FUNCTION chant_armor_html]
+//Gera o HTML do encantamento de uma armadura
+call chant_armor_calc
+local.multipart=<eval <local.chars>-1>
+if (!<ref1.IsItem>)
+    local.t = <DEF.BFONT_LRED>Selecione uma armadura excepcional para encantar.
+elif (!<ref2.IsItem>)
+    local.t = <DEF.BFONT_SIZE6>Encantando <ref1.name><DEF.BR>
+    local.t .= <DEF.BFONT_SIZE3><DEF.BFONT_LRED>Selecione uma gema sem magia.
+else
+    local.t = <DEF.BFONT_SIZE6>Encantando <ref1.name><DEF.BR>
+    local.t .= <DEF.BR><DEF.BFONT_SIZE3>Skill principal: <serv.skill.<ref2.tdata1>.name> (<src.<ref2.tdata1>>)
+    local.t .= <DEF.BR>Skill secundaria: Alchemy (<src.Alchemy>)
+    if (<local.multipart>)
+        local.t .= <DEF.BR>Participantes: <dlocal.chars>
+        local.t .= <DEF.BR><serv.skill.<ref2.tdata1>.name> x80% + Alchemy x20%
+        local.t .= <DEF.BR>Do participante menos experiente: <fval <local.test>>
+    else
+        local.t .= <DEF.BR><serv.skill.<ref2.tdata1>.name> x80% + Alchemy x20%
+        local.t .= <DEF.BR>Resuldato da combinacao: <fval <local.test>>
+    endif
+    local.t .= <DEF.BR><DEF.BR><DEF.BFONT_DGREEN>Reagentes:
+    local.t .= <DEF.BR>  1 <ref2.name>
+    args=<local.s>
+    for r 0 <eval <argv>-1>
+        local.t .= <DEF.BR>  +<strarg <argv[<dlocal.r>]>> <serv.itemdef.<streat <argv[<dlocal.r>]>>.name>
+    endif
+    local.resfire=<ref1.res_fire>
+    local.rescold=<ref1.res_cold>
+    local.resenergy=<ref1.res_energy>
+    local.respoison=<ref1.res_poison>
+    if (<ref2.tdata1>==Skill_Magery)
+        local.resfire += <dctag0.chant_power>
+    elif (<ref2.tdata1>==Skill_Spellweaving)
+        local.rescold += <dctag0.chant_power>
+    elif (<ref2.tdata1>==Skill_Necromancy)
+        local.respoison += <dctag0.chant_power>
+    elif (<ref2.tdata1>==Skill_Focus)
+        local.resenergy += <dctag0.chant_power>
+    endif
+    local.t .= <DEF.BR><DEF.BR><DEF.BFONT_DCYAN>Resultado:
+    local.t .= <DEF.BR>Protecao física: <eval <ref1.armor.hi>+<dctag0.chant_power>>
+    local.t .= <DEF.BR> +Fogo: <dlocal.resfire>
+    local.t .= <DEF.BR> +Gelo: <dlocal.rescold>
+    local.t .= <DEF.BR> +Energia: <dlocal.resenergy>
+    local.t .= <DEF.BR> +Veneno: <dlocal.respoison>
+    local.t .= <DEF.BR><DEF.BR><DEF.BFONT_LRED>Dificuldade: <fval <local.diff>> <QVAL <local.multipart>?(<fval <local.diff>/<local.chars>> para cada):>
+    if (<local.cost>)
+        local.t .= <DEF.BR>Custo: -<fval <local.cost>> <serv.skill.<ref2.tdata1>.name> <QVAL <local.multipart>?(-<fval <local.cost>/<local.chars>> para cada):>
+    endif
+    local.t .= <DEF.BR>Mana: <dlocal.mana> <QVAL <local.multipart>?(<eval <local.mana>/<local.chars>> para cada):>
+    local.t .= <DEF.BR>Chance de sucesso: <fval <skillchance <dlocal.test>,<eval <dlocal.diff>/<local.chars>>>> %
+endif
+return <local.t>
+
+[FUNCTION chant_jewel_html]
+//Gera o HTML do encantamento de uma jóia
+call chant_jewel_calc
+local.multipart=<eval <local.chars>-1>
+if (!<ref1.IsItem>)
+    local.t = <DEF.BFONT_LRED>Selecione uma jóia para encantar.
+elif (!<ref2.IsItem>)
+    local.t = <DEF.BFONT_SIZE6>Encantando <ref1.name><DEF.BR>
+    local.t .= <DEF.BFONT_SIZE3><DEF.BFONT_LRED>Selecione uma gema sem magia.
+else
+    local.t = <DEF.BFONT_SIZE6>Encantando <ref1.name><DEF.BR>
+    local.t .= <DEF.BR><DEF.BFONT_SIZE3>Skill principal: <serv.skill.<ref2.tdata1>.name> (<src.<ref2.tdata1>>)
+    local.t .= <DEF.BR>Skill secundaria: Alchemy (<src.Alchemy>)
+    if (<local.multipart>)
+        local.t .= <DEF.BR>Participantes: <dlocal.chars>
+        local.t .= <DEF.BR><serv.skill.<ref2.tdata1>.name> x80% + Alchemy x20%
+        local.t .= <DEF.BR>Do participante menos experiente: <fval <local.test>>
+    else
+        local.t .= <DEF.BR><serv.skill.<ref2.tdata1>.name> x80% + Alchemy x20%
+        local.t .= <DEF.BR>Resuldato da combinacao: <fval <local.test>>
+    endif
+    local.t .= <DEF.BR><DEF.BR><DEF.BFONT_DGREEN>Reagentes:
+    local.t .= <DEF.BR>  1 <ref2.name>
+    args=<local.s>
+    for r 0 <eval <argv>-1>
+        local.t .= <DEF.BR>  +<strarg <argv[<dlocal.r>]>> <serv.itemdef.<streat <argv[<dlocal.r>]>>.name>
+    endif
+    local.resfire=<ref1.res_fire>
+    local.rescold=<ref1.res_cold>
+    local.resenergy=<ref1.res_energy>
+    local.respoison=<ref1.res_poison>
+    if (<ref2.tdata1>==Skill_Magery)
+        local.resfire += <dctag0.chant_power>
+    elif (<ref2.tdata1>==Skill_Spellweaving)
+        local.rescold += <dctag0.chant_power>
+    elif (<ref2.tdata1>==Skill_Necromancy)
+        local.respoison += <dctag0.chant_power>
+    elif (<ref2.tdata1>==Skill_Focus)
+        local.resenergy += <dctag0.chant_power>
+    endif
+    local.t .= <DEF.BR><DEF.BR><DEF.BFONT_DCYAN>Resultado:
+    local.t .= <DEF.BR>Protecao física: <eval <ref1.armor.hi>+<dctag0.chant_power>>
+    local.t .= <DEF.BR> +Fogo: <dlocal.resfire>
+    local.t .= <DEF.BR> +Gelo: <dlocal.rescold>
+    local.t .= <DEF.BR> +Energia: <dlocal.resenergy>
+    local.t .= <DEF.BR> +Veneno: <dlocal.respoison>
+    local.t .= <DEF.BR><DEF.BR><DEF.BFONT_LRED>Dificuldade: <fval <local.diff>> <QVAL <local.multipart>?(<fval <local.diff>/<local.chars>> para cada):>
+    if (<local.cost>)
+        local.t .= <DEF.BR>Custo: -<fval <local.cost>> <serv.skill.<ref2.tdata1>.name> <QVAL <local.multipart>?(-<fval <local.cost>/<local.chars>> para cada):>
+    endif
+    local.t .= <DEF.BR>Mana: <dlocal.mana> <QVAL <local.multipart>?(<eval <local.mana>/<local.chars>> para cada):>
+    local.t .= <DEF.BR>Chance de sucesso: <fval <skillchance <dlocal.test>,<eval <dlocal.diff>/<local.chars>>>> %
+endif
+return <local.t>
+
+[FUNCTION chant_gem_start]
+//Inicia o encantamento de gema definido no DIALOG d_enchant
+obj=<uid.<ctag0.caldron>.tag0.liquid>
+ref1=<ctag0.chant_stone>
+ref2=<ctag0.chant_scroll>
+//Ainda tem agua do pântano no caldeirão?
+if (<obj.more2>!=LIQUID_SWAMP)
+    sysmessagered Aonde esta a agua do pantano?
+    clearctags chant_
+    ctag.caldron=
+    return
+elif (<ref1.topobj>!=<uid>) || ( (<ref2.IsItem>) && (<ref2.topobj>!=<uid>) )
+    sysmessagered Os componentes sumiram!
+    clearctags chant_
+    ctag.caldron=
+    return
+endif
+ctag.chant_liquid=<obj>
+obj=<findid.i_faz_item>
+obj.cleartags
+obj.tag.delay=60
+obj.tag.skill=Alchemy
+obj.tag.dif=0
+obj.tag.nofail=1
+obj.tag.f_step=chant_gem_step
+obj.tag.f_done=chant_gem_end
+obj.tag.item=1
+obj.tag.abort=1
+src.fazitem
+sfx=05c1
+emotered comeca o encantamento
+return 1
+
+[FUNCTION chant_wand_start]
+//Inicia o encantamento de focus definido no DIALOG d_enchant
+obj=<uid.<ctag0.caldron>.tag0.liquid>
+ref1=<ctag0.chant_wand>
+ref2=<ctag0.chant_scroll>
+//Ainda tem agua do pântano no caldeirão?
+if (<obj.more2>!=LIQUID_SWAMP)
+    sysmessagered Aonde esta a agua do pantano?
+    clearctags chant_
+    ctag.caldron=
+    return
+elif (<ref1.topobj>!=<uid>) || ( (<ref2.IsItem>) && (<ref2.topobj>!=<uid>) )
+    sysmessagered Os componentes sumiram!
+    clearctags chant_
+    ctag.caldron=
+    return
+endif
+ctag.chant_liquid=<obj>
+obj=<findid.i_faz_item>
+obj.cleartags
+obj.tag.delay=75
+obj.tag.skill=Alchemy
+obj.tag.dif=0
+obj.tag.nofail=1
+obj.tag.f_step=chant_gem_step
+obj.tag.f_done=chant_wand_end
+obj.tag.item=1
+obj.tag.abort=1
+src.fazitem
+sfx=05c1
+emotered comeca o encantamento
+return 1
+
+[FUNCTION chant_weapon_start]
+//Inicia o encantamento de arma definido no DIALOG d_enchant
+obj=<uid.<ctag0.caldron>.tag0.liquid>
+ref1=<ctag0.chant_weapon>
+ref2=<ctag0.chant_gem>
+//Ainda tem agua do pântano no caldeirão?
+if (<obj.more2>!=LIQUID_SWAMP)
+    sysmessagered Aonde esta a agua do pantano?
+    clearctags chant_
+    ctag.caldron=
+    return
+elif (<ref1.topobj>!=<uid>) || (<ref2.topobj>!=<uid>)
+    sysmessagered Os componentes sumiram!
+    clearctags chant_
+    ctag.caldron=
+    return
+endif
+ctag.chant_liquid=<obj>
+obj=<findid.i_faz_item>
+obj.cleartags
+obj.tag.delay=90
+obj.tag.skill=Alchemy
+obj.tag.dif=0
+obj.tag.nofail=1
+obj.tag.f_step=chant_gem_step
+obj.tag.f_done=chant_weapon_end
+obj.tag.item=1
+obj.tag.abort=1
+src.fazitem
+sfx=05c1
+emotered comeca o encantamento
+return 1
+
+[FUNCTION chant_armor_start]
+//Inicia o encantamento de armadura definido no DIALOG d_enchant
+obj=<uid.<ctag0.caldron>.tag0.liquid>
+ref1=<ctag0.chant_armor>
+ref2=<ctag0.chant_gem>
+if (<ref1.cont.IsChar>)//Evitar bug do unequip de armaduras
+    sysmessagered A armadura nao pode estar sendo usada!
+    sysmessagered Aonde esta a agua do pantano?
+    clearctags chant_
+    ctag.caldron=
+    return
+elif (<obj.more2>!=LIQUID_SWAMP)    //Ainda tem agua do pântano no caldeirão?
+    sysmessagered Aonde esta a agua do pantano?
+    clearctags chant_
+    ctag.caldron=
+    return
+elif (<ref1.topobj>!=<uid>) || (<ref2.topobj>!=<uid>)
+    sysmessagered Os componentes sumiram!
+    clearctags chant_
+    ctag.caldron=
+    return
+endif
+ctag.chant_liquid=<obj>
+obj=<findid.i_faz_item>
+obj.cleartags
+obj.tag.delay=45
+obj.tag.skill=Alchemy
+obj.tag.dif=0
+obj.tag.nofail=1
+obj.tag.f_step=chant_gem_step
+obj.tag.f_done=chant_armor_end
+obj.tag.item=1
+obj.tag.abort=1
+src.fazitem
+sfx=05c1
+emotered comeca o encantamento
+return 1
+
+[FUNCTION chant_gem_step]
+if (<ctag0.chant_step>&01)//1x sim, 1x não
+    if (<uid.<ctag0.chant_liquid>.timer> < 0)
+        ctag.disturb=1
+        sysmessagered A fogueira se apagou.
+        return 1
+    endif
+endif
+
+ctag0.chant_step += 1
+if (<ctag0.chant_step> > 6)
+    ctag0.chant_step=0
+endif
+DOSWITCH <ctag0.chant_step>
+    BEGIN//0
+        forplayers 1
+            anim 17
+        endfor
+    END
+    BEGIN//1
+        effect 1 0 0 0
+        sfx snd_thunder
+    END
+    local.2
+    uid.<ctag0.chant_liquid>.effect 2 i_fx_sparkle 0 16 0
+    local.4
+    uid.<ctag0.chant_liquid>.sfx <eval { 01e7 1 028E 1 05c0 1 0511 1 01FA 1 046E 1 020C 1 01FD 1 0F5 1 01F5 1 }>
+    local.6
+ENDDO
+
+[FUNCTION chant_gem_end]
+//Fim do encantamento de gema. Gerar gema se sucesso.
+CALL chant_gem_calc//Calcula dificuldade e custos per capta
+local.diff=<eval <local.diff>/<local.chars>>
+local.mana=<eval <local.mana>/<local.chars>>
+local.cost=<eval <local.cost>/<local.chars>>
+
+//Salva a spell se houver uma
+if (<ref2>)
+    local.spell=<ref2.morex>
+endif
+
+//Consome recursos
+consume <local.s>
+
+FORCLIENTS 1
+    if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+        //Testa e consome mana
+        if (<mana> < <local.mana>)
+            sysmessagered Sua mana foi insuficiente. Voce arruinou o encantamento.
+            emotered fraco
+            src.ctag0.chant_CanStart=0
+            mana=0
+        else
+            mana -= <local.mana>
+        endif
+        
+        //Testa e consome skill
+        if (<local.cost>)
+            ref3=<uid>
+            ref3.<ref1.dtdata1> = <eval <ref3.<ref1.tdata1>>-<local.cost>>
+        endif
+    endif
+ENDFOR
+
+if (!<ctag0.chant_CanStart>)
+    sysmessagered O encantamento foi arruinado.
+    clearctags chant_
+    return
+endif
+
+if (!<BELLTEST <local.test>,<local.diff>>)
+    if (<local.chars> > 1)
+        forplayers 1
+            if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+                sysmessagered Voces falharam no encantamento.
+            endif
+        endfor
+    else
+        sysmessagered Voce falhou no encantamento.
+    endif
+    ref1.decrement
+    return
+endif
+if (<local.chars> > 1)
+    forplayers 1
+        if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+            sysmessageblue Voces encantaram <ref1.name> com sucesso!
+        endif
+    endfor
+else
+    sysmessagered Voce encantou <ref1.name> com sucesso!
+endif
+
+newitem <ref1.tdata2>
+new.attr=021
+ref1.decrement 1
+new.more2=<ctag.chant_power>
+if (<local.spell>)
+    new.name=Gema do poder <streat <new.name>>
+    new.type=t_wand
+    new.morex=<local.spell>
+    new.more1=75.0
+endif
+new.bounce
+clearctags chant_
+
+[FUNCTION chant_wand_end]
+//Fim do encantamento de foco. Encantar foco no sucesso
+CALL chant_wand_calc//Calcula dificuldade e custos per capta
+local.diff=<eval <local.diff>/<local.chars>>
+local.mana=<eval <local.mana>/<local.chars>>
+local.cost=<eval <local.cost>/<local.chars>>
+
+//Salva a spell
+local.spell=<ref2.morex>
+
+//Consome recursos
+consume <local.s>
+
+FORCLIENTS 1
+    if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+        //Testa e consome mana
+        if (<mana> < <local.mana>)
+            sysmessagered Sua mana foi insuficiente. Voce arruinou o encantamento.
+            emotered fraco
+            src.ctag0.chant_CanStart=0
+            mana=0
+        else
+            mana -= <local.mana>
+        endif
+        
+        //Testa e consome skill
+        if (<local.cost>)
+            ref3=<uid>
+            ref3.<ref1.dtdata1> = <eval <ref3.<ref1.tdata1>>-<local.cost>>
+        endif
+    endif
+ENDFOR
+
+if (!<ctag0.chant_CanStart>)
+    sysmessagered O encantamento foi arruinado.
+    clearctags chant_
+    return
+endif
+
+if (!<BELLTEST <local.test>,<local.diff>>)
+    if (<local.chars> > 1)
+        forplayers 1
+            if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+                sysmessagered Voces falharam no encantamento.
+            endif
+        endfor
+    else
+        sysmessagered Voce falhou no encantamento.
+    endif
+    return
+endif
+if (<local.chars> > 1)
+    forplayers 1
+        if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+            sysmessageblue Voces encantaram <ref1.name> com sucesso!
+        endif
+    endfor
+else
+    sysmessagered Voce encantou <ref1.name> com sucesso!
+endif
+
+ref1.attr=021
+ref1.more2=<ctag.chant_power>
+if (<local.spell>)
+    ref1.morex=<local.spell>
+    ref1.more1=75.0
+endif
+ref1.update
+clearctags chant_
+
+[FUNCTION chant_weapon_end]
+//Fim do encantamento de arma. Encantar arma no sucesso
+CALL chant_weapon_calc//Calcula dificuldade e custos per capta
+local.diff=<eval <local.diff>/<local.chars>>
+local.mana=<eval <local.mana>/<local.chars>>
+local.cost=<eval <local.cost>/<local.chars>>
+
+//Consome recursos
+consume <local.s>
+
+FORCLIENTS 1
+    if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+        //Testa e consome mana
+        if (<mana> < <local.mana>)
+            sysmessagered Sua mana foi insuficiente. Voce arruinou o encantamento.
+            emotered fraco
+            src.ctag0.chant_CanStart=0
+            mana=0
+        else
+            mana -= <local.mana>
+        endif
+        
+        //Testa e consome skill
+        if (<local.cost>)
+            ref3=<uid>
+            ref3.<ref2.dtdata1> = <eval <ref3.<ref2.tdata1>>-<local.cost>>
+        endif
+    endif
+ENDFOR
+
+if (!<ctag0.chant_CanStart>)
+    sysmessagered O encantamento foi arruinado.
+    clearctags chant_
+    return
+endif
+
+if (!<BELLTEST <local.test>,<local.diff>>)
+    if (<local.chars> > 1)
+        forplayers 1
+            if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+                sysmessagered Voces falharam no encantamento.
+            endif
+        endfor
+    else
+        sysmessagered Voce falhou no encantamento.
+    endif
+    ref2.decrement 1
+    return
+endif
+if (<local.chars> > 1)
+    forplayers 1
+        if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+            sysmessageblue Voces encantaram <ref1.name> com sucesso!
+        endif
+    endfor
+else
+    sysmessagered Voce encantou <ref1.name> com sucesso!
+endif
+
+ref1.attr=021
+if (<ref2.tdata1>==Skill_Magery)
+    ref1.dmgfire=<ctag0.chant_power>
+elif (<ref2.tdata1>==Skill_Spellweaving)
+    ref1.dmgcold=<ctag0.chant_power>
+elif (<ref2.tdata1>==Skill_Focus)
+    ref1.dmgenergy=<ctag0.chant_power>
+elif (<ref2.tdata1>==Skill_Necromancy)
+    ref1.dmgpoison=<ctag0.chant_power>
+else
+    ref1.modar +=<ctag0.chant_power>
+endif
+ref2.decrement 1
+ref1.update
+clearctags chant_
+
+[FUNCTION chant_armor_end]
+//Fim do encantamento de armadura. Encantar arma no sucesso
+CALL chant_armor_calc//Calcula dificuldade e custos per capta
+local.diff=<eval <local.diff>/<local.chars>>
+local.mana=<eval <local.mana>/<local.chars>>
+local.cost=<eval <local.cost>/<local.chars>>
+
+//Confere se a armadura não está equipada para não haver bug
+if (<ref1.cont.IsChar>)
+    ref1.cont.emotered estremesse
+    ref1.cont.timerf 2 effect 1 0 0 0
+    ref1.cont.timerf 2 sfx snd_thunder
+    ref1.cont.timerf 2 damage 999 dam_god <src.uid>
+    src.sysmessagered A armadura nao pode estar sendo usada!
+    return 1
+endif
+
+//Consome recursos
+consume <local.s>
+
+FORCLIENTS 1
+    if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+        //Testa e consome mana
+        if (<mana> < <local.mana>)
+            sysmessagered Sua mana foi insuficiente. Voce arruinou o encantamento.
+            emotered fraco
+            src.ctag0.chant_CanStart=0
+            mana=0
+        else
+            mana -= <local.mana>
+        endif
+        
+        //Testa e consome skill
+        if (<local.cost>)
+            ref3=<uid>
+            ref3.<ref2.dtdata1> = <eval <ref3.<ref2.tdata1>>-<local.cost>>
+        endif
+    endif
+ENDFOR
+
+if (!<ctag0.chant_CanStart>)
+    sysmessagered O encantamento foi arruinado.
+    clearctags chant_
+    return
+endif
+
+if (!<BELLTEST <local.test>,<local.diff>>)
+    if (<local.chars> > 1)
+        forplayers 1
+            if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+                sysmessagered Voces falharam no encantamento.
+            endif
+        endfor
+    else
+        sysmessagered Voce falhou no encantamento.
+    endif
+    ref2.decrement 1
+    return
+endif
+if (<local.chars> > 1)
+    forplayers 1
+        if !(<flags>&0c4243e)//dead|paralize|invis|sleep|war|poly|insubstantial|stone|hallu|hidden
+            sysmessageblue Voces encantaram <ref1.name> com sucesso!
+        endif
+    endfor
+else
+    sysmessagered Voce encantou <ref1.name> com sucesso!
+endif
+
+ref1.attr=021
+if (<ref2.tdata1>==Skill_Magery)
+    ref1.res_fire=<MINIMUM 100,<eval <ref1.res_fire>+<ctag0.chant_power>>>
+elif (<ref2.tdata1>==Skill_Spellweaving)
+    ref1.res_cold=<MINIMUM 100,<eval <ref1.res_cold>+<ctag0.chant_power>>>
+elif (<ref2.tdata1>==Skill_Focus)
+    ref1.res_energy=<MINIMUM 100,<eval <ref1.res_energy>+<ctag0.chant_power>>>
+elif (<ref2.tdata1>==Skill_Necromancy)
+    ref1.res_poison=<MINIMUM 100,<eval <ref1.res_poison>+<ctag0.chant_power>>>
+endif
+ref1.modar=<MINIMUM 100,<eval <ref1.modar>+<ctag0.chant_power>>>
+ref2.decrement 1
+ref1.update
+clearctags chant_
+
+[DIALOG d_enchant]
+75,75
+page 0
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+resizepic 70 69 2620 460 318
+gumppic 0 0 10400
+gumppic 0 160 10401
+gumppic 0 356 10402
+gumppic 518 0 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+gumppic 225 45 2501
+dtext 231 45 26 Mystical Tales Shard
+dhtmlgump 75 75 450 40 0 0 <DEF.CENTER><DEF.BFONT_YELLOW><DEF.CHANT_<eval <ctag0.chant_task>>_HEAD><DEF.CENTERE>
+
+IF (<ctag0.chant_task>==CHANT_TASK_GEM)
+    resizepic 80 145 2620 75 75
+    dtext 85 120 2100 Pedra
+    if (<ctag0.chant_stone>)
+        tilepichue 95 176 <uid.<ctag0.chant_stone>.dispiddec> <uid.<ctag0.chant_stone>.dcolor>
+        dorigin 185 125
+        dtext - *20 166 Trocar pedra
+        button -23 +4 2224 2224 1 0 101
+        if (!<ctag0.chant_scroll>)
+            dtext - *20 166 Forca: <dctag0.chant_power>
+            button -23 +4 2223 2223 1 0 102
+            button +62 +4 2224 2224 1 0 103            
+            dtext - *20 166 Sel. magia
+        else
+            dtext - *20 166 Cargas: <dctag0.chant_power>
+            button -23 +4 2223 2223 1 0 102
+            button +62 +4 2224 2224 1 0 103
+            dtext - *20 166 Rem. magia
+        endif
+        button -23 +4 2224 2224 1 0 104
+    else
+        button 160 149 2224 2223 1 0 101
+        dtext 183 145 166 Sel. pedra
+    endif
+    dhtmlgump 275 120 250 259 1 1 <chant_gem_html>
+    if (<cTag0.chant_CanStart>)
+        button 460 390 247 248 1 0 100
+    endif
+    button 75 390 241 242 1 0 0
+    
+ELIF (<ctag0.chant_task>==CHANT_TASK_WAND)
+    resizepic 80 145 2620 75 75
+    dtext 85 120 2100 Foco
+    if (<ctag0.chant_wand>)
+        tilepichue 95 176 <uid.<ctag0.chant_wand>.dispiddec> <uid.<ctag0.chant_wand>.dcolor>
+        dorigin 185 125
+        dtext - *20 166 Trocar foco
+        button -23 +4 2224 2224 1 0 201
+        if (!<uid.<ctag0.chant_wand>.morex>)
+            if (!<ctag0.chant_scroll>)
+                dtext - *20 166 Sel. magia
+            else
+                dtext - *20 166 Sub. magia
+            endif
+            button -23 +4 2224 2224 1 0 204        
+        endif
+        dtext - *20 166 Cargas: <dctag0.chant_power>
+        button -23 +4 2223 2223 1 0 202
+        button +62 +4 2224 2224 1 0 203
+    else
+        button 160 149 2224 2223 1 0 201
+        dtext 183 145 166 Sel. foco
+    endif
+    dhtmlgump 275 120 250 259 1 1 <chant_wand_html>
+    if (<cTag0.chant_CanStart>)
+        button 460 390 247 248 1 0 200
+    endif
+    button 75 390 241 242 1 0 0
+
+ELIF (<ctag0.chant_task>==CHANT_TASK_WEAPON)
+    DORIGIN 80 120
+    button +5 +4 2224 2224 1 0 301
+    dtext +25 - 166 Arma
+    resizepic +5 +25 2620 128 128
+    if (<ctag0.chant_weapon>)
+        tilepichue +45 +65 <uid.<ctag0.chant_weapon>.dispiddec> <uid.<ctag0.chant_weapon>.dcolor>
+    endif
+
+    DORIGIN 80 275
+    if (<ctag0.chant_weapon>)
+        button +5 +4 2224 2224 1 0 302
+    endif
+    dtext +25 - 166 Gema
+    resizepic +5 +25 2620 75 75
+    if (<ctag0.chant_gem>)
+        tilepichue +20 +56 <uid.<ctag0.chant_gem>.dispiddec> <uid.<ctag0.chant_gem>.dcolor>
+    endif
+
+    dhtmlgump 275 120 250 259 1 1 <chant_weapon_html>
+    if (<cTag0.chant_CanStart>)
+        button 460 390 247 248 1 0 300
+    endif
+    button 75 390 241 242 1 0 0
+
+ELIF (<ctag0.chant_task>==CHANT_TASK_ARMOR)
+    DORIGIN 80 120
+    button +5 +4 2224 2224 1 0 401
+    dtext +25 - 166 Armadura
+    resizepic +5 +25 2620 128 128
+    if (<ctag0.chant_armor>)
+        tilepichue +45 +65 <uid.<ctag0.chant_armor>.dispiddec> <uid.<ctag0.chant_armor>.dcolor>
+    endif
+
+    DORIGIN 80 275
+    if (<ctag0.chant_armor>)
+        button +5 +4 2224 2224 1 0 402
+    endif
+    dtext +25 - 166 Gema
+    resizepic +5 +25 2620 75 75
+    if (<ctag0.chant_gem>)
+        tilepichue +20 +56 <uid.<ctag0.chant_gem>.dispiddec> <uid.<ctag0.chant_gem>.dcolor>
+    endif
+
+    dhtmlgump 275 120 250 259 1 1 <chant_armor_html>
+    if (<cTag0.chant_CanStart>)
+        button 460 390 247 248 1 0 400
+    endif
+    button 75 390 241 242 1 0 0
+
+ELIF (<ctag0.chant_task>==CHANT_TASK_JEWEL)
+    DORIGIN 80 120
+    button +5 +4 2224 2224 1 0 501
+    dtext +25 - 166 Joia
+    resizepic +5 +25 2620 128 128
+    if (<ctag0.chant_jewel>)
+        tilepichue +45 +65 <uid.<ctag0.chant_jewel>.dispiddec> <uid.<ctag0.chant_jewel>.dcolor>
+    endif
+
+    DORIGIN 80 275
+    if (<ctag0.chant_jewel>)
+        button +5 +4 2224 2224 1 0 502
+    endif
+    dtext +25 - 166 Gema
+    resizepic +5 +25 2620 75 75
+    if (<ctag0.chant_gem>)
+        tilepichue +20 +56 <uid.<ctag0.chant_gem>.dispiddec> <uid.<ctag0.chant_gem>.dcolor>
+    endif
+
+    dhtmlgump 275 120 250 259 1 1 <chant_jewel_html>
+    if (<cTag0.chant_CanStart>)
+        button 460 390 247 248 1 0 500
+    endif
+    button 75 390 241 242 1 0 0
+    
+ELSE
+    resizepic 75 250 2620 128 128
+    dtext 80 225 2100 Item
+    tilepic 105 278 9920
+ENDIF
+
+[DIALOG d_enchant text]
+
+[DIALOG d_enchant button]
+ON=0
+clearctags chant_
+
+//******GEMA******
+
+ON=100
+//Iniciar encantamento de gema
+chant_gem_start
+
+ON=101
+// Selecionar/trocar pedra
+chant_gem_select_stone
+
+ON=102
+//-Power
+ctag0.chant_power -= 1
+ctag0.chant_power =<MAXIMUM 1,<MINIMUM 10,<ctag0.chant_power>>>
+DIALOG d_enchant
+
+ON=103
+//+Power
+ctag0.chant_power += 1
+ctag0.chant_power =<MAXIMUM 1,<MINIMUM 10,<ctag0.chant_power>>>
+DIALOG d_enchant
+
+ON=104
+//scroll/não scroll
+IF (!<ctag0.chant_scroll>)
+    chant_gem_select_scroll
+ELSE
+    ctag.chant_scroll=
+    DIALOG d_enchant
+ENDIF
+
+//******FOCO******
+
+ON=200
+//Iniciar encantamento de foco
+chant_wand_start
+
+ON=201
+// Selecionar/trocar pedra
+chant_wand_select_wand
+
+ON=202
+//-Power
+ctag0.chant_power -= 1
+ctag0.chant_power =<MAXIMUM 1,<MINIMUM 10,<ctag0.chant_power>>>
+DIALOG d_enchant
+
+ON=203
+//+Power
+ctag0.chant_power += 1
+ctag0.chant_power =<MAXIMUM 1,<MINIMUM 10,<ctag0.chant_power>>>
+DIALOG d_enchant
+
+ON=204
+//scroll
+chant_wand_select_scroll
+
+//******WEAPON******
+
+ON=300
+//Começa o encantamento de uma arma
+chant_weapon_start
+
+ON=301
+//Seleciona a arma para encantar
+chant_weapon_select_weapon
+
+ON=302
+//Seleciona a gema para encantar uma arma
+chant_weapon_select_gem
+
+//******ARMOR******
+
+ON=400
+//Começa o encantamento de uma armadura
+chant_armor_start
+
+ON=401
+//Seleciona a armadura para encantar
+chant_armor_select_armor
+
+ON=402
+//Seleciona a gema para encantar uma armadura
+chant_armor_select_gem
+
+//******JEWEL******
+
+ON=500
+//Começa o encantamento de uma jóia
+chant_jewel_start
+
+ON=501
+//Seleciona a jóia para encantar
+chant_jewel_select_jewel
+
+ON=502
+//Seleciona a gema para encantar uma jóia
+chant_jewel_select_gem
+
+[EOF]

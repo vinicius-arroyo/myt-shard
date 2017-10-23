@@ -1,0 +1,334 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// Skill Tracking por
+//  admin phoenix, nazghul-ll http://www.sphereserver.net/forums/index.php?showtopic=39463&mode=linear
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
+
+//ATTRibutos
+//*****************************************************************************
+
+[PLEVEL 0]
+track
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// sk_tracking
+//*****************************************************************************
+[FUNCTION sk_tracking]
+src.tracking_cleanup
+serv.newitem i_tracking_mem
+new.equip
+return 1  
+
+//*****************************************************************************
+// track
+//*****************************************************************************
+[FUNCTION track]
+menu menu_tracking
+
+//*****************************************************************************
+// trackt
+//*****************************************************************************
+//funcao para teste do tracking
+[FUNCTION trackt]
+serv.newitem i_tracking_mem
+new.equip
+
+//*****************************************************************************
+// tracking_cleanup
+//*****************************************************************************
+[FUNCTION tracking_cleanup]
+findid.i_tracking_mem.remove
+dialogclose d_tracking
+arrowquest 0
+ctag.tracking=
+
+//*****************************************************************************
+// f_tracking_char
+//*****************************************************************************
+[FUNCTION f_tracking_char]
+obj=<uid>
+obj.morex=0
+
+local.myskill=<eval <src.tracking>+<src.detectinghidden>+<R200>>
+local.myskill *= 500
+
+FORCHARS <obj.morez>
+if !(<isgm>)
+    if (<uid> != <src>) && !(<flags>&statf_dead)
+    
+        //teste de tracking:
+        //% Chance of tracking = (Tracking + Detect Hidden + Random 1-20) / (Hiding + Stealth) * 50
+        //fonte: http://uo.stratics.com/content/skills/tracking.php
+        
+        local.target_skill=<eval <hiding>+<stealth>+1>
+        local.chance=<eval <local.myskill>/<local.target_skill>>
+        
+//        serv.log [TRACK] <name>: chance: <dlocal.chance> (<dlocal.myskill>/<dlocal.target_skill>)
+    
+        //somente exibe se passar no teste
+        if <R1000> <= <LOCAL.chance>
+
+            LOCAL.show=0
+            
+            //verifica se exibe marcador
+            if <npc> == brain_vendor
+                if <src.tag0.track_vendors>
+                    try obj.tag.brain_<eval <obj.morex>>=2437   //vendedores: seta para baixo amarela
+                    LOCAL.show=1
+                endif
+            elif <npc> == brain_monster
+                if <src.tag0.track_monsters>
+                    try obj.tag.brain_<eval <obj.morex>>=2360   //monstros: circulo vermelho
+                    LOCAL.show=1
+                endif
+            elif <npc> == brain_animal
+                if <src.tag0.track_animals>
+                    try obj.tag.brain_<eval <obj.morex>>=2362   //monstros: circulo azul
+                    LOCAL.show=1
+                endif
+            elif (<isplayer>)
+                if <src.tag0.track_players>
+                    try obj.tag.brain_<eval <obj.morex>>=2361   //monstros: circulo verde
+                    LOCAL.show=1
+                endif
+            else
+                if <src.tag0.track_others>
+                    try obj.tag.brain_<eval <obj.morex>>=5032   //monstros: circulo cinza
+                    LOCAL.show=1
+                endif
+            endif
+            
+            //+9010 micro pin               
+            //+2103 azul perolado
+            //+2435 seta acima amarela
+            //+2437 seta abaixo amarela -   npcs gerais
+            //+4035 bandeirinha
+            //+5032 cinza -                 outros
+            //+1895 preto
+            //+2360 vermelho -              monstros
+            //+2361 verde   -               player
+            //+2362 azul -                  animais
+            //+22150 a 22155 X e ? em diferentes estilos
+            //+30008 azul com borda dourada
+
+            //-1896 cinza
+            //-2510 box vazio
+            //-2511 box com X
+            //-2530 5019 5020 pin com sombra
+            //-9008 pin grande escuro
+            //-9009 pin grande claro
+            //-10006 dourado
+            //-11401 verde com borda dourada
+            //-11411 vermelho com borda dourada
+            //-1209 -2117 azul perolado
+
+            //calcula coordenadas do marcador se for exibir
+            if <LOCAL.show>
+                local.x=(-(<src.p.x> - <p.x>))
+                local.y=((<src.p.y> - <p.y>))
+                local.tracking_x = <eval ((<local.x> + <local.y>) / 2)>
+                local.tracking_y = <eval ((<local.y> - <local.x>) / 2)>
+                local.f=<eval sqrt(<eval ((<local.tracking_x>@2)+(<local.tracking_y>@2))>)>
+                if <local.f>
+                    local.distancefactor = <eval ((100*sqrt(<eval ((<local.x>@2)+(<local.y>@2))>))/<local.f>)>
+                else
+                    local.distancefactor = 0;
+                endif
+                
+                local.tracking_x = <eval (<local.tracking_x>*<local.distancefactor>)>
+                local.tracking_y = <eval (<local.tracking_y>*<local.distancefactor>)>
+                //Rescale and position
+                local.tracking_x=<eval (((<local.tracking_x>)/<obj.morez>)+235)>
+                local.tracking_y=<eval (((-<local.tracking_y>)/<obj.morez>)+235)>
+
+                try obj.tag.tempx_<eval <obj.morex>>=<eval (<local.tracking_x>)>
+                try obj.tag.tempy_<eval <obj.morex>>=<eval (<local.tracking_y>)>
+                try obj.tag.name_<eval <obj.morex>>=<name>
+                try obj.tag.uid_<eval <obj.morex>>=<uid>
+                obj.morex += 1
+            endif                
+        endif
+    endif
+endif
+ENDFOR
+
+DIALOG d_tracking
+
+
+//*****************************************************************************
+// f_draw_dots
+//*****************************************************************************
+[FUNCTION f_draw_dots]
+
+//confere quantidade de marcadores
+if <morex> < 1
+  return 0
+endif
+
+FOR 0 (<morex>-1)
+    //so exibe nome se estiver habilitado
+    if <tag0.name_en_<eval <local._for>>>
+        dtext <eval (<tag.tempx_<eval <local._for>>>-20)> <eval (<tag.tempy_<eval <local._for>>>-20)> 20 <tag.name_<eval <local._for>>>
+    endif
+    
+//      gumppic <eval (<tag.tempx_<eval <local._for>>>)> <eval (<tag.tempy_<eval <local._for>>>)> <tag.brain_<eval <local._for>>>
+
+    //exibe marcador
+    button <eval (<tag.tempx_<eval <local._for>>>)> <eval (<tag.tempy_<eval <local._for>>>)> <tag.brain_<eval <local._for>>> <tag.brain_<eval <local._for>>> 1 0 <eval <LOCAL._for>+1000>
+ENDFOR
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_tracking_mem
+//*****************************************************************************
+//morex = quantidade de  marcadores 
+//morey = indicador se ganha skill quando encontrar o alvo
+//morez = range
+//more2 = last target
+//link = target
+[ITEMDEF i_tracking_mem]
+id=i_handr_1
+type=t_eq_script
+name=tracking
+
+ON=@EQUIP
+
+    //raio de procura depende do skill tracking
+    morez=<BETWEEN 30,80,<src.tracking>,1000>
+    more2=0
+    timer=1
+    link=0
+
+    src.sysmessageyellow Rastreando: <morez>m (.track para opcoes)
+    src.ctag.tracking=1
+    f_tracking_char
+
+ON=@TIMER
+
+    if !<cont.ctag.tracking>
+        cont.tracking_cleanup
+        return
+    endif
+    
+    timer=2
+    if <link>
+        
+        cont.arrowquest <link.p.x> <link.p.y>
+        
+        if <cont.distance <link>> < 2
+            cont.sysmessageyellow Encontrou...
+            cont.arrowquest 0
+            
+            more2=<link>
+            link=0
+            
+            //ganha skill?
+            if <morey>
+                cont.skill_gain skill_tracking
+                morey=0
+            endif
+        endif
+    endif
+    
+    if <cont.flags>&statf_war
+        cont.tracking_cleanup
+    endif
+    
+    return 1
+    
+//*****************************************************************************
+//*****************************************************************************
+// MENUs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// menu_tracking
+//*****************************************************************************
+[MENU menu_tracking]
+Selecione o que deseja rastrear
+
+ON=0 Animais: <QVAL <TAG0.track_animals> ? Sim:Nao>
+    TAG.track_animals = !<TAG0.track_animals>
+    findid.i_tracking_mem.f_tracking_char
+    MENU menu_tracking
+    
+ON=0 Monstros: <QVAL <TAG0.track_monsters> ? Sim:Nao>
+    TAG.track_monsters = !<TAG0.track_monsters>
+    findid.i_tracking_mem.f_tracking_char
+    MENU menu_tracking
+    
+ON=0 Jogadores: <QVAL <TAG0.track_players> ? Sim:Nao>
+    TAG.track_players = !<TAG0.track_players>
+    findid.i_tracking_mem.f_tracking_char
+    MENU menu_tracking
+    
+ON=0 Vendedores: <QVAL <TAG0.track_vendors> ? Sim:Nao>
+    TAG.track_vendors = !<TAG0.track_vendors>
+    findid.i_tracking_mem.f_tracking_char
+    MENU menu_tracking
+    
+ON=0 Outros: <QVAL <TAG0.track_others> ? Sim:Nao>
+    TAG.track_others = !<TAG0.track_others>
+    findid.i_tracking_mem.f_tracking_char
+    MENU menu_tracking
+
+
+//*****************************************************************************
+//*****************************************************************************
+// DIALOGs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// d_tracking
+//*****************************************************************************
+[DIALOG d_tracking]
+0,0
+gumppic 100 100 5011
+gumppic 235 235 4035
+f_draw_dots
+
+[DIALOG d_tracking BUTTON]
+ON=0
+    src.tracking_cleanup
+    
+ON=1000 9999
+    LOCAL.id = <eval <argn>-1000>
+    if <tag0.name_en_<eval <LOCAL.id>>>
+        TRY tag0.name_en_<eval <LOCAL.id>>=0
+    else
+        TRY tag0.name_en_<eval <LOCAL.id>>=1
+        link= <tag0.uid_<eval <LOCAL.id>>>
+        
+        if <link.distance> <= 18    //muito perto, nao ganha skill
+            morey=0
+        elif <link>==<more2>    //mesmo alvo, nao ganha skill
+            morey=0
+        else
+            morey=1
+        endif
+
+    endif
+
+    f_tracking_char
+        
+[EOF]

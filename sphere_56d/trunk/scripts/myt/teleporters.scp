@@ -1,0 +1,192 @@
+[COMMENT teleporters]
+
+Sistema de gerenciamento de teleporters via DB
+
+CREATE TABLE  `teleporters` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `ax` smallint(5) unsigned NOT NULL,
+  `ay` smallint(5) unsigned NOT NULL,
+  `az` tinyint(4) NOT NULL,
+  `am` tinyint(3) unsigned NOT NULL,
+  `bx` smallint(5) unsigned NOT NULL,
+  `by` smallint(5) unsigned NOT NULL,
+  `bz` tinyint(4) NOT NULL,
+  `bm` tinyint(3) unsigned NOT NULL,
+  `name` varchar(45) NOT NULL,
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `byA` (`ax`,`ay`,`az`,`am`)
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_telepad
+//*****************************************************************************
+//telepad padrao, vai pra DB e é removido do world regularmente
+[TYPEDEF t_telepad]
+
+ON=@DCLICK
+color=24
+attr |= attr_invis
+timer=-1
+src.sysmessageyellow Ajustado...
+return 1
+
+//*****************************************************************************
+// t_tp
+//*****************************************************************************
+//clone do t_telepad, mas destinado a telepads dinamicos que devem ficar no world.
+[TYPEDEF t_tp]
+
+ON=@CLIENTTOOLTIP
+src.f_sendTooltip <name>,<p.x>.<p.y>.<p.z>.<p.m> to <morex>.<morey>.<morez>.<morem>
+return 1
+
+ON=@STEP
+src.p <morep>
+src.update
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// teleporters
+//*****************************************************************************
+// .teleporters [ pop | import | export | clear | remove ]
+[FUNCTION teleporters]
+
+//Função principal para client
+if !(<eval strlen(<args>)>) 
+    src.sysmessageyellow Utilize .teleporters [ pop : import : export : clear : remove : help ]
+elif (STRMATCH(pop,<strarg <args>>)
+    teleporters_pop <streat <args>>
+elif (STRMATCH(import,<args>)
+    teleporters_import
+elif (STRMATCH(export,<args>)
+    teleporters_export
+elif (STRMATCH(clear,<args>)
+    teleporters_clear
+elif (STRMATCH(remove,<args>)
+    teleporters_remove
+elif (STRMATCH(help,<args>)
+    src.sysmessageyellow pop [raio] - mostra os telepads presentes dentro de um raio
+    src.sysmessageyellow import - busca todos t_telepad do world e cria os registros no DB
+    src.sysmessageyellow export - gera arquivo teleporters_data.scp com dados do DB
+    src.sysmessageyellow clear  - limpa todos t_telepad do world
+    src.sysmessageyellow remove - apaga um determinado t_telepad
+    src.sysmessageyellow *tps serao removidos somente reiniciando servidor
+endif
+return 1
+
+//*****************************************************************************
+// teleporters_import
+//*****************************************************************************
+[FUNCTION teleporters_import]
+sysmessageyellow Importando... 
+LOCAL.sum=0
+LOCAL.query=INSERT IGNORE INTO teleporters (ax,ay,az,am,bx,`by`,bz,bm,name) VALUES
+
+foritems 6444
+    if <type>==t_telepad
+        LOCAL.s=( <p.x>,<p.y>,<p.z>,<p.m>,<morex>,<morey>,<morez>,<morem>,"<region.defname>" )
+        LOCAL.sum += 1
+        DB.EXECUTE <LOCAL.query> <LOCAL.s>
+    endif
+endfor
+sysmessageyellow Importado: <dLOCAL.sum>
+
+//*****************************************************************************
+// teleporters_clear
+//*****************************************************************************
+[FUNCTION teleporters_clear]
+sysmessageyellow Limpando...
+LOCAL.sum=0
+foritems 6444
+    if <type>==t_telepad
+        remove
+        LOCAL.sum += 1
+    endif
+endfor
+sysmessageyellow Removidos: <dLOCAL.sum>
+
+//*****************************************************************************
+// teleporters_export
+//*****************************************************************************
+[FUNCTION teleporters_export]
+sysmessageyellow Exportando... 
+LOCAL.sum=0
+
+local.filen=scripts/myt/teleporters_data.scp
+FILE.MODE.APPEND=0
+FILE.MODE.CREATE=1
+LOCAL.file=<FILE.OPEN <local.filen>>
+file.writeline=<DEF.SECTION>teleporters<DEF.SECTIONE>
+
+DB.QUERY "SELECT * FROM teleporters"
+if (<DB.ROW.NUMROWS> > 0)
+    for R 0 <eval <DB.ROW.NUMROWS>-1>
+        LOCAL.s = <DB.ROW.<eval <LOCAL.R>>.ax>,<DB.ROW.<eval <LOCAL.R>>.ay>,<DB.ROW.<eval <LOCAL.R>>.az>,<DB.ROW.<eval <LOCAL.R>>.am>=
+        LOCAL.s .= <DB.ROW.<eval <LOCAL.R>>.bx>,<DB.ROW.<eval <LOCAL.R>>.by>,<DB.ROW.<eval <LOCAL.R>>.bz>,<DB.ROW.<eval <LOCAL.R>>.bm>=
+        LOCAL.s .= tp_<DB.ROW.<eval <LOCAL.R>>.id>_<DB.ROW.<eval <LOCAL.R>>.name>
+        file.writeline=<LOCAL.s>
+        LOCAL.sum += 1
+    end
+endif
+
+file.writeline=<DEF.SECTION>EOF<DEF.SECTIONE>
+file.close=1
+sysmessageyellow Exportado: <dLOCAL.sum>
+serv.resync
+
+//*****************************************************************************
+// teleporters_pop
+//*****************************************************************************
+[FUNCTION teleporters_pop]
+
+if (!<argn>) || (<argn> < 1) || (<argn> > 18)
+    LOCAL.dist=10
+else
+    LOCAL.dist=<argn>
+endif
+
+LOCAL.s=0
+DB.query SELECT ax,ay,az,am,bx,`by`,bz,bm from teleporters WHERE ax between <eval <p.x>-<LOCAL.dist>> and <eval <p.x>+<LOCAL.dist>> and ay between <eval <p.y>-<LOCAL.dist>> and <eval <p.y>+<LOCAL.dist>>
+if (<DB.ROW.NUMROWS> > 0)
+    for R 0 <eval <DB.ROW.NUMROWS>-1>
+        serv.newitem i_floor_marble
+        new.type=t_telepad
+        new.p=<DB.ROW.<eval <LOCAL.R>>.ax>,<DB.ROW.<eval <LOCAL.R>>.ay>,<DB.ROW.<eval <LOCAL.R>>.az>,<DB.ROW.<eval <LOCAL.R>>.am>
+        new.morex=<DB.ROW.<eval <LOCAL.R>>.bx>
+        new.morey=<DB.ROW.<eval <LOCAL.R>>.by>
+        new.morez=<DB.ROW.<eval <LOCAL.R>>.bz>
+        new.morem=<DB.ROW.<eval <LOCAL.R>>.bm>
+        new.color=24
+        new.attr |= attr_invis
+        LOCAL.s += 1
+    end
+endif
+src.sysmessageyellow <dlocal.s> telepad(s) restaurados em um raio de <dlocal.dist> tiles.
+
+//*****************************************************************************
+// teleporters_remove
+//*****************************************************************************
+[FUNCTION teleporters_remove]
+
+if (<argo.type> != t_telepad) || (!<argo.isitem>) || (!<argo>) 
+    src.sysmessageyellow Selecione um t_telepad para remover. Use .teleporters pop para mostrar.
+    targetf teleporters_remove
+else
+    serv.log [TELEPORTERS]Removido: <argo.p> -> <argo.morep>
+    src.sysmessageyellow Removido do DB
+    DB.execute DELETE FROM teleporters WHERE ax=<argo.p.x> and ay=<argo.p.y> and az=<argo.p.z> and am=<argo.p.m>    
+endif
+
+
+[EOF]

@@ -1,0 +1,1583 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE BANCO por
+//  Galthar
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
+//tag.raca
+//bank.TAG.OVERRIDE.MAXWEIGHT
+//*****************************************************************************
+
+[DEFNAME defname_bank]
+BANK_BOND_TIMER         10*24*60*60*10//tempo de vigencia de um emprestimo em décimos
+
+BANK_START_LINE_SMALL   2//Começa com linha de crédito 'C'
+BANK_START_LINE_BIG     5//Começa com linha de crédito 'AA'
+
+BANK_MAX_LINE_SMALL     4//Pequenos emprestimos até no máximo 'A'
+BANK_MAX_LINE_BIG       6//Grandes emprestimos até no máximo 'AAA'
+
+//Fórmula da linha de crédito:
+//{ [ (Bem pagos x Total bem pago) - (2 x Mal pagos x Total pago com dívida) ] / Total emprestado} + BANK_START_LINE_* (de 0 a 6, só)
+
+BANK_LINE_0             E
+BANK_LINE_1             D
+BANK_LINE_2             C
+BANK_LINE_3             B
+BANK_LINE_4             A
+BANK_LINE_5             AA
+BANK_LINE_6             AAA
+
+//Emprestimo maximo (mc) por linha de credito
+BANK_LINE_0_MAX         10              //1mp   (E)
+BANK_LINE_1_MAX         5*10            //5mp   (D)
+BANK_LINE_2_MAX         15*10           //15mp  (C)
+BANK_LINE_3_MAX         5*10*10         //5mo   (B)
+BANK_LINE_4_MAX         10*10*10        //10mo  (A)
+BANK_LINE_5_MAX         50*10*10        //50mo  (AA)
+BANK_LINE_6_MAX         100*10*10       //100mo (AAA)
+
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_eq_bank_box
+//*****************************************************************************
+[TYPEDEF t_eq_bank_box]
+ON=@PICKUP_SELF
+    if ( <weight> > <TAG.OVERRIDE.MAXWEIGHT> ) && (<src.isgm>==0)
+        src.sysmessageyellow Sua caixa bancaria esta cheia. Remova algo.
+    endif
+
+ON=@DROPON_SELF
+//    if ( <TAG0.OVERRIDE.MAXWEIGHT>=!350)
+        TAG.OVERRIDE.MAXWEIGHT=7500
+//    endif
+    return <bank_checkWeight <argo.weight>>
+    
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//impede de se colocar peso maior que o banco permite se o container estiver dentro
+//de um
+[TYPEDEF t_container]
+ON=@DROPON_SELF
+IF (<cont_checkWeight <argo.weight>>)
+    src.sysmessagered Voce excedeu o limite de peso de <name> (<fval <cont_Weight>+<argo.weight>>/<fval <cont_MaxWeight>> stones). Tire alguma cosia.
+    return <eval !<src.IsGM>>
+endif
+if (!<cont>)    //Se estiver no player e der update, ele fecha.
+    timerf 1,update
+endif
+
+ON=@PICKUP_SELF
+if (!<cont>)    //Se estiver no player e der update, ele fecha.
+    timerf 1,update
+endif
+
+ON=@ClientToolTip
+local.i=Itens: <FCOUNT>
+local.mw=<cont_MaxWeight>
+if (<local.mw>)
+    local.w=Peso: <fval <cont_Weight>>/<fval <local.mw>>
+else
+    local.w=Peso: <fval <cont_Weight>>
+endif
+if (<more1>==1)
+    src.f_sendTooltip <name> (cadeado),<local.i><DEF.BR><local.w>
+else
+    src.f_sendTooltip <name>,<local.i><DEF.BR><local.w>
+endif
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// playermoney
+//*****************************************************************************
+//Mostra quanto dinheiro tem um player
+[FUNCTION playermoney]
+sysmessagered Slecione o jogador:
+targetfg _playermoney
+
+[FUNCTION _playermoney]
+//count pack cash
+LOCAL.copper=<argo.rescount i_coin_copper>
+LOCAL.silver=<argo.rescount i_coin_silver>
+LOCAL.gold=<argo.rescount i_gold>
+
+//Check bank
+LOCAL.copper += <argo.findlayer(layer_bankbox).rescount i_coin_copper>
+LOCAL.silver += <argo.findlayer(layer_bankbox).rescount i_coin_silver>
+LOCAL.gold += <argo.findlayer(layer_bankbox).rescount i_gold>
+
+LOCAL.cash=<EVAL <LOCAL.copper>+(<LOCAL.silver>*10)+(<LOCAL.gold>*100)>
+sysmessagegreen <argo.tag.name> tem <dLOCAL.cash> mc (<dLOCAL.gold>mo <dLOCAL.silver>mp <dLOCAL.copper>mc)
+
+//*****************************************************************************
+// bank_checkCash( amount, countBank )
+//*****************************************************************************
+//amount of cash (in copper)
+[FUNCTION bank_checkCash]
+
+//count pack cash
+LOCAL.copper=<rescount i_coin_copper>
+LOCAL.silver=<rescount i_coin_silver>
+LOCAL.gold=<rescount i_gold>
+
+//Check bank?
+if (<argv[1]> > 0)
+    LOCAL.copper += <findlayer(layer_bankbox).rescount i_coin_copper>
+    LOCAL.silver += <findlayer(layer_bankbox).rescount i_coin_silver>
+    LOCAL.gold += <findlayer(layer_bankbox).rescount i_gold>
+endif
+LOCAL.cash=<EVAL <LOCAL.copper>+(<LOCAL.silver>*10)+(<LOCAL.gold>*100)>
+if (<LOCAL.cash> >= <argv[0]>)
+ return <LOCAL.cash>
+endif
+return 0
+
+//*****************************************************************************
+// bank_checkWeight( weight )
+//*****************************************************************************
+//verifica se cabe o peso especificado no banco
+//DEFAULT deve ser o BANCO (container)
+[FUNCTION bank_checkWeight]
+LOCAL.n=<eval <weight>+<argn>>
+if ( <LOCAL.n> > <TAG.OVERRIDE.MAXWEIGHT> )
+    src.sysmessageyellow Sua caixa bancaria esta cheia. Retire algo.
+    if !(<src.isgm>)
+        return 1
+    endif
+endif
+src.sysmessageyellow Voce tem <eval <LOCAL.n>/10> de <eval <TAG.OVERRIDE.MAXWEIGHT>/10> stones disponiveis.
+return 0
+
+//*****************************************************************************
+[FUNCTION STRTRESURE]
+//*****************************************************************************
+//Retorna uma string representando uma quantia de cobre.
+LOCAL.c=<argn>
+WHILE (<LOCAL.c> >= 100)
+ LOCAL.g += 1
+ LOCAL.c -= 100
+ENDDO
+WHILE (<LOCAL.c> >= 10)
+ LOCAL.s += 1
+ LOCAL.c -= 10
+ENDDO
+if (<local.g>)
+ local.t = <dlocal.g>mo
+ if (<local.s>)
+  local.t .= " <dlocal.s>mp"
+ endif
+ if (<local.c>)
+  local.t .= " e <dlocal.c>mc"
+ endif
+elif (<local.s>)
+ local.t = <dlocal.s>mp
+ if (<dlocal.c>)
+  local.t .= " e <dlocal.c>mc"
+ endif
+elif (<local.c>)
+ local.t=<dlocal.c>mc
+else
+ local.t=0mc
+endif
+return <local.t>  
+
+
+//*****************************************************************************
+// bank_consume(item, amount)
+//*****************************************************************************
+[FUNCTION bank_consume]
+LOCAL.q=<argv[1]>
+FORCONT <SRC.findlayer(layer_bankbox).uid> 10
+    if ( <baseid>==<argv[0]> )
+        if ( <LOCAL.q> > <amount> )
+            LOCAL.q=<eval <LOCAL.q>-<amount>>
+            remove
+        else
+            consume <LOCAL.q>
+            return 1
+        endif
+    endif
+ENDFOR
+
+//*****************************************************************************
+// bank_getCash( amount, countBank )
+//*****************************************************************************
+//amount of cash (in copper)
+//SRC is the player
+[FUNCTION bank_getCash]
+
+//count pack cash
+LOCAL.pcopper=<SRC.rescount i_coin_copper>
+LOCAL.psilver=<SRC.rescount i_coin_silver>
+LOCAL.pgold=<SRC.rescount i_gold>
+LOCAL.cash=<EVAL <LOCAL.pcopper>+(<LOCAL.psilver>*10)+(<LOCAL.pgold>*100)>
+
+//count bank cash if needed
+if (<argv[1]> > 0)
+    LOCAL.bcopper=<SRC.findlayer(layer_bankbox).rescount i_coin_copper>
+    LOCAL.bsilver=<SRC.findlayer(layer_bankbox).rescount i_coin_silver>
+    LOCAL.bgold=<SRC.findlayer(layer_bankbox).rescount i_gold>
+    LOCAL.cash=<EVAL <LOCAL.cash>+<LOCAL.bcopper>+(<LOCAL.bsilver>*10)+(<LOCAL.bgold>*100)>
+else
+    LOCAL.bcopper=0
+    LOCAL.bsilver=0
+    LOCAL.bgold=0
+endif
+
+//message [BNK] Total Cash: <eval <LOCAL.cash>> (<LOCAL.pcopper>,<LOCAL.psilver>,<LOCAL.pgold>)/(<LOCAL.bcopper>,<LOCAL.bsilver>,<LOCAL.bgold>)
+
+if ( <LOCAL.cash> >= <argv[0]> )
+//  sysmessage [BNK] ***************
+
+    LOCAL.cash=<argv[0]>
+    
+    if ( <LOCAL.pcopper> > 0 ) 
+        if ( <LOCAL.cash> > <LOCAL.pcopper> )
+            SRC.consume <LOCAL.pcopper> i_coin_copper
+            LOCAL.cash=<LOCAL.cash>-<LOCAL.pcopper>
+//          sysmessage [BNK] Pago em cobre da bag: <eval <LOCAL.pcopper>>. Sobra <eval <LOCAL.cash>>.
+        else
+          SRC.consume <LOCAL.cash> i_coin_copper
+//          sysmessage [BNK] Pago em cobre da bag: <eval <LOCAL.cash>>
+            return 1    
+        endif
+    endif
+
+    if ( <LOCAL.bcopper> > 0 ) 
+        if ( <LOCAL.cash> > <LOCAL.bcopper> )
+            bank_consume i_coin_copper,<LOCAL.bcopper>
+            LOCAL.cash=<LOCAL.cash>-<LOCAL.bcopper>
+//          sysmessage [BNK] Pago em cobre do bank: <eval <LOCAL.bcopper>>. Sobra <eval <LOCAL.cash>>.
+        else
+          bank_consume i_coin_copper,<LOCAL.cash>
+//          sysmessage [BNK] Pago em cobre do bank: <eval <LOCAL.cash>>
+            return 1    
+        endif
+    endif
+    
+    if ( <LOCAL.psilver> > 0 )
+        LOCAL.v=<LOCAL.psilver>*10
+        if ( <LOCAL.cash> > <LOCAL.v> )
+            SRC.consume <LOCAL.psilver> i_coin_silver
+            LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
+//          sysmessage [BNK] Pago em prata da bag: <eval <LOCAL.psilver>>. Sobra <eval <LOCAL.cash>>.
+        else
+            LOCAL.amt=((<LOCAL.cash>-1)/10)+1
+            SRC.consume <LOCAL.amt> i_coin_silver
+            LOCAL.pb=(<LOCAL.amt>*10)-<LOCAL.cash>
+            SRC.NEWITEM i_coin_copper
+            NEW.amount=<LOCAL.pb>
+            NEW.bounce
+//          sysmessage [BNK] Pago em prata da bag: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+            return 1    
+        endif
+    endif
+
+    if ( <LOCAL.bsilver> > 0 )
+        LOCAL.v=<LOCAL.bsilver>*10
+        if ( <LOCAL.cash> > <LOCAL.v> )
+            bank_consume i_coin_silver,<LOCAL.bsilver> 
+            LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
+//          sysmessage [BNK] Pago em prata do bank: <eval <LOCAL.bsilver>>. Sobra <eval <LOCAL.cash>>.
+        else
+            LOCAL.amt=((<LOCAL.cash>-1)/10)+1
+            bank_consume i_coin_silver,<LOCAL.amt>
+            LOCAL.pb=(<LOCAL.amt>*10)-<LOCAL.cash>
+            SRC.NEWITEM i_coin_copper
+            NEW.amount=<LOCAL.pb>
+            NEW.bounce
+//          sysmessage [BNK] Pago em prata do bank: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+            return 1    
+        endif
+    endif
+    
+    if ( <LOCAL.pgold> > 0 )
+        LOCAL.v=<LOCAL.pgold>*100
+        if ( <LOCAL.cash> > <LOCAL.v> )
+            SRC.consume <LOCAL.pgold> i_gold
+            LOCAL.cash=<LOCAL.cash>-<LOCAL.v>
+//          sysmessage [BNK] Pago em ouro da bag: <eval <LOCAL.pgold>>. Sobra <eval <LOCAL.cash>>.
+        else
+            LOCAL.amt=((<LOCAL.cash>-1)/100)+1
+            SRC.consume <LOCAL.amt> i_gold
+            LOCAL.pb=(<LOCAL.amt>*100)-<LOCAL.cash>
+            SRC.NEWITEM i_coin_copper
+            NEW.amount=<LOCAL.pb>
+            NEW.bounce
+//          sysmessage [BNK] Pago em ouro da bag: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+            return 1    
+        endif
+    endif
+
+    LOCAL.amt=((<LOCAL.cash>-1)/100)+1
+    bank_consume i_gold,<LOCAL.amt>
+    LOCAL.pb=(<LOCAL.amt>*100)-<LOCAL.cash>
+    SRC.NEWITEM i_coin_copper
+    NEW.amount=<LOCAL.pb>
+    NEW.bounce
+//  sysmessage [BNK] Pago em ouro do bank: <eval <LOCAL.amt>>. Troco <eval <LOCAL.pb>>.
+    return 1    
+
+else
+//  sysmessage [BNK] cant buy, no cash
+    return 0
+endif
+
+//*****************************************************************************
+// bank_cambio(quantia)
+//*****************************************************************************
+[FUNCTION bank_cambio]
+
+// -- Checando posse --
+LOCAL.b=<src.findlayer.layer_bankbox.rescount <src.ctag.moeda1>>
+LOCAL.p=<src.rescount <src.ctag.moeda1>>
+
+if ( (<LOCAL.b> + <LOCAL.p>) < <argn>)
+    src.sysmessageyellow Voce nao possui esta quantia...
+    return 1
+endif
+
+// -- Calculando valores de conversao --
+if (<src.ctag.moeda1>==i_gold)
+    if (<src.ctag.moeda2>==i_coin_silver)
+        LOCAL.q=<eval <argn>*10>
+    else //cobre
+        LOCAL.q=<eval <argn>*100>
+    endif
+elif (<src.ctag.moeda1>==i_coin_silver)
+    if (<src.ctag.moeda2>==i_gold)
+        LOCAL.q=<eval <argn>/10>
+    else //cobre
+        LOCAL.q=<eval <argn>*10>
+    endif
+else //cobre
+    if (<src.ctag.moeda2>==i_gold)
+        LOCAL.q=<eval <argn>/100>
+    else //prata
+        LOCAL.q=<eval <argn>/10>
+    endif
+endif
+
+if (!<LOCAL.q> )
+    src.sysmessageyellow Voce nao pode trocar somente <argn> <SERV.ITEMDEF.<src.ctag.moeda1>.name> em <SERV.ITEMDEF.<src.ctag.moeda2>.name>
+    return 1
+endif
+
+// -- Fazendo a troca --
+if (<LOCAL.p> >= <argn>)
+    src.consume <argn> <src.ctag.moeda1>
+else
+    src.consume <LOCAL.p> <src.ctag.moeda1>
+    LOCAL.b=<eval <argn>-<LOCAL.p>>
+    bank_consume <src.ctag.moeda1>,<LOCAL.b>
+endif
+
+src.newitem <src.ctag.moeda2>
+NEW.amount <LOCAL.q>
+NEW.cont <src.findlayer.layer_pack.uid>
+src.sysmessageorange Troca de moedas concluida...
+
+
+//*****************************************************************************
+// bank_alugar(stones)
+//*****************************************************************************
+[FUNCTION bank_alugar]
+
+if !( <bank_getCash <eval <argn>/20>,1> )
+ src.sysmessageyellow Voce nao possui cobre o suficiente...
+ return 1
+endif
+
+src.findlayer(layer_bankbox).TAG.OVERRIDE.MAXWEIGHT=<eval <argn>*10>
+src.findid.i_bank_aluguel_expire.remove
+src.newitem i_bank_aluguel_expire
+NEW.link <src.uid>
+NEW.cont <src.uid>
+NEW.timer <eval (<time>/10) + ( 60 * 60 * 24 * 14 )> // 2 semanas
+src.sysmessageyellow Caixa bancaria de <argn> stones alugada...
+src.sysmessageorange Seu aluguel expira em 2 semanas (reais).
+
+//*****************************************************************************
+// bankbalance
+//*****************************************************************************
+[FUNCTION bankbalance]
+FORCONT <findlayer.layer_bankbox.uid> 10
+ LOCAL.i += 1
+ if (<baseID>==i_gold)
+  LOCAL.g += <amount>
+ elif (<baseID>==i_coin_copper)
+  LOCAL.c += <amount>
+ elif (<baseID>==i_coin_silver)
+  LOCAL.s += <amount>
+ endif
+endfor
+sysmessagered Balanco bancario:
+sysmessageyellow Peso no banco <eval <findlayer.layer_bankbox.weight>/10> (max: <eval <findlayer.layer_bankbox.tag0.OVERRIDE.MAXWEIGHT>/10>)
+sysmessageyellow Itens: <dLOCAL.i>
+sysmessageyellow Ouro: <dLOCAL.g>
+sysmessageyellow Prata: <dLOCAL.s>
+sysmessageyellow Cobre: <dLOCAL.c>
+
+//*****************************************************************************
+// setBankWeight
+//*****************************************************************************
+[FUNCTION setBankWeight]
+if (<ISEMPTY <argv0>>) || (!<ISnum <argv0>>)
+ sysmessageyellow Uso correto: .setBankWeight num (em stones)
+ return 1
+endif
+
+forplayers 6000
+ findlayer.layer_bankbox.tag.OVERRIDE.MAXWEIGHT=<eval <argn1>*10>
+ local.cont += 1
+endfor
+sysmessageyellow <dLOCAL.cont> caixas de banco modificadas.
+
+//*****************************************************************************
+// bank_findBond
+//*****************************************************************************
+[FUNCTION bank_findBond]
+//Procura a memory do empréstimo da town <args>
+FORCONTID i_mry_bond 0
+ if (STRMATCH(*<args>*,<tag.town_region>))
+  return <UID>
+ endif
+ENDFOR
+return 0
+
+//*****************************************************************************
+// bank_getBondStatus
+//*****************************************************************************
+[FUNCTION bank_getBondStatus]
+//Retorna 0 para empréstimo livre, 1 para em empréstimo e 2 para em dívida
+obj=<bank_findBond <region.region.defname>>
+if (!<obj>)
+ return 0
+endif
+
+local.status=<obj.morem>
+local.debt=<obj.more1>
+local.expire=<obj.timer>
+return <local.status>
+
+//*****************************************************************************
+// bank_getBond
+//*****************************************************************************
+[FUNCTION bank_getBond]
+//Procura a memory do empréstimo da town <args>. Se não tiver, cria uma nova.
+obj=<bank_findBond <args>>
+if (!<obj>)
+ newitem i_mry_bond
+ new.tag.town_region=<args>
+ trysrc <uid> src.new.equip
+ new.name <new.name> (<serv.area.<args>.name>)
+ obj=<new>
+endif
+return <obj>
+
+//*****************************************************************************
+// bank_getLine
+//*****************************************************************************
+[FUNCTION bank_getLine]
+//Calcula a linha de crédito deste player para a town <args>
+
+//Pega categoria: Pequeno emprestimo/Grande emprestimo
+IF (<town_getPrivs <args>>&<DEF.TOWN_PRIV_BBOND>)
+        local.min=<DEF.BANK_START_LINE_BIG>
+        local.max=<DEF.BANK_MAX_LINE_BIG>
+ELIF (<ctag0.town_<args>_privs>&<DEF.TOWN_PRIV_SBOND>)
+        local.min=<DEF.BANK_START_LINE_SMALL>
+        local.max=<DEF.BANK_MAX_LINE_SMALL>
+ELSE
+        return -1
+endif
+
+//Checa se já fez empréstimo aqui. Se não fez, é a linha de crédito mínima
+obj=<bank_findBond <args>>
+if (!<obj>)
+        RETURN <local.min>
+elif (!<obj.more2>)
+        RETURN <local.min>
+endif
+
+//{ [ (Bem pagos x Total bem pago) - (2 x Mal pagos x Total pago com dívida) ] / Total emprestado} + BANK_START_LINE_* (de 0 a 6, só)
+local.line=<eval ( ( (<obj.morey>*<obj.tag0.good_pay>) - (<obj.morez>*2*<obj.tag0.bad_pay>) )/<obj.more2> ) + <local.min> >
+local.line=<MAXIMUM <local.line>,0>
+local.line=<MINIMUMN <local.line>,<local.max>>
+
+RETURN <local.line>
+
+//*****************************************************************************
+// bank_askBond
+//*****************************************************************************
+[FUNCTION bank_askBond]
+//Pergunta ao player quanto ele quer emprestar?
+local.line=<bank_getLine <region.region.defname>>
+local.cash=<eval <town_getCash>/5>//20% do que a town tem.
+local.cash=<MINIMUM <local.cash>,<DEF.BANK_LINE_<dlocal.line>_MAX>>
+if (<argn>)
+ if (<argn> > <local.cash>)
+  sysmessagered Emprestimo acima do limite.
+  SDIALOG d_bank_bond
+ else
+  bank_makeBond <args>
+ endif
+else
+ prompt_new Digite uma quantidade em moedas de cobre ate <dlocal.cash>mc para pagar em <f_timestring <eval <DEF.BANK_BOND_TIMER>/10>>:
+ prompt_setAction bank_askBond
+ prompt_setActionBack SDIALOG d_bank_bond
+ prompt_show
+endif
+
+//*****************************************************************************
+// bank_makeBond
+//*****************************************************************************
+[FUNCTION bank_makeBond]
+//Faz um emprestimo em <region> de <argn> cobres
+if (<argv0> < 1)
+ sysmessagered Valor invalido.
+ bank_askBond
+endif
+
+//calcula o trocado
+local.cash=<argn>
+while <local.cash> > 100
+ local.g += 1
+ local.cash -= 100
+end
+while <local.cash> > 10
+ local.s += 1
+ local.cash -= 10
+end
+
+//dá pro player
+if (<local.g>)
+ newitem i_gold
+ new.amount <local.g>
+ new.bounce
+endif
+if (<local.s>)
+ newitem i_coin_silver
+ new.amount <local.s>
+ new.bounce
+endif
+if (<local.cash>)
+ newitem i_coin_copper
+ new.amount <local.cash>
+ new.bounce
+endif
+
+//Tira da town
+town_addCash -<argn>
+
+//Update na memory
+obj=<bank_getBond <region.region.defname>>
+obj.more1=<argn>
+obj.morem=1
+obj.more2 += <argn>
+obj.timerd <DEF.BANK_BOND_TIMER>
+sfx 05BA
+
+//*****************************************************************************
+// bank_bondArrest
+//*****************************************************************************
+[FUNCTION bank_bondArrest]
+//Confisca o dinheiro e os bens do caloteiro até atingir o débito com a town de DEFNAME <args>
+//serv.log [ARRESTE]-----------INICIO-----------
+obj=<bank_getBond <args>>
+local.debt=<obj.more1>
+CALL town_loadTaxes <args>
+local.debt = <eval ((100+(<local.commercialfee>*2))*<local.debt>)/100>//Dobro dos juros
+//força pagamento maior que emprestimo
+if (<local.debt>==<obj.more1>)
+ local.debt += 1
+endif
+local.total=<local.debt>
+//serv.log Emprestimo: <STRTRESURE <obj.more1>> - Dívida: <STRTRESURE <local.debt>>
+CALL bank_checkCash <local.debt>,1
+//serv.log Dinheiro: <STRTRESURE <local.cash>>
+if (<local.cash> > <local.debt>)
+ //serv.log Sanada com confisco de dinheiro
+ bank_getCash <local.debt>,1
+ f_sendMessage <uid>, Sua divida com o banco de <serv.area.<args>.name> foi sanada pois confiscaram dinheiro da sua conta, 036
+else
+ bank_getCash <local.cash>,1
+ local.debt -= <local.cash>
+ //arrest no bank
+ local.debt=<bank_bondArrest_ <local.debt>>
+ if (!<local.debt>)
+  //serv.log Sanada com confisco de dinheiro e bens
+  f_sendMessage <uid>, Sua divida com o banco de <serv.area.<args>.name> foi sanada pois confiscaram seus bens no banco, 036
+ else
+  //serv.log Sanada com confisco de dinheiro, bens e criminoso
+  f_sendMessage <uid>, Sua divida com o banco de <serv.area.<args>.name> obrigou um arresto de bens do seu banco. Nao foi o suficiente. Voce eh um criminoso!, 026
+  town_unsetFlags <DEF.TOWN_FLAG_DEBT>,<args>
+  town_setFlags <DEF.TOWN_FLAG_CRIMINAL>,<args>
+ endif
+endif
+local.total = <eval <local.total>-<local.debt>>
+DB.QUERY="SELECT tresure FROM towns WHERE region='<args>';"
+LOCAL.TRESURE=<DB.ROW.0.tresure>+<local.total>
+DB.QUERY="UPDATE towns SET tresure=<dlocal.tresure> WHERE region='<region.args>';"
+
+//serv.log [ARRESTE]-----------FIM-----------
+
+[FUNCTION bank_bondArrest_]
+//função auxiliar
+local.debt=<argn>
+FORCONT <findlayer.layer_bankbox.uid> 10
+ if (!<IsCont>)
+  local.debt -= <eval (<value>/3)*<amount>>
+  serv.log Confiscando <amount> <name>
+  if (<local.debt> < 0)
+   remove
+   return 0
+  else
+   remove
+  endif
+ endif
+END
+return <local.debt>
+
+
+//*****************************************************************************
+// bank_payBond [com multa]
+//*****************************************************************************
+[FUNCTION bank_payBond]
+//Paga um esmpréstimo. Se <argn> for TRUE, há multa.
+obj=<bank_getBond <region.region.defname>>
+local.debt=<obj.more1>
+CALL town_loadTaxes <region.region.defname>
+if (<argn>)
+ local.debt = <eval ((100+(<local.commercialfee>*2))*<local.debt>)/100>//Dobro dos juros
+else
+ local.debt = <eval ((100+<local.commercialfee>)*<local.debt>)/100>
+endif
+//força pagamento maior que emprestimo
+if (<local.debt>==<obj.more1>)
+ local.debt += 1
+endif
+serv.log Emprestimo: <STRTRESURE <obj.more1>> - Dívida: <STRTRESURE <local.debt>> - Juros: <dlocal.commercialfee>
+CALL bank_checkCash <local.debt>,1
+serv.log Dinheiro: <STRTRESURE <local.cash>>
+if (<local.cash> >= <local.debt>)
+ //serv.log Sanada com confisco de dinheiro
+ bank_getCash <local.debt>,1
+ town_addCash <local.debt>
+ sysmessagegreen Sua divida foi paga.
+ town_unsetFlags <DEF.TOWN_FLAG_DEBT>,<region.region.defname>
+ obj.color=044
+ obj.timer= -1
+ obj.morem=
+ if (!<argn>)
+  obj.tag.good_pay = <eval <obj.tag0.good_pay> + <obj.more1>>
+  obj.morey += 1
+ else
+  obj.tag.bad_pay = <eval <obj.tag0.bad_pay> + <obj.more1>>
+  obj.morez += 1
+ endif
+ obj.more1=
+ sfx 05BB
+else
+ sysmessagered Voce nao tem dinheiro para pagar a divida.
+endif
+
+//*****************************************************************************
+// bank_openDialog
+//*****************************************************************************
+[FUNCTION bank_openDialog]
+src.SDIALOG d_bank
+serv.newitem i_bank_autoclose
+new.cont=<src>
+new.morex=<src.p.x>
+new.morey=<src.p.y>
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_bank_aluguel_expire
+//*****************************************************************************
+[ITEMDEF i_bank_aluguel_expire]
+id=i_deed
+name=Banco
+type=t_eq_script
+layer=layer_special
+
+ON=@CREATE
+attr=attr_decay
+
+ON=@TIMER
+    link.findlayer(layer_bankbox).TAG.OVERRIDE.MAXWEIGHT=10000  //volta bank para 1000 stones
+    remove
+    return 1
+    
+//*****************************************************************************
+// i_bank_autoclose
+//*****************************************************************************
+//se encarrega de fechar o dialog se o player se mexer
+[ITEMDEF i_bank_autoclose]
+id=i_deed
+name=BankCloser
+type=t_eq_script
+layer=layer_special
+
+ON=@CREATE
+attr=attr_decay
+timer=5
+
+ON=@TIMER
+if (<morex>!=<cont.p.x>) || (<morey>!=<cont.p.y>)
+    TRYSRC <cont> dialogclose d_bank
+    TRYSRC <cont> dialogclose d_bank_coins_1
+    TRYSRC <cont> dialogclose d_bank_coins_2
+    remove
+    return 1
+endif
+timer=5
+return 1
+
+//*****************************************************************************
+// i_mry_bond
+//*****************************************************************************
+//Memory de empréstimo
+//tag.town_region=DEFNAME da Town
+//more1=Valor devido em cobres
+//more2=Total de valores já emprestados
+//tag.good_pay=Total de valores já emprestados e bem pagos
+//tag.bad_pay=Total de valores já emprestados e mal pagos
+//morex=Linha de crédito atual: 0=E, 6=AAA
+//morey=Quantos emprestimos bem pagos
+//morez=Quantos emprestimos pagos com atrazo
+//morem=0: limpo - 1: com empréstimo - 2: em dívida
+[ITEMDEF i_mry_bond]
+id=i_deed
+name=Emprestimo
+type=t_eq_script
+layer=layer_special
+
+ON=@CREATE
+color=044
+morex=4//Linha de crédito: A
+morey=0//Sem divida, sem empréstimo
+
+ON=@TIMER
+if (<morem>==1)
+ color=026
+ morem=2
+ timerd=<DEF.BANK_BOND_TIMER>
+ f_sendMessage <cont>, Sua divida com o banco de <serv.area.<tag.town_region>.name> expirou. Voce agora eh um devedor!, 026
+ cont.town_setFlags <DEF.TOWN_FLAG_DEBT>,<tag.town_region>
+elif (<morem>==2)
+ color=044
+ TRYSRC <topobj> src.bank_bondArrest <tag.town_region>
+ morem=0
+ tag.bad_pay = <eval <tag0.bad_pay>+<more1>>
+ morez += 1
+ more1=0
+endif
+return 1
+
+
+//*****************************************************************************
+//*****************************************************************************
+// MENUs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// m_bank - Chamado diretamente pelos players
+//*****************************************************************************
+[MENU m_bank]
+Sistema Bancario
+
+on=0 Trocar moedas
+ src.menu m_bank_cambio
+
+on=0 Abrir caixa bancaria
+ src.bankself
+
+on=0 Alugar uma caixa bancaria maior
+ src.menu m_bank_weight_alugar
+
+//*****************************************************************************
+// m_bank_weight - Mostrado quando o limite eh excedido
+//*****************************************************************************
+[MENU m_bank_weight]
+O limite de sua caixa de banco excedeu o limite, deseja alugar uma maior?
+
+on=0 Sim
+ src.menu m_bank_weight_alugar
+
+on=0 Nao
+ src.sysmessage Infelizmente sua caixa so sera liberada apos o aluguel de uma maior...
+
+//*****************************************************************************
+// m_bank_weight_alugar - Permite alugar uma caixa maior
+//*****************************************************************************
+[MENU m_bank_weight_alugar]
+Sua caixa bancaria suporta atualmente <eval (<src.findlayer(layer_bankbox).TAG.OVERRIDE.MAXWEIGHT>)/(10)> Stones, deseja alugar uma que comporte:
+
+on=0 1500 Stones (75 cp)
+ bank_alugar 1500
+
+on=0 5000 Stones (250 cp)
+ bank_alugar 5000
+
+on=0 7000 Stones (350 cp)
+ bank_alugar 7000
+
+on=0 9000 Stones (450 cp)
+ bank_alugar 9000
+
+on=0 15000 Stones (750 cp)
+ bank_alugar 15000
+
+//*****************************************************************************
+// m_bank_cambio - Permite troca de moedas - PASSO 1
+//*****************************************************************************
+[MENU m_bank_cambio]
+Que tipo de conversao voce deseja?
+
+on=0 Ouro em Prata
+ src.ctag.moeda1=i_gold
+ src.ctag.moeda2=i_coin_silver
+ src.menu m_bank_cambio_quantia
+on=0 Ouro em Cobre
+ src.ctag.moeda1=i_gold
+ src.ctag.moeda2=i_coin_copper
+ src.menu m_bank_cambio_quantia
+
+on=0 Prata em Ouro
+ src.ctag.moeda1=i_coin_silver
+ src.ctag.moeda2=i_gold
+ src.menu m_bank_cambio_quantia
+
+on=0 Prata em Cobre
+ src.ctag.moeda1=i_coin_silver
+ src.ctag.moeda2=i_coin_copper
+ src.menu m_bank_cambio_quantia
+
+on=0 Cobre em Ouro
+ src.ctag.moeda1=i_coin_copper
+ src.ctag.moeda2=i_gold
+ src.menu m_bank_cambio_quantia
+
+on=0 Cobre em Prata
+ src.ctag.moeda1=i_coin_copper
+ src.ctag.moeda2=i_coin_silver
+ src.menu m_bank_cambio_quantia
+
+//*****************************************************************************
+// m_bank_cambio - Permite troca de moedas - PASSO 2
+//*****************************************************************************
+[MENU m_bank_cambio_quantia]
+Deseja converter a seguinte quantia de <SERV.ITEMDEF.<src.ctag.moeda1>.name>:
+
+on=0 5
+ bank_cambio 5
+on=0 10
+ bank_cambio 10
+on=0 50
+ bank_cambio 50
+on=0 100
+ bank_cambio 100
+on=0 500
+ bank_cambio 500
+on=0 1000
+ bank_cambio 1000
+on=0 5000
+ bank_cambio 5000
+
+//*****************************************************************************
+// d_bank - Chamado diretamente pelos players
+//*****************************************************************************
+[DIALOG d_bank]
+250,150
+page 0
+resizepic 0 0 2620 339 155
+checkertrans 5 7 327 139
+tilepic 27 53 3648
+tilepic 267 67 3820
+tilepic 259 75 3826
+tilepic 14 85 7134
+dtext 144 12 37 Banco
+button 81 38 2151 2152 1 0 1
+button 229 87 2151 2152 1 0 2
+dtext 115 41 2100 Abrir caixa bancaria
+dtext 135 90 2100 Trocar moedas
+
+[DIALOG d_bank text]
+Banco
+Abrir caixa bancaria
+Trocar moedas
+
+[DIALOG d_bank button]
+ON=1
+// Abrir
+ src.bankself
+
+ON=2
+// Trocar moedas
+ src.SDIALOG d_bank_coins_1
+
+//*****************************************************************************
+// d_bank_coins_1 - Permite troca de moedas - PASSO 1
+//*****************************************************************************
+[DIALOG d_bank_coins_1]
+250,150
+page 0
+resizepic 0 0 2620 339 320
+checkertrans 5 7 328 304
+tilepic 248 48 3826
+dtext 112 12 37 Trocar moedas
+button 24 48 2151 2472 1 0 1
+tilepic 64 48 3820
+dtext 128 48 2100 cobre -> prata
+tilepic 248 88 3823
+button 24 88 2151 2472 1 0 2
+tilepic 64 88 3820
+dtext 131 88 2100 cobre -> ouro
+tilepic 248 128 3820
+button 24 128 2151 2472 1 0 3
+tilepic 64 128 3826
+dtext 128 128 2100 prata -> cobre
+tilepic 248 168 3823
+button 24 168 2151 2472 1 0 4
+tilepic 64 168 3826
+dtext 131 168 2100 prata -> ouro
+tilepic 248 208 3820
+button 24 208 2151 2472 1 0 5
+tilepic 64 208 3823
+dtext 131 208 2100 ouro -> cobre
+tilepic 248 248 3826
+button 24 248 2151 2472 1 0 6
+tilepic 64 248 3823
+dtext 130 248 2100 ouro -> prata
+button 8 288 4014 4015 1 0 7
+
+[DIALOG d_bank_coins_1 text]
+Trocar moedas
+cobre -> prata
+cobre -> ouro
+prata -> cobre
+prata -> ouro
+ouro -> cobre
+ouro -> prata
+
+[DIALOG d_bank_coins_1 button]
+ON=1
+// cobre prata
+ src.ctag.change=10
+ src.ctag.moeda1=i_coin_copper
+ src.ctag.moeda2=i_coin_silver
+ src.SDIALOG d_bank_coins_2
+
+ON=2
+// cobre ouro
+ src.ctag.change=100
+ src.ctag.moeda1=i_coin_copper
+ src.ctag.moeda2=i_gold
+ src.SDIALOG d_bank_coins_2
+
+ON=3
+// prata cobre
+ src.ctag.change=1
+ src.ctag.moeda1=i_coin_silver
+ src.ctag.moeda2=i_coin_copper
+ src.SDIALOG d_bank_coins_2
+
+ON=4
+// prata ouro
+ src.ctag.change=10
+ src.ctag.moeda1=i_coin_silver
+ src.ctag.moeda2=i_gold
+ src.SDIALOG d_bank_coins_2
+
+ON=5
+// ouro cobre
+ src.ctag.change=1
+ src.ctag.moeda1=i_gold
+ src.ctag.moeda2=i_coin_copper
+ src.SDIALOG d_bank_coins_2
+
+ON=6
+// ouro prata
+ src.ctag.change=1
+ src.ctag.moeda1=i_gold
+ src.ctag.moeda2=i_coin_silver
+ src.SDIALOG d_bank_coins_2
+
+ON=7
+// Voltar
+src.SDIALOG d_bank
+
+//*****************************************************************************
+// d_bank_coins_2 - Permite troca de moedas - PASSO 2
+//*****************************************************************************
+[DIALOG d_bank_coins_2]
+250,150
+page 0
+resizepic 0 0 2620 339 127
+checkertrans 5 7 328 112
+
+//desenha moeda1
+if (<src.ctag.moeda1>==i_gold)
+ tilepic 64 48 3823
+elif (<src.ctag.moeda1>==i_coin_silver)
+ tilepic 64 48 3826
+else
+ tilepic 64 48 3820
+endif
+
+//desenha moeda2
+if (<src.ctag.moeda2>==i_gold)
+ tilepic 248 48 3823
+elif (<src.ctag.moeda2>==i_coin_silver)
+ tilepic 248 48 3826
+else
+ tilepic 248 48 3820
+endif
+
+dtext 122 12 37 Trocar moedas
+button 133 93 247 248 1 0 1
+button 200 42 250 251 1 0 2
+button 200 63 252 253 1 0 3
+button 8 96 4014 4015 1 0 4
+gumppic 133 52 2443
+dtext 142 53 4 <src.dctag.change>
+dtext 154 31 2100 Qtd.
+
+[DIALOG d_bank_coins_2 text]
+Trocar moedas
+<src.dctag.change>
+Qtd.
+
+[DIALOG d_bank_coins_2 button]
+ON=1
+// OK
+ bank_cambio <ctag.change>
+ SDIALOG d_bank_coins_1
+
+ON=2
+// Coin +
+if (<src.ctag0.change>==1)
+ src.ctag.change=5
+elif (<src.ctag0.change>==5)
+ src.ctag.change=10
+elif (<src.ctag0.change>==10)
+ src.ctag.change=50
+elif (<src.ctag0.change>==50)
+ src.ctag.change=100
+elif (<src.ctag0.change>==100)
+ src.ctag.change=500
+elif (<src.ctag0.change>==500)
+ src.ctag.change=1000
+elif (<src.ctag0.change>==1000)
+ src.ctag.change=5000
+else
+ src.ctag.change=1
+endif
+SDIALOG d_bank_coins_2
+
+ON=3
+// Coin -
+if (<src.ctag0.change>==1)
+ src.ctag.change=5000
+elif (<src.ctag0.change>==5)
+ src.ctag.change=1
+elif (<src.ctag0.change>==10)
+ src.ctag.change=5
+elif (<src.ctag0.change>==50)
+ src.ctag.change=10
+elif (<src.ctag0.change>==100)
+ src.ctag.change=50
+elif (<src.ctag0.change>==500)
+ src.ctag.change=100
+elif (<src.ctag0.change>==1000)
+ src.ctag.change=500
+else
+ src.ctag.change=1000
+endif
+SDIALOG d_bank_coins_2
+
+ON=4
+// Back
+SDIALOG d_bank_coins_1
+
+//*****************************************************************************
+// d_bank_bond - Empréstimos
+//*****************************************************************************
+
+[FUNCTION dbank_BondHTML]
+call bank_getBondStatus <region.region.defname>
+local.line=<bank_getLine <region.region.defname>>
+local.text=<DEF.CENTER><DEF.BFONT_DYELLOW><DEF.BFONT_SIZE7>-=Banco de <region.region.name>=-<DEF.BR><DEF.BFONTE><DEF.DIV_E>
+local.text .= "<DEF.BFONT_SIZE1><DEF.BFONT_WHITE>Linha de credito: "
+doswitch <local.line>//Cor para mostrar linha de crédito
+ local.text .= <DEF.BFONT_RED>//E
+ local.text .= <DEF.BFONT_RED>//D
+ local.text .= <DEF.BFONT_YELLOW>//C
+ local.text .= <DEF.BFONT_YELLOW>//B
+ local.text .= <DEF.BFONT_GREEN>//A
+ local.text .= <DEF.BFONT_GREEN>//AA
+ local.text .= <DEF.BFONT_BLUE>//AAA
+enddo
+local.text .= <DEF.BANK_LINE_<dlocal.line>><DEF.BR>
+call town_loadTaxes
+if (!<local.status>)
+ local.cash=<eval <town_getCash>/5>//20% do que a town tem.
+ local.max=<MINIMUM <local.cash>,<DEF.BANK_LINE_<dlocal.line>_MAX>>
+ local.text .= <DEF.BFONT_WHITE>Emprestimo maximo: <DEF.BFONT_LYELLOW><STRTRESURE <local.max>>
+ if (<local.cash> < <DEF.BANK_LINE_<dlocal.line>_MAX>)
+  local.text .= " <DEF.BFONT_RED>(limitado pelo tesouro)"
+ endif        
+ local.text .= <DEF.BR><DEF.BFONT_WHITE>Juros: <DEF.BFONT_LYELLOW><dlocal.commercialfee>%<DEF.BR>
+elif (<local.status>==1)
+ local.cash=<eval ((100+<local.commercialfee>)*<local.debt>)/100>
+ if (<local.debt>==<obj.more1>)
+  local.debt += 1
+ endif
+ local.text .= <DEF.BFONT_YELLOW>Divida ativa: <STRTRESURE <local.cash>><DEF.BR>
+ local.duedate = <eval <local.expire>-((<DEF.BANK_BOND_TIMER>*2)/30)>
+ local.text .= <DEF.BFONT_WHITE>Prazo maximo para pagar: <DEF.BFONT_LRED><f_timestring <local.expire>> (reais)<DEF.BR>
+ if (<local.duedate> > 0)
+  local.text .= <DEF.BFONT_WHITE>Pagavel somente daqui a <f_timestring <local.duedate>> (reais)<DEF.BR>
+ else
+  local.text .= <DEF.BFONT_WHITE>Voce ja pode pagar esta divida se tiver o dinheiro.<DEF.BR>
+ endif
+elif (<local.status>==2)
+ local.cash=<MAXIMUM <eval ((100+(<local.commercialfee>*2))*<local.debt>)/100>,1>
+ local.text .= <DEF.BFONT_YELLOW>Divida ativa: <STRTRESURE <local.cash>><DEF.BR>
+ local.duedate = <eval <local.expire>-((<DEF.BANK_BOND_TIMER>*2)/30)>
+ local.text .= <DEF.BFONT_LRED>Sofrera confisco ou prisao em <f_timestring <local.expire>> (reais)<DEF.BR>Pague sua divida!<DEF.BR>
+endif
+local.text .= <DEF.BFONT_WHITE>Caso voce nao pague no prazo previsto, os juros dobram e voce sera marcado em <region.region.name> como devedor ate pagar sua divida.<DEF.BR>
+local.text .= Se voce nao pagar e ficar como devedor por mais <f_timestring <eval <DEF.BANK_BOND_TIMER>/10>>, os bens do seu banco serao confiscados ate que o valor dos bens atinja o valor da divida.<DEF.BR>
+local.text .= Se ainda assim o valor dos bens confiscados nao atingir o valor da divida, voce se tornara um criminoso.
+ 
+ 
+// Created 8/10/2009 14:15:45, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+
+[DIALOG d_bank_bond]
+100,75
+page 0
+call dbank_BondHTML
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+gumppic 0 0 10400
+gumppic 0 160 10401
+gumppic 0 356 10402
+gumppic 518 0 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+gumppic 225 45 2501
+dtext 231 45 26 Mystical Tales Shard
+resizepic 92 87 2620 416 310
+dhtmlgump 105 105 390 150 1 1 <local.text>
+dorigin 115 247
+if (!<local.status>)
+ button - *20 2224 2223 1 0 1
+ dtext +25 -4 166 Fazer emprestimo
+elif (<local.status>==1) && (<local.duedate> < 0)
+ button - *20 2224 2223 1 0 2
+ dtext +25 -4 166 Pagar o emprestimo
+elif (<local.status>==1)
+ dtext +25 +16 166 Voce ainda nao pode pagar este emprestimo
+elif (<local.status>==2)
+ button - *20 2224 2223 1 0 3
+ dtext +25 -4 166 Pagar emprestimo com juros dobrado
+endif
+
+[DIALOG d_bank_bond text]
+
+HtmlGump id.1
+Descricao do Botao
+
+[DIALOG d_bank_bond button]
+ON=1
+// Fazer emprestimo
+bank_askBond
+
+ON=2
+// Pagar emprestimo
+bank_payBond
+
+ON=3
+// Pagar emprestimo com mora
+bank_payBond 1
+
+//*****************************************************************************
+//*****************************************************************************
+// CHARDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// RUNAKO
+//*****************************************************************************
+[CHARDEF c_runako]
+ID c_man
+DEFNAME=C_RUNAKO
+NAME=Runako
+ID=C_MAN
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+TEVENTS=e_bank
+
+TSPEECH=jobbanker
+
+ON=@Create
+COLOR=03eb
+STR={71 85}
+DEX={66 80}
+INT={66 80}
+
+tag.raca Humano
+
+SWORDSMANSHIP={15.0 38.0}
+ITEMID={50.0 70.0}
+TACTICS={15.0 38.0}
+
+NPC=BRAIN_BANKER
+NEED=i_gold
+
+ITEMNEWBIE=i_hair_ponytail
+COLOR=0456
+ITEMNEWBIE=i_beard_vandyke
+COLOR=match_hair
+
+
+
+
+ON=@NPCRestock
+ITEM=RANDOM_LIGHT
+ITEM=i_shirt_fancy
+COLOR=colors_green
+ITEM=i_pants_long
+COLOR=colors_yellow
+ITEM=random_shoes
+COLOR=colors_neutral
+
+
+CATEGORY=MYT - NPCs
+SUBSECTION=Banco
+DESCRIPTION=Runako (Humano)
+
+//*****************************************************************************
+// URUKUBANCO
+//*****************************************************************************
+[CHARDEF c_urukubanco]
+ID c_man
+DEFNAME=C_urukubanco
+NAME=Urukubanco
+ID=C_MAN
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+TEVENTS=e_bank
+
+TSPEECH=jobbanker
+
+ON=@Create
+COLOR=0597
+STR={71 85}
+DEX={66 80}
+INT={66 80}
+
+tag.raca Orc
+
+SWORDSMANSHIP={15.0 38.0}
+ITEMID={50.0 70.0}
+TACTICS={15.0 38.0}
+
+NPC=BRAIN_BANKER
+NEED=i_gold
+
+ITEMNEWBIE=i_head_orc
+
+ON=@NPCRestock
+ITEM=RANDOM_LIGHT
+ITEM=i_shirt_fancy
+COLOR=colors_green
+ITEM=i_pants_long
+COLOR=colors_yellow
+
+
+CATEGORY=MYT - NPCs
+SUBSECTION=Banco
+DESCRIPTION=Urukubanco (Orc)
+
+//*****************************************************************************
+// ELYIND
+//*****************************************************************************
+[CHARDEF c_elyind]
+ID c_woman
+DEFNAME=C_elyind
+NAME=Elyind
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+TEVENTS=e_bank
+
+TSPEECH=jobbanker
+
+ON=@Create
+COLOR=0412
+STR={71 85}
+DEX={66 80}
+INT={66 80}
+
+tag.raca Elfo
+
+SWORDSMANSHIP={15.0 38.0}
+ITEMID={50.0 70.0}
+TACTICS={15.0 38.0}
+
+NPC=BRAIN_BANKER
+NEED=i_gold
+
+
+ON=@NPCRestock
+ITEM=i_hair_long
+COLOR=035
+ITEM=i_shirt_fancy
+COLOR=colors_green
+ITEM=i_skirt_long
+COLOR=colors_yellow
+
+
+CATEGORY=MYT - NPCs
+SUBSECTION=Banco
+DESCRIPTION=Elyind (Elfa)
+
+//*****************************************************************************
+// RAGNAR
+//*****************************************************************************
+[CHARDEF c_ragnar]
+ID c_man
+DEFNAME=C_ragnar
+NAME=Ragnar
+DESIRES=i_gold,e_notoriety
+AVERSIONS=t_TRAP,t_eerie_stuff
+TEVENTS=e_bank
+TSPEECH=jobbanker
+
+ON=@Create
+COLOR=0412
+STR={71 85}
+DEX={66 80}
+INT={66 80}
+
+tag.raca Anao
+
+SWORDSMANSHIP={15.0 38.0}
+ITEMID={50.0 70.0}
+TACTICS={15.0 38.0}
+
+NPC=BRAIN_BANKER
+NEED=i_gold
+
+
+ON=@NPCRestock
+ITEM=i_hair_long
+COLOR=0
+ITEM=i_beard_long
+COLOR=0
+ITEM=i_shirt_fancy
+COLOR=colors_green
+ITEM=i_pants_long
+COLOR=colors_yellow
+
+ITEM=random_shoes
+COLOR=colors_neutral
+
+CATEGORY=MYT - NPCs
+SUBSECTION=Banco
+DESCRIPTION=Ragnar (Anao)
+
+//*****************************************************************************
+//*****************************************************************************
+// EVENTS
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// e_bank
+//*****************************************************************************
+[EVENTS e_bank]
+//evento do banqueiro
+
+on=@CONTEXTMENUSELECT
+if (<argn>==21)
+ dorand 5
+  src.say Ola,<name>! Que servicos voce pode me disponibilizar?
+  src.say <name>, posso ver meus pertences?
+  src.say <name> eu gostaria de ver os meus pertences.
+  src.say <name> eu gostaria de ver os meus pertences.
+  src.say <name> eu gostaria de ver os meus pertences.
+ enddo
+ if (STRMATCH(<tag.raca>,Orc))
+  dorand 3
+   say Zub.
+   say Zub, zub...
+   say Abri caixa du <src.tag.name>...
+   say Zub, urk.
+  enddo
+ else
+  dorand 3
+   say Aqui esta.
+   say Certo, vamos ver...
+   say Agora mesmo!
+   say Pois nao?
+  enddo
+ endif
+ bank_openDialog
+ return 1
+elif (<argn>==22)
+ dorand 3
+  src.say Ola,<name>! Como esta a situacao da minha conta?
+  src.say <name>, o que tenho na caixa?
+  src.say E entao, <name>, o que eu tenho?
+ enddo
+ if (STRMATCH(<tag.raca>,Orc))
+  say Tem essi, e issu e issu aqui.
+ else
+  say Ah, veja nesta lista.
+ endif
+ src.bankbalance
+ return 1
+endif
+
+//*****************************************************************************
+//*****************************************************************************
+// SPEECHes
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// jobBANKER
+//*****************************************************************************
+[SPEECH jobBANKER]
+ON=*gostaria*ver*pertences*
+ON=*quero*minha*conta*
+ON=*gostaria*minha*conta*
+ON=*quero*ver*pertences*
+
+//ON=gostaria*ver*pertences*
+//ON=quero*minha*conta*
+//ON=gostaria*minha*conta*
+//ON=quero*ver*pertences*
+
+//ON=*gostaria*ver*pertences
+//ON=*quero*minha*conta
+//ON=*gostaria*minha*conta
+//ON=*quero*ver*pertences
+
+//ON=gostaria*ver*pertences
+//ON=quero*minha*conta
+//ON=gostaria*minha*conta
+//ON=quero*ver*pertences
+
+if (STRMATCH(<tag.raca>,Orc))
+ dorand 3
+  say Zub.
+  say Zub, zub...
+  say Abri caixa du <src.tag.name>...
+  say Zub, urk.
+ enddo
+else
+ dorand 3
+  say Aqui esta.
+  say Certo, vamos ver...
+  say Agora mesmo!
+  say Pois nao?
+ enddo
+endif
+bank_openDialog
+return 1
+
+ON=*quero*emprest*
+ON=*gostaria*emprest*
+if (!<Town_IsTown>)
+ timerf 1 say Nao ha cofres publicos por aqui e nao tenho para emprestar.
+elif (!<src.town_CheckPrivs <eval TOWN_PRIV_SBOND | TOWN_PRIV_BBOND>>)
+ timerf 1 say Nao posso emprestar dinheiro para qualquer um...
+elif (<src.restest i_capuz>) && !(<region.region.tag0.permissions>&<DEF.TOWN_CAN_HOOD>)
+ timerf 1 say E voce eh <src.sex o/a> famos<src.sex o/a> quem?
+elif (<src.ctag0.town_<region.region.defname>_flags>&027)
+ timerf 1 say Saia daqui! Guardas!
+else
+ src.SDIALOG d_bank_bond
+ timerf 1 say Vejamos...
+ timerf 2 emoteyellow consulta papeis
+endif
+
+ON=*adicione*tesouro*
+ON=*ponha*tesouro*
+ON=*coloque*tesouro*
+if (!<Town_IsTown>)
+ timerf 1 say Nao ha cofres publicos por aqui.
+elif (<src.restest i_capuz>) && !(<region.region.tag0.permissions>&<DEF.TOWN_CAN_HOOD>)
+ timerf 1 say E voce eh <src.sex o/a> famos<src.sex o/a> quem?
+elif (<src.ctag0.town_<region.region.defname>_flags>&027)
+ timerf 1 say Saia daqui! Guardas!
+else
+ local.cash=<src.bank_checkCash 1,0>
+ if (!<local.cash>)
+  timerf 1 say Eh melhor arranjar algum dinheiro antes...
+  return 1
+ endif
+ timerf 1 say Ah sim! Vamos engordar os cofres publicos...
+ src.prompt_new Quanto de dinheiro (em cobres) voce deseja colocar no tesouro de <region.region.name>?<DEF.BR>Maximo: <STRTRESURE <local.cash>>
+ src.prompt_setAction town_donateTresure <uid>,
+ src.prompt_setActionBack
+ src.prompt_show
+endif
+
+ON=*sacar*tesouro*
+ON=*retirar*tesouro*
+ON=*pegar*tesouro*
+if (!<Town_IsTown>)
+ timerf 1 say Nao ha cofres publicos por aqui.
+elif (<src.restest i_capuz>) && !(<region.region.tag0.permissions>&<DEF.TOWN_CAN_HOOD>)
+ timerf 1 say E voce eh <src.sex o/a> famos<src.sex o/a> quem?
+elif (!<src.town_CheckPrivs <DEF.TOWN_PRIV_TRESURE>>)
+ timerf 1 say Caia fora espertinh<src.sex o/a>.
+elif (<src.ctag0.town_<region.region.defname>_flags>&027)
+ timerf 1 say Saia daqui! Guardas!
+else
+ local.cash=<town_GetCash>
+ if (!<local.cash>)
+  timerf 1 say Os cofres estão vazios. Lamento.
+  return 1
+ endif
+ timerf 1 say Espero que voce saiba o que esta fazendo...
+ src.prompt_new Quanto de dinheiro (em cobres) voce deseja sacar do tesouro de <region.region.name>?<DEF.BR>Maximo: <STRTRESURE <local.cash>>
+ src.prompt_setAction town_getTresure <uid>,
+ src.prompt_setActionBack
+ src.prompt_show
+endif
+
+[EOF]

@@ -1,0 +1,502 @@
+
+//TODO:
+
+//TAGS usadas:
+
+[DEFNAME recipes]
+RECIPE_TASK_MAIN        1
+RECIPE_TASK_INDEX       2
+RECIPE_TASK_CATEGORY    3
+RECIPE_TASK_PAGE        4
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_recipe
+//*****************************************************************************
+[TYPEDEF t_recipe]
+ON=@DCLICK
+if (<src>!=<topobj>)
+ src.sysmessagered Nao da para usar <name> aonde ele esta!
+ return 1
+endif
+src.sysmessageyellow Selecione o livro onde incluir:
+TARGET
+return 1
+
+ON=@TARGON_CHAR
+src.sysmessagered Selecione um livro de projetos!
+return 1
+
+ON=@TARGON_GROUND
+src.sysmessagered Selecione um livro de projetos!
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.type>==t_recipe_book)
+ local.recipe=0
+ local.deny=0
+ local.i=0
+ WHILE (!<IsEmpty <tag.recipe_<dlocal.i>>>)
+  if (<src.targ.ADDRECIPE <tag.recipe_<dlocal.i>>>)
+   local.recipe += 1
+  else
+   local.deny += 1
+  endif
+  local.i += 1
+ END
+ if (<local.recipe> > 1)
+  src.sysmessageyellow <dlocal.recipe> novos projetos adicionados!
+ elif (<local.recipe>)
+  src.sysmessageyellow Projeto de <serv.itemdef.<tag.recipe_0>.name> adicionado!
+ endif
+ if (<local.deny>)
+  src.sysmessageyellow <dlocal.deny> projetos eram repetidos ou estavam ilegiveis.
+ endif
+ remove
+else
+ src.sysmessagered Selecione um livro de projetos!
+endif
+return 1
+
+//*****************************************************************************
+// t_recipe_book
+//*****************************************************************************
+[TYPEDEF t_recipe_book]
+ON=@dclick
+if (<IsEmpty <tag.by>>) && (<morex>)
+ tag.by=<src.tag.name>
+endif
+src.recipe_openBook <uid>
+//src.ctag.recipe_page = -2
+return 1
+
+ON=@ClientToolTip
+if (<morex>)
+ local.t = Projetos: <morex>
+ if (!<IsEmpty <tag.by>>)
+  local.t .= <DEF.BR>Autor: <tag.by>
+ endif
+else
+ local.t = Novo em folha
+endif
+src.f_sendTooltipData <name>
+src.f_sendTooltip <name>,<local.t>
+return 1
+
+on=@destroy
+DB.EXECUTE="DELETE FROM recipebooks WHERE UID=<eval <UID>>;"
+
+
+
+
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+
+//*****************************************************************************
+// i_livro_projetos
+//*****************************************************************************
+[ITEMDEF i_livro_projetos]
+NAME=livro de projetos
+ID=0ff1
+TYPE=t_recipe_book
+RESOURCES=1 i_bobina_papel, 4 i_thread, 1 i_couro_curtido
+SKILLMAKE=57.6 Carpentry
+WEIGHT=3
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tinker
+DESCRIPTION=Livro de projetos
+
+//*****************************************************************************
+// i_recipe_kit_armadilha
+//*****************************************************************************
+[ITEMDEF i_recipe_kit_armadilha]
+ID=i_map_rolled
+NAME=Projeto de kit para desarmar armadilhas
+TYPE=t_recipe
+VALUE=100
+CATEGORY=MyT - Projetos
+SUBSECTION=Tinkering
+DESCRIPTION=Kit armadilha
+
+ON=@CREATE
+ ADDRECIPE i_kit_removetrap
+ 
+//*****************************************************************************
+// i_recipe_bancada
+//*****************************************************************************
+[ITEMDEF i_recipe_bancada]
+ID=i_map_rolled
+NAME=Projeto de bancada
+TYPE=t_recipe
+VALUE=300
+
+ON=@CREATE
+ ADDRECIPE i_bancada_encaixotada
+ 
+//*****************************************************************************
+// i_recipe_moinho
+//*****************************************************************************
+[ITEMDEF i_recipe_moinho]
+ID=i_map_rolled
+NAME=Projeto de moinho
+TYPE=t_recipe
+VALUE=187
+
+ON=@CREATE
+ ADDRECIPE i_moinho_encaixotado
+ 
+//*****************************************************************************
+// i_recipe_lanterna
+//*****************************************************************************
+[ITEMDEF i_recipe_lanterna]
+ID=i_map_rolled
+NAME=Projeto de lanterna
+TYPE=t_recipe
+VALUE=37
+
+ON=@CREATE
+ ADDRECIPE i_lantern
+
+//*****************************************************************************
+// i_recipe_pig_lumenor
+//*****************************************************************************
+[ITEMDEF i_recipe_pig_lumenor]
+ID=i_map_rolled
+NAME=Receita de leitao a Lumenor
+TYPE=t_recipe
+VALUE=158
+CATEGORY=MyT - Projetos
+SUBSECTION=Cooking
+DESCRIPTION=Leitao a Lumenor
+
+ON=@CREATE
+ ADDRECIPE i_leitao_lumenor
+
+
+//*****************************************************************************
+// i_recipe_cachimbo
+//*****************************************************************************
+[ITEMDEF i_recipe_cachimbo]
+ID=i_map_rolled
+NAME=Projeto de cachimbo
+TYPE=t_recipe
+VALUE=28
+
+ON=@CREATE
+ ADDRECIPE i_cachimbo
+
+//*****************************************************************************
+// i_recipe_ovo_harpia_frito
+//*****************************************************************************
+[ITEMDEF i_recipe_ovo_harpia_frito]
+ID=i_map_rolled
+NAME=Receita de Ovos de Harpia Fritos
+TYPE=t_recipe
+VALUE=100
+CATEGORY=MyT - Projetos
+SUBSECTION=Cooking
+DESCRIPTION=Ovos de Harpia Fritos
+
+ON=@CREATE
+ADDRECIPE i_ovo_harpia_frito
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// recipe_openBook
+//*****************************************************************************
+//Abre o livro de projetos <argn>
+[FUNCTION recipe_openBook]
+dialogclose d_recipe_book
+ctag.recipe_book=<argn>
+ctag.recipe_task=<DEF.RECIPE_TASK_MAIN>
+dialog d_recipe_book
+
+//*****************************************************************************
+// recipe_goIndex
+//*****************************************************************************
+//Força ir ao indice do livro
+[FUNCTION recipe_goIndex]
+ctag.recipe_task=<DEF.RECIPE_TASK_INDEX>
+dialog d_recipe_book
+
+//*****************************************************************************
+// recipe_goProj
+//*****************************************************************************
+//Alterna para o modo de ver projeto
+[FUNCTION recipe_goProj]
+ctag.recipe_task=<DEF.RECIPE_TASK_PAGE>
+dialog d_recipe_book
+
+//*****************************************************************************
+// recipe_Copy
+//*****************************************************************************
+//Copia o projeto do livro
+[FUNCTION recipe_Copy]
+sysmessagered Ainda sem funcionamento...
+dialog d_recipe_book
+
+//*****************************************************************************
+// ADDRECIPE
+//*****************************************************************************
+//Adiciona o itemdef ARGS como receita em um item t_recipe ou t_recipe_book
+//Retorna 1/0 se incluiu
+[FUNCTION ADDRECIPE]
+if (<type>==t_recipe)
+ local.recipe=0
+ WHILE !<IsEmpty <tag.recipe_<dlocal.recipe>>>
+  local.recipe += 1
+ END
+ try tag.recipe_<dlocal.recipe>=<args>
+ return 1
+elif (<type>==t_recipe_book)
+ if (!<serv.itemdef.<args>>)
+  return 0
+ endif
+ DB.QUERY="SELECT COUNT(defname) as CNT FROM recipebooks WHERE UID=<eval <uid>> AND DEFNAME='<args>';"
+ if (<DB.ROW.0.CNT>)
+  return 0
+ endif
+ local.skill=<DEF.<serv.itemdef.<args>.skillmake.1.key>>
+ if (<local.skill> > 55)
+  local.skill &= ~0c0000000
+ endif
+ DB.EXECUTE="INSERT INTO recipebooks SET UID=<eval <uid>>, DEFNAME='<args>', skill=<dlocal.skill>;"
+ END
+ morex += 1
+ return 1
+endif
+return 0
+
+//*****************************************************************************
+// recipe_BookRecipes
+//*****************************************************************************
+//Retorna quantas receitas tem o livro
+[FUNCTION recipe_BookRecipes]
+DB.QUERY="SELECT count(defname) AS cnt FROM recipebooks WHERE uid=<eval <UID>>;"
+return <DB.ROW.0.cnt>
+
+//*****************************************************************************
+// recipe_SelectSkill
+//*****************************************************************************
+//Seleciona qual a skill do receitoario e alterna para o indice da categoria
+[FUNCTION recipe_SelectSkill]
+obj=<src.ctag.recipe_book>
+ctag.recipe_skill=<argn>
+ctag.recipe_task=<DEF.RECIPE_TASK_CATEGORY>
+DB.QUERY="SELECT DISTINCT defname FROM recipebooks WHERE uid=<eval <obj>> AND skill=<dctag.recipe_skill>;"
+for i 1 <DB.ROW.NUMROWS>
+ ctag.recipe_item_<dlocal.i>=<DB.ROW.<eval <dlocal.i>-1>.defname>
+end
+ctag.recipe_itens=<local.i>
+ctag.recipe_itens_pages=<eval (<local.i>/16)+1>
+ctag.recipe_page=1
+dialog d_recipe_book
+
+//*****************************************************************************
+// recipe_SelectItem
+//*****************************************************************************
+//Seleciona qual o item do receitoario e alterna para o modo de projeto
+[FUNCTION recipe_SelectItem]
+//sysmessage ctag.recipe_item_<eval <argn>>
+ctag.craft_item=<ctag.recipe_item_<eval <argn>>>
+ctag.recipe_task=<DEF.RECIPE_TASK_PAGE>
+dialog d_recipe_book
+
+//*****************************************************************************
+// recipe_info_craft
+//*****************************************************************************
+//Retorna uma string HTML sobre o item a ser feito
+[FUNCTION recipe_info_craft]
+local.t=<DEF.BFONT_DPURPLE>DIFICULDADE:<DEF.BFONT_DGRAY><DEF.BR>
+local.t .= <fval <serv.itemdef.<args>.skillmake.0.val>>% <serv.skill.<serv.itemdef.<args>.skillmake.0.key>.name><DEF.BR>
+call craft_expChance <args>
+local.t .=<DEF.BR>
+local.t .=<DEF.BFONT_DPURPLE>MATERIA PRIMA:<DEF.BFONT_DGRAY><DEF.BR>
+local.i=1
+WHILE (<serv.itemdef.<args>.resources.<local.i>.val>)
+ local.t .= -<eval <serv.itemdef.<args>.resources.<local.i>.val>> <serv.itemdef.<serv.itemdef.<args>.resources.<local.i>.key>.name><DEF.br>
+ local.i += 1
+END
+return <local.t>
+
+//*****************************************************************************
+//*****************************************************************************
+// DIALOGs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// d_recipe_book
+//*****************************************************************************
+[DIALOG d_recipe_book]
+250,150
+obj=<src.ctag.recipe_book>
+//carrega botões escondidos se necessário
+if (<ctag.recipe_task>==<DEF.RECIPE_TASK_PAGE>)
+ button 250 190 1209 248 1 0 5
+ button 340 182 1227 1227 1 0 6
+endif
+
+gumppic 0 0 500
+
+if (<ctag.recipe_task>==<DEF.RECIPE_TASK_MAIN>)
+ dhtmlgump 41 30 151 123 0 0 <DEF.CENTER><DEF.BFONT_DGREEN>Mystical Tales Shard<DEF.BR><DEF.BR><DEF.BFONT_DBLUE><DEF.BIG>Livro de Receitas<DEF.BR>e<DEF.BR>Projetos<DEF.BR><DEF.BIGE><DEF.BFONTE><DEF.DIV_E><DEF.BR>Por: <obj.tag.by>
+ local.rec=<obj.recipe_BookRecipes>
+ if (<local.rec>)
+  button 356 0 502 502 1 0 3
+  local.t = Este livro contem <dlocal.rec> entrada(s) distribuidas em
+  DB.QUERY="SELECT DISTINCT skill FROM recipebooks WHERE uid=<eval <obj>>;"
+  local.t .= " <eval <DB.ROW.NUMROWS>> categoria(s):<DEF.BR>"
+  for c 0 <eval <DB.ROW.NUMROWS>-1>
+   local.t .= " - <serv.skill.<DB.ROW.<dlocal.c>.skill>.name><DEF.BR>"
+  end
+  button 42 161 2224 2224 1 0 3
+  dtext 63 157 0 Indice
+  if (!<IsEmpty <obj.tag.last>>)
+   button 42 181 2224 2224 1 0 4
+   dtext 63 177 0 Ultimo
+  endif
+ else
+  local.t=Este livro esta vazio.
+ endif
+ dhtmlgump 231 30 151 163 0 0 <local.t>
+  
+elif (<ctag.recipe_task>==<DEF.RECIPE_TASK_INDEX>)
+ button 0 0 501 501 1 0 1
+ dtext 95 25 0 Indice
+ local.rmax=7
+ dorigin 40 25
+ DB.QUERY="SELECT DISTINCT skill FROM recipebooks WHERE uid=<eval <obj>>;"
+ for r 0 <eval <db.row.numrows>-1>
+  if (<local.r> > <local.rmax>)
+   dorigin 230 25
+   local.rmax += 8
+  endif
+  dtext +23 *20 0 <serv.skill.<DB.ROW.<dlocal.r>.skill>.name>
+  button +2 +4 2224 2224 1 0 <eval 100+<DB.ROW.<dlocal.r>.skill>>
+ end
+
+elif (<ctag.recipe_task>==<DEF.RECIPE_TASK_CATEGORY>)
+ dtext 65 25 0 Indice - <serv.skill.<ctag.recipe_skill>.name>
+ button 0 0 501 501 1 0 1
+
+ if (<ctag.recipe_page>!=<ctag.recipe_itens_pages>)
+  button 356 0 502 502 1 0 2
+ endif
+ local.r=<eval ((<ctag.recipe_page>-1)*16)+1>
+ local.rmaxpage=<eval <local.r>+16>
+ local.rmax=<eval <local.r>+7>
+ dorigin 40 25
+ WHILE (<local.r> < <local.rmaxpage>) && (<local.r> <= <ctag.recipe_itens>)
+  if (<local.r> > <local.rmax>)
+   dorigin 230 25
+   local.rmax += 8
+  endif
+  if (!<IsEmpty <DEF.<ctag.recipe_item_<dlocal.r>>_IDNAME>>)
+    dtext +23 *20 0 <DEF.<ctag.recipe_item_<dlocal.r>>_IDNAME>
+  else
+    dtext +23 *20 0 <serv.itemdef.<ctag.recipe_item_<dlocal.r>>.name>
+  endif
+  button +2 +4 2224 2224 1 0 <eval 1000+<dlocal.r>>
+  local.r += 1
+ end
+ local.page=<eval (2*<dctag.recipe_page>)-1>
+ dtext 104 200 2100 <dlocal.page>
+ dtext 298 200 2100 <eval <dlocal.page>+1>
+
+elif (<ctag.recipe_task>==<DEF.RECIPE_TASK_PAGE>)
+ tilepichue 92 97 <eval <serv.itemdef.<ctag.craft_item>.id>> <itemforge_DBColor <ctag.craft_item>>
+ button 0 0 501 501 1 0 1 
+ if (!<IsEmpty <DEF.<ctag.craft_item>_IDNAME>>)
+    dhtmlgump 32 32 168 59 0 0 <DEF.CENTER><DEF.BIG><DEF.BFONT_RED><DEF.<ctag.craft_item>_IDNAME><DEF.BR><DEF.BFONTE><DEF.BIGE><DEF.DIV_E>
+ else
+    dhtmlgump 32 32 168 59 0 0 <DEF.CENTER><DEF.BIG><DEF.BFONT_RED><serv.itemdef.<ctag.craft_item>.name><DEF.BR><DEF.BFONTE><DEF.BIGE><DEF.DIV_E>
+ endif
+ dhtmlgump 221 32 168 143 0 1 <recipe_info_craft <ctag.craft_item>>
+ tilepic 241 182 4031
+ tilepic 346 181 7866
+endif
+
+[DIALOG d_recipe_book text]
+
+
+[DIALOG d_recipe_book button]
+ON=1
+// Página -
+//recipe_Prev
+if (<ctag.recipe_task>==<DEF.RECIPE_TASK_INDEX>)
+ ctag.recipe_task=<DEF.RECIPE_TASK_MAIN>
+
+elif (<ctag.recipe_task>==<DEF.RECIPE_TASK_CATEGORY>)
+ if (<ctag.recipe_page>==1)
+  recipe_goIndex
+  return 1
+ else
+  ctag.recipe_page -= 1
+ endif
+
+elif (<ctag.recipe_task>==<DEF.RECIPE_TASK_PAGE>)
+ if (<ctag0.recipe_page> > 0)
+  ctag.recipe_task=<DEF.RECIPE_TASK_CATEGORY>
+ else
+  ctag.recipe_task=<DEF.RECIPE_TASK_MAIN>
+ endif
+endif
+dialog d_recipe_book
+return 1
+  
+ON=2
+// Pagina +
+if (<ctag.recipe_task>==<DEF.RECIPE_TASK_CATEGORY>)
+ ctag.recipe_page += 1
+ dialog d_recipe_book
+ return 1
+endif
+
+ON=3
+// Index
+recipe_goIndex
+
+ON=4
+// Last
+obj=<ctag.recipe_book>
+ctag.craft_item=<obj.tag.last>
+ctag.recipe_task=<DEF.RECIPE_TASK_PAGE>
+dialog d_recipe_book
+
+ON=5
+// Copiar projeto
+recipe_Copy
+
+ON=6
+// craftar
+obj=<ctag.recipe_book>
+obj.tag.last=<ctag.craft_item>
+src.craftItem <ctag.craft_item>
+
+ON=100 199
+//Select Skill
+recipe_SelectSkill <eval <argn>-100>
+
+ON=1000 10000
+//Select Item
+recipe_SelectItem <eval <argn>-1000>
+
+
+[EOF]
+

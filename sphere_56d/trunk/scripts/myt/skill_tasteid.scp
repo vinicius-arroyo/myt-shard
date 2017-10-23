@@ -1,0 +1,115 @@
+[DEFNAME TasteID]
+//Tempo antes de poder identificar outro item
+TasteID_timer	15
+
+[FUNCTION sk_TasteID]
+//Função inicial chamada pelo botão da skill
+
+//Checar se o player pode fazer isso
+if (<action> != -1) || (<ctag0.action>!=0) || (<flags>&statf_cantcraft)
+ SYSMESSAGERED Voce esta ocupado com outro afazer.
+ return 1
+endif 
+SYSMESSAGEYELLOW O que voce deseja provar?
+targetf sk_TasteID_
+return 1
+
+[FUNCTION sk_TasteID_]
+//Checar se é lambível
+IF (!<argo.isitem>)
+ sysmessagered Voce nao pode provar isso.
+ return 1
+endif
+IF (<argo.topobj>!=<UID>)
+ sysmessagered Voce deve ter o item em sua posse.
+ return 1
+endif
+IF (<argo.attr>&attr_identified)
+ sysmessageyellow Este item ja esta identificado.
+ return 1
+endif
+
+//Checar se o char pode identificar
+IF (<restest 1 i_mry_TasteID>)					//Ele usou essa skill faz pouco tempo?
+ sysmessagered Aguarde antes de tentar novamente.
+ return 1
+ENDIF
+local.timer=<f_rangeValue 15,3,<TasteID>>
+DORAND 2
+ emoteyellow lambe e pensa
+ emoteyellow provando
+ENDDO
+TIMERF <local.timer>,TasteID_
+ctag.action=36
+cTag.cItem=<argo.uid>
+cTag.cPX=<p.x>
+cTag.cPY=<p.Y>
+return 1
+
+[FUNCTION TasteID_]
+ctag.action=
+OBJ=<cTag.cItem>
+
+//Antiexploit
+IF (<flags>&statf_cantcraft)
+ sysmessagered Voce nao pode provar <obj.name> por que foi perturbado.
+ return 1
+endif
+IF (<ctag0.cPX>!=<p.x>) || (<ctag0.cPY>!=<p.y>)
+ sysmessagered Sua atencao foi desviada. Voce nao provou <obj.name>.
+ return 1
+endif
+IF (<obj.topobj>!=<UID>)
+ sysmessagered Aonde esta <obj.name>? Voce foi roubado!
+ susto
+ return 1
+endif
+
+//Tentar identificar
+if (<obj.type>==t_potion)
+ LOCAL.diff=<f_rangeValue 0,475,<obj.more2>>
+
+ //ELIF outros tipos de item.
+
+else
+ dorand 4
+  sysmessagered <obj.name> tem um gosto engracado.
+  sysmessagered <obj.name> tem gosto de ossos velhos.
+  sysmessagered <obj.name> parece ser feito de alguma coisa conhecida.
+  sysmessagered <obj.name> tem o gosto da sua saliva.
+ enddo
+ return 1
+endif
+
+//Sucesso/falha
+if (<BELLTEST <TasteID>,<LOCAL.diff>>) || (<IsGM>) || (!<R10>)
+ surpreso
+ obj.attr |= attr_identified
+ obj.updatex
+ sysmessageblue Voce identificou o item.
+else
+ confuso
+ sysmessagered Voce falhou ao tentar identificar o item.
+endif
+
+//Temporizar a skill
+serv.newitem i_mry_TasteID
+equip <new>
+new.timer <DEF.TasteID_timer>
+
+//Ganhar skill
+SKILL_GAIN SKILL_TASTEID
+
+
+[ITEMDEF i_mry_TasteID]
+ID=i_rune_create_food
+NAME=TasteID
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@create
+color=1430
+
+on=@Timer
+remove
+return 1

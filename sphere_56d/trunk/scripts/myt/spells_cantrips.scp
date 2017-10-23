@@ -1,0 +1,228 @@
+//###############################################################################
+//              SPELL Clumsy
+//###############################################################################
+
+[Spell 1]
+// NOTE: This spell at low levels is deadly and can stop a player from running at high level an annoyance at best
+DEFNAME=s_Clumsy
+NAME=Clumsy
+SOUND=snd_SPELL_CLUMSY
+RUNES=UJ
+CAST_TIME=1.0
+RESOURCES=i_reag_blood_moss,i_reag_nightshade
+RUNE_ITEM=i_rune_CLUMSY
+SCROLL_ITEM=i_scroll_CLUMSY
+FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_DIR_ANIM | SPELLFLAG_HARM | SPELLFLAG_FX_TARG | SPELLFLAG_RESIST
+EFFECT_ID=i_fx_curse
+EFFECT=0              //3,15 orginal spehre
+DURATION=2*60.0,3*60.0
+MANAUSE=4
+SKILLREQ=MAGERY 10.0
+INTERRUPT=100.0,100.0
+
+//###############################################################################
+//              SPELL Nightsight
+//###############################################################################
+
+[Spell 6]
+DEFNAME=s_night_sight
+NAME=Night Sight
+SOUND=snd_SPELL_NIGHT_SIGHT
+RUNES=IL
+CAST_TIME=1.0
+RESOURCES=i_reag_spider_silk,i_reag_sulfur_ash
+RUNE_ITEM=i_rune_NIGHT_SIGHT
+SCROLL_ITEM=i_scroll_NIGHT_SIGHT
+FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_FX_TARG| SPELLFLAG_GOOD
+EFFECT_ID=i_fx_HEAL_EFFECT
+EFFECT=1*30,5*60
+DURATION=1*30.0,5*60.0
+MANAUSE=4
+SKILLREQ=MAGERY 10.0
+INTERRUPT=100.0,100.0
+
+ON=@EFFECT
+f_nightsight 1
+timerf <effectspell s_night_sight,<argn2>>,f_nightsight 0
+return 1
+
+//###############################################################################
+//              SPELL Reactive Armor
+//###############################################################################
+
+[Spell 7]
+DEFNAME=s_reactive_armor
+NAME=Reactive Armor
+SOUND=snd_SPELL_REACTIVE_ARMOR
+RUNES=""
+CAST_TIME=4.0
+//RESOURCES=i_reag_garlic,i_reag_spider_silk,i_reag_sulfur_ash
+RUNE_ITEM=i_rune_REACTIVE_ARMOR
+SCROLL_ITEM=i_scroll_REACTIVE_ARMOR
+FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_FX_TARG | SPELLFLAG_GOOD | SPELLFLAG_SCRIPTED
+EFFECT_ID=i_fx_HEAL_EFFECT
+EFFECT=2,15
+DURATION=3*60.0,5*60.0
+MANAUSE=4
+SKILLREQ=MAGERY 25.3
+INTERRUPT=100.0,100.0
+
+ON=@EFFECT
+LOCAL.effect=<f_rangeValue 2,15,<src.cTAG.cSkill>>
+spl_applyResBuff -<LOCAL.EFFECT>,-<LOCAL.EFFECT>,-<LOCAL.EFFECT>,-<LOCAL.EFFECT>,<LOCAL.EFFECT>,<src.cTAG.cMana>
+return 1
+
+
+//###############################################################################
+//              SPELL Magic Arrow
+//###############################################################################
+
+[Spell 5]
+DEFNAME=s_magic_arrow
+NAME=Magic Arrow
+SOUND=snd_SPELL_MAGIC_ARROW
+CAST_TIME=0.6
+RUNES=IPY
+RESOURCES=i_reag_black_pearl,i_reag_nightshade
+RUNE_ITEM=i_rune_MAGIC_ARROW
+SCROLL_ITEM=i_scroll_MAGIC_ARROW
+FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_DIR_ANIM | SPELLFLAG_HARM | SPELLFLAG_SCRIPTED
+EFFECT_ID=0
+EFFECT=2,10
+DURATION=0.0
+MANAUSE=4
+SKILLREQ=MAGERY 10.0
+INTERRUPT=100.0,100.0
+
+on=@Effect
+EFFECT 0 i_fx_energy_ray 6 0 0
+DAMAGESPELL s_magic_arrow,dam_pierce,<src.magery>,<src.uid>
+return 1
+
+//###############################################################################
+//              DISPEL FIELD
+//###############################################################################
+
+[Spell 34]
+DEFNAME=s_dispel_field
+NAME=Dispel Field
+SOUND=snd_SPELL_DISPEL_FIELD
+RUNES=AG
+CAST_TIME=40
+FLAGS=SPELLFLAG_TARG_ITEM | SPELLFLAG_SCRIPTED
+MANAUSE=10
+SKILLREQ=MAGERY 50.0
+INTERRUPT=100.0,100.0
+
+on=@start
+IF (!((<src.act.id>==0398c)||(<src.act.id>==03996)||(<src.act.id>==03915)||(<src.act.id>==03921)))
+  src.sysmessageyellow O alvo deve ser um campo magico
+  return 1
+
+ELIF (<src.act.Timer>==(-1)) // impede remover fields que fazem parte do cenário
+  src.sysmessageyellow Este campo nao pode ser cancelado magicamente
+  return 1
+ENDIF
+
+
+ON=@EFFECT
+remove
+
+//###############################################################################
+//              DISPEL
+//###############################################################################
+
+[Spell 41]
+DEFNAME=s_dispel
+NAME=Dispel
+//SOUND=snd_SPELL_DISPEL
+RUNES=AO
+CAST_TIME=40
+FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_DIR_ANIM | SPELLFLAG_RESIST
+EFFECT=1,5
+DURATION=0.0
+MANAUSE=20
+SKILLREQ=MAGERY 60.0
+INTERRUPT=100.0,100.0
+
+ON=@EFFECT
+f_dispel_creature <effectspell s_dispel,<src.ctag.cskill>>
+return 0 //para prosseguir com as outras funções de dispel
+
+[FUNCTION f_dispel_creature]
+if (<argn> > 0)
+  if (<restest 1 i_mry_summon>)
+    findid.i_mry_summon.more2 = 0
+  endif
+endif
+
+//###############################################################################
+//              MANA DRAIN
+//###############################################################################
+
+[Spell 31]
+DEFNAME=s_mana_drain
+NAME=Mana Drain
+SOUND=snd_SPELL_MANA_DRAIN
+CAST_TIME=2.0
+FLAGS=SPELLFLAG_TARG_CHAR | SPELLFLAG_DIR_ANIM | SPELLFLAG_SCRIPTED
+EFFECT=20,30
+MANAUSE=10
+SKILLREQ=MAGERY 50.0
+INTERRUPT=100.0,100.0
+
+ON=@start
+if (<uid>==<src.act.uid>)  // impedir self cast, macro medit
+  return 1
+endif
+
+ON=@effect
+  f_mana_drain <effectspell s_mana_drain,<src.ctag.cskill>>
+  return 1
+
+[FUNCTION f_mana_drain]
+if (<argn> > <mana>)
+  argn = <mana>         // impedir que mana chegue a menos de 0
+endif
+mana -= <argn>
+
+IF (<oINT> > 62)
+  sysmessagered Voce sente sua energia sendo sugada
+ENDIF
+
+
+//###############################################################################
+//              TELEKINESIS
+//###############################################################################
+
+[Spell 21]
+DEFNAME=s_telekinesis
+NAME=Telekinesis
+SOUND=snd_SPELL_telekinesis
+CAST_TIME=0.5
+FLAGS=SPELLFLAG_TARG_OBJ | SPELLFLAG_SCRIPTED
+MANAUSE=10
+SKILLREQ=MAGERY 40.0
+INTERRUPT=100.0,100.0
+
+ON=@EFFECT
+src.ctag.p=<src.p>
+src.p=<p>
+dclick
+src.p=<src.ctag.p>
+return 1
+
+
+//###############################################################################
+//              MAGIC REFLECTION 
+//###############################################################################
+
+
+
+//###############################################################################
+//              MIND BLAST
+//###############################################################################
+
+
+
+[EOF]

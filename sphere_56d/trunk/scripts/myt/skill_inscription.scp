@@ -1,0 +1,239 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// Skill Inscription por
+//  Galthar, o Errante (v1.0 de nov/08)
+//
+//
+//
+//*****************************************************************************
+//*****************************************************************************
+
+[COMMENT inscription]
+TODO:
+- Ajustar threshold de Inscription
+- Facilitar a criação de cartas (i_carta)
+
+TAGS usadas:
+ctag.inscription_spell
+ctag.inscription_leter
+ctag.inscription_scroll
+ctag.inscription_timer
+ctag.inscription_step
+
+[FUNCTION sk_inscription]
+//Função principal. Chamada no @SkillStart de Inscription.
+//Chama target e define o próximo passo baseado no type do argo.
+If (!<argo>)
+ sysmessageyellow Selecione a fonte:
+ targetf sk_inscription
+ return 1
+elif (<argo.topobj>!=<src.uid>)
+ sysmessagered A fonte precisa estar em seu poder.
+ return 1
+elif (<argo.type>==t_grimorio)      //Fazer pergaminho. Definir o gump do livro pelo item
+ if (<argo.defname>==i_grimorio_destruicao)
+  src.ctag.mage_skill=skill_magery
+ elif (<argo.defname>==i_grimorio_necro)
+  src.ctag.mage_skill=skill_necromancy
+ elif (<argo.defname>==i_grimorio_restauracao)
+  src.ctag.mage_skill=skill_focus
+ elif (<argo.defname>==i_grimorio_alteracao)
+  src.ctag.mage_skill=skill_spellweaving
+ else
+  src.sysmessagered Grimorio invalido.
+  return 1
+ endif
+ ctag.mage_action=sk_inscription_scroll     //Função que vai ser chamada quando a magia for selecionada
+ ctag.mage_property=<DEF.MAGE_KNOWN>        //Abrir o livro na parte de magias conhecidas
+ ctag.mage_page=1               //Abrir o livro na página 1
+ DIALOG d_spellbook 2               //Abrir o livro
+ sysmessagegreen Selecione uma magia conhecida:
+ return 1
+elif (<argo.type>==t_scroll)
+ sk_inscription_study <argo>            //Estudar um pergaminho
+endif
+
+////////////////////////////////////// Fazer um pergaminho \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+[FUNCTION sk_inscription_scroll]
+//cria um pergaminho da magia de número <argn> por CRAFTING
+//checa se a magia existe
+if !(<serv.spell.<argn>>)
+ serv.log [INSCRIPTION] Error::Magia <args> não existe
+ sysmessagered Esta magia nao existe!
+ return 1
+endif
+
+//Checa se o cabra sabe a magia
+IF (!<mage_KnowSpell <argn>>)
+ sysmessagered Voce nao conhece esta magia.// *;<serv.spell.<argn>.defname>;*,<tag.spells>
+ return 1
+endif
+
+//checa se tem carta em branco. Salvar a carta.
+FORCONTID i_carta 2
+ if (<IsEmpty <tag.text>>)
+  local.can=<uid>
+ endif
+ENDFOR
+if (!<local.can>)
+ sysmessagered Voce precisa de uma carta em branco.
+ return 1
+endif
+
+//checa se tem resources da magia
+if (!<restest <serv.spell.<argn>.RESOURCES>>)
+ local.resc=<f_count_resources <serv.spell.<argn>.RESOURCES>>
+ local.res=<serv.itemdef.<streat <f_strip_resources 1,<serv.spell.<argn>.RESOURCES>>>.name>
+ if (<local.resc> > 1)
+  for r 2 <dlocal.resc>
+   local.res .=", <serv.itemdef.<streat <f_strip_resources <dlocal.r>,<serv.spell.<argn>.RESOURCES>>>.name>"
+  end
+ endif
+ sysmessagered Voce nao tem todos os ingredientes: <local.res>
+ return 1
+endif
+
+//Salva magia e carta
+ctag.inscription_spell=<argn>
+ctag.inscription_leter=<local.can>
+
+//Calcula dificuldade
+local.dif=<strarg <serv.spell.<argn>.skillreq>>
+local.dif -= <BETWEEN 0,50.0,<src.inscription>,125.0>
+local.dif=<MAXIMUM 0,<eval <local.dif>/10>>
+
+//Calcula tempo
+local.time=<BETWEEN 10,60,<strarg <serv.spell.<argn>.skillreq>>,125.0>
+
+//Começa o crafting
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.delay=<local.time>
+obj.tag.skill=inscription
+obj.tag.dif=<local.dif>
+obj.tag.item=<serv.spell.<argn>.SCROLL_ITEM>
+obj.tag.morey=<eval <local.dif>*10>     //Potência da magia no scroll igual a dificuldade
+obj.tag.f_step=sk_inscription_scroll_step   //Animação
+obj.tag.f_done=sk_inscription_scroll_done   //Consome e faz anim ou não.
+obj.tag.abort=1                 //Não permitir '.fazitem' depois
+src.fazitem
+return 1
+
+[FUNCTION sk_inscription_scroll_step]
+//Animação do crafting de um pergaminho.
+if (<ctag0.inscription_step>==8)
+ ctag.inscription_step=0
+else
+ ctag.inscription_step = <ctag0.inscription_step>+1
+endif
+
+doswitch <ctag0.inscription_step>
+ local.nada
+ emoteyellow escrevendo
+ local.nada=
+ sfx 0249
+ local.nada=
+ emoteyellow escreve
+ local.nada=
+ sfx <SEX 042F/031F>
+ sfx <SEX 0419/031A>
+enddo
+
+[FUNCTION sk_inscription_scroll_done]
+//Terminou de craftar o scroll.
+if (0<argv[0]>) //Se houve sucesso, consumir materiais e fazer animação.
+ effect 2 i_fx_sparkle_2 16 16 16
+ sfx <serv.spell.<ctag0.inscription_spell>.sound>
+ say=@04 In Sensu <mage_GetSpellRunes <ctag0.inscription_spell>>
+endif
+
+//consumindo reagentes independente de ter tido ou não sucesso
+ uid.<ctag0.inscription_leter>.decrement
+ consume <serv.spell.<ctag0.inscription_spell>.resources>
+
+
+ctag.inscription_spell=
+ctag.inscription_leter=
+ctag.inscription_step=
+
+
+////////////////////////////////////// Estudar um pergaminho \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+[FUNCTION sk_inscription_study]
+//Estuda o scroll <argn>
+obj=<argn>
+
+//Determina se o player já sabe a magia.
+if (<mage_KnowSpell <obj.morex>>)
+ sysmessageyellow Voce ja maneja <serv.spell.<obj.morex>.name> com maestria.
+ return 1
+endif
+
+//salva o scroll
+ctag.inscription_scroll=<obj>
+
+//Calcula timer
+ctag.inscription_timer=<eval <strarg <serv.spell.<obj.morex>.skillreq>>/10>
+
+//Evita andar e etc
+ctag.e_no_move_x=<p.x>
+ctag.e_no_move_y=<p.y>
+events +e_no_attack
+events +e_no_dclick
+sk_inscription_study_step
+
+[FUNCTION sk_inscription_study_step]
+//Mime do craft
+if (<ctag0.disturb>) || (<flags>&statf_cantcraft) || (<ctag0.e_no_move_x>!=<p.x>) || (<ctag0.e_no_move_y>!=<p.y>)
+ sysmessagered Voce nao consegue mais estudar!
+ ctag.e_no_move_x=
+ ctag.e_no_move_y=
+ ctag.inscription_scroll=
+ events -e_no_attack
+ events -e_no_dclick
+ ctag.inscription_timer=
+ ctag.inscription_step=
+ ctag.disturb=
+ return 1
+endif
+
+if (<ctag0.inscription_timer>) //Ainda não deu tempo?
+ if (<ctag0.inscription_step>==8)
+  ctag.inscription_step=0
+ else
+  ctag.inscription_step = <ctag0.inscription_step>+1
+ endif
+ doswitch <ctag0.inscription_step>
+  local.nada=
+  emoteyellow estudando
+  local.nada=
+  sfx 0249
+  local.nada=
+  sfx <SEX 042F/031F>  
+  emoteyellow lendo
+  local.nada=
+  sfx <SEX 0419/031A>
+ enddo
+ ctag.inscription_timer -= 1
+ timerf 1,sk_inscription_study_step
+else
+ //já deu tempo. Terminar
+ //Calcula quantos hits de estudo valeu.
+ local.hits=<BETWEEN 3,8,<inscription>,125.0>
+ mage_learnSpell <uid.<ctag0.inscription_scroll>.morex>,<local.hits>
+ uid.<ctag0.inscription_scroll>.decrement
+ ctag.e_no_move_x=
+ ctag.e_no_move_y=
+ ctag.inscription_scroll=
+ events -e_no_attack
+ events -e_no_dclick
+ ctag.inscription_timer=
+ ctag.inscription_step=
+ skill_gain skill_inscription
+ sysmessagegreen Voce estudou ate desgastar o pergaminho. Mas lhe rendeu o mesmo que acertar <dlocal.hits> tentativas!
+endif
+[EOF]

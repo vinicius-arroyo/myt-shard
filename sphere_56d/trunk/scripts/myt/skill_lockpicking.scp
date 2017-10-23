@@ -1,0 +1,381 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// Skill Lockpicking
+//  Galthar
+//  Jean Gabin
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
+//item.tag.fechadura    //tipo de trava
+//memory.tag.to         //qndo termina o lockpick
+//memory.tag.type       //tipo de item original antes de abrir
+
+//ATTRibutos
+//item.attr_stolen      permite item ser aberto com lockpick
+//item.attr_owned       publico, trava sozinho apos determinado tempo
+//*****************************************************************************
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// T_LOCKPICK
+//*****************************************************************************
+[TYPEDEF t_lockpick]
+
+ON=@DCLICK
+if (<src.restest 1 i_mry_lockpick_fechadura>)
+    src.findid.i_mry_lockpick_fechadura.morex=0
+    return 1
+elif (<topobj> != <src>)
+    src.sysmessageyellow Coloque a micha na bolsa antes de usa-la.
+    return 1
+else
+    src.sysmessagegreen Selecione a porta ou o container com fechadura ou cadeado.
+    target 
+    return 1
+endif
+
+ON=@TARGON_CHAR
+    src.sysmessagered Use em uma fechadura ou cadeado.
+    return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.distance> > 1)
+    src.sysmessageyellow Chegue mais perto.
+    return 1
+elif (<src.targ.IsEvent.e_trapped>)
+    if (<src.targ.tag0.trap_flags>&<DEF.TRAP_FOUND>)
+        src.emoteyellow desativando armadilha
+        src.anim 020
+        sfx 86
+        src.face = <obj>
+        src.newitem=i_mry_desativando_trap
+        CALL trap_calcDisarm <src.targ>
+        if (<baseid>==i_lockpick)
+         //Micha. -10%Diff -20%tempo
+         new.more2=<eval (<local.time>*4)/5>
+         new.more1=<eval (<local.diff>*9)/10>
+        else
+         //Kit de chave micha. -20%Diff -30%tempo
+         new.more2=<eval (<local.time>*7)/10>
+         new.more1=<eval (<local.diff>*4)/5>
+        endif
+        new.morep=<src.p>                                         // se o cara se mexer cancela 
+        new.link=<src.targ>                                            // linka a memory a armadilha
+        new.tag.tool=<uid>
+        new.timer=1
+        new.equip
+    else
+        src.targ.use
+        return 1
+    endif
+elif (<src.targ.type>==t_door) || (<src.targ.type>==t_container)
+    src.sysmessagered Nao esta trancado.
+    return 1
+elif !(<src.targ.attr>&attr_stolen) || !<src.targ.tag0.fechadura>
+    src.sysmessagered Esta fechadura eh absurdamente complexa e nao pode ser aberta
+    return 1
+elif (<src.targ.type>!=t_door_locked) && (<src.targ.type>!=t_container_locked)
+    src.sysmessageyellow Nao ha fechadura ou cadeado neste local.
+    return 1
+elif (<src.targ.tag.fechadura>==<DEF.FECHADURA_COMPLEXA>) && (<baseid>==i_lockpick)
+    src.sysmessagered Nao e possivel tentar abrir com esta chave micha. Use um kit de chave micha.
+    return 1
+elif (<src.targ.tag.fechadura>==<DEF.FECHADURA_CODE_5>) && (<baseid>==i_lockpick)
+    src.sysmessagered Nao e possivel tentar abrir com esta chave micha. Use um kit de chave micha.
+    return 1    
+elif (<src.targ.tag.fechadura>==<DEF.FECHADURA_CODE_6>) && (<baseid>==i_lockpick)
+    src.sysmessagered Nao e possivel tentar abrir com esta chave micha. Use um kit de chave micha.
+    return 1    
+endif
+DOSWITCH <src.targ.tag0.fechadura>
+    local.diff=0    //sem fechadura
+    local.diff=0    //com cadeado
+    local.diff=300  //fechadura simples
+    local.diff=600  //normal
+    local.diff=800  //complexa
+    local.diff=350  //codigo de 3 caracteres
+    local.diff=400  //codigo de 4 caracteres
+    local.diff=600  //codigo de 5 caracteres
+    local.diff=850  //codigo de 6 caracteres
+ENDDO
+if (<src.lockpicking> < <local.diff>)
+    src.sysmessagered Parece muito complexo para suas habilidades.
+    return 1
+else
+    src.emotered tentando abrir
+    src.anim 020
+    sfx 577
+    serv.newitem=i_mry_lockpick_fechadura
+    new.more1=<uid>
+    new.morep=<src.p>       // marca o local do src. se ele se mover para o script
+    new.link=<src.targ> // linka a memory a porta
+    new.timer=1
+    new.equip
+    
+    //carrega tempo base para abrir esse tipo de fechadura
+    doswitch <src.targ.tag.fechadura>
+        new.more2=1
+        new.more2=10    //cadeado
+        new.more2=20    //fech simples
+        new.more2=40    //fech normal
+        new.more2=60    //fech complexa
+        new.more2=25    //codigo de 3 caracteres
+        new.more2=45    //codigo de 4 caracteres
+        new.more2=50    //codigo de 5 caracteres
+        new.more2=55    //codigo de 6 caracteres
+    enddo
+    //aumenta o tempo em relacao a skill
+    new.more2 += <BETWEEN2 0,<new.more2>,<src.lockpicking>,1000>
+    new.tag.to = <new.more2>
+    new.more2 = 0
+endif
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// f_unlock
+//*****************************************************************************
+[FUNCTION f_unlock]
+//Destranca a porta/container e retranca se for attr_owned
+obj=<argn>
+if (<obj.attr>&attr_owned)      //É público. Precisa retrancar.
+    serv.newitem i_lockpick_reset
+    new.tag.type=<obj.type>
+    new.tag.fechadura=<obj.tag.fechadura>
+    new.link=<obj>
+    new.timer=60*35        //35 minutos pra retrancar ou até um GM dar dclick na Worldgem Bit
+    new.p=<obj.p>
+endif
+if (<obj.type>==t_door_locked)
+    obj.type=t_door
+elif (<obj.type>==t_container_locked)
+    obj.type=t_container
+endif
+obj.tag.fechadura
+obj.update
+
+//*****************************************************************************
+//*****************************************************************************
+// MEMORIES
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_mry_lockpick_fechadura
+//*****************************************************************************
+[ITEMDEF i_mry_lockpick_fechadura]
+id=i_memory
+NAME=Instalando Fechadura
+TYPE=t_eq_script
+WEIGHT=0
+
+ON=@CREATE
+ATTR=attr_move_never
+more1=0     // micha
+morep=0     // posicao do player, nao pode se mover
+more2=0     // tempo para abrir/errar
+
+ON=@TIMER
+CONT.TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<CONT>,<DEF.TOWN_CAN_LOCKPICK>
+if (<cont.p.x> != <morex>) || (<cont.p.y> != <morey>) || (<cont.flags>&0c095242e)
+    cont.sysmessagered Voce interrompeu a tentativa de abrir a fechadura ou cadeado.
+    remove
+    return 1
+endif
+
+if (<more2>&04)
+    cont.anim 020
+endif
+if (<more2>&08)
+    sfx 577
+endif
+if (<more2>&010) && !(<more2>&02)
+    dorand 36
+        cont.emotered mechendo na fechadura
+        cont.emotered gira a micha
+        cont.emotered forca para a esquerda
+        cont.emotered forca para cima
+        cont.emotered olha para os lados
+        cont.emotered forca para baixo
+        cont.emotered forca para a direita
+        cont.emotered tenso
+        cont.emotered olha para os lados
+        cont.emotered gira a micha
+        cont.tossir
+        cont.espirrar
+    enddo
+endif
+
+timer=1
+more2 += 1
+
+if (<more2> == 1)
+    cont.sysmessageyellow Voce introduz a micha na fechadura com cuidado.
+elif (<more2> == 10)
+    cont.sysmessageyellow Voce gira lentamente a micha procurando a fenda da tranca.
+elif (<more2> == 20)
+    cont.sysmessageyellow Voce encosta a micha na tranca e comeca a fazer pressao para tentar destravar.
+elif (<more2> == 30)
+    cont.sysmessageyellow Voce posiciona a micha na fenda oposta para forcar a trava a soltar.
+elif (<more2> == 40)
+    cont.sysmessageyellow Voce comeca a cutucar a fenda do fundo para soltar a trava principal
+elif (<more2> == 50)
+    cont.sysmessageyellow Voce tenta soltar a trava secundaria enquanto mantem a trava principal aberta.
+elif (<more2> == 60)
+    cont.sysmessageyellow Voce gira a micha para destravar a trava oposta enquanto mantem a trava principal e secundaria abertas.
+endif
+
+if <more2> >= <tag.to>
+    doswitch <link.tag0.fechadura>
+        remove  //erro
+        LOCAL.t=<belltest <cont.lockpicking>,500>   //cadeado
+        LOCAL.t=<belltest <cont.lockpicking>,600>   //simples
+        LOCAL.t=<belltest <cont.lockpicking>,700>   //normal
+        LOCAL.t=<belltest <cont.lockpicking>,850>   //complexa
+        LOCAL.t=<belltest <cont.lockpicking>,530>   //codigo de 3 caracteres
+        LOCAL.t=<belltest <cont.lockpicking>,630>   //codigo de 4 caracteres
+        LOCAL.t=<belltest <cont.lockpicking>,740>   //codigo de 5 caracteres
+        LOCAL.t=<belltest <cont.lockpicking>,900>   //codigo de 6 caracteres
+    enddo
+
+    cont.skill_gain skill_lockpick
+
+    if <LOCAL.t>
+        if <link.tag.fechadura>==<DEF.FECHADURA_CADEADO>
+            serv.newitem=i_cadeado
+            new.more1=<DEF.FECHADURA_QUEBRADA_CADEADO>
+            cont.bounce <new>
+        endif
+
+        cont.message *conseguiu abrir*
+        f_unlock <link>
+        sfx 511
+    else
+    
+        //Teste para perder a micha. Quanto melhor a fechadura, maior a chance
+        doswitch <link.tag0.fechadura>
+            remove  //erro
+            LOCAL.l=<belltest <cont.lockpicking>,250>
+            LOCAL.l=<belltest <cont.lockpicking>,450>
+            LOCAL.l=<belltest <cont.lockpicking>,650>
+            LOCAL.l=<belltest <cont.lockpicking>,850>
+            LOCAL.l=<belltest <cont.lockpicking>,300>   //codigo de 3 caracteres
+            LOCAL.l=<belltest <cont.lockpicking>,500>   //codigo de 4 caracteres
+            LOCAL.l=<belltest <cont.lockpicking>,650>   //codigo de 5 caracteres
+            LOCAL.l=<belltest <cont.lockpicking>,850>   //codigo de 6 caracteres
+        enddo
+        if (!<local.l>)
+            uid.<more1>.decrement
+            cont.sysmessagered Uma das michas escapou e se partiu na fechadura.
+        elif (!<R2>)
+            cont.sysmessagered Uma das michas escapou da fechadura e acertou a sua mao.
+            cont.cry
+            cont.emotered se machuca
+        elif (!<R1>)
+            cont.sysmessagered Uma das michas escapou da fechadura prendendo a porta.
+        else
+            cont.sysmessagered Uma das michas escapou da fechadura.
+        endif
+    endif
+    remove
+endif
+return 1
+
+//*****************************************************************************
+// i_lockpick_reset
+//*****************************************************************************
+[ITEMDEF i_lockpick_reset]
+NAME=reset de tranca
+ID=i_worldgem_bit
+TYPE=t_script
+
+ON=@CREATE
+ATTR=attr_decay|attr_invis|attr_move_never
+COLOR=015
+
+ON=@TIMER
+//repoe fechadura
+if <tag0.fechadura>
+    link.tag.fechadura=<tag.fechadura>
+endif
+link.type=<tag.type>
+//link.emotered tranca
+//link.update
+remove
+return 1
+
+ON=@DCLICK
+src.sysmessageyellow <link.name> trancado(a).
+timerd 1
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_lockpick
+//*****************************************************************************
+[ITEMDEF 014fb]
+DEFNAME=i_lockpick
+NAME=Chave micha
+TYPE=T_LOCKPICK
+FLIP=1
+RESOURCES=1 i_barra_metal
+SKILLMAKE=TINKERING 48.5
+WEIGHT=.5
+VALUE=6
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Chaveiro
+DESCRIPTION=Chave micha
+DUPELIST=014fc
+
+
+[ITEMDEF 014fc]
+DUPEITEM=014fb
+
+//*****************************************************************************
+// i_lockpick_set
+//*****************************************************************************
+[ITEMDEF 014fd]
+DEFNAME=i_lockpick_set
+NAME=Kit de chaves micha
+TYPE=T_LOCKPICK
+FLIP=1
+RESOURCES=5 i_LOCKPICK
+SKILLMAKE=TINKERING 84.5
+WEIGHT=1
+VALUE=43
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Chaveiro
+DESCRIPTION=Kit de chaves micha
+DUPELIST=014fe
+
+ON=@DCLICK
+if <src.lockpicking> < 500
+    src.sysmessagered Voce nao sabe usar essa ferramenta.
+    return 1
+endif
+
+[ITEMDEF 014fe]
+//lockpicks
+DUPEITEM=014fd
+
+[EOF]

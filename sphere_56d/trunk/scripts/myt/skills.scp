@@ -1,0 +1,422 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE SKILLS por UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//** ATENCAO, TENHA CERTEZA QUE ESSE SCP ENTROU DEPOIS DE SPHERE_SKILLS.SCP ***
+//*****************************************************************************
+// Esse sistema computa o ganho de skills cada vez que a funcao skill_gain() 
+//é chamada.
+//
+//O 'rate' ou dificuldade de subir um skill é calculado da seguinte forma:
+//
+//Cada ação gera um ganho mínimo (bonusIncrease) mais um valor
+//randômico entre zero e um valor X predeterminado que depende da somatórioa 
+//dos skills. Para somatória zero X vale 100 e para o máximo vale 0. Dessa
+//forma tem-se uma dificuldade exponencial que é dividida entre todas as skills
+//conforme o total da soma for aumentando.
+//
+//Cada incremento corresponde a 0.001%.
+//
+//O sistema também conta com uma proteção para que o player não atinja o máx
+//de uma skill muito rapidamente. Inicialmente ele consegue chegar até 55% 
+//em qualquer skill, mas para passar disso ele deve jogar 1 hora para cada % 
+//adicional. Após 45h o limite é removido.
+
+//TODO:
+
+//TAGS usadas:
+//TAG.skill_ts                  //timestamp da proxima vez q um skill pode ser usado
+//TAG.skill_spa                 //contador de infracoes. qntas vezes passou o limite de skill/segundo
+//TAG.skill_blocked             //ha limite de skill ativo no char
+//TAG.skill_maxSkillValue       //valor maximo que uma skill pode chegar (depende do tempo de vida (on+off) do char)  
+//TAG.skill_maxSkillSumValue    //valor maximo que a soma das skills podem chegar (depende do tempo de vida (on+off) do char)  
+//TAG.skill_maxIncrease         //maximo de skill que pode ser ganha de uma vez (depende do skillsum)
+//TAG.skill_<name>              //contador secundario de cada skill. sempre que atinge o limite incrementa a skill real
+
+//CTAG.rp_grade                  //media das notas de RP do personagem (-10 a +10, 0=neutro)
+//*****************************************************************************
+//*****************************************************************************
+// DEFNAMEs
+//*****************************************************************************
+//*****************************************************************************
+
+[DEFNAME skills_custom]
+//increase 0.02% every action (minimum)
+bonusIncrease       = 20
+
+rpMin=-10       //valores para pontos de RP
+rpMax=10
+
+//skillcap
+scMin=600       //skillcap minimo (sem bonus)
+scMax=1000      //skillcap maximo (sem bonus)
+scRpMin=0       //menor valor para ter bonus de RP (0=neutro, mediano)
+scRpBonus=25    //(2.5% por ponto entre 0 e 10)
+scRate=19440    //(324 minutos * 60 segundos por .1% de skill)
+
+//skillsumcap
+sscMin=5000     //skillsumcap minimo
+sscMax=8000     //skillsumcap maximo
+sscInc=150      //(sscMax-sscMin)/(rpMax-rpMin)=15 incrementos por ponto de RP
+
+SKILL_ALCHEMY       =0
+SKILL_ANATOMY       =1
+SKILL_ANIMAL_LORE   =2
+SKILL_APPRAISE      =3
+SKILL_ARMSLORE      =4
+SKILL_Parrying      =5
+SKILL_Begging       =6
+SKILL_Blacksmith    =7 //sphere name, but skill is Blacksmithing, hence the next one shall be used for crafting system
+SKILL_Blacksmithing =7 
+Skill_Bowcraft      =8
+SKILL_PEACEMAKING   =9
+Skill_Camping       =10
+Skill_Carpentry     =11
+SKILL_CARTOGRAPHY   =12
+Skill_Cooking       =13
+Skill_DetectHidden  =14
+Skill_Enticement    =15
+Skill_EvalInt       =16
+Skill_Healing       =17
+Skill_Fishing       =18
+Skill_Forensics     =19
+Skill_Herding       =20
+Skill_Hiding        =21
+SKILL_PROVOCATION   =22
+Skill_Inscription   =23
+Skill_LockPick      =24
+Skill_Magery        =25
+Skill_MagicResist   =26
+Skill_Tactics       =27
+Skill_Snooping      =28
+Skill_Musicianship  =29
+SKILL_POISONING     =30
+Skill_Archery       =31
+SKILL_SPIRITSPEAK   =32
+Skill_Stealing      =33
+Skill_Tailoring     =34
+Skill_Taming        =35
+skill_tasteid       =36
+Skill_Tinkering     =37
+Skill_Tracking      =38
+Skill_Vet           =39
+Skill_Swordsmanship =40
+Skill_Macefighting  =41
+Skill_Fencing       =42
+Skill_Wrestling     =43
+SKILL_LUMBERJACK    =44
+SKILL_LUMBERJACKING =44
+SKILL_MINING        =45
+SKILL_MEDITATION    =46
+SKILL_STEALTH       =47
+SKILL_REMOVE_TRAP   =48
+SKILL_Necromancy    =49
+SKILL_Focus         =50
+SKILL_CHIVALRY      =51
+SKILL_BUSHIDO       =52
+SKILL_NINJITSU      =53
+SKILL_SPELLWEAVING  =54
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// skill_InUse <SKILL.DEFNAME>
+//*****************************************************************************
+//atribui ou le a skill que esta sendo usada agora. Default pode ser o char ou um item no char
+//Usado para não permitir o uso de multiplas skills como Medit + Healing + DH
+[FUNCTION skill_InUse]
+if (!<argv>) //Lendo
+    if <IsEmpty <topobj.ctag.skill_InUse>>
+        return -1
+    else
+        return <topobj.ctag.skill_InUse>
+    endif
+elif (!<argv0>)// limpando
+    topobj.ctag0.skill_InUse=
+    return 0
+else        //Atribuindo
+    if (!<topobj.ctag0.skill_InUse>)
+        topobj.ctag0.skill_InUse=<DEF.<argv0>>
+        return 1
+    elif (<topobj.ctag0.skill_InUse>==<DEF.<argv0>>)
+        return 1
+    else
+        topobj.ctag0.skill_InUse=<DEF.<argv0>>
+        return 0
+    endif
+endif
+
+//*****************************************************************************
+// skill_gain(skill) compute skill gain DEFAULT
+//*****************************************************************************
+//default is the player
+[FUNCTION skill_gain]
+
+REF1=<uid>
+LOCAL.amnt=<REF1.<DEF.<argv[0]>>>
+
+if (<region.flags>&region_flag_safe)
+    return 1
+endif
+
+//serv.log [SKILL] Skill: <argv[0]>::<eval <LOCAL.amnt>>
+if (!<npc>)
+    //verifica se ha spam de skill em andamento (max 1 skill por segundo)
+    if (<TAG0.skill_ts>><SERV.time>)
+        TAG.skill_ts=<eval <SERV.time>+10>
+        TAG.skill_spam=<TAG0.skill_spam>+1
+        if (<TAG.skill_spam>>2)
+//            if (<skill_spamDetected <argv[0]>>)
+                //serv.log <account>: <argv[0]> SPAM (<TAG0.skill_spam>)
+                return 1    
+//            endif
+        endif
+    else
+        TAG.skill_spam=0
+        TAG.skill_ts=<eval <SERV.time>+10>
+    endif
+
+    //se a skill nao pode subir mais devido ao limite por tempo
+    if !(<isgm>) && ( <LOCAL.amnt> >= <TAG0.skill_maxSkillValue> )
+    //  sysmessage [SKILL] Habilidade bloqueada
+        TAG.skill_blocked=1
+        if ( <LOCAL.amnt> > <TAG0.skill_maxSkillValue> )
+//            TRY <DEF.<argv[0]>> <TAG0.skill_maxSkillValue>
+            serv.log <account>/<uid>: <argv[0]> passou dos limites: <LOCAL.amnt>
+        endif
+//        serv.log <account>: <argv[0]> bloqueada
+        return 1
+    endif
+endif
+
+//define valor limiar para incremento de skill
+//aumente o valor para skills usadas muito rapidamente, como sword
+doswitch <DEF.<argv[0]>>
+LOCAL.threshold=160     // SKILL_ALCHEMY
+LOCAL.threshold=250     // SKILL_ANATOMY
+LOCAL.threshold=160     // SKILL_ANIMAL_LORE
+LOCAL.threshold=1000    // SKILL_APPRAISE
+LOCAL.threshold=200     // SKILL_ARMSLORE
+LOCAL.threshold=1000    // SKILL_Parrying
+LOCAL.threshold=100     // SKILL_Begging
+LOCAL.threshold=500     // SKILL_Blacksmith
+LOCAL.threshold=1000    // Skill_Bowcraft
+LOCAL.threshold=1000    // SKILL_PEACEMAKING
+LOCAL.threshold=600     // Skill_Camping
+LOCAL.threshold=200     // Skill_Carpentry
+LOCAL.threshold=100     // SKILL_CARTOGRAPHY
+LOCAL.threshold=250     // Skill_Cooking
+LOCAL.threshold=100     // Skill_DetectHidden
+LOCAL.threshold=100     // Skill_Enticement
+LOCAL.threshold=500     // Skill_EvalInt
+LOCAL.threshold=1500    // Skill_Healing
+LOCAL.threshold=100     // Skill_Fishing
+LOCAL.threshold=100     // Skill_Forensics
+LOCAL.threshold=300     // Skill_Herding
+LOCAL.threshold=500     // Skill_Hiding
+LOCAL.threshold=1000    // SKILL_PROVOCATION
+LOCAL.threshold=20      // Skill_Inscription
+LOCAL.threshold=100     // Skill_LockPick
+LOCAL.threshold=1500    // Skill_Magery
+LOCAL.threshold=300     // Skill_MagicResist
+LOCAL.threshold=1000    // Skill_Tactics
+LOCAL.threshold=100     // Skill_Snooping
+LOCAL.threshold=900     // Skill_Musicianship
+LOCAL.threshold=100     // SKILL_POISONING
+LOCAL.threshold=722     // Skill_Archery
+LOCAL.threshold=500     // SKILL_SPIRITSPEAK
+LOCAL.threshold=100     // Skill_Stealing
+LOCAL.threshold=250     // Skill_Tailoring
+LOCAL.threshold=160     // Skill_Taming
+LOCAL.threshold=100     // skill_tasteid
+LOCAL.threshold=100     // Skill_Tinkering
+LOCAL.threshold=100     // Skill_Tracking
+LOCAL.threshold=1000    // Skill_Vet
+LOCAL.threshold=1000    // Skill_Swordsmanship
+LOCAL.threshold=1000    // Skill_Macefighting
+LOCAL.threshold=1000    // Skill_Fencing
+LOCAL.threshold=425     // Skill_Wrestling
+LOCAL.threshold=350     // SKILL_LUMBERJACK
+LOCAL.threshold=1000    // SKILL_MINING
+LOCAL.threshold=3500    // SKILL_MEDITATION
+LOCAL.threshold=500     // SKILL_STEALTH
+LOCAL.threshold=100     // SKILL_REMOVE_TRAP
+LOCAL.threshold=1500    // SKILL_Necromancy
+LOCAL.threshold=1500    // SKILL_Focus
+LOCAL.threshold=100     // SKILL_CHIVALRY
+LOCAL.threshold=100     // SKILL_BUSHIDO
+LOCAL.threshold=100     // SKILL_NINJITSU
+LOCAL.threshold=1500    // SKILL_SPELLWEAVING
+enddo
+
+//calcula incremento aleatorio de acordo com maximo permitido 
+//(depende do skillsum)
+LOCAL.inc=<eval {0 <TAG.skill_maxIncrease> }>
+//soma com o minimo de incremento e os incrementos anteriores
+LOCAL.inc=<eval <DEF.bonusIncrease>+<LOCAL.inc>+<TAG0.<argv[0]>>>
+
+//serv.log [SKILL] Acumulado: <LOCAL.inc>/<LOCAL.threshold>
+
+//se passou do limiar, sobe skill
+if ( <LOCAL.inc> > <LOCAL.threshold> )
+  LOCAL.inc=<LOCAL.inc>-<LOCAL.threshold>
+  LOCAL.s=<skilllock.<eval <def.<argv[0]>>>>
+  if ( <LOCAL.s> == 0 ) //subir
+    if ( <skilltotal> > <skillclass.skillsum> )
+        serv.log [SKILL] <account> SKILLCLASS LIMIT
+    else
+        TRY <DEF.<argv[0]>> <EVAL <LOCAL.amnt> + 0.1>
+    endif
+  endif
+  skill_decreaseNextSkill  
+  serv.log [SKILL] <account> <argv[0]>(<DEF.<argv[0]>>) <LOCAL.amnt> <LOCAL.s>
+endif
+
+//salva incrementos
+TRY TAG0.<argv[0]>=<LOCAL.inc>
+
+//*****************************************************************************
+// skill_decreaseNextSkill
+//*****************************************************************************
+//decrementa alguma skill que esteja habilitada para descer, na sequencia
+
+[FUNCTION skill_decreaseNextSkill]
+REF1=<uid>
+
+if <tag0.skill_lastDecreasedSkill>==54
+    LOCAL.start=0
+else
+    LOCAL.start=<eval <tag0.skill_lastDecreasedSkill>+1>
+endif
+
+for R <LOCAL.start> 54
+    if <skilllock.<dLOCAL.R>>==1 //decrementa?
+        LOCAL.a=<REF1.<LOCAL.R>>
+        if <LOCAL.a> > 10
+            TRY <LOCAL.R> <EVAL <LOCAL.a> - 0.1>
+            tag0.skill_lastDecreasedSkill=<LOCAL.R>
+//            SERV.log [SKILL] DECREMENTANDO <LOCAL.R> de <account> <dLOCAL.a>-1
+            return
+        endif
+    endif
+end
+
+for R 0 <tag0.skill_lastDecreasedSkill>
+    if <skilllock.<dLOCAL.R>>==1 //decrementa?
+        LOCAL.a=<REF1.<LOCAL.R>>
+        if <LOCAL.a> > 10
+            TRY <LOCAL.R> <EVAL <LOCAL.a> - 0.1>
+            tag0.skill_lastDecreasedSkill=<LOCAL.R>
+//            SERV.log [SKILL] DECREMENTANDO <LOCAL.R> de <account> <dLOCAL.a>-1
+            return
+        endif
+    endif
+end
+
+
+//*****************************************************************************
+// skill_spamDetected(skill)
+//*****************************************************************************
+//return 1 nao deixa subir skill
+//return 0 deixa
+[FUNCTION skill_spamDetected]
+
+doswitch <DEF.<argv[0]>>
+detem 300,0,"Abuso de skills."  // SKILL_ALCHEMY
+return 1                        // SKILL_ANATOMY
+detem 300,0,"Abuso de skills."  // SKILL_ANIMAL_LORE
+detem 300,0,"Abuso de skills."  // SKILL_APPRAISE
+detem 300,0,"Abuso de skills."  // SKILL_ARMSLORE
+return 0                        // SKILL_PARRYING
+detem 300,0,"Abuso de skills."  // SKILL_BEGGING
+detem 300,0,"Abuso de skills."  // SKILL_Blacksmith
+detem 300,0,"Abuso de skills."  // SKILL_BOWCRAFT
+detem 300,0,"Abuso de skills."  // SKILL_PEACEMAKING
+return 1                        // SKILL_CAMPING
+detem 300,0,"Abuso de skills."  // SKILL_CARPENTRY
+detem 300,0,"Abuso de skills."  // SKILL_CARTOGRAPHY
+detem 300,0,"Abuso de skills."  // SKILL_COOKING
+detem 300,0,"Abuso de skills."  // SKILL_DETECTHIDDEN
+detem 300,0,"Abuso de skills."  // SKILL_ENTICEMENT
+detem 300,0,"Abuso de skills."  // Skill_EvalInt
+return 1                        // SKILL_HEALING
+detem 300,0,"Abuso de skills."  // SKILL_FISHING
+detem 300,0,"Abuso de skills."  // SKILL_FORENSICS
+detem 300,0,"Abuso de skills."  // SKILL_HERDING
+return 1                        // SKILL_HIDING 
+detem 300,0,"Abuso de skills."  // SKILL_PROVOCATION
+detem 300,0,"Abuso de skills."  // SKILL_INSCRIPTION
+detem 300,0,"Abuso de skills."  // Skill_LockPick
+return 1                        // SKILL_MAGERY
+return 1                        // Skill_MagicResist
+return 0                        // SKILL_TACTICS
+return 1                        // SKILL_SNOOPING
+detem 300,0,"Abuso de skills."  // SKILL_MUSICIANSHIP
+detem 300,0,"Abuso de skills."  // SKILL_POISONING
+return 0                        // SKILL_ARCHERY
+detem 300,0,"Abuso de skills."  // SKILL_SPIRITSPEAK
+return 1                        // SKILL_STEALING
+detem 300,0,"Abuso de skills."  // SKILL_TAILORING
+detem 300,0,"Abuso de skills."  // SKILL_TAMING
+detem 300,0,"Abuso de skills."  // SKILL_TASTEID
+detem 300,0,"Abuso de skills."  // SKILL_TINKERING
+detem 300,0,"Abuso de skills."  // SKILL_TRACKING
+detem 300,0,"Abuso de skills."  // Skill_Vet
+return 1                        // SKILL_SWORDSMANSHIP
+return 1                        // SKILL_MACEFIGHTING
+return 1                        // SKILL_FENCING
+return 0                        // SKILL_WRESTLING
+detem 300,0,"Abuso de skills."  // SKILL_LUMBERJACK
+detem 300,0,"Abuso de skills."  // SKILL_MINING
+return 0                        // SKILL_MEDITATION
+return 0                        // SKILL_STEALTH
+detem 300,0,"Abuso de skills."  // SKILL_REMOVE_TRAP
+return 1                        // SKILL_NECROMANCY
+detem 300,0,"Abuso de skills."  // SKILL_FOCUS
+return 1                        // SKILL_CHIVALRY
+return 1                        // SKILL_BUSHIDO
+return 1                        // SKILL_NINJITSU
+return 1                        // SKILL_SPELLWEAVING
+enddo
+return 1
+
+//*****************************************************************************
+// skill_init(skill)
+//*****************************************************************************
+[FUNCTION skill_init]
+//LOCAL.maxage=<eval (<serv.time>-952597929)/10>
+LOCAL.age=<f_age>
+
+ //calc base value with time
+TAG0.skill_maxSkillValue = <DEF.scMin>
+TAG0.skill_maxSkillValue += <eval <LOCAL.age>/<DEF.scRate>>
+
+//cap max without RP bonus
+if <TAG0.skill_maxSkillValue> > <DEF.scMax>
+    TAG0.skill_maxSkillValue=<DEF.scMax>
+endif
+
+//apply RP bonus
+if <CTAG0.rp_grade> > <DEF.scRpMin>
+    TAG0.skill_maxSkillValue += <eval (<CTAG0.rp_grade>-<DEF.scRpMin>)* <DEF.scRpBonus>> 
+endif
+
+//calc base value with RP
+TAG0.skill_maxSkillSumValue = <DEF.sscMin>
+TAG0.skill_maxSkillSumValue += <eval (<CTAG0.rp_grade>-<DEF.rpMin>)* <DEF.sscInc>> 
+
+TAG.skill_maxIncrease=<eval ((<TAG0.skill_maxSkillSumValue>-<skilltotal>)*100)/<TAG0.skill_maxSkillSumValue>>
+if ( <TAG.skill_maxIncrease> < 0 )
+  TAG.skill_maxIncrease=0
+endif
+
+serv.log <account>/<tag.name> SC:<eval <TAG0.skill_maxSkillValue>> SSC:<eval <skilltotal>>/<eval <TAG0.skill_maxSkillSumValue>> MI:<eval <TAG.skill_maxIncrease>>
+
+[EOF]

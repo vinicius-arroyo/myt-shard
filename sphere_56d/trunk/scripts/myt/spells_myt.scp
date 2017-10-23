@@ -1,0 +1,1270 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SPELLS por
+//  Galthar
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO: Tirar o f_Memory_Watchdog e passar esta função para o @DEATH
+//
+//TAGS usadas:
+
+//*****************************************************************************
+
+[DEFNAME d_magias]
+spl_vulgar  00
+spl_vida    01
+spl_agua    02
+spl_materia 03
+spl_ar      04
+spl_fogo    05
+spl_morte   06
+spl_terra   07
+spl_energia 08
+
+statf_nomagic=04201A //dead, invis, sleep, insubstatial, stone
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*************************************************************
+//      FUNCTIONS DE SPELLS GENERICAS
+//*************************************************************
+
+[FUNCTION f_summon_creature]
+//Conjura uma criatura por um periodo de tempo às ordens do mago
+//<argv0> = criatura
+//<argv1> = tempo (segundos)
+serv.newnpc <argv0>
+new.movenear <uid> 2 
+ref1 <new>
+IF (<tam_playerFreeSlots> >= <ref1.tam_animalSlots>)
+ ref1.karma=<karma>
+ ref1.events +e_pet
+ ref1.tam_setPet <UID>
+ ref2=<new>//Memory do pet
+ ref2.attr=attr_blessed2
+ ref1.flags |= 0c000000  //spawned e pet
+else
+ ref1.FLAGS |= 04000000  //spawned
+ sysmessagered <ref1.name> nao pode ser controlado!
+endif
+serv.newitem i_mry_summon
+new.more2 <argv1>
+new.link <uid>
+new.cont <ref1>
+new.timer 1
+
+ref1.effect 3 i_fx_sparkle 0 16 0 0a1
+ref1.findlayer.layer_pack.remove
+sfx 0fb
+
+if (<NPC>)
+ ref1.npc=<NPC>
+ ref1.karma=<karma>
+endif
+
+return <ref1>
+
+[FUNCTION f_conjure_creature]
+//Conjura uma criatura por um periodo de tempo a solta pelo mundo sem mestre
+//<argv0> = criatura
+//<argv1> = tempo (segundos)
+serv.newnpc <argv0>
+new.movenear <uid> 2
+ref1 <new>
+serv.newitem i_mry_summon
+new.more2 <argv1>
+new.link <uid>
+new.cont <ref1>
+new.timer 1
+ref1.FLAGS |= 04000000  //spawned
+ref1.effect 3 i_fx_sparkle 0 16 0 022
+sfx 0217
+return <ref1>
+
+//*****************************************************************************
+// f_polymorph <body>,<color>,<time>
+//*****************************************************************************
+//Polymorph genérico
+[FUNCTION f_polymorph]
+
+//carrega tempo padrao se nao for fornecido
+if <argv2> <= 0
+    local.timer=30
+else
+    local.timer=<argv2>
+endif
+
+//carrega body padrao se nao for fornecido
+local.body=<argv0>
+if (!<IsChardef <local.body>>)
+    local.body=c_zombie
+endif
+
+// Já estou polymorphado? Se sim, atualiza....
+if (<restest 1 i_spl_polymorph>)
+    findid.i_spl_polymorph.more2 = <local.timer>
+    findid.i_spl_polymorph.timer = 1 
+    color=<argv1>
+    body=<local.body>
+    update
+else
+    //cria e aplica polymorph
+    serv.newitem i_spl_polymorph
+    new.tag.body=<local.body>
+    new.tag.color=<argv1>
+    new.more2=<local.timer>
+    equip <new>
+    new.timer=1
+    new.timerf 3 f_memory_WatchDog
+endif
+
+effect 3 i_fx_curse 0 16 0 017d
+sfx 01fa
+
+TRIGGER @Polimorph,<DEF.TAT_AS_ARGN>,1
+
+
+[ITEMDEF i_spl_polymorph]
+ID=i_rune_polymorph
+name=polymorph
+type=t_eq_script
+layer=layer_special
+
+on=@create
+attr=attr_magic|attr_decay|attr_cursed2
+
+on=@equip
+cont.equip_save
+//remove capuz
+if (<cont.tag0.comcapuz>)
+    cont.capuz
+endif
+
+//salva parametros do player
+tag.player=<cont>
+tag.ocolor=<cont.color>
+tag.obody=<cont.body>
+
+//set body
+cont.body <tag.body>
+cont.color <tag.color>
+cont.flags |= statf_polymorph | statf_incognito
+cont.update
+
+on=@timer
+//se fim do polymorph, ou removido por outros meios, ou morto, ou em sleep
+if (!<more2>) || !(<cont.flags>&statf_polymorph) || (<cont.flags>&012) //Dead ou sleep
+    remove
+else
+    timer = 1
+    more2 -= 1
+endif
+return 1
+
+on=@destroy
+//verifica se @destroy nao foi chamado antes manualmente (sistema de morte)
+obj=<tag.player>
+if (!<obj>)
+    return 0
+endif
+
+//remove buffs e restaura body/cor
+cont.color=<tag.ocolor>
+cont.body=<tag.obody>
+cont.flags &= ~statf_polymorph
+cont.flags &= ~statf_incognito
+cont.equip_restore_cloth
+cont.update
+cont.effect 3 i_fx_curse 0 16 0 017d
+cont.sfx 01fa
+
+TRIGGER @Polimorph,<DEF.TAT_AS_ARGN>,0
+tag.player=0
+
+
+
+[FUNCTION f_field_sparce]
+//Cria um campo de <item>s ao redor do SRC.
+//f_field_sparce <item>, <ammount>, <raio>, <tempo>
+if (strmatch(<argv0>,))
+ LOCAL.item=i_balao
+else
+ LOCAL.item=<argv0>
+endif
+if (strmatch(<argv1>,))
+ LOCAL.amt=5
+else
+ LOCAL.amt=<argv1>
+endif
+if (strmatch(<argv2>,))
+ LOCAL.radius=5
+else
+ LOCAL.radius=<argv2>
+endif
+if (strmatch(<argv3>,))
+ LOCAL.timer=<eval {10 20}>
+else
+ LOCAL.timer=<argv3>
+endif
+OBJ=<UID>
+FOR ammount 1 <LOCAL.amt>
+ serv.newitem <eval {<LOCAL.item>}>
+ new.p=<OBJ.p.x>,<eval <OBJ.p.y>+1>, <OBJ.p.z>
+ new.movenear <OBJ.uid> <eval {1 <LOCAL.radius>}>
+ new.link=<obj.uid>
+ new.timerf <LOCAL.timer>,remove
+ new.update
+ENDFOR
+
+//Cria um FIELD em linha como os default.
+[FUNCTION f_line_field]
+//Argn1=qtd
+//Argn2=timer
+//LOCAL.CREATEOBJECT1 é o objeto l/o
+//LOCAL.CREATEOBJECT2 é o objeto n/s
+local.qtd=<maximum <argn1>,1>
+local.timer=<maximum <argn2>,1>
+local.dir=0
+if (<src.dir>==7) || (<src.dir>==0) || (<src.dir>==3) || (<src.dir>==4)
+ local.obj=<LOCAL.CREATEOBJECT1>
+else
+ local.obj=<LOCAL.CREATEOBJECT2>
+ local.chardir=1
+endif
+for i 1 <dlocal.qtd>
+ newitem <local.obj>
+ new.p=<src.actp>
+ new.link=<src>
+ if (<local.dir>)
+  local.direction=<eval <dir>+2>
+  if (<local.direction> > 7)
+   local.direction -= 8
+  elif (<local.direction> < 0 )
+   local.direction += 8
+  endif
+  if (<local.i> != 1)
+   DOSWITCH <local.direction>
+    NEW.MOVE N,<eval (<local.i>/2)>
+    NEW.MOVE NE,<eval (<local.i>/2)>
+    NEW.MOVE E,<eval (<local.i>/2)>
+    NEW.MOVE SE,<eval (<local.i>/2)>
+    NEW.MOVE S,<eval (<local.i>/2)>
+    NEW.MOVE SW,<eval (<local.i>/2)>
+    NEW.MOVE W,<eval (<local.i>/2)>
+    NEW.MOVE NW,<eval (<local.i>/2)>
+   ENDDO
+  endif
+ else
+  local.direction=<eval <dir>+2>
+  if (<local.direction> > 7)
+   local.direction -= 8
+  elif (<local.direction> < 0 )
+   local.direction += 8
+  endif
+  if (<local.i> != 1)
+   DOSWITCH <local.direction>
+    NEW.MOVE N,-<eval (<local.i>/2)>
+    NEW.MOVE NE,-<eval (<local.i>/2)>
+    NEW.MOVE E,-<eval (<local.i>/2)>
+    NEW.MOVE SE,-<eval (<local.i>/2)>
+    NEW.MOVE S,-<eval (<local.i>/2)>
+    NEW.MOVE SW,-<eval (<local.i>/2)>
+    NEW.MOVE W,-<eval (<local.i>/2)>
+    NEW.MOVE NW,-<eval (<local.i>/2)>
+   ENDDO
+  endif
+ endif
+ local.dir = <eval !<local.dir>>
+ new.timer=<local.timer>
+ new.attr 012
+end
+
+
+//Faz uma duplicata pet/summoned do DEFAULT.
+[FUNCTION f_dupeChar]
+
+//Copia o char
+serv.newnpc <BaseID>
+new.p=<p>
+new.str=<str>
+new.hits=<str>
+new.dex=<dex>
+new.int=<int>
+new.mana=<int>
+new.color=<color>
+new.karma=<karma>
+new.fame=<fame>
+new.name=<name>
+obj=<new.uid>
+
+//Copia o equipamento
+for layer 1 24
+ local.item=<findlayer.<local.layer>.baseid>
+ local.color=<findlayer.<local.layer>.color>
+ local.mor=<findlayer.<local.layer>.more1>
+ local.mor2=<findlayer.<local.layer>.more2>
+ serv.newitem <local.item>
+ new.color=<local.color>
+ new.more1=<local.mor>
+ new.more2=<local.mor2>
+ new.cont=<obj>
+ENDFOR
+FORCHARLAYER layer_pack
+ dupe
+ new.cont <obj>
+ENDFOR
+
+//Copia as skills
+FOR skill 0 54
+ obj.<local.skill>=<src.<local.skill>>
+ENDFOR
+obj.poisoning 0 //Não morde.
+
+//Melhora AI se mago
+IF (<obj.magery> > 50.0)
+ obj.modINT=<obj.modINT>+60
+ obj.events +e_mage_phaser
+endif
+
+//Põe events de briga
+obj.events +e_PvM
+//obj.events +e_combat DEVE ESTAR NO CHARDEF COMO TEVENT
+
+//Seta como pet e summoned
+serv.newitem i_memory
+new.color memory_ipet
+new.more1 04
+new.more2 <serv.time>
+new.morep <p>
+new.link <uid>
+new.cont <obj>
+serv.newitem i_mry_summon
+new.more2 <f_rangeValue 5,120,<magery>>
+new.link <uid>
+new.cont <obj>
+new.timer 1
+obj.effect 3 i_fx_sparkle 0 16 0 0a1
+obj.flags=<obj.flags>|0c000000  //spawned e pet
+sfx 0fb
+return <obj.uid>
+
+
+[EVENTS e_nightsight]
+
+ON=@LOGIN
+src.nightsight 0
+f_nightsight 1
+
+ON=@ITEMEQUIP
+//remove visao elfica se carregar fonte de luz
+if <act.layer>==layer_face
+    f_noElfSight
+endif
+
+//mantem o layer light com visao noturna
+ON=@ITEMUNEQUIP
+if <act.layer>==layer_face
+    f_elfSight
+endif
+
+//on=@death
+//f_nightsight 0
+
+[FUNCTION f_nightsight]
+//carrega um light source no layer light em q soh o player (src) veja
+IF (<argn>)
+    events +e_nightsight
+    f_elfSight
+ELSE
+    events -e_nightsight
+    f_noElfSight
+ENDIF
+
+
+
+[ITEMDEF i_forbiden]
+NAME=forbiden
+ID=i_gold
+TYPE=t_script
+
+on=@create
+color=07fff
+attr=092
+
+on=@step
+if (!<src.isgm>)
+src.f_retreat
+endif
+return 1
+
+
+[ITEMDEF i_mry_pegandofogo]
+id=i_memory
+NAME=pegando fogo
+TYPE=T_eq_script
+WEIGHT=0
+
+ON=@Create
+ATTR=attr_newbie | 080 | attr_cursed2
+timer=1
+more2={12 30}
+
+ON=@TIMER
+link.effect 3 i_fire 0 64 0
+link.bark
+if (<link.tag.pegandofogo>==1)
+ dorand 5
+  link.emotered pegando fogo
+  link.anim 9
+  link.anim 10
+  link.emotered se debate
+ enddo
+ if (<link.hits> >= 4)
+  LOCAL.dam={0 6 1 3 2 2 3 1}
+  link.damage <eval <LOCAL.dam>> 010 <UID>
+  timer=1
+ else
+  link.tag.pegandofogo= //apaga a tag pegando fogo
+  remove // remove a memory pegando fogo
+ endif
+else
+ remove
+endif
+more2=<more2>-1
+if (!<more2>)
+ link.tag.pegandofogo=
+ remove
+endif
+return 1
+
+
+[ITEMDEF i_fogo_armadilha_lo]
+name=Cela de fogo
+id=0398c
+TYPE=t_fire
+CATEGORY=MyT - Quest Items
+SUBSECTION=Traps
+DESCRIPTION=Cela de fogo LO
+DUPELIST=0398d,0398e,0398f,03990,03991,03992,03993,03994,03995,03e27
+
+ON=@Create
+MOREZ=1
+ATTR=012
+
+on=@step
+src.f_pega_fogo
+return 1
+
+
+[ITEMDEF i_fogo_armadilha_ns]
+name=Cela de fogo
+id=03996
+TYPE=t_fire
+CATEGORY=MyT - Quest Items
+SUBSECTION=Traps
+DESCRIPTION=Cela de fogo NS
+DUPELIST=03997,03998,03999,0399a,0399b,0399c,0399d,0399e,0399f,03e31
+
+ON=@Create
+MOREZ=1
+ATTR=012
+
+on=@step
+src.f_pega_fogo
+return 1
+
+[ITEMDEF i_coluna_fogo_armadilha]
+name=coluna de fogo animada
+id=0398c
+TYPE=t_fire
+CATEGORY=MyT - Quest Items
+SUBSECTION=Traps
+DESCRIPTION=coluna de fogo animada
+DUPELIST=0370a,0370b,0370c,0370d,0370e,0370f,03710,03711,03712,03713,03714,03715,03716,03717,03718,03719,0371a,0371b,0371c,0371d,0371e,0371f,03720,03721,03722,03723,03724,03725,03726,03727
+
+ON=@Create
+MOREZ=1
+ATTR=012
+
+on=@step
+src.f_pega_fogo
+return 1
+
+
+[ITEMDEF i_veneno_armadilha_lo]
+name=Cela de veneno
+id=03915
+TYPE=t_script
+CATEGORY=MyT - Quest Items
+SUBSECTION=Traps
+DESCRIPTION=Cela de veneno LO
+
+ON=@Create
+MOREZ=1
+ATTR=012
+
+on=@step
+src.sfx 05b
+src.veneno <eval {750 850}>
+return 1
+
+
+[ITEMDEF i_veneno_armadilha_ns]
+name=Cela de veneno
+id=03921
+CATEGORY=MyT - Quest Items
+SUBSECTION=Traps
+DESCRIPTION=Cela de veneno NS
+
+ON=@Create
+MOREZ=1
+ATTR=012
+
+
+on=@step
+src.sfx 05b
+src.veneno <eval {750 850}>
+return 1
+
+
+[ITEMDEF i_vegetal_armadilha_lo]
+name=cela vegetal
+id=0CEC
+TYPE=t_script
+CATEGORY=MyT - Quest Items
+SUBSECTION=Traps
+DESCRIPTION=Cela de vegetal LO
+
+ON=@Create
+MOREZ=1
+ATTR=012
+
+on=@step
+if (!<src.isGM>)
+src.f_retreat
+endif
+
+[ITEMDEF i_vegetal_armadilha_ns]
+name=cela vegetal
+id=0CEF
+CATEGORY=MyT - Quest Items
+SUBSECTION=Traps
+DESCRIPTION=Cela de vegetal NS
+
+ON=@Create
+MOREZ=1
+ATTR=012
+
+on=@step
+if (!<src.isGM>)
+src.f_retreat
+endif
+
+//||||||||||||||||||||||||||||||||||
+// ---------# FUNCTIONS #---------//
+//||||||||||||||||||||||||||||||||||
+
+
+
+
+[FUNCTION f_resetTrap]
+if (!<argn>) //Trap cria o resetador de trap
+serv.newitem i_reset_trap
+new.link=<UID>
+new.p=<p>
+new.timer=<eval <morem>>
+else //resetador de trap reseta a trap
+link.type=t_trap
+if (<link.attr>&020)
+link.movenear <UID> <eval {0 12 1 5 2 2 3 1}>
+endif
+try link.color=0<link.tag.color>
+if (<link.morez>==0) //Se é uma armadilha de chão. Morez=t_normal=0
+link.REMOVEFROMVIEW //some pros chars que estão perto
+link.attr=<link.attr>|080 //volta a ficar invis
+endif
+link.update
+endif
+
+
+[FUNCTION f_cela_fogo]
+f_cela i_fogo_armadilha_ns, i_fogo_armadilha_lo, <argn>
+sfx 015f
+return 1
+
+
+[FUNCTION f_cela_veneno]
+f_cela i_veneno_armadilha_ns, i_veneno_armadilha_lo, <argn>
+sfx 0117
+return 1
+
+[FUNCTION f_cela_vegetal]
+f_cela i_vegetal_armadilha_ns, i_vegetal_armadilha_lo, <argn>
+sfx 0191
+return 1
+
+[FUNCTION f_cela_imovel]
+f_cela i_forbiden, i_forbiden, <argn>
+sfx 0191
+return 1
+
+[FUNCTION f_cela]
+if (<argv2>==0)
+local.timer=<eval {20 30}>
+else
+local.timer=<argv2>
+endif
+
+serv.newitem=<argv1>
+new.p=<p>
+new.move 0 2 0
+new.timer=<local.timer>
+
+serv.newitem=<argv1>
+new.p=<p>
+new.move 0 -1 0
+new.timer=<local.timer>
+
+serv.newitem=<argv1>
+new.p=<p>
+new.move 1 -1 0
+new.timer=<local.timer>
+
+serv.newitem=<argv1>
+new.p=<p>
+new.move -1 -1 0
+new.timer=<local.timer>
+
+serv.newitem=<argv1>
+new.p=<p>
+new.move -1 2 0
+new.timer=<local.timer>
+
+serv.newitem=<argv1>
+new.p=<p>
+new.move 1 2 0
+new.timer=<local.timer>
+
+serv.newitem=<argv0>
+new.p=<p>
+new.move 2 1 0
+new.timer=<local.timer>
+
+serv.newitem=<argv0>
+new.p=<p>
+new.move 2 0 0
+new.timer=<local.timer>
+
+serv.newitem=<argv0>
+new.p=<p>
+new.move 2 -1 0
+new.timer=<local.timer>
+
+serv.newitem=<argv0>
+new.p=<p>
+new.move -1 -1 0
+new.timer=<local.timer>
+
+serv.newitem=<argv0>
+new.p=<p>
+new.move -1 0 0
+new.timer=<local.timer>
+
+serv.newitem=<argv0>
+new.p=<p>
+new.move -1 1 0
+new.timer=<local.timer>
+
+serv.newitem=i_forbiden
+new.p=<p>
+new.move 2 2 0
+new.timer=<local.timer>
+
+
+[FUNCTION f_pega_fogo]
+if !<RESTEST 1 i_mry_pegandofogo> && !<isgm> && !(<flags>&statf_invul)
+ effect 3 i_fire 0 64 0
+ tag.pegandofogo=1
+ newitem=i_mry_pegandofogo
+ if (0<argn>)
+    new.more2=<argn>
+ endif
+ new.link=<uid>
+ act.equip
+ update
+ sfx 015f
+ LOCAL.dam=<eval {5 15}>
+ damage <LOCAL.dam> 010
+endif
+
+
+//*************************************************************
+//      ITEMDEFs de magia
+//*************************************************************
+
+//*****************************************************************************
+// spl_applyResBuff( RESFIRE,RESCOLD,RESPOISON,RESENERGY,RESPHYSICAL,MANA_USE )
+//*****************************************************************************
+//SRC apply buff in DEFAULT
+[FUNCTION spl_applyResBuff]
+//remove buff se jah existir
+if (<restest 1 i_spl_changeRES>)
+    findid.i_spl_changeRES.more2=0
+    findid.i_spl_changeRES.timerd=1
+    return 1
+endif
+SERV.NEWITEM i_spl_changeRES
+NEW.tag.resfire=<argv0>
+NEW.tag.rescold=<argv1>
+NEW.tag.respoison=<argv2>
+NEW.tag.resenergy=<argv3>
+NEW.tag.resphysical=<argv4>
+NEW.MORE2=<argv5>
+NEW.link=<src>
+EQUIP <NEW>
+if !<NEW.more2>
+    NEW.timer=300
+endif
+
+//Memory generica para aplicar buffs de RES*
+[ITEMDEF i_spl_changeRES]
+ID=i_rune_REACTIVE_ARMOR
+TYPE=t_eq_script
+LAYER=layer_special
+NAME=changeRES
+
+on=@equip
+if (<more2>)
+    TIMER=10
+endif
+
+tag.resfire=<src.resfiremod <tag0.resfire>>
+tag.rescold=<src.rescoldmod <tag0.rescold>>
+tag.respoison=<src.respoisonmod <tag0.respoison>>
+tag.resenergy=<src.resenergymod <tag0.resenergy>>
+
+src.modar += <tag0.resphysical>
+if !<src.ar> && ( <src.modar> < 0 )
+    tag.resphysical -= <src.modar>
+    src.modar=0
+endif    
+
+//corige se passar do limite
+if (<tag0.resphysical> > 0) && (<src.ar> > 60)
+    tag.resphysical -= <eval <src.ar>-60>
+    src.modar -= <eval <src.ar>-60>
+endif
+
+on=@timer
+if (!<more2>) || (!<link.f_consumemana <more2>>) || (<link.flags>&statf_dead) || (<cont.flags>&statf_dead)
+    cont.resfiremod -<tag0.resfire>
+    cont.rescoldmod -<tag0.rescold>
+    cont.respoisonmod -<tag0.respoison>
+    cont.resenergymod -<tag0.resenergy>
+    cont.modar -= <tag0.resphysical>
+    remove
+    return 1
+else
+    more2 -= 1
+endif
+timer 10
+return 1
+
+//NPCs com esta memory sumirão quano o timer expirar.
+[ITEMDEF i_mry_summon]
+ID=i_rune_summon_creature
+name=summoned
+type=t_eq_script
+layer=layer_special
+
+on=@create
+attr=020
+
+on=@timer
+more2=<more2>-1
+if (<more2> <= 0) || (!<link.uid>)
+ serv.newitem i_fx_vortex_full
+ new.attr=02
+ new.timerd 16
+ cont.sfx 020c
+ new.color 0a1
+ new.p=<cont.p>
+ cont.remove
+ remove
+endif
+timer=1
+return 1
+
+[FUNCTION Buff_Armor]
+//Buff_Armor <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffres
+new.link=<UID>
+new.tag.modar=<argv0>
+new.equip
+new.timer=<argv1>
+
+[FUNCTION Buff_Resfire]
+//Buff_Resfire <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffres
+new.link=<UID>
+new.tag.resfire=<argv0>
+new.equip
+new.timer=<argv1>
+
+[FUNCTION Buff_Rescold]
+//Buff_Rescold <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffres
+new.link=<UID>
+new.tag.rescold=<argv0>
+new.equip
+new.timer=<argv1>
+
+[FUNCTION Buff_Respoison]
+//Buff_Respoison <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffres
+new.link=<UID>
+new.tag.respoison=<argv0>
+new.equip
+new.timer=<argv1>
+
+[FUNCTION Buff_Resenergy]
+//Buff_Resenergy <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffres
+new.link=<UID>
+new.tag.resenergy=<argv0>
+new.equip
+new.timer=<argv1>
+
+[FUNCTION Buff_STR]
+//Buff_STR <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffstats
+new.link=<UID>
+new.tag.modstr=<argv0>
+new.equip
+new.timer=<argv1>
+
+[FUNCTION Buff_DEX]
+//Buff_DEX <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffstats
+new.link=<UID>
+new.tag.moddex=<argv0>
+new.equip
+new.timer=<argv1>
+
+[FUNCTION Buff_INT]
+//Buff_INT <qtd> <tempo>
+IF (0<argv0>==0) || (!0<argv1>)
+ return 1
+endif
+newitem i_mry_buffstats
+new.link=<UID>
+new.tag.modint=<argv0>
+new.equip
+new.timer=<argv1>
+
+[TYPEDEF e_BuffRes]
+on=@equip
+if (<eval <tag0.modar>+<link.ar>> > 100) //Não passar de 100
+ tag0.modar = <eval 100-<link.ar>>
+elif (<eval <tag0.modar>+<link.ar>> < 0) //Não passar de 0
+ tag0.modar = -<link.ar>
+endif
+link.modar += <tag0.modar>
+IF (<link.IsPlayer>)
+ link.resfiremod <tag0.resfire>
+ link.rescoldmod <tag0.rescold>
+ link.respoisonmod <tag0.respoison>
+ link.resenergymod <tag0.resenergy>
+else
+ link.resfire += <tag0.resfire>
+ link.rescold += <tag0.rescold>
+ link.respoison += <tag0.respoison>
+ link.resenergy += <tag0.resenergy>
+endif
+
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+link.modar -= <tag0.modar>
+IF (<link.IsPlayer>)
+ link.resfiremod -<tag0.resfire>
+ link.rescoldmod -<tag0.rescold>
+ link.respoisonmod -<tag0.respoison>
+ link.resenergymod -<tag0.resenergy>
+else
+ link.resfire -= <tag0.resfire>
+ link.rescold -= <tag0.rescold>
+ link.respoison -= <tag0.respoison>
+ link.resenergy -= <tag0.resenergy>
+endif
+
+[TYPEDEF e_BuffStats]
+on=@equip
+link.modstr += <tag0.modstr>
+link.moddex += <tag0.moddex>
+link.modint += <tag0.modint>
+link.tag0.OVERRIDE_STATSUM += <eval <tag0.modstr>+<tag0.moddex>+<tag0.modint>>
+
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+link.modstr -= <tag0.modstr>
+link.moddex -= <tag0.moddex>
+link.modint -= <tag0.modint>
+link.tag0.OVERRIDE_STATSUM -= <eval <tag0.modstr>+<tag0.moddex>+<tag0.modint>>
+
+[ITEMDEF i_mry_buffstats]
+ID=0208F
+NAME=BuffStats
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffStats
+
+on=@equip
+name=<name> (STR: <dtag0.modstr> DEX:<dtag0.modint> INT:<dtag0.modint>)
+ATTR=attr_cursed2
+
+on=@timer
+remove
+RETURN 1
+
+[TYPEDEF e_BuffMaxStats]
+on=@equip
+link.maxhits += <tag0.modhits>
+link.maxstam += <tag0.modstam>
+link.maxmana += <tag0.modmana>
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+link.maxhits -= <tag0.modhits>
+link.maxstam -= <tag0.modstam>
+link.maxmana -= <tag0.modmana>
+
+[ITEMDEF i_mry_buffMaxStats]
+ID=0208F
+NAME=BuffMax
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffMaxStats
+
+on=@equip
+name=<name> (HP: <dtag0.modhits> SP:<dtag0.modstam> MP:<dtag0.modmana>)
+ATTR=attr_cursed2
+
+on=@timer
+remove
+RETURN 1
+
+[ITEMDEF i_mry_buffres]
+ID=02086
+NAME=ResBuff
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffRes
+
+on=@equip
+name=<name>(AR<dtag0.modar> F<dtag0.resfire> C<dtag0.rescold> P<dtag0.respoison> E<dtag0.resenergy>)
+ATTR=attr_blessed2
+
+on=@timer
+remove
+RETURN 1
+
+
+[TYPEDEF e_BuffSkill]
+on=@equip
+if (<link>==04fffffff)
+ link=<cont.uid>
+endif
+if !(<IsEmpty <tag.modskill>>) && !(<IsEmpty <tag.modskillval>>)
+ local.maxincrease=<eval 125.0-<link.<DEF.Skill_<tag.modskill>>>>
+ local.maxdecrease=-<link.<DEF.Skill_<tag.modskill>>>
+ tag.modskilltrue=<maximum <local.maxdecrease>,<minimum <tag.modskillval>,<local.maxincrease>>>
+ link.<DEF.Skill_<tag.modskill>> += <tag.modskilltrue>
+endif
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+if !(<IsEmpty <tag.modskill>>) && !(<IsEmpty <tag.modskillval>>)
+ link.<DEF.Skill_<tag.modskill>> -= <tag0.modskilltrue>
+ tag.modskilltrue=
+endif
+link=04fffffff
+
+[TYPEDEF t_jewelry]
+on=@equip
+if (<link>==04fffffff)
+ link=<cont.uid>
+endif
+if !(<IsEmpty <tag.modskill>>) && !(<IsEmpty <tag.modskillval>>) && (<attr>&attr_identified)
+ local.maxincrease=<eval 125.0-<link.<DEF.Skill_<tag.modskill>>>>
+ local.maxdecrease=-<link.<DEF.Skill_<tag.modskill>>>
+ tag.modskilltrue=<maximum <local.maxdecrease>,<minimum <tag.modskillval>,<local.maxincrease>>>
+ link.<DEF.Skill_<tag.modskill>> += <tag.modskilltrue>
+endif
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+if !(<IsEmpty <tag.modskilltrue>>) && (<attr>&attr_identified)
+ link.<DEF.Skill_<tag.modskill>> -= <tag0.modskilltrue>
+ tag.modskilltrue=
+endif
+link=04fffffff
+
+ON=@ClientTooltip
+local.t=<CHR 31>
+IF (<attr>&01) || (<src.IsGM>)
+    local.c=1
+ENDIF
+
+IF !(<attr>&01)
+    local.t =<DEF.BFONT_YELLOW>(não identificado)<DEF.BR>
+    local.p=1
+ENDIF
+IF !(<IsEmpty <tag.modskill>>) && !(<IsEmpty <tag.modskillval>>) && (<local.c>)
+    local.t .=<DEF.BFONT_CYAN><tag.modskill> +<fval <tag.modskillval>><DEF.BR>
+    local.p=1
+ENDIF
+IF (<attr>&attr_magic) && (<local.c>)
+    local.t .=<DEF.BFONT_CYAN>mágico<DEF.BR>
+    local.p=1
+ENDIF
+IF (<attr>&0100) && (<local.c>)
+    local.t .=<DEF.BFONT_CYAN>amaldiçoado<DEF.BR>
+    local.p=1
+ENDIF
+IF (<attr>&0200) && (<local.c>)
+    local.t .=<DEF.BFONT_CYAN>maldito<DEF.BR>
+    local.p=1
+ENDIF
+IF (<attr>&0400) && (<local.c>)
+    local.t .=<DEF.BFONT_CYAN>abençoado<DEF.BR>
+    local.p=1
+ENDIF
+IF (<attr>&0800) && (<local.c>)
+    local.t .=<DEF.BFONT_CYAN>sagrado
+    local.p=1
+ENDIF
+IF (!<local.p>)
+    local.t .=Adorno
+ENDIF
+
+src.addcliloc 1042971,<NAME>
+src.addcliloc 1070722,<LOCAL.t>
+return 1
+
+
+ON=@Identify
+if (!<IsEmpty <tag.modskill>>)
+    NAME=<NAME> de <tag.modskill> +<fval <tag0.modskillval>>
+endif
+
+[ITEMDEF i_mry_buffskill]
+ID=0208F
+NAME=BuffSkill
+TYPE=t_eq_script
+LAYER=layer_special
+TEVENTS=e_BuffSkill
+
+on=@equip
+name=<serv.skill.<tag.modskill>.name> +(<dtag.modskillval>)
+ATTR=attr_blessed2
+
+on=@timer
+remove
+RETURN 1
+
+[FUNCTION haste]
+//Deixa o char correndo muito por <argn> tempo
+if (<argn> < 1) || (<restest 1 i_mry_haste>)
+ return 1
+endif
+newitem=i_mry_haste
+new.link=<UID>
+trysrc <uid> new.equip
+new.timer <argn>
+
+[ITEMDEF i_mry_haste]
+ID=02088
+NAME=Velocidade
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@equip
+link.sysmessagegreen Voce se sente muito rapid<link.sex o/a>!
+link.speedmode=1
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+ATTR=attr_blessed2
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+link.sysmessagered Voce perdeu a agilidade.
+link.speedmode=0
+
+on=@timer
+remove
+RETURN 1
+
+[FUNCTION slow]
+//Deixa o char lento por <argn> tempo
+if (<argn> < 1) || (<restest 1 i_mry_slow>)
+ return 1
+endif
+newitem=i_mry_slow
+new.link=<UID>
+trysrc <uid> new.equip
+new.timer <argn>
+
+[ITEMDEF i_mry_slow]
+ID=02088
+NAME=Lentidao
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@equip
+link.sysmessageorange Voce se sente muito lent<link.sex o/a>!
+link.speedmode=2
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+ATTR=attr_cursed2
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+link.sysmessagegreen Sua velocidade voltou ao normal.
+link.speedmode=0
+
+on=@timer
+remove
+RETURN 1
+
+
+[FUNCTION BuffSkill]
+//ARGV0=skill, ARGV1=valor, ARGV3=tempo
+if (!<serv.skill.<argv0>>) || (!<eval <argv1>>)
+ return 0
+endif
+if (<IsItem>)
+ if (<type>!=t_jewelry)
+     events +e_BuffSkill
+ endif
+ tag.modskill=<argv0>
+ tag.modskillval=<fval <argv1>>
+elif (0<argv2>)
+ newitem i_mry_buffskill
+ new.tag.modskill=<argv0>
+ new.tag.modskillval=<argv1>
+ new.link=<UID>
+ trysrc <uid> src.new.equip
+ new.timer=<argv2>
+endif
+
+
+[FUNCTION f_CleanDeBuffs]
+//Limpa todos os Buffs e Debuffs do char
+FORCHARLAYER layer_special
+    IF (<ATTR>&0A00)//blessed2 para buff, cursed2 para debuff
+        serv.log Removendo buff/debuff: <name>
+        REMOVE
+    ENDIF
+END
+
+[FUNCTION f_CleanBuffs]
+//Limpa todos os Buffs do char
+FORCHARLAYER layer_special
+    IF (<ATTR>&0800)//blessed2
+        serv.log Removendo buff: <name>
+        REMOVE
+    ENDIF
+END
+
+[FUNCTION blind]
+//Diminui o campo de visao para <argn1> tiles durante <argn2> segundos
+if (<argn1> < 0) || (<argn2> < 1) || (<restest 1 i_mry_blind>)
+ return 1
+endif
+newitem=i_mry_blind
+new.more1=<visualrange>
+visualrange=<argn1>
+new.link=<UID>
+trysrc <uid> new.equip
+new.timer <argn2>
+
+[ITEMDEF i_mry_blind]
+ID=02088
+NAME=Cegueira
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@equip
+link.sysmessageorange Ah algo de errado com sua visao!
+//salva link, pois em alguns casos nao ha link em @destroy ou @unequip
+tag.link=<link>
+ATTR=attr_cursed2
+
+on=@unequip
+if <link>=04fffffff
+    link=<tag0.link>
+endif
+link.sysmessagegreen Sua visao voltou ao normal
+link.visualrange=<more1>
+link.update
+
+on=@timer
+remove
+RETURN 1
+
+
+[EOF]

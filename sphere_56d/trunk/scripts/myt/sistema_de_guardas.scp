@@ -1,0 +1,1632 @@
+[COMMENT sistema_de_guardas]
+A AI dos guardas é grande de mais pra ficar no arquivo do sistema de towns
+
+
+Ao entrar numa region TOWN, o player ganha um event e_InTown
+Esse event terá trigger que é o @CallGuards, que sejá chamado nas seguintes situações:
+
+on=@CallGuards
+Name    Description
+ARGO    The guard character who is going to attack the criminal (if one exists in the area).
+I       The character calling for guards.
+REF1    The criminal who the gaurds are being called upon.
+SRC     The criminal who the guards are being called upon. 
+
+Argument   In/Out     Description
+ARGN1      IO         The BASEID of the character to spawn as a guard.
+ARGN2      O          If set to 1, a new guard will be spawned regardless of whether a nearby guard is available. 
+
+Return  Value    Description
+1       Prevents the guards from reacting. 
+
+
+* O guarda dá 5 avisos (um no início e a cada 4 segundos) e se não corrigido senta o pau quando:
+- Entrar em Warmode
+- Equipar uma arma que dê mais de X de dano mínimo
+- Vestir capuz
+
+* O guarda senta o pau e bane da town direto quando:
+- Step de lockpicking
+- Snooping
+- Stealing
+- Usar magia ofenciva em NPC da town (vendor, guarda, senescal) ou em player (salvo se for banido)
+- Causar dano em NPC da town (vendor, guarda, senescal) ou em player (salvo se for banido)
+- Setar armadilha
+- Setar poção de explosão terrestre
+- Usar .abordar
+
+[DEFNAME guard_taks]
+GUARD_TASK_GO       1
+GUARD_TASK_FOLLOW   2
+GUARD_TASK_GUARD    3
+GUARD_TASK_POST     4
+GUARD_TASK_PATROL   5
+
+//*****************************************************************************
+//*****************************************************************************
+// EVENTs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// e_InTown
+//*****************************************************************************
+[EVENTS e_InTown]
+
+ON=@LOGIN
+town_enter <region.defname>
+
+//**************************************
+ON=@ItemEquip
+
+//se estiver equipando uma arma
+if (<act.isweapon>) && (<act.dam.hi> > 10)
+    if !<towncache_can <DEF.TOWN_CAN_WARMODE>>
+        TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_WEAPON>
+    endif        
+//se estiver equipando um capuz ou elmo    
+elif ( (<act.baseid>==i_capuz) || (<act.layer>==layer_helm) ) 
+    if !<towncache_can <DEF.TOWN_CAN_HOOD>>
+        TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_HOOD>
+    endif        
+endif
+
+//**************************************
+ON=@UserWarmode
+
+//se em warmode
+if !<argn1>
+    if !<towncache_can <DEF.TOWN_CAN_WARMODE>>
+        TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_WARMODE>
+    endif     
+endif
+
+//**************************************
+ON=@TownSpellSuccess
+if !<towncache_can <DEF.TOWN_CAN_MAGIC>>
+    TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_MAGIC>
+endif
+
+//**************************************
+on=@TownHit
+
+if (!<IsPlayer>) || (!<act>) || (<src>==<uid>)
+    return 0
+endif
+
+//testar brain_animal para RESOURCES
+//se RESOURCES animais
+if <act.NPC>==brain_animal
+    //e nao tiver permissao
+    if !<towncache_can <DEF.TOWN_CAN_RESOURCES>>
+        //e nao for pet
+        if !(<act.memoryfindtype.memory_ipet>)
+//            sysmessageyellow Eh bom voce saber que nao eh permitido cacar aqui.
+            TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_RESOURCES>
+        endif
+    endif        
+
+//nao tem permissao para machucar?
+elif !<towncache_can <DEF.TOWN_CAN_HARM>> //&& !(<ctag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
+
+//    cTAG.town_warn_guards = 1
+    
+    //Testar se o alvo é guarda
+    if <act.IsTEvent.e_town_guard>
+        //se ainda nao foi marcado como criminoso
+        if !(<ctag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
+            DORAND 3
+                ACT.SAY Como ousa?
+                ACT.SAY Agora foi de mais!
+                ACT.SAY Tome isto!
+            END
+            town_setAsCriminal <act.tag.town>
+            act.attack <uid>
+        endif
+    endif
+    //testar vendor/player/guard para HARM || Testar se o alvo é player free ||
+//    elif (<act.IsTownNPC>) || (<act.IsPlayer>)
+    TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_HARM>   
+    
+endif
+
+//**************************************
+ON=@CallGuards
+if !<guards_near guard_advice,<argn1>,<argn2>>
+    cTAG.town_warn_guards = 1
+    town_NpcNear town_npc_call_help,<argn1>,<argn2>
+endif
+return 1
+
+//**************************************
+ON=@SKILLSUCCESS
+
+//serv.log [SKILLSUCCESS] <src.account>/<src.action>/<eval <src.action>>
+if !<IsPlayer>
+    return 0
+endif
+
+//se coleta de resources for permitido ou nao definido, retorna
+if <towncache_can <DEF.TOWN_CAN_RESOURCES>>
+    return 0
+endif
+
+doswitch <src.action>
+ return 0                    // SKILL_ALCHEMY
+ return 0                    // SKILL_ANATOMY
+ return 0                    // SKILL_ANIMAL_LORE
+ return 0                    // SKILL_APPRAISE
+ return 0                    // SKILL_ARMSLORE
+ return 0                    // SKILL_PARRYING
+ return 0                    // SKILL_BEGGING
+ return 0                    // SKILL_Blacksmith
+ return 0                    // SKILL_BOWCRAFT
+ return 0                    // SKILL_PEACEMAKING
+ TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_RESOURCES>// SKILL_CAMPING
+ return 0                    // SKILL_CARPENTRY
+ return 0                    // SKILL_CARTOGRAPHY
+ return 0                    // SKILL_COOKING
+ return 0                    // SKILL_DETECTHIDDEN
+ return 0                    // SKILL_ENTICEMENT
+ return 0                    // Skill_EvalInt
+ return 0                    // SKILL_HEALING
+ TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_RESOURCES>// SKILL_FISHING
+ return 0                    // SKILL_FORENSICS
+ return 0                    // SKILL_HERDING
+ return 0                    // SKILL_HIDING 
+ return 0                    // SKILL_PROVOCATION
+ return 0                    // SKILL_INSCRIPTION
+ return 0                    // Skill_LockPick
+ return 0                    // SKILL_MAGERY
+ return 0                    // Skill_MagicResist
+ return 0                    // SKILL_TACTICS
+ return 0                    // SKILL_SNOOPING
+ return 0                    // SKILL_MUSICIANSHIP
+ return 0                    // SKILL_POISONING
+ return 0                    // SKILL_ARCHERY
+ return 0                    // SKILL_SPIRITSPEAK
+ return 0                    // SKILL_STEALING
+ return 0                    // SKILL_TAILORING
+ return 0                    // SKILL_TAMING
+ return 0                    // SKILL_TASTEID
+ return 0                    // SKILL_TINKERING
+ return 0                    // SKILL_TRACKING
+ return 0                    // Skill_Vet
+ return 0                    // SKILL_SWORDSMANSHIP
+ return 0                    // SKILL_MACEFIGHTING
+ return 0                    // SKILL_FENCING
+ return 0                    // SKILL_WRESTLING
+ TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_RESOURCES>// SKILL_LUMBERJACK
+ TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_RESOURCES>// SKILL_MINING
+ return 0                    // SKILL_MEDITATION
+ return 0                    // SKILL_STEALTH
+ return 0                    // SKILL_REMOVE_TRAP
+ return 0                    // SKILL_NECROMANCY
+ return 0                    // SKILL_FOCUS
+ return 0                    // SKILL_CHIVALRY
+ return 0                    // SKILL_BUSHIDO
+ return 0                    // SKILL_NINJITSU
+ return 0                    // SKILL_SPELLWEAVING
+enddo
+return 0
+
+//*****************************************************************************
+// e_NPCInTown
+//*****************************************************************************
+[EVENTS e_NPCInTown]
+
+ON=@SeeCrime
+return 1
+
+//**************************************
+ON=@GetHit
+if (<tag0.call_guards>==<DEF.TOWN_CAN_HARM>)
+ return 0
+endif
+
+//**************************************
+ON=@CallGuards
+if (<karma> < 0) || (<NPC>==brain_animal) || (<NPC>==brain_thief) || (<NPC>==brain_monster) || (<NPC>==brain_dragon) || (<NPC>==brain_berserk) || (<NPC>==brain_undead)
+    return 0
+endif
+
+if !<guards_near guard_advice,<argn1>,<argn2>>
+    say Guardas! Um assassino!
+    if !<town_NpcNear town_npc_call_help,<argn1>,<argn2>>
+        npc_call_guards <argn1>,<argn2>
+    endif
+endif
+return 1
+
+//*****************************************************************************
+// e_town_guard
+//*****************************************************************************
+[EVENTS e_town_guard]
+
+ON=@Kill
+if (<tag0.task>==<DEF.GUARD_TASK_PATROL>)
+    guard_StartPatrol
+endif
+tag.kills = <tag0.kills>+1
+//serv.log <name> matou <dtag0.kills>/<eval (<tag0.guard_level>+2)@2> (<dtag0.guard_level>)
+if (<tag0.kills> > <eval (<tag0.guard_level>+2)@2>) && (<tag0.guard_level> < 5)
+    guard_level <eval <tag0.guard_level>+1>
+    //serv.log [NIUVO] <name> eh agora nivel <dtag0.guard_level>
+endif
+
+//serv.log I:<NAME> SRC:<SRC.NAME> ACT:<ACT.NAME> ARGO:<argo.name>
+
+if (<act.IsPlayer>)
+    //Efetuar prisão?
+    if (<serv.area.<tag.town_region>.tag0.prisionTime>)
+        DORAND 3
+            say Voce esta preso em nome da lei!
+            say Voce tem o direito de desmaiar antes de chegar na sua cela.
+            say Produza um pouco de mofo para as formigas da sua cela.
+        ENDDO
+        act.town_GoJailed <uid>
+    endif
+endif
+
+//**************************************
+ON=@HUNGER
+IF (<food> < 30)
+    local.food=<town_ServantFood>
+    IF (!<local.food>)
+        IF (<restest 3 i_coin_copper>)
+            consume 3 i_coin_copper
+            serv.newitem i_carne
+            new.amount=<R4,9>
+            trysrc <uid> src.bounce <new>
+        ELIF (!<food>) && (<tag0.nopay> > 2)
+            say Chega disso! Me demito!
+            timerf 15 remove
+        ENDIF
+    ELSE
+        argn1=<local.food>
+    ENDIF
+ENDIF
+
+//**************************************
+ON=@NPCLookAtChar
+
+//Lagoso. Cuidado
+
+//somente conitnua se olhar para player
+if !<src.IsPlayer>
+    return 0
+elif <src.IsGM>
+    return 0
+elif (<src.flags>&080200b) //statf_hidden|statf_insubstantial|statf_invisible|statf_dead|statf_invul    
+    return 0
+//elif !<CanSeeLos <src>>    
+//    return 0
+//nao precisa verificar novamente
+elif !<src.cTAG0.town_warn_guards>
+    return 0
+elif <IsEmpty <region.tag.permissions>>    
+    return 0
+endif
+
+//Somente se ele estiver wandering, goin to, going home, stay ou guard item.
+if ((<action> > 064) && (<action> < 069)) || (<action>==06C) || (<action>==06D)
+    
+    LOCAL.flags=<src.ctag0.town_<tag.town_region>_flags>    
+
+    serv.log [GUARDAS]@NPCLookAtChar suspeito <src.account>
+    
+    //se estiver marcado para prisao
+    if (<LOCAL.flags>&023) //TOWN_FLAG_BANNED|TOWN_FLAG_CRIMINAL|TOWN_FLAG_FORBIDDEN
+        //sem capuz
+        if <src.isFaceVisible>)
+            attack <src>
+            if (<local.flags>&020)
+               say Intrus<src.sex o/a> <src.tag.raca>! Alarme! Alarme!
+            elif (<local.flags>&02)
+               say Criminos<src.sex o/a>!
+            elif (<local.flags>&01)
+               say Hey, <src.tag.name>! Voce esta banid<src.sex o/a> de <region.name>! FORA!
+            endif
+            return 0
+        endif
+    endif
+
+    //lutar na cidade
+    if !<src.towncache_can <DEF.TOWN_CAN_WARMODE>>
+        if (<src.flags>&020)    //statf_war
+            guard_advice <src>,<DEF.TOWN_CAN_WARMODE>
+            return 0
+        endif
+
+        //usando arma com dano alto
+        if (<src.weapon.dam.hi> > 10)
+            sysmessageyellow Eh bom que voce saiba que nao se pode andar com armas pesadas aqui.
+            guard_advice <src>,<DEF.TOWN_CAN_WEAPON>
+            return 0
+        endif
+    endif
+    
+    //usando capuz
+    if !<src.towncache_can <DEF.TOWN_CAN_HOOD>>
+        if (!<rec_CanSee <src>>)
+            sysmessageyellow Eh bom que voce saiba que nao se pode andar encapuzado aqui.
+            guard_advice <src>,<DEF.TOWN_CAN_HOOD>
+            return 0
+        endif
+    endif
+
+    //pode ignora-lo em seguranca
+    src.cTAG0.town_warn_guards=0
+
+endif
+
+//**************************************
+ON=@Hitting
+//Player com capuz?
+if (!<rec_CanSee <src>>) && (<src.IsPlayer>)
+    if (<src.restest i_capuz>)
+        src.capuz
+    else
+        obj=<src.findlayer.layer_helm>
+        if (<obj>)
+            obj.p=<src.p>
+        endif
+    endif
+
+    timerf 1,say Aha! Voce!
+
+    if !(<src.ctag0.town_<tag.town_region>_flags>&TOWN_FLAG_CRIMINAL)
+        src.town_setFlags <DEF.TOWN_FLAG_CRIMINAL>,<tag.town_region>
+    endif
+endif
+
+//**************************************
+ON=@DEATH
+town_UnRegServant
+serv.log [GUARDAS-e_town_guard]@Death  Guarda <name> (<uid>) foi destruido!!!
+
+//**************************************************************
+//**************************************************************
+//                      ITENS
+//**************************************************************
+//**************************************************************
+[ITEMDEF i_mry_guard]
+id=i_memory
+type=t_eq_script
+name=Guard AI Assist
+weight=0
+//tag.wpt_[1~9] = waypoint
+//more1h=total de waypoints
+//more1l=waypont atual
+//more2=tentativas de alcançar o WP atual
+//morep=waipoint atual
+
+ON=@timer
+more2 += 1
+if ((<cont.action> > 064) || (<cont.action> < 0)) && (<cont.action> < 113) && (<cont.tag0.task>==<DEF.GUARD_TASK_PATROL>)
+ //serv.log [PATROL] <cont.name> tick!!! (<dmore2>)
+ cont.consume 1 i_memory
+ if (<cont.distance <cont.home>> < 3)
+  more1l += 1
+  more2=0
+  if (<IsEmpty <tag.wpt_<dmore1l>>>)
+   more1l=1
+   cont.HOME=<tag.wpt_1>
+   cont.ACTP=<tag.wpt_1>
+  else
+   cont.HOME=<tag.wpt_<dmore1l>>
+   cont.ACTP=<tag.<dmore1l>>
+  endif
+ endif
+ 
+ //Estou demorando muito?
+ if (<more2> > 24)
+  more2=0
+  cont.go <cont.home>
+ endif
+ 
+ timer=5
+ 
+//Estou brigando ou usando skill?
+elif (<cont.tag0.task>==<DEF.GUARD_TASK_PATROL>) && (<cont.action> < 55) && (<cont.action> > 0)
+ //serv.log [PATROL] <cont.name> esta ocupado.
+ timer=15
+else
+ serv.log [GUARDAS-i_mry_guard]@timer *PATROL* <cont.name> nao esta mais patrulhando. <cont.action> - <cont.daction>
+endif
+return 1
+
+
+[ITEMDEF i_mry_townJail]
+id=i_memory
+type=t_eq_script
+name=Town Jail
+layer=layer_special
+weight=0
+//more1=Quantas vezes foi preso
+//morep=<P> da jail que foi preso
+//link=Documento de jail (sentensa/alvará de soltura)
+//tag.town_region=Defname da town a que esta memory pertence
+
+ON=@timer
+link.name=Alvara de soltura
+link.more1=1
+link.update
+topobj.sysmessagegreen Sua pena terminou. Utilize o Alvara de Soltura.
+return 1
+
+[ITEMDEF i_town_jail_doc]
+//link=memory
+//more1=0:sentensa 1:alvara de soltura
+id=i_deed
+type=t_script
+NAME=sentensa
+
+on=@Create
+more1=0
+
+on=@dropon_ground
+if (<src.distance <link.morep>> < 12)
+ link.topobj.bounce <uid>
+ link.topobj.sysmessageyellow Concerve este documento ate sair da cadeia!
+endif
+return 1
+
+on=@dropon_char
+if (<src.distance <link.morep>> < 12)
+ src.bounce <uid>
+ src.sysmessageyellow Concerve este documento ate sair da cadeia!
+endif
+return 1
+
+
+on=@dropon_item
+if (<src.distance <link.morep>> < 12)
+ src.bounce <uid>
+ src.sysmessageyellow Concerve este documento ate sair da cadeia!
+endif
+return 1
+
+on=@DClick
+if (!<more1>)//Sentença
+ src.ctag.town_jail_doc=<uid>
+ src.DIALOG d_jail_doc
+else //alvará
+
+ //Longe da cela. Fugiu?
+ if (<src.distance <link.morep>> > 3)
+  src.sysmessagegreen Voce ja pode ser solt<src.sex o/a>! Chegue mais perto do ponto iniciar da cela para fazer isso.
+  
+ else
+  //Tira flags de criminoso, teleporta e pans
+  src.town_unsetFlags <eval <DEF.TOWN_FLAG_CRIMINAL>|<DEF.TOWN_FLAG_JAILED>>,<link.tag.town_region>
+  src.town_uncleanPrisioner <link.tag.town_region>
+  src.go <morep>
+  src.town_enter
+  remove
+  
+ endif
+endif
+return 1
+
+on=@Destroy
+link.link=04fffffff
+
+
+//*****************************************************************************
+//*****************************************************************************
+//                      FUNCTIONS
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// towncache_can <mask>
+//*****************************************************************************
+//verifica no cache (ctag) se DEFAULT tem permissao para <mask>
+//somente para:
+//TOWN_CAN_WARMODE      
+//TOWN_CAN_HOOD    
+//TOWN_CAN_HARM    
+//TOWN_CAN_MAGIC   
+//TOWN_CAN_STEAL   
+//TOWN_CAN_LOCKPICK
+//TOWN_CAN_RESOURCES
+
+[FUNCTION towncache_can]
+if <IsEmpty <region.tag.permissions>>
+    return 1
+elif (<region.tag0.permissions>&<argn>)
+    return 1
+elif (<ctag0.town_<region.defname>_privs>&<argn>)
+    return 1
+endif
+
+return 0
+
+
+//*****************************************************************************
+// town_GetJailMemory
+//*****************************************************************************
+[FUNCTION town_GetJailMemory]
+//Procura a memory de Jail para a town <args>
+local.mry=0
+FORCONTID i_mry_townJail 1
+ if (STRMATCH(*<args>*,<tag.town_region>))
+  return <uid>
+ endif
+end
+
+//*****************************************************************************
+// town_GoJailed 
+//*****************************************************************************
+[FUNCTION town_GoJailed]
+//Manda um player preso pelo guarda <argn>
+local.town=<uid.<argn>.tag.town_region>
+//Existe cela?
+if (<IsEmpty <serv.area.<local.town>.tag.cell_0>>)
+ sysmessageyellow Nao ha celas em <serv.area.<local.town>.name>.
+ //Existe ponto para soltar detento?
+ if (!<IsEmpty <serv.area.<local.town>.tag.town_releasePoint>>)
+  sysmessageyellow Eh bom nao aparecer mais por aqui. Voce foi banido.
+  go <serv.area.<local.town>.tag.town_releasePoint>
+  town_setAsBaned 1,<local.town>
+ else
+  sysmessageyellow Voce esta solto, mas ainda eh um criminoso.
+  return 1
+ endif
+
+//Existe cela sim
+else
+ //determina a cela
+ local.cell=<serv.area.<local.town>.tag0.nextCell>
+ 
+ //Dá update para a próxima cela a ser utilizada
+ serv.area.<local.town>.tag.nextCell = <serv.area.<local.town>.tag0.nextCell> + 1
+ if (<IsEmpty <serv.area.<local.town>.tag.cell_<serv.area.<local.town>.tag0.nextCell>>>)
+  serv.area.<local.town>.tag.nextCell = 0
+ endif
+ 
+ //Seta a cela para a qual ele vai
+ local.cell=<serv.area.<local.town>.tag.cell_<dlocal.cell>>
+ 
+ //Limpa o playa
+ if (<town_getVault <local.town>>)
+  town_cleanPrisioner <local.town>
+ endif
+
+ //Procura a memory de Jail para a town
+ local.mry=0
+ FORCONTID i_mry_townJail 1
+  if (STRMATCH(*<local.town>*,<tag.town_region>))
+   local.mry=<uid>
+  endif
+ end
+ 
+ //Ainda não existe essa memory?
+ if (!<local.mry>)
+  newitem i_mry_townJail
+  trysrc <uid> src.new.equip
+  new.name=<new.name> (<serv.area.<local.town>.name>)
+  new.tag.town_region=<local.town>
+  local.mry=<new>
+ endif
+ 
+ //Setup da memory
+ ref1=<local.mry>
+ ref1.more1 += 1
+ ref1.timer = <eval <ref1.more1>*<serv.area.<local.town>.tag.prisionTime>>
+ ref1.morep = <local.cell>
+ 
+ newitem i_town_jail_doc
+ new.link=<ref1>
+ ref1.link=<new>
+ if (!<IsEmpty <serv.area.<local.town>.tag.town_releasePoint>>) && (<ctag0.town_<local.town>_flags>&<DEF.TOWN_FLAG_BANNED> | <DEF.TOWN_FLAG_FORBIDDEN>)
+  new.morep=<serv.area.<local.town>.tag.town_releasePoint>
+ else
+  new.morep=<serv.area.<local.town>.p>
+ endif
+ trysrc <uid> src.new.bounce
+ 
+ //aplicar pena no player
+ town_setFlags <DEF.TOWN_FLAG_JAILED>,<local.town>
+ 
+ go <ref1.morep>
+ fix
+ timerf 5, sysmessagered Voce ficara preso por <f_timestring <ref1.timer>>
+ 
+ //Estatística da town
+ serv.area.<local.town>.tag.prisions = <serv.area.<local.town>.tag0.prisions> + 1
+ 
+endif
+
+//*****************************************************************************
+// town_cleanPrisioner
+//*****************************************************************************
+[FUNCTION town_cleanPrisioner]
+//Guarda os itens do prisioneiro no cofre da town <args>
+ref1=<uid>
+obj=<town_GetVault <args>>
+FORCONT <FINDLAYER.21.UID> 0
+ if (<DEFNAME>==i_gold) || (<DEFNAME>==i_coin_copper) || (<DEFNAME>==i_coin_silver)
+  cont=<ref1.findlayer.layer_bankbox.uid>
+ elif (<TYPE>==t_lockpick) && (<R2>)
+  tag.prisioner=<ref1>
+  cont=<obj>
+ elif (<R10>)
+  tag.prisioner=<ref1>
+  cont=<obj>
+ endif
+END
+if (<weapon>)
+ weapon.tag.prisioner=<uid>
+ weapon.cont=<obj>
+endif
+food=100
+
+//*****************************************************************************
+// town_uncleanPrisioner
+//*****************************************************************************
+[FUNCTION town_uncleanPrisioner]
+//Guarda os itens do prisioneiro no cofre da town <args>
+ref1=<UID>
+ref2=<town_GetVault <args>>
+obj=<FINDLAYER.21.UID>
+FORCONT <ref2> 0
+ if (<tag0.prisioner>==<ref1>)
+  tag.prisioner=
+  cont=<obj>
+ endif
+END
+food=100
+ 
+//*****************************************************************************
+// town_PrisionPayFee 
+//*****************************************************************************
+[FUNCTION town_PrisionPayFee]
+//Player paga fiança para sair da cadeia
+obj=<uid.<ctag.town_jail_doc>.link>
+local.town=<obj.tag.town_region>
+local.fee=<eval <serv.area.<local.town>.tag0.prisionFee>*<obj.more1>>
+if (<bank_getCash <local.fee>,1>)
+ sysmessagegreen Fianca paga.
+ town_addCash <local.fee>
+ obj.timerd 1
+else
+ sysmessagered Voce nao tem dinheiro para pagar a finaca. Nem aqui, nem no banco.
+endif
+
+//*****************************************************************************
+// town_forgiveJail 
+//*****************************************************************************
+[FUNCTION town_forgiveJail]
+//Tira um player da cadeia da town <args>
+local.town=<args>
+
+//Procura a memory de Jail para a town e a sentensa
+local.mry=0
+FORCONTID i_mry_townJail 1
+ if (STRMATCH(*<local.town>*,<tag.town_region>))
+  local.mry=<uid>
+ endif
+end
+
+if (!<local.mry>)
+ return 0
+endif
+
+ref1=<local.mry>
+ref2=<ref1.link>
+
+if (<ref2.defname>!=i_town_jail_doc)
+ return 0
+endif
+
+//Solta o azulão
+ref1.timer = -1
+go <ref2.morep>
+town_unsetFlags <eval <DEF.TOWN_FLAG_CRIMINAL>|<DEF.TOWN_FLAG_JAILED>>,<local.town>
+town_uncleanPrisioner <local.town>
+town_enter
+ref2.remove
+
+
+//*****************************************************************************
+// town_AdjustJailTime
+//*****************************************************************************
+[FUNCTION town_AdjustJailTime]
+//Ajusta a pena do playa <argv0>, da town <argv1> para <argv2> minutos.
+obj=<argv0>
+local.town=<argv1>
+local.time=<eval <argv2>*60>
+local.time=<MAXIMUM 60,<local.time>>
+ref1=<obj.town_GetJailMemory <local.town>>
+
+//Ainda pode mudar?
+if (<ref1.timer> < 1)
+ sysmessagered A pena ja expirou. Alteracao cancelada.
+ return 0
+endif
+
+//Mudar sentensa
+ref1.timer=<local.time>
+sysmessage Pena alterada para <f_timestring <local.time>>
+f_sendMessage <obj>,Sua pena foi alterada para <f_timestring <local.time>>,<DEF.SM_YELLOW>
+return 1
+
+
+//*****************************************************************************
+// guard_getWPTs
+//*****************************************************************************
+[FUNCTION guard_getWPTs]
+//Retorna a quantidade de Waypoints
+ref1=<findid.i_mry_guard>
+if (!<ref1>)
+ return 0
+else
+ return <ref1.more1h>
+endif
+
+//*****************************************************************************
+// guard_addWPT 
+//*****************************************************************************
+[FUNCTION guard_addWPT]
+if (<argv> < 2)
+ say Huh? Nao entendo
+elif (<guard_getWPTs> > 9)
+ say Ja sao muitos os pontos para patrulhar.
+else
+ ref1=<findid.i_mry_guard>
+ if (!<ref1>)
+  newitem i_mry_guard
+  trysrc <uid> src.equip <new>
+  ref1=<new>
+ endif
+ local.w=1
+ WHILE (!<IsEmpty <ref1.tag.wpt_<dlocal.w>>>)
+  local.w += 1
+ END
+ ref1.tag.wpt_<dlocal.w>=<args>
+ ref1.more1h += 1
+ DORAND 3
+  say Guardarei este ponto.
+  say Ficarei de olho.
+  say Positivo.
+ END
+endif
+
+//*****************************************************************************
+// guard_clearWPT
+//*****************************************************************************
+[FUNCTION guard_clearWPT]
+ref1=<findid.i_mry_guard>
+if (!<ref1>)
+ say Eu nao tenho o que patrulhar...
+else
+ say Nao patrulharei mais a area.
+ src.sysmessageyellow Pontos de patrulha apagados!
+ consume 1 i_mry_guard
+endif
+
+//*****************************************************************************
+// guard_StartPatrol
+//*****************************************************************************
+[FUNCTION guard_StartPatrol]
+if (!<guard_getWPTs>)
+ guard_goPost
+ return 0
+endif
+ref1=<findid.i_mry_guard>
+ref1.timer=1
+TAG.TASK=<DEF.GUARD_TASK_PATROL>
+return 1
+
+
+//*****************************************************************************
+// town_enter
+//*****************************************************************************
+[FUNCTION town_enter]
+if (!<IsEmpty <args>>)
+    local.town=<args>
+else
+    local.town=<region.defname>
+endif
+
+if <IsPlayer>
+    events +e_InTown
+    try cTAG.town_<local.town>_privs=<town_getPrivs <local.town>>
+    try cTAG.town_<local.town>_flags=<src.town_getFlags <local.town>>
+    if !(STRMATCH(*<tag.raca>*,<town_getRaces <local.town>>)) && !(<cTAG0.town_<local.town>_flags>&<def.TOWN_FLAG_FRIEND>)
+        cTAG0.town_<local.town>_flags = <hval <cTAG0.town_<local.town>_flags>|<DEF.TOWN_FLAG_FORBIDDEN>>
+    endif
+ 
+    cTAG.town_warn_guards=0
+
+    //verifica se ha alguma infracao em andamento
+
+    //armado com dano alto
+    if <weapon.dam.hi> > 10
+        cTAG.town_warn_guards = 1
+    //se estiver equipando um capuz ou elmo    
+    elif !<IsFaceVisible>
+        cTAG.town_warn_guards = 1
+    //se em warmode
+    elif (<flags>&statf_war)
+        cTAG.town_warn_guards = 1
+    //procurado?
+    elif (<cTAG0.town_<local.town>_flags>&023)//TOWN_FLAG_BANNED|TOWN_FLAG_CRIMINAL|TOWN_FLAG_FORBIDDEN
+        serv.log [GUARDAS]-<src.account> entrou em TOWN sendo procurado
+        cTAG.town_warn_guards = 1
+    endif
+    
+elif (<NPC> > 1) && (<NPC> < 10)
+    events +e_NPCInTown
+endif
+
+//*****************************************************************************
+// guard_setPost
+//*****************************************************************************
+[FUNCTION guard_setPost]
+HOME=<args>
+tag.post=<args>
+HOMEDIST=3
+ACTION=06D
+tag.task=<DEF.GUARD_TASK_POST>
+
+//*****************************************************************************
+// guard_goPost
+//*****************************************************************************
+[FUNCTION guard_goPost]
+if (!<IsEmpty <tag.post>>)
+ HOME=<tag.post>
+ ACTION=06D
+ tag.task=<DEF.GUARD_TASK_POST>
+else
+ guard_setPost <p>
+endif
+
+//*****************************************************************************
+// guard_Follow
+//*****************************************************************************
+[FUNCTION guard_Follow]
+ACTION=064
+ACT=<argn>
+TAG.TASK=<DEF.GUARD_TASK_FOLLOW>
+
+
+//*****************************************************************************
+// guard_reportTask
+//*****************************************************************************
+[FUNCTION guard_reportTask]
+DOSWITCH <tag0.task>
+ local.t=aguardando ordens.
+ local.t=em transito.
+ local.t=a servico de <act.tag.name>.
+ local.t=guardando <act.name>.
+ local.t=em meu posto.
+ local.t=patrulhando a area.
+END
+say No momento estou <local.t>
+
+
+
+//*****************************************************************************
+// guard_Atack
+//*****************************************************************************
+[FUNCTION guard_Atack]
+if (<argo>)
+ if (<argo.IsChar>)
+  ref1=<ctag.guard> 
+  if (<argo.town_GetPosition <ref1.tag.town>> > <town_GetPosition <ref1.tag.town>>)
+   ref1.attack <argo>
+   ref1.SAY Falou a lei!
+  else
+   ref1.SAY Nao posso fazer isso!
+  endif
+ endif
+endif
+
+//*****************************************************************************
+// guard_advice
+//*****************************************************************************
+[FUNCTION guard_advice]
+obj=<argv0>
+
+if <serv.time> > <obj.ctag0.guard_last_warn>
+    obj.ctag0.guard_last_warn = <eval <serv.time>+30>   //3 seconds cooldown antes de falar algo novamente
+    LOCAL.cansay=1
+else
+    LOCAL.cansay=0
+endif
+
+//iniciar
+if (<obj.ctag0.town_<tag.town>_flags>&023) //TOWN_FLAG_BANNED|TOWN_FLAG_CRIMINAL|TOWN_FLAG_FORBIDDEN
+    attack <obj>
+    return 1
+
+
+//O delito é grave? Vira criminal na hora!
+//TOWN_CAN_HARM|TOWN_CAN_STEAL|TOWN_CAN_LOCKPICK
+elif (<argv1>&068)
+    if <LOCAL.cansay>
+        DORAND 3
+            say Assasin<obj.sex o/a>! Ninguem pode <STRTOLOWER <DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>> em <region.name>!
+            say Que despauterio <STRTOLOWER <DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>> em <region.name>!
+            say O que significa isso?
+        ENDDO
+        obj.town_setFlags TOWN_FLAG_CRIMINAL,<tag.town>
+    endif
+    tag.advice_step=
+    attack <obj>
+    return 1
+
+
+elif (!<tag0.advice_step>) && !(<flags>&020)// && (!0<argv2>)
+    if <LOCAL.cansay>
+        say Hey, voce! Nao pode <STRTOLOWER <DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>> em <region.name>!
+        obj.sysmessagered O guarda esta ralhando com voce (<DEF.TOWN_PERMISSION_<eval LOGARITHM(<argv1>, 2)>>)
+    endif
+    act=<obj>
+    action=064
+    tag.advice_step=1
+    timerf 4 guard_advice,<argv0>,<argv1>,1
+ 
+ 
+//Já estou ralhando de antes
+elif (0<argv2>)
+    local.charge=<eval LOGARITHM(<argv1>, 2)>
+    serv.log [GUARDAS-advice] - <dlocal.charge> - <argv1> - <DEF.TOWN_PERMISSION_<dlocal.charge>>
+    local.state=1
+    doswitch <local.charge>
+        local.state=<eval <obj.flags>&020>    //WARMODE
+        begin                                 //WEAPON
+            if (<obj.weapon>)
+                if (<obj.weapon.dam.hi> < 11)
+                    local.state=0
+                endif
+            else
+                local.state=0
+            endif
+        end
+        local.state=!<rec_CanSee <obj>>     //HOOD
+    end 
+//endif
+ 
+    //Ainda posso vê-lo?
+    if (!<CanSee <obj>> ) && (<tag0.advice_step> > 2)
+        if <LOCAL.cansay>
+            say Hey! Volte aqui!
+        endif            
+
+        flags &= ~020 //no warmode
+        action=06D
+        tag.advice_step=
+
+    //Ele corrigiu seu comportamento?
+    elif (!<local.state>)
+        if <LOCAL.cansay>
+            dorand 3
+                say Obrigad<sex o/a> pela cooperacao.
+                say Muito bem... Circulando!
+                say Passar bem.
+            end
+        endif
+        flags &= ~020 //no warmode
+        action=06D
+        tag.advice_step=
+
+    //Ele ainda está se comportando mau
+    else
+        if <LOCAL.cansay>
+            doswitch <tag0.advice_step>
+                local.null
+                say Vamos la, cidad<obj.sex ao/a>! Voce nao deve <STRTOLOWER <DEF.TOWN_PERMISSION_<dlocal.charge>>> por aqui.
+                say Esta surd<obj.sex o/a>? Eu disse que nao pode <STRTOLOWER <DEF.TOWN_PERMISSION_<dlocal.charge>>>!
+                say Este eh meu ultimo aviso: Pare de <STRTOLOWER <DEF.TOWN_PERMISSION_<dlocal.charge>>> AGORA!
+                say Muito bem. Voce pediu por isso. GUARDAS! UM CRIMINOSO!
+            end
+        endif
+
+        //Já posso parecer bravo?
+        if (<tag0.advice_step>==3)
+            flags |= 020
+            update
+            timerf 4 guard_advice,<argv0>,<argv1>,1
+
+        //Esgotou a paciência. Pau nele/a
+        elif (<tag0.advice_step>==4)
+            tag.advice_step=
+            attack <obj>
+            if <rec_CanSee <obj>>
+                obj.town_setFlags TOWN_FLAG_CRIMINAL,<tag.town>
+            endif
+            return 1
+        else
+            timerf 4 guard_advice,<argv0>,<argv1>,1
+        endif
+
+        tag0.advice_step += 1
+    endif
+endif
+
+//*****************************************************************************
+// IsTownNPC
+//*****************************************************************************
+[FUNCTION IsTownNPC]
+//Retorna 1 se esse NPC é da town, mas não é guarda.
+IF !<IsPlayer>
+    if <karma> >= 0
+        if (<NPC>==<DEF.BRAIN_VENDOR>) || (<NPC>==<DEF.BRAIN_BANKER>) || (<NPC>==<DEF.BRAIN_HUMAN>)  || (<NPC>==<DEF.BRAIN_VENDOR_OFFDUTY>)
+            return 1
+        endif            
+    endif
+ENDIF
+return 0
+
+//*****************************************************************************
+// guards_near
+//*****************************************************************************
+[FUNCTION guards_near]
+//Executa a função <args> em todos os guardas a 12 tiles de distância que vêem DEFAULT
+obj=<UID>
+local.ret=0
+FORCHARS 18
+ IF (<canSeeLos <obj>>) && (<IsTEvent.e_town_guard>)
+  try <args>
+  local.ret=1
+ ENDIF
+END
+return <local.ret>
+
+//*****************************************************************************
+// town_NpcNear
+//*****************************************************************************
+[FUNCTION town_NpcNear]
+//Executa a função <args> em todos os NPCs da Town a 12 tile de distância que vêem DEFAULT
+//<args> normamente eh <funcao>,<uid>,<mascara>
+
+//evita chamar essa funcao pelo mesmo motivo muitas vezes seguida.
+if <serv.time> < <tag0.town_npcnear_<argv2>>
+    return
+endif
+
+//7s cooldown
+try tag.town_npcnear_<argv2>=<eval <serv.time>+70>
+
+obj=<UID>
+local.ret=0
+FORCHARS 12
+    if (<obj>!=<UID>) && (<obj.act>!=<UID>)
+        if <IsTownNPC>
+            if <canSeeLos <obj>>
+                try <args>
+                local.ret=1
+            endif
+        endif
+    endif        
+END
+return <local.ret>
+
+//*****************************************************************************
+// town_npc_call_help
+//*****************************************************************************
+[FUNCTION town_npc_call_help]
+//NPC da Town chama ajuda pq <argv0> está cometendo o crime <argv1>
+
+//Só chamar guardas pelo mesmo delito a cada 7 segundos
+if (<tag0.call_guards>==<argv1>)
+ return 0
+endif
+DORAND 4
+ local.t="Socorro! "
+ local.t="Ajuda! "
+ local.t="Guardas! "
+ local.t="Hei! "
+END
+obj=<argv0>
+local.charge=<eval LOGARITHM(<argv1>,2)>
+DOSWITCH <local.charge>
+ local.t .= Tem gente brigando aqui!            //Entrar em warmode pode?
+ local.t .= Ha alguem armado aqui!              //Arma mais pesada que uma adaga ou cajado
+ local.t .= Uma pessoa encapuzada!              //Andar de capuz pode?
+ local.t .= Um<obj.sex  /a > assassin<obj.sex o/a>!//QUALQUER harm. Incluindo de magia. SRC do @DAMAGE? @HIT? @SPELLSUCCESS de SPELL_HARM?
+ local.t .= Um<obj.sex  /a >feiticeiro!     //QUALQUER magia. Até Healing ou Fireworks
+ local.t .= Pega ladrao!                        //Snooping e stealing.
+ local.t .= Pega ladrao!                        //No step do lockpicking. 1x por segundo
+ local.t .= Pega ladrao!                        //Mining, lumber, @Kill BRAIN_ANIMAL, fishing, facas especiais
+ return 1                                       //Pode vender itens para NPCs
+ return 1                                       //Pode comprar itens de NPCs
+END
+local.timer=<R1,2>
+timerf <local.timer> SAY <local.t>
+if ( (<local.charge> == 08) || (<local.charge> == 020) || (<local.charge> == 040) ) && !(<obj.ctag.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
+ obj.town_setAsCriminal <region.defname>
+endif
+tag.call_guards=<argv1>
+timerf 7,tag.call_guards=
+timerf <eval <local.timer>+1> npc_call_guards <argv0>,<argv1>
+return 1
+
+//*****************************************************************************
+// npc_call_guards
+//*****************************************************************************
+[FUNCTION npc_call_guards]
+ref1=<UID>
+obj=<argv0>
+local.ret=0
+FORCHARS 32
+ IF (<IsTEvent.e_town_guard>) && ( (<action> < 0) || (<action> > 54)
+  DORAND 3
+   SAY Ha alguem em perigo!
+   SAY <ref1.name>! Estou indo!
+   SAY Hei! Eh a voz de <ref1.name>!
+  END
+  act=<obj>
+  action=064
+  tag.advice_step=1
+  timerf 6 guard_advice,<argv0>,<argv1>,1
+  local.ret=1
+ ENDIF
+END
+return <local.ret>
+
+//*****************************************************************************
+// c_a_guard
+//*****************************************************************************
+[CHARDEF c_a_guard]
+ID=c_man
+NAME=#NAMES_HUMANMALE
+ICON=i_pet_man
+CAN=mt_equip|mt_walk|mt_usehands|mt_run
+AVERSIONS=t_trap,t_eerie_stuff
+DESIRES=i_gold, i_coin_copper, i_coin_silver, e_InTown t_weapon_sword, t_weapon_bow, t_weapon_xbow, t_weapon_fence, t_weapon_mace_pick, t_weapon_mace_sharp, t_weapon_mace_staff, t_weapon_arrow, t_weapon_bolt, t_weapon_axe, t_armor, t_armor_leather, t_shield, t_potion, t_scroll
+FOODTYPE=100 t_food, t_fruit
+BLOODCOLOR=0
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2, 3 i_osso
+SOUND=snd_human_moomph01
+TEVENTS=e_town_guard,e_pvm,e_combat
+TSPEECH=spk_town_guard
+
+ARMOR=
+DAM=
+MOVERATE=55
+
+CATEGORY=MYT - Town
+SUBSECTION=Guardas
+DESCRIPTION=Guarda (Anao)
+
+ON=@CREATE
+NPC=brain_human
+MAXHITS={110 140}
+COLOR=colors_skin
+STR=30
+DEX=60
+INT=75
+FAME={2500 4000}
+KARMA=3000
+ARCHERY=65.0
+FENCING=65.0
+MACEFIGHTING=65.0
+MAGICRESISTANCE=65.0
+PARRYING=65.0
+SWORDSMANSHIP=65.0
+WRESTLING=65.0
+SPEECHCOLOR=colors_blue
+tag.servant=<DEF.TOWN_SERVANT_GUARD>
+tag.raca=Anao
+tag.town_region=<region.defname>
+f_npc_spawn
+ITEMNEWBIE=i_peito_malha
+ITEMNEWBIE=i_braco_malha
+ITEMNEWBIE=i_perna_malha
+ITEMNEWBIE=i_luva_malha
+ITEMNEWBIE=i_pescoco_malha
+ITEMNEWBIE=i_cabeca_malha
+ITEMNEWBIE={i_escudo_batalham 1 i_escudo_madeira 1 i_broquel 1}
+ITEMNEWBIE={i_hair_2_pigtails 2 i_hair_ponytail 2 0 1}
+COLOR=colors_hair
+ITEMNEWBIE={i_beard_short_med 1 i_beard_long 1 i_beard_long_med 1} 
+COLOR=match_hair
+
+ON=@NPCRESTOCK
+ITEM=i_kryss
+ITEM=i_espada_longa
+ITEM=i_coin_copper,{3 10}
+ITEM=i_boots_calf
+ 
+//*****************************************************************************
+// c_h_guard
+//*****************************************************************************
+[CHARDEF c_h_guard]
+ID=c_man
+NAME=#NAMES_HUMANMALE
+ICON=i_pet_man
+CAN=mt_equip|mt_walk|mt_usehands|mt_run
+AVERSIONS=t_trap,t_eerie_stuff
+DESIRES=i_gold, i_coin_copper, i_coin_silver, e_InTown t_weapon_sword, t_weapon_bow, t_weapon_xbow, t_weapon_fence, t_weapon_mace_pick, t_weapon_mace_sharp, t_weapon_mace_staff, t_weapon_arrow, t_weapon_bolt, t_weapon_axe, t_armor, t_armor_leather, t_shield, t_potion, t_scroll
+FOODTYPE=100 t_food, t_fruit
+BLOODCOLOR=0
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2, 3 i_osso
+SOUND=snd_human_moomph01
+TEVENTS=e_town_guard,e_pvm,e_combat
+TSPEECH=spk_town_guard
+
+ARMOR=
+DAM=
+MOVERATE=55
+
+CATEGORY=MYT - Town
+SUBSECTION=Guardas
+DESCRIPTION=Guarda (Humano)
+
+ON=@CREATE
+NPC=brain_human
+MAXHITS={110 140}
+COLOR=colors_skin
+STR=30
+DEX=60
+INT=75
+FAME={2500 4000}
+KARMA=3000
+ARCHERY=65.0
+FENCING=65.0
+MACEFIGHTING=65.0
+MAGICRESISTANCE=65.0
+PARRYING=65.0
+SWORDSMANSHIP=65.0
+WRESTLING=65.0
+SPEECHCOLOR=colors_blue
+tag.servant=<DEF.TOWN_SERVANT_GUARD>
+tag.raca=Humano
+tag.town_region=<region.defname>
+f_npc_spawn
+ITEMNEWBIE=i_peito_malha
+ITEMNEWBIE=i_braco_malha
+ITEMNEWBIE=i_perna_malha
+ITEMNEWBIE=i_luva_malha
+ITEMNEWBIE=i_pescoco_malha
+ITEMNEWBIE=i_cabeca_malha
+ITEMNEWBIE={i_escudo_batalham 1 i_escudo_madeira 1 i_broquel 1}
+ITEMNEWBIE={i_hair_short 2 i_hair_ponytail 2 0 1}
+COLOR=colors_hair
+ITEMNEWBIE={i_beard_goatee 1 i_beard_mustache 1 i_beard_vandyke 1 0 3} 
+COLOR=match_hair
+
+ON=@NPCRESTOCK
+ITEM=i_kryss
+ITEM=i_espada_longa
+ITEM=i_coin_copper,{3 10}
+ITEM=i_boots_calf
+
+//*****************************************************************************
+// c_e_guard
+//*****************************************************************************
+[CHARDEF c_e_guard]
+ID=c_elf_male
+NAME=#NAMES_HUMANMALE
+ICON=i_pet_man
+CAN=mt_equip|mt_walk|mt_usehands|mt_run
+AVERSIONS=t_trap,t_eerie_stuff
+DESIRES=i_gold, i_coin_copper, i_coin_silver, e_InTown, t_weapon_sword, t_weapon_bow, t_weapon_xbow, t_weapon_fence, t_weapon_mace_pick, t_weapon_mace_sharp, t_weapon_mace_staff, t_weapon_arrow, t_weapon_bolt, t_weapon_axe, t_armor, t_armor_leather, t_shield, t_potion, t_scroll
+FOODTYPE=100 t_food, t_fruit
+BLOODCOLOR=0
+RESOURCES=i_flesh_head, i_flesh_torso, i_flesh_right_arm, i_flesh_left_arm, i_flesh_left_leg, i_flesh_right_leg, i_blood_2, 3 i_osso
+SOUND=snd_human_moomph01
+TEVENTS=e_town_guard,e_pvm,e_combat
+TSPEECH=spk_town_guard
+
+ARMOR=
+DAM=
+MOVERATE=55
+
+CATEGORY=MYT - Town
+SUBSECTION=Guardas
+DESCRIPTION=Guarda (Elfo)
+
+ON=@CREATE
+NPC=brain_human
+MAXHITS={110 140}
+COLOR=083EA
+STR=30
+DEX=60
+INT=75
+FAME={2500 4000}
+KARMA=3000
+ARCHERY=65.0
+FENCING=65.0
+MACEFIGHTING=65.0
+MAGICRESISTANCE=65.0
+PARRYING=65.0
+SWORDSMANSHIP=65.0
+WRESTLING=65.0
+SPEECHCOLOR=colors_blue
+tag.servant=<DEF.TOWN_SERVANT_GUARD>
+tag.raca=Elfo
+tag.town_region=<region.defname>
+f_npc_spawn
+ITEMNEWBIE=i_peito_malha
+ITEMNEWBIE=i_braco_malha
+ITEMNEWBIE=i_perna_malha
+ITEMNEWBIE=i_luva_malha
+ITEMNEWBIE=i_pescoco_malha
+ITEMNEWBIE=i_cabeca_malha
+ITEMNEWBIE={i_escudo_batalham 1 i_escudo_madeira 1 i_broquel 1}
+ITEMNEWBIE={i_hair_short 1 i_hair_ponytail 1 i_hair_LF 1 i_hair_elven_spike 1 i_hair_elven_long3 1}
+COLOR=037
+
+
+ON=@NPCRESTOCK
+ITEM=i_kryss
+ITEM=i_espada_longa
+ITEM=i_coin_copper,{3 10}
+ITEM=i_boots_calf
+
+[SPEECH spk_town_guard]
+ON=*qual*tarefa*?
+guard_reportTask
+
+ON=*siga-me
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ SAY Certamente.
+ guard_Follow <src>
+ELSE
+ SAY Nao posso receber ordens suas.
+ENDIF
+
+ON=*este*seu*posto
+ON=*esse*seu*posto
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ SAY Entendido!
+ guard_setPost <src.p>
+ELSE
+ SAY Nao posso receber ordens suas.
+ENDIF
+
+ON=*va*seu*posto
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ SAY Indo para meu posto
+ guard_goPost
+ ACT=
+ELSE
+ SAY Nao posso receber ordens suas.
+ENDIF
+
+ON=patrulhe*este*ponto
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ guard_addWPT <src.p>
+ELSE
+ SAY Voce nao pode me dar ordens.
+ENDIF
+return 1
+
+ON=pare de patrulhar
+ON=nao*patrulhe*mais
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ guard_clearWPT
+ guard_goPost
+ SAY Nao patrulharei mais. Irei para meu posto.
+ELSE
+ SAY Voce nao pode me dar ordens.
+ENDIF
+
+ON=va*patrulhar
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ SAY <QVAL <guard_StartPatrol>?Patrulhando!:Nao tenho aonde patrulhar>
+ELSE
+ SAY Voce nao pode me dar ordens.
+ENDIF
+
+ON=*prenda*est*
+ON=*prenda*ess*
+ON=*prenda o
+ON=*prenda a
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ src.ctag.guard=<UID>
+ src.sysmessageorange Prender quem?
+ src.targetf guard_Atack
+ENDIF
+
+ON=nao use escudo
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ if (<findlayer.layer_hand2.type>==t_shield)
+  say Guardando escudo, senh<src.sex or/ora>.
+  trysrc <uid> src.findlayer.layer_hand2.bounce
+ else
+  say Nao estou usando escudo, senh<src.sex or/ora>...
+ endif
+else
+ say Sei sim... Vamos! Circulando!
+endif
+return 1
+
+ON=use escudo
+IF (<src.town_getPrivs <tag.town_region>>&<DEF.TOWN_PRIV_GUARD>)
+ if (<findlayer.layer_hand2.type>==t_shield)
+  say Ja estou usando, senh<src.sex or/ora>.
+ else
+  if (<restest 1 t_shield>)
+   say Equipando escudo, seeeeeenh<src.sex or/ora>!
+   trysrc <uid> src.findtype.t_shield.equip
+  else
+   say Nao tenho um, senh<src.sex or/ora>.
+  endif
+ endif
+else
+ say Sei sim... Vamos! Circulando!
+endif
+return 1
+
+ON=oi
+ON=ola
+ON=olá
+ON=*servico*mim*
+ON=*trabalho*mim*
+
+    quest_closeDialogs
+    SRC.CTAG.quest_selectedNpc=<uid>
+    quest_createNpcQuestList
+    if <SRC.CTAG0.quest_numQuests> > 0
+            message O que deseja fazer?
+            dialog d_quest_list
+    else
+		DORAND 5
+			say Sem brincadeiras por aqui.
+			say Mantenham a area livre se nao tiverem negocios por aqui.
+			say Circulando...
+			say Não tenho negocios a tratar com vossa merce.
+			say Senho<src.sex r/ra>?
+    endif
+
+
+[FUNCTION guard_level]
+//Força e desteza
+DOSWITCH <argn>
+ local.stats=75
+ local.stats=90
+ local.stats=105
+ local.stats=120
+ local.stats=175
+ local.stats=220
+ENDIF
+STR=<local.stats>
+DEX=<local.stats>
+maxhits=<local.stats>+25
+maxstam=<local.stats>+45
+
+//Inteligência (vê/ouve mais longe)
+DOSWITCH <argn>
+ int=80
+ int=90
+ int=120
+ int=150
+ int=175
+ int=200
+ENDIF
+
+//skills
+DOSWITCH <argn>
+ local.skills=75.0
+ local.skills=55.0
+ local.skills=90.0
+ local.skills=100.0
+ local.skills=120.0
+ local.skills=125.0
+ENDIF
+
+fencing=<local.skills>
+macefighting=<local.skills>
+anatomy=<eval (<local.skills>*3)/5>
+parrying=<local.skills>
+archery=<local.skills>
+swordsmanship=<local.skills>
+tactics=<eval (<local.skills>*3)/4>
+wrestling=<local.skills>
+
+//endumentaria
+if (<argn1>==0)
+ guard_equip {i_peito_couro 1 i_peito_courom 1}
+ guard_equip {i_braco_couro 1 i_braco_courom 1}
+ guard_equip {i_luva_couro 1 i_luva_courom 1}
+ guard_equip {i_perna_couro 1 i_perna_courom 1}
+ guard_equip {i_pescoco_couro 1 i_pescoco_courom 1}
+ guard_equip {i_cabeca_couro 1 i_cabeca_courom 1}
+ guard_equip i_sandals
+else
+ dorand <argn1>
+  local.arm=malha
+  local.arm=anel
+  local.arm=placa
+  local.arm=placa
+  local.arm=segmentada
+ end
+ dorand <argn1>
+  local.arm=<local.arm>_bronze
+  local.nada=
+  local.nada=
+  local.arm=<local.arm>_prata
+  local.arm=<local.arm>_ouro
+  local.arm=<local.arm>_mithril
+ enddo
+ guard_equip i_peito_<local.arm>
+ guard_equip i_braco_<local.arm>
+ guard_equip i_luva_<local.arm>
+ guard_equip i_perna_<local.arm>
+ guard_equip i_pescoco_<local.arm>
+ guard_equip i_cabeca_<local.arm>
+ dorand <argn1>
+  guard_equip i_sandals
+  guard_equip i_shoes_plain
+  guard_equip i_boots_calf
+  guard_equip i_boots_calf
+  guard_equip i_boots_thigh
+  guard_equip i_boots_thigh
+ end
+endif
+
+//Capa e faixa
+guard_equip i_sash
+new.color = <town_getFirstColor <tag.town>>
+
+if (<argn> > 3)
+ guard_equip i_sash
+ new.color = <town_getSecondColor <tag.town>>
+ guard_equip i_cape
+ new.color = <town_getFirstColor <tag.town>>
+else
+ guard_equip i_sash
+ new.color = <town_getFirstColor <tag.town>>
+endif
+
+//De cabo na armadura velha
+FORCONT <FINDLAYER.21.UID> 1
+ if (<type>==t_armor) || (<type>==t_armor_leather) || (<type>==t_shield) || (<type>==t_clothing)
+  remove
+ endif
+end
+
+//Salva ranking
+tag.guard_level=<argn>
+
+//Muda titulo
+doswitch <argn>
+ title=aspirante <tag.raca>
+ title=soldado <tag.raca>
+ title=cabo <tag.raca>
+ title=tenente <tag.raca>
+ title=capitao <tag.raca>
+ title=major <tag.raca>
+end
+
+[FUNCTION guard_equip]
+if !(<IsItemdef <args>>)
+ return 0
+endif
+serv.newitem <eval <args>>
+new.maxhits=<eval <new.tdata4>/2>
+new.hits=<new.maxhits>
+trysrc <uid> src.equip <new>
+
+[DIALOG d_jail_doc]
+100,75
+page 0
+resizepic 0 0 9380 307 316
+obj=<uid.<ctag.town_jail_doc>.link>
+local.town=<obj.tag.town_region>
+local.text=Voce sera solt<sex o/a> em <f_timestring <obj.timer>>.<DEF.BR>Esta eh a <obj.dmore1>a. vez que voce eh pres<sex o/a> em <serv.area.<local.town>.name>.<DEF.BR>
+if (<serv.area.<local.town>.tag0.prisionFee>)
+ local.fee=<eval <serv.area.<local.town>.tag0.prisionFee>*<obj.more1>>
+ local.text .= "Fianca: <STRTRESURE <local.fee>>"
+ button 39 259 1209 1210 1 0 1
+ dtext 57 256 2100 Pagar a fianca
+else
+ local.text .= "O governo nao aceita fianca."
+endif
+dhtmlgump 32 35 244 214 0 0 <local.text>
+
+[DIALOG d_jail_doc text]
+
+[DIALOG d_jail_doc button]
+ON=1
+// Button 1
+town_PrisionPayFee
+
+[EOF]

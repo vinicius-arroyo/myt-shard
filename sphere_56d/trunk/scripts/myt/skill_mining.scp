@@ -1,0 +1,150 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL MINING por
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//TODO:
+
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_ore
+//*****************************************************************************
+[TYPEDEF t_ore]
+
+ON=@DCLICK
+//if <link> && (<link>!=04FFFFFFF)
+//    src.sysmessageyellow Esse minerio ja esta sendo usado por outra pessoa.
+//    return 1
+link=04fffffff
+if <amount> < 10
+    src.sysmessageyellow Voce precisa de pelo menos 10 minerios para fazer lingotes.
+    return 1
+endif
+
+link=<src>
+mining_smelt 1
+
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// mining_canSmelt
+//*****************************************************************************
+[FUNCTION mining_canSmelt]
+
+if <amount> < 10
+    link.sysmessageyellow Junte mais <eval 10-<amount>> minerios para continuar.
+    return 0
+endif
+
+if !<link.isneartype t_forge 2> && !<link.isgm>
+    if <link.isneartype t_apagado 2>
+        link.sysmessageyellow Voce precisa acender a forja.
+    else
+        link.sysmessageyellow Voce precisa estar proximo de uma forja.
+    endif
+    return 0
+elif <link.flags>&statf_war
+    link.sysmessageyellow Acao abortada.
+    return 0
+else
+    //faz player ficar de frente pra forja
+    LOCAL.moved=0
+    foritems 2
+        if (<type>==t_forge) && !<LOCAL.moved>
+            link.face <uid>
+            LOCAL.moved=1
+        endif
+    endfor
+endif
+return 1
+
+//*****************************************************************************
+// mining_smelt 
+//*****************************************************************************
+[FUNCTION mining_smelt]
+
+if !<mining_canSmelt>
+    link=04fffffff //dont use 0, it will avoid stacking
+    return 1
+endif
+
+//Calcula a skill que vai usar
+if (<link.Blacksmithing> > <link.Mining>)
+ local.skill=Blacksmithing
+ local.skillval=<link.blacksmithing>
+else
+ local.skill=Mining
+ local.skillval=<link.mining>
+endif
+
+//rendimento fixo: 100% para 125% de skill
+LOCAL.n=<BETWEEN 1,1000,<local.skillval>,1250>
+LOCAL.dn=<BETWEEN2 0,200,<local.skillval>,1000>
+LOCAL.min=<eval <LOCAL.n>-<LOCAL.dn>>
+LOCAL.max=<eval <LOCAL.n>+<LOCAL.dn>>
+
+//minimo 10%
+if <LOCAL.min> < 100
+    LOCAL.min=100
+endif
+
+//maximo 100%
+if <LOCAL.max> > 1000
+    LOCAL.max=1000
+endif
+
+LOCAL.n=<R<local.min>,<local.max>>
+
+LOCAL.amt=<BETWEEN 1,10,<LOCAL.n>,1000>
+serv.log <dlocal.n> <dlocal.amt>
+//faz isso para acertar tirar um pouco do efeito dos arredondamentos
+if ( <LOCAL.amt> > 1) && ( <local.amt> < 10 )
+    dorand 2
+        LOCAL.amt -= 1
+    enddo
+endif
+
+//recupera parte do que nao conseguiu derreter
+LOCAL.lost=<R0,<eval 10-<LOCAL.amt>>>
+//LOCAL.lost=0  //sem perdas
+local.use=<eval <LOCAL.lost>+<LOCAL.amt>>
+
+serv.log [SMELT] <dlocal.min> a <dlocal.max> deu <dLOCAL.amt> de 10
+//link.sysmessagegreen Voce teve um rendimento de <eval <LOCAL.n>/10>% obtendo <dLOCAL.amt> <new.name>
+//link.sysmessagered usou <dlocal.use> perdeu <dlocal.lost> e fez <dlocal.amt> 
+
+serv.log use <dlocal.use>
+obj=<link.findid.i_mry_fazitem>
+obj.cleartags
+obj.tag.amt=<local.amt>
+obj.tag.skill=<local.skill>
+obj.tag.uid1=<uid>
+obj.tag.nam1=<name>
+obj.tag.amt1=<local.use>
+obj.tag.dif=0//<eval <serv.itemdef.<tdata1>.skillmake.0.val>/10>
+obj.tag.anim=19                          
+obj.tag.sfx=02b            
+obj.tag.delay=3
+obj.tag.item=<tdata1>
+obj.tag.emote=fundindo <name>
+obj.tag.f_done=timerf 1,uid.<uid>.mining_smelt
+//link.fazitem <minimumn <amount>/10,10>
+link.fazitem
+
+return 1
+[EOF]

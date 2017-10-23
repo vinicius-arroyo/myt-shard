@@ -1,0 +1,1161 @@
+[COMMENT CustomH]
+**************************************************************************
+**                                  **
+**             Mystical Tales Shard             **
+**          Sistema de Custom Houses 2.0            **
+**           Galthar, o Errante 03/2009         **
+**                                  **
+**************************************************************************
+
+    -=ToDo=-
+- Tutorial no site
+
+    -=Tabelas na DB=-
+DROP TABLE IF EXISTS `mytserver`.`house_members`;
+CREATE TABLE  `mytserver`.`house_members` (
+  `idmember` int(10) unsigned NOT NULL auto_increment,
+  `idhouse` int(10) unsigned NOT NULL default '0',
+  `uidmember` varchar(45) NOT NULL,
+  `flags` varchar(45) NOT NULL default '00',
+  PRIMARY KEY  (`idmember`),
+  KEY `index_2` USING BTREE (`idhouse`,`uidmember`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+DROP TABLE IF EXISTS `mytserver`.`houses`;
+CREATE TABLE  `mytserver`.`houses` (
+  `idhouse` int(10) unsigned NOT NULL auto_increment,
+  `UID` varchar(45) NOT NULL,
+  `owner` varchar(45) default '00',
+  `value` varchar(45) default NULL,
+  `lastpaid` varchar(45) default '00',
+  PRIMARY KEY  USING BTREE (`idhouse`),
+  KEY `index_2` (`UID`,`owner`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+[DEFNAME CustomHouse]
+//Preço por tile de um terreno
+CH_TILE_LAND_PRICE  13
+
+//Preço por tile de componenten comum
+CH_TILE_BUILD_PRICE 22
+
+//Preço por tile de componente dinâmico (só portas)
+CH_TILE_FIXTURE_PRICE   70
+
+//Tempo de cobrança de impostos (décimos de segundo)
+CH_TAX_TIME     10*60*60*24*7
+
+//Porcentagem do valor a acumular como imposto a cada CH_TAX_TIME décimos de segundo.
+CH_TAX_FEE      3
+
+//Máximo de casas de um player pode ter
+CH_MAX_HOUSES       1
+
+//flags de membros das casas
+CH_CAN_CUSTOMIZE    01  //Pode personalizar a casa
+CH_CAN_FRIENDS      02  //Pode adicionar membros
+CH_CAN_LOCK     04  //Pode trocar fechaduras
+CH_CAN_SELL     08  //Pode vender
+CH_CAN_HIPO     010 //Pode devolver pro reino (hipotecar)
+
+//Tasks do gump
+CH_TASK_LIST_MEMBERS    1
+CH_TASK_EDIT_MEMBER 2
+CH_TASK_DELETE_MEMBER   3
+CH_TASK_HIPO        4
+CH_TASK_SET_OWNER   5
+
+//////////////////////
+// TYPEDEFS
+///////////
+[TYPEDEF t_multi_custom]
+on=@destroy
+CustomH_UnSubscribeHouse
+
+//////////////////////
+// ITEMDEFS
+///////////
+
+// 7x* foundations
+[ITEMDEF 053ec]
+NAME=Terreno 7x7 2 andares
+VALUE=30000
+
+on=@create
+CustomH_SubscribeHouse
+
+[ITEMDEF 053ed]
+NAME=Terreno 7x8 2 andares
+VALUE=34000
+
+on=@create
+CustomH_SubscribeHouse
+
+[ITEMDEF 053ee]
+NAME=Terreno 7x9 2 andares
+VALUE=38000
+
+on=@create
+CustomH_SubscribeHouse
+
+[ITEMDEF 053ef]
+NAME=Terreno 7x10 2 andares
+VALUE=42000
+
+on=@create
+CustomH_SubscribeHouse
+
+[ITEMDEF 053f0]
+NAME=Terreno 7x11 2 andates
+VALUE=46000
+
+on=@create
+CustomH_SubscribeHouse
+
+[ITEMDEF 053f1]
+NAME=Terreno 7x12 2 andares
+VALUE=50000
+
+on=@create
+CustomH_SubscribeHouse
+
+// 8x* foundations
+[ITEMDEF 053fe]
+NAME=Terreno 8x13 2 andares
+VALUE=60000
+
+on=@create
+CustomH_SubscribeHouse
+
+// 18x* foundations
+[ITEMDEF 0547b]
+NAME=Terreno 18x18 3 andares
+VALUE=52000
+
+on=@create
+CustomH_SubscribeHouse
+
+[ITEMDEF i_customh_locksave]
+//Worldgem Bit que guarda as fechaduras das portas durante a edição
+NAME=Fechadura de Custom House
+ID=i_worldgem_bit
+TYPE=t_script
+
+on=@create
+ATTR=090//invis, never movable
+
+on=@timer
+if (<morez> > 5)        //5 tentativas de aplicação. Remove.
+ remove
+ return 1
+elif (<uid.<more1>.instances>)  //A porta velha ianda existe?
+ morez +=1
+ timer 5 //tenta mais tarde
+ return 1
+endif
+
+obj=<uid>
+foritems 1
+ if (<p>==<obj.p>) //mesmo lugar
+  if (<type>==t_door) //É porta aberta (novas são abertas)
+   if (<dispiddec>==<eval <obj.more2>>) //É o mesmo desenho de porta
+    if (<obj.link>==<link>) //É uma fixture da casa
+     tag.fechadura=<obj.morex>
+     type=<QVAL <obj.morey>?t_door_locked:t_door>
+     more1=<obj.tag0.code>
+    endif
+   endif
+  endif
+ endif
+end
+remove
+return 1
+
+//////////////////////
+// Events
+///////////
+
+[EVENTS e_house_customize]
+ON=@SkillStart
+    IF !(<HOUSEDESIGN>)
+        RETURN 2
+    ENDIF
+    SYSMESSAGERED Voce esta ocupado projetando um edificio.
+    RETURN 1
+
+ON=@SkillUseQuick
+    IF !(<HOUSEDESIGN>)
+        RETURN 2
+    ENDIF
+    RETURN 1
+
+ON=@HouseDesignCommit
+    call CustomH_GetGlobalValues//Pega or preços globais
+    LOCAL.OLDCOST = <EVAL (<ARGN1> * <local.cp>)>
+    LOCAL.NEWCOST = <EVAL (<ARGN2> * <local.cp>)>
+    LOCAL.OLDCOST += <EVAL (<LOCAL.FIXTURES.OLD> * <local.fp>)>
+    LOCAL.NEWCOST += <EVAL (<LOCAL.FIXTURES.NEW> * <local.fp>)>
+    LOCAL.CURCOST = <EVAL (<LOCAL.NEWCOST> - <LOCAL.OLDCOST>)>
+    IF (<argo.CustomH_IsOwner <UID>>) || (<argo.CustomH_FriendCanCustomize <UID>>)
+        obj=<uid>
+    ELSE
+        obj=<argo.CustomH_GetOwner <UID>>
+    ENDIF
+    IF (<ISGM>)
+        SYSMESSAGERED [GM] Custaria <dLOCAL.CURCOST> mc.
+    ENDIF
+    LOCAL.cash=<obj.bank_checkCash <LOCAL.CURCOST>,1>
+    IF (<LOCAL.cash> < <LOCAL.CURCOST>)
+        SYSMESSAGERED O dono da casa nao tem <dLOCAL.CURCOST> mc para pagar a construcao.
+        if (<obj>==<uid>)
+            SYSMESSAGERED Seu total no banco é de <dLOCAL.cash> mc.
+        ENDIF
+        IF (<IsGM>)
+            SYSMESSAGEORANGE ATENCAO! Operacao de GM! O dono nao tem dinheiro. Nada foi cobrado.
+            RETURN 2
+        ELSE
+            RETURN 1
+        ENDIF
+    ENDIF
+    SYSMESSAGEGREEN Seu novo projeto de edificio foi enviado.
+    IF (<LOCAL.CURCOST> == 0)
+        SYSMESSAGEYELLOW Como o novo projeto tem o mesmo custo do anterior, nada foi cobrado.
+    ELSEIF (<LOCAL.CURCOST> < 0)
+        LOCAL.CURCOST = <EVAL (0 - <LOCAL.CURCOST>)>
+        serv.newitem i_coin_copper, <eval (<LOCAL.CURCOST>*90)/100>, <OBJ>
+        SYSMESSAGEYELLOW Como o novo projeto ficou mais barato que o anterior, <eval (<LOCAL.CURCOST>*90)/100> mc foram devolvidas ao dono.
+    ELSE
+        obj.bank_getCash <LOCAL.CURCOST>, 1
+        SYSMESSAGEYELLOW <dLOCAL.CURCOST> mc foram cobrados para custear a construcao.
+    ENDIF
+    HOUSEDESIGN.CustomH_SaveLocks <CustomH_GetRadius <HOUSEDESIGN.EDITAREA>>
+    HOUSEDESIGN.CustomH_UpdateValue
+    RETURN 2
+
+ON=@HouseDesignExit
+    ARGO.CustomH_LoadLocks <CustomH_GetRadius <ARGO.EDITAREA>>
+    SYSMESSAGEORANGE Voce saiu do modo de projeto de edificio.
+    EVENTS -e_house_customize
+    RETURN 2
+
+
+
+//////////////////////
+// FUNCTIONS DA CASA
+///////////
+
+//**************************************
+[FUNCTION CustomH_SIGN]
+//**************************************
+//Ação de placa para Custom House
+OBJ=<src.cTAG.signUID>
+IF (<OBJ.LINK.TYPE> != t_multi_custom)
+ RETURN 0
+ELSEIF (<SRC.REGION.UID> != <OBJ.REGION.UID>) && (!<IsGM>)
+ src.sysmessageyellow Chegue mais perto.
+ RETURN 0
+ENDIF
+ src.DIALOG d_CustomH
+RETURN 1
+
+//**************************************
+[FUNCTION CustomH_EDIT]
+//**************************************
+//Entra no modo de personalização de casas
+EVENTS +e_house_customize
+uid.<argn>.CUSTOMIZE
+
+//**************************************
+[FUNCTION CustomH_SaveLocks]
+//**************************************
+//Salva em worldgem bits as fechaduras da casa. ARNG é o raio de varredura
+//serv.log <name> salvando fechaduras.
+OBJ=<UID>
+FORITEMS <eval <argn>+1>
+ if (<type>==t_door) || (<type>==t_door_locked)
+  if (<region.uid>==<obj.uid>)
+   serv.newitem=i_customh_locksave
+   new.p=<p>                    //Salva o lugar
+   new.more1=<uid>              //Salva a UID da porta original
+   new.more2=<dispiddec>            //Salva tipo de porta
+   new.morex=<dtag0.fechadura>          //Salva o tipo de fechadura
+   new.morey=<QVAL <type>==t_door_locked?1:0>   //Salva se está locked ou não
+   new.link=<obj.uid>               //Salva a Custom House
+   new.tag.code=<more1>             //Salva código da fechadura
+  endif
+ endif
+END
+
+//**************************************
+[FUNCTION CustomH_LoadLocks]
+//**************************************
+//Carrega as worldgem bits de fechaduras da casa salvas com CustomH_SaveLocks. ARNG é o raio de varredura
+//serv.log <name> carregando fechaduras.
+OBJ=<UID>
+FORITEMS <eval <argn>+1>
+ if (<baseid>==i_customh_locksave)
+  timer 2
+ endif
+END
+
+//**************************************
+[FUNCTION CustomH_RemoveLocks]
+//**************************************
+//Remove as fechaduras da casa. ARNG é o raio de varredura
+OBJ=<UID>
+FORITEMS <eval <argn>+1>
+ if (<type>==t_door) || (<type>==t_door_locked)
+  if (<region.uid>==<obj.uid>)
+   more1=0
+   tag0.fechadura=
+   type=t_door
+  endif
+ endif
+END
+
+//**************************************
+[FUNCTION CustomH_GetRadius]
+//**************************************
+//Captura o raio máximo que a construção tem.
+local.dx=<eval <argv[2]>-<argv[0]>>
+local.dy=<eval <argv[3]>-<argv[1]>>
+RETURN <maximum <local.dx>,<local.dy>>
+
+//**************************************
+[FUNCTION CustomH_SubscribeHouse]
+//**************************************
+//Inscreve uma casa no banco de dados
+DB.EXECUTE="INSERT INTO houses SET UID='<UID>', VALUE='<eval <CustomH_GetValue>>'";
+DB.QUERY="SELECT idhouse FROM houses WHERE UID='<UID>';
+tag.idhouse=<DB.ROW.0.idhouse>
+attr=01040  //For Sale|Owned by town
+RETURN <tag0.idhouse>
+
+//**************************************
+[FUNCTION CustomH_UnSubscribeHouse]
+//**************************************
+//Remove uma casa e seus membros do banco de dados.
+DB.QUERY="SELECT idhouse AS id FROM houses WHERE UID='<UID>'";
+local.id=<DB.ROW.0.id>
+DB.EXECUTE="DELETE FROM house_members WHERE idhouse='<dlocal.id>'";
+DB.EXECUTE="DELETE FROM houses WHERE idhouse='<dlocal.id>'";
+serv.log [Custom House] Casa <UID> REMOVIDA! (<p>).
+
+//**************************************
+[FUNCTION CustomH_OffsetComponents]
+//**************************************
+//Retorna quantos componenetes fixos (não editáveis) uma CH tem.
+return <eval <CustomH_OffsetComponents2 <editarea>>>
+
+[FUNCTION CustomH_OffsetComponents2]
+//Continuação de CustomH_OffsetComponents
+local.dx=<eval <argv2>-<argv0>>
+local.dy=<eval <argv3>-<argv1>>
+local.a=<eval (<local.dx>*<local.dy>)-(<local.dx>+<local.dy>)>
+local.a=<eval <local.a>+(2*<local.dx>)+(2*<local.dy>)-3>
+return <eval <local.a>>
+
+//**************************************
+[FUNCTION CustomH_Area]
+//**************************************
+//Retorna a área em tiles² que tem a CH.
+return <eval <CustomH_Area2 <editarea>>>
+
+[FUNCTION CustomH_Area2]
+//Continuação de CustomH_Area
+local.dx=<eval <argv2>-<argv0>>
+local.dy=<eval <argv3>-<argv1>>
+return <eval <local.dx>*<local.dy>>
+
+//**************************************
+[FUNCTION CustomH_GetGlobalValues]
+//**************************************
+//Define preço de tile² do terreno, componente e fixture
+local.lp=<DEF.CH_TILE_LAND_PRICE>
+local.cp=<DEF.CH_TILE_BUILD_PRICE>
+local.fp=<DEF.CH_TILE_FIXTURE_PRICE>
+local.chfee=<DEF.CH_TAX_FEE>
+IF (<region.region.TAG0.TOWN_CHPRICE>)
+ local.lp=<region.region.TAG0.TOWN_CHPRICE>
+ENDIF
+IF (<region.region.TAG0.TOWN_CHCPRICE>)
+ local.cp=<region.region.TAG0.TOWN_CHCPRICE>
+ENDIF
+IF (<region.region.TAG0.TOWN_CHFPRICE>)
+ local.fp=<region.region.TAG0.TOWN_CHFPRICE>
+ENDIF
+IF (<region.region.TAG0.TOWN_CHFFEE>)
+ local.chfee=<region.region.TAG0.TOWN_CHFEE>
+ENDIF
+
+//**************************************
+[FUNCTION CustomH_GetValue]
+//**************************************
+//Retorna o custo real da casa
+call CustomH_GetGlobalValues//Pega or preços globais
+local.comp=<eval (<COMPONENTS>-<CustomH_OffsetComponents>)*<local.cp>>
+local.land=<eval <CustomH_Area>*<local.lp>>
+local.fixtures=<eval <FIXTURES>*<local.fp>>
+return <eval <local.comp>+<local.land>+<local.fixtures>>
+
+
+
+//////////////////////
+// FUNCTIONS DA CASA PARA DB
+///////////
+
+//**************************************
+[FUNCTION CustomH_GetDBValue]
+//**************************************
+//Pega o valor da CH do banco de dados
+DB.QUERY="SELECT value FROM houses WHERE idhouse='<dtag0.idhouse>'";
+return <eval <DB.ROW.0.value>>
+
+//**************************************
+[FUNCTION CustomH_UpdateValue]
+//**************************************
+//Muda o preço da casa na DB por <ARGN>. Se <ARGN> não for definido, calcula o preço antes.
+IF (!<argn>)
+ local.price=<CustomH_GetValue>
+ELSE
+ local.price=<argn>
+ENDIF
+DB.EXECUTE="UPDATE houses SET value='<local.price>' WHERE idhouse=<dtag0.idhouse>;"
+RETURN <local.price>
+
+//**************************************
+[FUNCTION CustomH_GetTaxPeriod]
+//**************************************
+//Retorna quantos periodos o dono não pagou o imposto desta casa
+DB.QUERY="SELECT lastpaid FROM houses WHERE idhouse=<dtag0.idhouse>;"
+RETURN <eval (<serv.time>-<DB.ROW.0.lastpaid>)/<DEF.CH_TAX_TIME>>
+
+//**************************************
+[FUNCTION CustomH_GetTaxDebit]
+//**************************************
+//Retorna quanto o dono deve de imposto desta casa
+call CustomH_GetGlobalValues
+RETURN <eval (<CustomH_GetDBValue>*<local.chfee>*<CustomH_GetTaxPeriod>)/100>
+
+//**************************************
+[FUNCTION CustomH_LiquidateTax]
+//**************************************
+//Retira todas as taxas pendentes do imóvel
+DB.EXECUTE="UPDATE houses SET lastpaid='<hval <serv.time>>' WHERE idhouse=<dtag0.idhouse>;"
+tag.taxultimates=
+tag.lastultimate=
+
+//**************************************
+[FUNCTION CustomH_SendUltimate]
+//**************************************
+//Envia aos donos um ultimato de imposto predial não pago.
+DB.QUERY="SELECT owner FROM houses WHERE idhouse=<dtag0.idhouse>;"
+f_sendMessage <DB.ROW.0.owner>,[ULTIMATO] Seu edificio <name> esta com impostos atrasados! Ele pode ser confiscado a qualquer momento!,<DEF.SM_RED>
+DB.QUERY="SELECT uidmember FROM house_members WHERE idhouse=<dtag0.idhouse>;"
+for m 0 <eval <DB.ROW.NUMROWS>-1>
+ f_sendMessage <DB.ROW.<dlocal.m>.uidmember>,[ULTIMATO] O edificio <name> esta com impostos atrasados! Ele pode ser confiscado a qualquer momento!,<DEF.SM_RED>
+end
+tag.taxultimates=<tag0.taxultimates>+1
+tag.lastultimate=<serv.time>
+
+//**************************************
+[FUNCTION CustomH_PayTax]
+//**************************************
+//Paga os impostos da casa
+obj=<argn>
+local.tax=<obj.CustomH_GetTaxDebit>
+IF (<bank_getCash <local.tax>,1>)
+ sysmessagegreen Impostos pagos!
+ obj.CustomH_LiquidateTax
+ELSE
+ sysmessagered Voce nao tem <strtresure <local.tax>>.
+ENDIF
+DIALOG d_CustomH
+
+//**************************************
+[FUNCTION CustomH_WipeHouse]
+//**************************************
+//**Função periogosa!**
+//Remove todos os itens de dentro de uma casa, deleta a casa e põe uma nova no lugar.
+OBJ=<UID>
+local.owner=<CustomH_GetOwner>
+f_sendMessage <local.owner>,[DESPEJO] Seu edificio <name> foi confiscado por inadimplencia.,<DEF.SM_RED>
+CustomH_WipeFriends Terreno confiscado por inadimplencia.
+serv.log [Custom House] Terreno <name> em <p> de <uid.<local.owner>.tag.name> [<uid.<local.owner>.account>] confiscado por <src.tag.name> [<src.account>]
+name=<serv.itemdef.<baseid>.name>
+FORITEMS <CustomH_GetRadius <editarea>>
+ if (<type>==t_sign_gump)
+  name=<obj.name>
+ endif
+ if (<region.uid>==<obj.uid>)
+  if (<link>!=<obj.uid>) && (<tag0.fixture>!=<obj.uid>)
+   if (<uid>!=<obj.uid>)
+    p=<src.p>
+    timer=60*60*24*3
+   endif
+  endif
+ endif
+END
+customize
+reset
+commit
+endcustomize <obj>
+DB.EXECUTE="UPDATE houses SET owner='00' WHERE idhouse=<dtag0.idhouse>;"
+CustomH_UpdateValue
+attr |= 01040//for sale|owned by town
+
+
+
+//////////////////////
+// FUNCTIONS DA CASA PARA OWNER/FRIEND
+///////////
+
+//**************************************
+[FUNCTION CustomH_WipeFriends]
+//**************************************
+//Retira todos os friends desta casa. Se ouver <args>, este será o motívo.
+DB.QUERY="SELECT uidmember FROM house_members WHERE idhouse=<dtag0.idhouse>;"
+IF (!<DB.ROW.NUMROWS>)
+ return 0
+ELSE
+ if !(<IsNum 0<args>>)
+  for m 0 <eval <DB.ROW.NUMROWS>-1>
+   f_sendMessage <DB.ROW.<dlocal.m>.uidmember>,Voce nao eh mais membro do edificio <name>. Motivo: <args>,<DEF.SM_ORANGE>
+  end
+ else
+  for m 0 <eval <DB.ROW.NUMROWS>-1>
+   f_sendMessage <DB.ROW.<dlocal.m>.uidmember>,Voce nao eh mais membro do edificio <name>.,<DEF.SM_ORANGE>
+  end
+ endif
+ DB.EXECUTE="DELETE FROM house_members WHERE idhouse=<dtag0.idhouse>;"
+ENDIF
+return 1
+
+//**************************************
+[FUNCTION CustomH_Transfer]
+//**************************************
+//Transfere a titularidade desta casa para <argn>
+if (!<argn>)
+ return 0
+endif
+DB.QUERY="SELECT owner FROM houses WHERE idhouse=<dtag0.idhouse>;"
+if (<DB.ROW.0.owner>) //A casa tinha dono
+ f_sendMessage <DB.ROW.0.owner>,Voce nao eh mais dono do edificio <name>.,<DEF.SM_RED>
+endif
+if (<CustomH_IsFriend <argn>>)
+ CustomH_RemoveFriend <argn>
+endif
+DB.EXECUTE="UPDATE houses SET owner='<hval <argn>>' WHERE idhouse=<dtag0.idhouse>;"
+f_sendMessage <argn>,Voce eh novo dono do edificio <name>.,<DEF.SM_ORANGE>
+return 1
+
+//**************************************
+[FUNCTION CustomH_RemoveFriend]
+//**************************************
+//Remove o membro de UID=<argn> desta casa
+DB.EXECUTE="DELETE FROM house_members WHERE idhouse=<dtag0.idhouse> AND uidmember='<hval <argn>>';"
+f_sendMessage <argn>,Voce nao eh mais membro de <name>.,<DEF.SM_RED>
+
+//**************************************
+[FUNCTION CustomH_WipeUser]
+//**************************************
+//Remove o char Default de todo o sistema de Custom House
+//indexar casas
+DB.QUERY="SELECT uid FROM houses WHERE owner='<uid>';"
+FOR h 0 <eval <DB.ROW.NUMROWS>-1>
+ try local.CH_<dlocal.h>=<DB.ROW.<dlocal.h>.uid>
+ serv.log INDEX <dlocal.h>
+END
+local.max=<eval <DB.ROW.NUMROWS>-1>
+
+//Transferir/limpar casas
+FOR hh 0 <dlocal.max>
+ obj=<local.CH_<dlocal.hh>>
+ serv.log <obj.name> <obj.CustomH_GetFriends>
+ if (<obj.CustomH_GetFriends>)//Tem membros. Transferir
+  DB.QUERY="SELECT uidmember FROM house_members WHERE idhouse='<obj.dtag.idhouse>' ORDER BY idmember;"
+  obj.CustomH_Transfer <DB.ROW.0.uidmember>
+  serv.log transferido?
+ else//Não tem membros. Limpar.
+  obj.CustomH_WipeHouse
+ endif
+END
+
+//Limpar como friend
+DB.EXECUTE="DELETE FROM house_members WHERE uidmember='<uid>';"
+
+//**************************************
+[FUNCTION CustomH_GetOwner]
+//**************************************
+//Retorna a UID do dono desta casa
+DB.QUERY="SELECT owner FROM houses WHERE idhouse=<dtag0.idhouse>;"
+RETURN <DB.ROW.0.owner>
+
+//**************************************
+[FUNCTION CustomH_IsOwner]
+//**************************************
+//Retorna <argn> é do dono desta casa
+DB.QUERY="SELECT owner FROM houses WHERE idhouse=<dtag0.idhouse>;"
+RETURN <QVAL <DB.ROW.0.owner>==<argn>?1:0>
+
+//**************************************
+[FUNCTION CustomH_IsFriend]
+//**************************************
+//Retorna <argn> é do membro desta casa
+DB.QUERY="SELECT idmember FROM house_members WHERE idhouse=<dtag0.idhouse> AND uidmember='<hval <argn>>';"
+RETURN <DB.ROW.NUMROWS>
+
+//**************************************
+[FUNCTION CustomH_GetFriends]
+//**************************************
+//Retorna o número de Friends para esta casa
+DB.QUERY="SELECT count(uidmember) AS cnt FROM house_members WHERE idhouse=<dtag0.idhouse>;"
+RETURN <DB.ROW.0.cnt>
+
+//**************************************
+[FUNCTION CustomH_AddFriend]
+//**************************************
+//Adiciona um membro a casa de UID=<ARGN>
+IF !(<argn>)
+ return 1
+endif
+cTAG.CustomH_UID=<argn>
+SYSMESSAGEYELLOW Seleciona o novo membro:
+targetf CustomH_AddFriend2
+
+[FUNCTION CustomH_AddFriend2]
+obj=<cTAG.CustomH_UID>
+if !(<argo.isplayer>)
+ SYSMESSAGERED Jogador invalido
+ DIALOG d_CustomH
+elif (<obj.CustomH_IsOwner <argo.uid>>)
+ SYSMESSAGERED Donos nao precisam ser marcados como membros.
+elif (<obj.CustomH_IsFriend <argo.uid>>)
+ SYSMESSAGERED <Rec_fGetName <argo.uid>> ja eh um mebro
+else
+ DB.EXECUTE="INSERT INTO house_members SET idhouse=<obj.dtag.idhouse>, uidmember='<argo.uid>', flags='0';"
+ argo.sysmessageblue Agora voce eh membro de <obj.name>.
+ sysmessageblue <Rec_fGetName <argo.uid>> adicionado a lista de membros de <obj.name>
+ cTAG.CH_TASK=<DEF.CH_TASK_LIST_MEMBERS>
+ DIALOG d_CustomH
+endif
+
+//**************************************
+[FUNCTION CustomH_SetFriend]
+//**************************************
+//Força <ARGN> a ser membro desta casa. Se houver <argv1>, serão os privs.
+if (<CustomH_IsFriend <argv0>>) || (<CustomH_IsOwner <argv0>>)
+ return 0
+endif
+DB.EXECUTE="INSERT INTO house_members SET idhouse=<dtag.idhouse>, uidmember='<argv0>', flags='0<argv1>';"
+
+//**************************************
+[FUNCTION CustomH_FriendPrivs]
+//**************************************
+//Pega os privilegios de <argn> para a a casa Default e guarda em cache no player
+if (<IsEmpty <uid.<argv0>.cTAG.CH_<uid>_privs>>)
+ DB.QUERY="SELECT flags FROM house_members WHERE idhouse=<dtag.idhouse> AND uidmember='<hval <argv0>>';"
+ try uid.<argv0>.cTAG.CH_<uid>_privs=0<DB.ROW.0.flags>
+endif
+
+//**************************************
+[FUNCTION CustomH_FriendCanCustomize]
+//**************************************
+//Retorna 1 se o membro <argn> pode personalizar esta casa
+CustomH_FriendPrivs <argn>
+return <eval <uid.<argv0>.cTAG.CH_<uid>_privs>&CH_CAN_CUSTOMIZE>
+
+//**************************************
+[FUNCTION CustomH_FriendCanFriends]
+//**************************************
+//Retorna 1 se o membro <argn> pode adicionar membros a esta casa
+CustomH_FriendPrivs <argn>
+return <eval <uid.<argv0>.cTAG.CH_<uid>_privs>&CH_CAN_FRIENDS>
+
+//**************************************
+[FUNCTION CustomH_FriendCanLock]
+//**************************************
+//Retorna 1 se o membro <argn> pode instalar fechaduras nesta casa
+CustomH_FriendPrivs <argn>
+return <eval <uid.<argv0>.cTAG.CH_<uid>_privs>&CH_CAN_LOCK>
+
+//**************************************
+[FUNCTION CustomH_FriendCanSell]
+//**************************************
+//Retorna 1 se o membro <argn> pode vender esta casa
+CustomH_FriendPrivs <argn>
+return <eval <uid.<argv0>.cTAG.CH_<uid>_privs>&CH_CAN_SELL>
+
+//**************************************
+[FUNCTION CustomH_FriendCanHipo]
+//**************************************
+//Retorna 1 se o membro <argn> pode hipotecar esta casa
+CustomH_FriendPrivs <argn>
+return <eval <uid.<argv0>.cTAG.CH_<uid>_privs>&CH_CAN_HIPO>
+
+//**************************************
+[FUNCTION CustomH_SetSellPrice]
+//**************************************
+//Membro ajusta valor da venda
+OBJ=<uid.<cTAG0.signUID>.link>
+if (<IsNum <argn>>) && (<argn>)
+ sysmessagegreen A casa foi posta a venda por <strtresure <argn>>
+ obj.tag.price=<argn>
+else
+ sysmessagegreen A casa foi posta a venda por <strtresure <obj.CustomH_GetDBValue>>
+endif
+DIALOG d_CustomH
+
+//**************************************
+[FUNCTION CustomH_EstimatePrice]
+//**************************************
+//DEFAULT estima o preco da casa <argn>
+if (!<IsEmpty <cTAG.CH_Estimate_<argn>>>)
+ return <cTAG.CH_Estimate_<argn>>
+endif
+obj=<argn>
+local.real=<obj.CustomH_GetDBValue>
+local.diff=<eval <obj.components>/2>
+if (<belltest <ItemID>,<local.diff>>)
+ try cTAG.CH_Estimate_<argn>=exatamente <strtresure <local.real>>
+else
+ local.span=<MAXIMUM <MINIMUM 30,<eval (1000-<ItemID>)/10>>,10>
+ local.real=<f_spreadValue <local.real>,<f_rangeValue 25,0,<ItemId>,1000>>
+ serv.log min: <eval (100-<local.spam>)> max: <eval (100+<local.spam>)>
+ local.min=<eval (<local.real>*(100-<local.span>))/100>
+ local.max=<eval (<local.real>*(100+<local.span>))/100>
+ try cTAG.CH_Estimate_<argn>=entre <strtresure <local.min>> e <strtresure <local.max>>
+ skill_gain skill_appraise
+endif
+serv.log S:<dlocal.span> min:<dlocal.min> max: <dlocal.max>
+return <cTAG.CH_Estimate_<argn>>
+
+//**************************************
+[FUNCTION CustomH_BuyHouse]
+//**************************************
+//Faz Default comprar a casa <argn>
+if (!<argn>)
+ OBJ=<uid.<cTAG0.signUID>.link>
+else
+ OBJ=<argn>
+endif
+
+//Testar se a casa ainda esta a venda. (evita racing conditions)
+IF !(<obj.flags>&01000) || !(<obj.tag0.idhouse>)
+ sysmessagered <obj.name> nao esta mais a venda!
+ return 1
+ENDIF
+
+//Testar se Default já tem uma casa.
+DB.QUERY="SELECT count(idhouse) AS cnt FROM houses WHERE owner='<DB.ESCAPEDATA <uid>>';"
+IF (!<IsGM>) && (<DB.ROW.0.cnt> >= <DEF.CH_MAX_HOUSES>)
+ sysmessagered Voce ja tem <eval <DB.ROW.0.cnt>> <QVAL <DB.ROW.0.cnt>==1?casa:casas>.
+ return 1
+ENDIF
+
+//Testar se Default tem a grana.
+local.chprice=<obj.CustomH_GetDBValue>
+IF !(<obj.attr>&040) //Não é do reino
+ if (<obj.tag0.price>) //Dono estipulou preço
+  local.chprice=<obj.tag0.price>
+ endif
+ENDIF
+IF !(<bank_checkCash <local.chprice>,1>)
+ sysmessagered Voce nao tem dinheiro o suficiente!
+ return 1
+ENDIF
+
+//Testar se a casa tinha um dono antes
+DB.QUERY="SELECT owner FROM houses WHERE idhouse=<obj.dtag0.idhouse>;"
+IF (<DB.ROW.0.owner>)   //Casa tinha dono
+ call CustomH_GetGlobalValues //Carrega valores de impostos
+ if (<obj.region.region.tag.town_type>)//É town
+  local.tax=<eval 100-<dlocal.chfee>>
+  local.payed=<eval (<local.chprice>*<local.tax>)/100>
+  ref1=<DB.ROW.0.owner>
+  f_sendMessage <ref1>,O edificio <obj.name> foi vendido para <tag.name>. <strtresure <local.payed>> esta na banco.,<DEF.SM_GREEN>
+  serv.newitem i_coin_copper
+  new.cont=<ref1.findlayer.layer_bankbox.uid>
+  new.amount=<local.payed>
+  TOWN_ADD_TRESURE <eval <local.chprice>-<local.payed>>
+ else//não é town
+  ref1=<DB.ROW.0.owner>
+  f_sendMessage <ref1>,O edificio <obj.name> foi vendido para <tag.name>. <strtresure <local.chprice>> esta na banco.,<DEF.SM_GREEN>
+  serv.newitem i_coin_copper
+  new.cont=<ref1.findlayer.layer_bankbox.uid>
+  new.amount=<local.chprice>
+ endif
+ELSE
+ obj.CustomH_LiquidateTax//Reseta o timer do imposto
+ENDIF
+obj.CustomH_WipeFriends Foi vendido pada <tag.name> //Expulsa os amigos
+obj.CustomH_RemoveLocks <obj.CustomH_GetRadius>     //Remove as fechaduras
+bank_getCash <local.chprice>,1              //Consome a grana
+obj.CustomH_Transfer <uid>              //Transfere a titularidade
+sysmessageyellow Todas as fechaduras de <obj.name> foram removidas.
+obj.tag0.price=                     //Tira o preço da casa
+obj.attr &= ~01040                  //Tira ATTR de 'à venda' 
+
+
+//////////////////////
+// GUMPS
+///////////
+
+//**************************************
+[FUNCTION d_CustomH_Solve]
+//**************************************
+//Monta o gump da Custom House
+if (<cTAG0.CH_TASK>=CH_TASK_LIST_MEMBERS)//listar membros
+    dtext 115 95 48 Membros de <obj.name>
+    dorigin 115 100
+    DB.QUERY="SELECT uidmember FROM house_members WHERE idhouse=<obj.dtag0.idhouse>;"
+    if (<DB.ROW.NUMROWS>)
+     local.maxj=12
+     FOR m 0 <eval <DB.ROW.NUMROWS>-1>
+      IF (<local.m> > <local.maxj>)
+       local.maxj += 13
+       dorigin *120 100
+      endif
+      button - *20 2224 2223 1 0 <eval 200+<local.m>>
+      dtext +20 -5 166 <rec_fGetName <DB.ROW.<dlocal.m>.uidmember>>
+     END
+    ELSE
+     dtext +20 *15 166 Ainda nao ha membros para partilhar esta casa.
+    ENDIF
+    button - *20 2224 2223 1 0 90
+    dtext +20 -5 036 Adicionar membro
+    button - *20 2224 2223 1 0 1
+    dtext +20 -5 166 Voltar
+
+elif (<cTAG0.CH_TASK>=CH_TASK_EDIT_MEMBER)//Editar membro
+    dtext 115 95 48 Membro <Rec_fGetName <cTAG.CH_UIDMEMBER>>
+    dorigin 115 110
+    button - *30 <QVAL <cTAG.CH_FLAGSMEMBER>&CH_CAN_CUSTOMIZE?2154:2472> 2154 1 0 301
+    dtext +32 +3 2100 Pode personalizar a casa
+    button - *30 <QVAL <cTAG.CH_FLAGSMEMBER>&CH_CAN_FRIENDS?2154:2472> 2154 1 0 302
+    dtext +32 +3 2100 Pode gerenciar membros
+    button - *30 <QVAL <cTAG.CH_FLAGSMEMBER>&CH_CAN_LOCK?2154:2472> 2154 1 0 304
+    dtext +32 +3 2100 Pode assistir ou trocar as fechaduras
+    button - *30 <QVAL <cTAG.CH_FLAGSMEMBER>&CH_CAN_SELL?2154:2472> 2154 1 0 308
+    dtext +32 +3 2100 Pode por a casa a venda
+    button - *30 <QVAL <cTAG.CH_FLAGSMEMBER>&CH_CAN_HIPO?2154:2472> 2154 1 0 310
+    dtext +32 +3 2100 Pode hipotecar a casa
+    button - *30 2224 2223 1 0 110
+    dtext +20 -5 166 Remover membro
+    if (<obj.CustomH_IsOwner <uid>>)
+     button - *20 2224 2223 1 0 120
+     dtext +20 -5 166 Transferir titularidade
+    endif
+    button - *20 2224 2223 1 0 1
+    dtext +20 -5 166 Voltar
+    
+elif (<cTAG0.CH_TASK>=CH_TASK_DELETE_MEMBER)//Remover membro
+    dtext 115 95 48 Remover <Rec_fGetName <cTAG.CH_UIDMEMBER>>
+    local.text=Deseja realmente remover <Rec_fGetName <cTAG.CH_UIDMEMBER>> da lista de membros de <obj.name>?<def.br>Esta acao eh irreversivel a menos que voce adicione este membro novamente.
+    dhtmlgump 111 119 378 175 1 1 <local.text>
+    dorigin 115 305
+    button - *20 2224 2223 1 0 1
+    dtext +20 -5 166 Nao remover.
+    button - *20 2224 2223 1 0 110
+    dtext +20 -5 166 Sim, quero remove-lo.
+    
+elif (<cTAG0.CH_TASK>=CH_TASK_SET_OWNER)//Transferir titularidade
+    dtext 115 95 48 Transferir titularidade para <Rec_fGetName <cTAG.CH_UIDMEMBER>>
+    local.text=Deseja realmente transferir a titularidade de <obj.name> para <Rec_fGetName <cTAG.CH_UIDMEMBER>>?<def.br>Esta acao eh irreversivel! Voce deixara de ser dono e passara a ser um membro e podera ter seus privilegios alterados. <Rec_fGetName <cTAG.CH_UIDMEMBER>> passara a ser o novo dono.
+    dhtmlgump 111 119 378 175 1 1 <local.text>
+    dorigin 115 305
+    button - *20 2224 2223 1 0 1
+    dtext +20 -5 166 Nao transferir.
+    button - *20 2224 2223 1 0 120
+    dtext +20 -5 166 Sim, transferir a titularidade.
+    
+elif (<cTAG0.CH_TASK>=CH_TASK_HIPO)//Hipotecar
+    ctag.hipovalue=<eval (<obj.CustomH_GetDBValue>*90)/100>
+    dtext 115 95 48 Hipotecar <obj.name>
+    local.text=<DEF.CENTER><DEF.BFONT_RED>Deseja hipotecar este imovel?<DEF.BFONT_DBLUE><DEF.DIV_END><DEF.DIV_LEFT>
+    local.text .=Caso voce hipoteque este imovel, voce recebera a quantia de <strtresure <ctag.hipovalue>> e o edificio deixa de ser seu e passa a ser do governo.<def.br>
+    local.text .=Todos os seus itens e pertences que estejam dentro da casa serao deixados do lado de fora, a construcao sera demolida e sera colcoada a venda pelo preco do terreno.<def.br>
+    local.text .=Deseja mesmo hipoteca-lo?
+    dhtmlgump 111 119 378 175 1 1 <local.text>
+    dorigin 115 305
+    button - *20 2224 2223 1 0 1
+    dtext +20 -5 166 Nao, obrigado. Gosto do imovel.
+    button - *20 2224 2223 1 0 100
+    dtext +20 -5 166 Sim, quero me desfazer dele.
+    
+elif (<IsGM>)       //GM vendo casa
+    call CustomH_GetGlobalValues
+    dtext 115 95 48 <obj.name> (MODO GM)
+    local.text=<DEF.CENTER><DEF.BFONT_RED>Tire o modo GM para interagir<DEF.BFONT_BLACK><DEF.DIV_END><DEF.DIV_LEFT>
+    if (<obj.attr>&040) //É do reino
+     local.text .=<DEF.BFONT_DBLUE>Pertencente a <obj.region.region.name>.<DEF.BR>
+    else
+     local.owner=<obj.CustomH_GetOwner>
+     local.text .=<DEF.BFONT_DBLUE>Dono: <uid.<local.owner>.tag.name> [<uid.<local.owner>.account>] - Membros: <obj.CustomH_GetFriends><DEF.BR>
+     local.text .=Area: <eval <obj.CustomH_Area>> - Construidos: <eval <obj.components>-<obj.CustomH_OffsetComponents>><DEF.BR>
+     local.taxperiods=<obj.CustomH_GetTaxPeriod>
+     local.taxdebits=<obj.CustomH_GetTaxDebit>
+     local.text .=<DEF.BFONT_RED>Impostos atrasados: <strtresure <local.taxdebits>> (<dlocal.taxperiods> <QVAL <local.taxperiods>==1?periodo:periodos>)<DEF.BR>
+    endif
+    if (<obj.attr>&01000)
+     local.chprice=<QVAL <obj.tag0.price>?<obj.tag0.price>:<obj.CustomH_GetDBValue>>
+     local.text .=Esta a venda por <strtresure <obj.CustomH_GetDBValue>>.<DEF.BR>
+    else
+     local.text .=Nao esta a venda.<Def.BR>
+    endif
+    dhtmlgump 111 119 378 205 1 1 <local.text>
+    dorigin 115 305
+    button - *20 2224 2223 1 0 20
+    dtext +20 -5 166 Personalizar
+    if (<local.taxperiods>)
+     button - *20 2224 2223 1 0 30
+     dtext +20 -5 166 Dar ultimato (<obj.dtag0.taxultimates> ja foram enviados)
+     if (<obj.tag0.taxultimates> > 1) && (<eval <serv.time>-<obj.tag.lastultimate>> > <eval 10*60*60>) && (<local.taxperiods> > 1)//Intervalo de uma hora do ultimo ultimato e minimo de 2 periodos de inadimplencia
+      button - *20 2224 2223 1 0 40
+      dtext +20 -5 166 Expulsar, remover tudo e limpar.
+     endif
+    endif
+    
+elif (<obj.CustomH_IsOwner <uid>>) || (<obj.CustomH_IsFriend <uid>>)
+    dtext 115 95 48 <obj.name>
+    call CustomH_GetGlobalValues
+    local.owner=<obj.CustomH_GetOwner>
+    local.friends=<obj.CustomH_GetFriends>
+    local.taxperiods=<obj.CustomH_GetTaxPeriod>
+    local.text=<DEF.CENTER><DEF.BFONT_RED>Propriedade de <rec_fGetName <local.owner>><DEF.BFONT_BLACK><DEF.DIV_END><DEF.DIV_LEFT>
+    local.text .=Area: <eval <obj.CustomH_Area>> - Construidos: <eval <obj.components>-<obj.CustomH_OffsetComponents>><DEF.BR>
+    if (<local.taxperiods>) //Impostos atrazados
+     local.taxdebits=<obj.CustomH_GetTaxDebit>
+     local.text .=<DEF.BFONT_RED>Impostos atrasados: <strtresure <local.taxdebits>> (<dlocal.taxperiods> <QVAL <local.taxperiods>==1?periodo:periodos>)<DEF.BR>
+     local.text .=Ja recebeu <obj.dtag0.taxultimates> <QVAL <obj.dtag0.taxultimates>==1?ultimato:ultimatos> de inadimplencia.<def.br><DEF.BFONT_DBLUE>
+    endif
+    if (<obj.attr>&01000) //A venda
+     local.chprice=<QVAL <obj.tag0.price>?<obj.tag0.price>:<obj.CustomH_GetDBValue>>
+     local.text .=Esta a venda por <strtresure <local.chprice>>.<DEF.BR>
+    endif
+    if (<local.friends>) //Tem membros
+     local.text .=<DEF.BR><DEF.BFONT_DBLUE><DEF.B>Membros: <dlocal.friends><DEF.BE><DEF.BR>
+     DB.QUERY="SELECT uidmember FROM house_members WHERE idhouse=<obj.dtag0.idhouse>;"
+     FOR m 0 <eval <DB.ROW.NUMROWS>-1>
+      local.text .= - <rec_fGetName <DB.ROW.<dlocal.m>.uidmember>><def.br>
+     END
+    endif
+    local.text .=<def.br><DEF.BFONT_DBLUE><DEF.B>Impostos:<DEF.BE><DEF.BR>
+    local.text .=* Tile de terreno: <dlocal.lp>mc<DEF.BR>
+    local.text .=* Tile de construcao: <dlocal.cp>mc<DEF.BR>
+    local.text .=* Tile de portas: <dlocal.fp>mc<DEF.BR>
+    local.text .=* Laudemio: <dlocal.chfee>% a cada <f_timestring <eval <DEF.CH_TAX_TIME>/10>><DEF.BR>
+    local.text .=Voce estima que vale <CustomH_EstimatePrice <obj.uid>>
+    dhtmlgump 111 119 378 175 1 1 <local.text>
+    dorigin 115 275
+    if (<local.taxperiods>)
+     button - *20 2224 2223 1 0 50
+     dtext +20 -5 36 Pagar impostos
+    endif
+    if (<obj.CustomH_IsOwner <uid>>) || (<obj.CustomH_FriendCanCustomize <uid>>)
+     button - *20 2224 2223 1 0 20
+     dtext +20 -5 166 Personalizar
+    endif
+    if (<obj.CustomH_IsOwner <uid>>) || (<obj.CustomH_FriendCanFriends <uid>>)
+     button - *20 2224 2223 1 0 60
+     dtext +20 -5 166 Gerenciar membros
+    endif
+    if (<obj.CustomH_IsOwner <uid>>) || (<obj.CustomH_FriendCanSell <uid>>)
+     button - *20 2224 2223 1 0 70
+     dtext +20 -5 166 <QVAL <obj.attr>&01000?Nao vender:Por a venda>
+    endif
+    if (<obj.CustomH_IsOwner <uid>>) || (<obj.CustomH_FriendCanHipo <uid>>)
+     button - *20 2224 2223 1 0 80
+     dtext +20 -5 166 Hipotecar
+    endif
+
+elif (<obj.attr>&01000) //A venda
+    call CustomH_GetGlobalValues
+    local.chprice=<QVAL <obj.tag0.price>?<obj.tag0.price>:<obj.CustomH_GetDBValue>>
+    dtext 115 95 48 <obj.name> (a venda)
+    local.text=<DEF.CENTER><DEF.BFONT_RED>Vende-se por <strtresure <local.chprice>><DEF.BFONT_BLACK><DEF.DIV_END><DEF.DIV_LEFT>
+    local.text .=Terreno de <eval <obj.CustomH_Area>> tiles quadrados com <eval <obj.components>-<obj.CustomH_OffsetComponents>> tiles quadrados construidos.<DEF.BR><DEF.BR>
+    local.text .=<DEF.BFONT_DBLUE><DEF.B>Impostos:<DEF.BE><DEF.BR>
+    local.text .=* Tile de terreno: <dlocal.lp>mc<DEF.BR>
+    local.text .=* Tile de construcao: <dlocal.cp>mc<DEF.BR>
+    local.text .=* Tile de portas: <dlocal.fp>mc<DEF.BR>
+    local.text .=* Laudemio: <dlocal.chfee>% a cada <f_timestring <eval <DEF.CH_TAX_TIME>/10>><DEF.BR>
+    if !(<obj.attr>&040)    //Tem dono. Não é da Town
+     local.taxperiods=<obj.CustomH_GetTaxPeriod>
+     local.taxdebits=<obj.CustomH_GetTaxDebit>
+     local.text .=Voce estima que vale <CustomH_EstimatePrice <obj.uid>><DEF.BR>
+     local.text .=<DEF.BFONT_RED>Impostos atrasados: <strtresure <local.taxdebits>> (<dlocal.taxperiods> <QVAL <local.taxperiods>==1?periodo:periodos>)<DEF.BR>
+     local.text .=<DEF.BFONT_DBLUE>Os impostos atrasados <DEF.B>NAO SERAO<DEF.BE> debitados no ato da compra. O comprador devera quita-los apos a compra para nao sofrer acoes legais.<DEF.BR><DEF.BR>
+    endif
+    dhtmlgump 111 119 378 205 1 1 <local.text>
+    IF (<bank_checkCash <local.chprice>,1>)
+     button 115 335 2224 2223 1 0 10
+     dtext 135 330 166 Comprar
+    else
+     dtext 135 330 36 Voce nao tem dinheiro para comprar isso
+    endif
+    
+else            //Curioso olhando
+    local.text=<DEF.CENTER><DEF.BFONT_RED><obj.name><DEF.BFONT_BLACK><DEF.DIV_END><DEF.DIV_LEFT>
+    local.text .=Area: <eval <obj.CustomH_Area>> tiles quadrados<DEF.BR>
+    local.text .=Voce estima que vale <CustomH_EstimatePrice <obj.uid>>
+    dhtmlgump 111 119 378 205 1 1 <local.text>
+
+endif
+
+
+// Created 27/3/2009 15:08:02, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+
+[DIALOG d_CustomH]
+100,75
+OBJ=<uid.<cTAG0.signUID>.link>
+page 0
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+gumppic 0 0 10400
+gumppic 0 160 10401
+gumppic 0 356 10402
+gumppic 518 -2 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+gumppic 225 45 2501
+dtext 235 45 26 Mystical Tales Shard
+resizepic 92 87 2620 416 310
+call d_CustomH_Solve
+[DIALOG d_CustomH text]
+
+
+[DIALOG d_CustomH button]
+ON=0
+//Fechar
+cTAG.CH_TASK=
+
+ON=1
+//Voltar para a primeira pagina
+cTAG.CH_TASK=
+DIALOG d_CustomH
+
+ON=10
+// Comprar casa
+CustomH_BuyHouse
+
+ON=20
+//Personalizar
+//É GM? Dono? Tem priv?
+OBJ=<uid.<cTAG0.signUID>.link>
+IF (<obj.CustomH_IsOwner <uid>>) || (<obj.CustomH_FriendCanCustomize <uid>>) || (<IsGM>)
+ CustomH_EDIT <obj.uid>
+ENDIF
+
+ON=30
+//Manda ultimato
+uid.<uid.<cTAG0.signUID>.link>.CustomH_SendUltimate
+
+ON=40
+//Limpa casa.
+IF (<IsGM>)
+ uid.<uid.<cTAG0.signUID>.link>.CustomH_WipeHouse
+endif
+
+ON=50
+//Pagar impostos
+CustomH_PayTax <uid.<cTAG0.signUID>.link>
+
+ON=60
+//gerenciar membros
+cTAG.CH_TASK=<DEF.CH_TASK_LIST_MEMBERS>
+DIALOG d_CustomH
+
+ON=70
+//Por/tirar de venda
+obj=<uid.<cTAG0.signUID>.link>
+if (<obj.attr>&01000)
+ obj.tag.price=
+ sysmessageyellow A casa nao esta mais a venda.
+ obj.attr &= ~01000
+ DIALOG d_CustomH
+else
+ sysmessageyellow Digite um valor em mc para a venda da casa. (0 para padrao)
+ promptconsole CustomH_SetSellPrice
+ obj.attr |= 01000
+endif
+
+ON=80
+//Hipotecar
+cTAG.CH_TASK=<DEF.CH_TASK_HIPO>
+DIALOG d_CustomH
+
+ON=90
+//Adicionar membro
+CustomH_AddFriend <uid.<cTAG0.signUID>.link>
+cTAG0.CH_TASK=
+
+ON=100
+//Hipotecar
+obj=<uid.<cTAG0.signUID>.link>
+IF (<obj.CustomH_IsOwner <UID>>) || (<obj.CustomH_FriendCanHipo <UID>>)
+ uid.<uid.<cTAG0.signUID>.link>.CustomH_WipeHouse
+ newitem i_coin_copper
+ new.amount=<ctag.hipovalue>
+ new.bounce
+ ctag.hipovalue=
+endif
+
+ON=110
+//Remover membro
+if (<cTAG0.CH_TASK>==CH_TASK_DELETE_MEMBER)
+ //Recursivo. Remover
+ obj=<uid.<cTAG0.signUID>.link>
+ obj.CustomH_RemoveFriend <cTAG.CH_UIDMEMBER>
+ cTAG0.CH_TASK=<DEF.CH_TASK_LIST_MEMBERS>
+else
+ //Primeira entrada. So mostrar.
+ cTAG0.CH_TASK=<def.CH_TASK_DELETE_MEMBER>
+endif
+DIALOG d_CustomH
+
+ON=120
+//Setar como owner
+if (<cTAG0.CH_TASK>==CH_TASK_SET_OWNER)
+ //Recursivo. Remover
+ obj=<uid.<cTAG0.signUID>.link>
+ f_sendMessage <cTAG.CH_UIDMEMBER>,Voce eh o novo dono de <obj.name>.,<DEF.SM_GREEN>
+ cTAG0.CH_TASK=<DEF.CH_TASK_LIST_MEMBERS>
+ obj.CustomH_Transfer <cTAG.CH_UIDMEMBER>
+ obj.CustomH_SetFriend <uid>,01f
+ cTAG.CH_<obj.uid>_privs=
+else
+ //Primeira entrada. So mostrar.
+ cTAG0.CH_TASK=<def.CH_TASK_SET_OWNER>
+endif
+DIALOG d_CustomH
+
+ON=200 299
+//Editar membro
+obj=<uid.<cTAG0.signUID>.link>
+local.member=<eval <argn>-200>
+cTAG.CH_TASK=<DEF.CH_TASK_EDIT_MEMBER>
+DB.QUERY="SELECT idmember AS id, uidmember AS uid, flags FROM house_members WHERE idhouse=<obj.dtag.idhouse> LIMIT <dlocal.member>,1;"
+cTAG.CH_UIDMEMBER=<DB.ROW.0.uid>
+cTAG.CH_IDMEMBER=<DB.ROW.0.id>
+cTAG.CH_FLAGSMEMBER=<DB.ROW.0.flags>
+DIALOG d_CustomH
+
+ON=300 399
+//Modificar flags de membro
+local.flag=0<eval <argn>-300>
+IF (<cTAG.CH_FLAGSMEMBER>&<local.flag>)
+ cTAG.CH_FLAGSMEMBER &= ~<local.flag>
+ELSE
+ cTAG.CH_FLAGSMEMBER |= <local.flag>
+ENDIF
+DB.EXECUTE="UPDATE house_members SET flags='<cTAG.CH_FLAGSMEMBER>' WHERE idmember=<dcTAG.CH_IDMEMBER>;"
+ref1=<cTAG.CH_UIDMEMBER>
+if (<ref1.IsOnline>)
+ try ref1.cTAG.CH_<uid.<cTAG0.signUID>.link>_privs= //Apagar cache de privs do char
+endif
+DIALOG d_CustomH
+
+[EOF]

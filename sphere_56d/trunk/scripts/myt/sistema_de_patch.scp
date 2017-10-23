@@ -1,0 +1,255 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE PATCH
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
+//*****************************************************************************
+
+[DEFNAME defname_patch]
+
+[PLEVEL 6]
+patch_scan
+patch_clean
+
+[TYPEDEF t_patch]
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// patch_clean
+//*****************************************************************************
+[FUNCTION patch_clean]
+b Iniciando limpeza do patch, pode demorar e gerar lag!
+LOCAL.loop=1
+LOCAL.off=<argn>
+while <LOCAL.loop>
+	DB.QUERY SELECT uid_hex FROM myt_patch.world LIMIT <dLOCAL.off>, 1000
+	LOCAL.loop=0
+	serv.log [PATCH] Iteracao ate <eval <LOCAL.off>+1000>...
+	if <DB.ROW.NUMROWS>
+		if <DB.ROW.NUMROWS> >= 1000
+			LOCAL.loop=1
+		endif
+		LOCAL.x=<DB.ROW.NUMROWS>
+		LOCAL.R=0
+		//for every item...remove
+		WHILE  <LOCAL.R> < <LOCAL.x>
+			//error (sometimes, erasing an object triggers some DB changes that invalidade this query (furniture for ex)
+			//if it happens, start query again at current position
+			if ! <DB.ROW.<dLOCAL.R>.uid_hex>
+				serv.log Erro apagando <dLOCAL.off> <DB.ROW.<dLOCAL.R>.uid_hex>
+				LOCAL.x=0
+				LOCAL.off -= 1
+			else
+				TRY uid.<DB.ROW.<dLOCAL.R>.uid_hex>.remove
+			endif
+			LOCAL.R += 1
+			LOCAL.off += 1
+		ENDFOR
+	endif
+end
+b Scan finalizado
+serv.log [PATCH] <dLOCAL.off> items removidos do world.
+
+//*****************************************************************************
+// patch_scan <tiles>
+//*****************************************************************************
+[FUNCTION patch_scan]
+if !<argn>
+    LOCAL.d=6144
+else
+    LOCAL.d=<argn>
+endif    
+b Iniciando scan do patch, pode demorar e gerar lag!
+LOCAL.total=0
+LOCAL.patch=0
+LOCAL.start=<serv.time>
+DB.EXECUTE DELETE FROM myt_patch.world
+FORITEMS <LOCAL.d> //6144 //todos os itens!
+    LOCAL.total += 1
+    if <attr>&08010 //static?
+        if <patch_go>
+            LOCAL.patch += 1
+            DB.QUERY INSERT IGNORE INTO myt_patch.world SET uid_hex='<uid>',item_id='<dispiddec>',x='<eval <p.x>>',y='<eval <p.y>>',z='<eval <p.z>>',map='<eval <p.m>>',color='<eval <color>>'
+        endif
+    endif
+ENDFOR //end the FOR loop
+b Scan finalizado
+sysmessageyellow Importado: <dLOCAL.patch>/<dLOCAL.total>
+serv.log [PATCH] <dLOCAL.patch> de <dLOCAL.total> items importados para DB
+
+//*****************************************************************************
+// patch_go
+//*****************************************************************************
+//go no go in patch?
+[FUNCTION patch_go]
+
+if <type>==t_patch
+    return 1
+//inside container
+elif <cont>   
+    return 0
+//with more set    
+elif <more1> || <more2>
+    return 0
+//another map    
+elif <p.m> != 0
+    return 0
+//safe zone    
+elif (<p.x> < 150) && (<p.y> < 150)
+    return 0
+//with link
+elif <link> && <link> != 04fffffff
+    return 0
+//with tags    
+elif <tagcount>
+    return 0
+elif <patch_typeCanGo>
+    //nao manda nada da area de testes pro patch
+    if (<p.x> > 5607) && (<p.y> < 67)
+        return 0
+    endif
+    return 1
+endif
+return 0
+
+//type modified no?
+
+//*****************************************************************************
+// patch_typeCanGo
+//*****************************************************************************
+//type can go to patch?
+[FUNCTION patch_typeCanGo]
+if <type>==t_alavanca
+    return 0
+elif <type>==t_apagado
+    return 0
+elif <type>==t_apagado2
+    return 0
+elif <type>==t_anvil
+    return 0
+elif <type>==t_bancada
+    return 0
+elif <type>==t_bboard
+    return 0
+elif <type>==t_campfire
+    return 0
+elif <type>==t_carpentry
+    return 0
+elif <type>==t_carpentry_tool
+    return 0
+elif <type>==t_catalisador
+    return 0
+elif <type>==t_clock
+    return 0
+elif <type>==t_comm_crystal
+    return 0
+elif <type>==t_concha
+    return 0
+elif <type>==t_container
+    return 0
+elif <type>==t_corpse
+    return 0
+elif <type>==t_crops
+    return 0
+elif <type>==t_crystal_ball
+    return 0
+elif <type>==t_deed
+    return 0
+elif <type>==t_door
+    return 0
+elif <type>==t_door_locked
+    return 0
+elif <type>==t_door_open
+    return 0
+elif <type>==t_dye
+    return 0
+elif <type>==t_dye_vat
+    return 0
+elif <type>==t_energy_barrier
+    return 0
+elif <type>==t_envergadeira
+    return 0
+elif <type>==t_eq_script
+    return 0
+elif <type>==t_escrivaninha
+    return 0
+elif <type>==t_espiriteira
+    return 0
+elif <type>==t_fire
+    return 0
+elif <type>==t_fire_barrier
+    return 0
+elif <type>==t_forge
+    return 0
+elif <type>==t_light_lit
+    return 0
+elif <type>==t_light_out
+    return 0
+elif <type>==t_luz_oleo
+    return 0
+elif <type>==t_misturador
+    return 0
+elif <type>==t_multi
+    return 0
+elif <type>==t_oleo
+    return 0
+elif <type>==t_peste
+    return 0
+elif <type>==t_planta
+    return 0
+elif <type>==t_poison_barrier
+    return 0
+elif <type>==t_portculis
+    return 0
+elif <type>==t_reagente
+    return 0
+elif <type>==t_reagent
+    return 0
+elif <type>==t_reagent_raw
+    return 0
+elif <type>==t_recipient
+    return 0
+elif <type>==t_roca
+    return 0
+elif <type>==t_scissors
+    return 0
+elif <type>==t_script
+    return 0
+elif <type>==t_shrine
+    return 0
+elif <type>==t_sign_gump
+    return 0
+elif <type>==t_spawn_char
+    return 0
+elif <type>==t_spell
+    return 0
+elif <type>==t_switch
+    return 0
+elif <type>==t_tear
+    return 0
+elif <type>==t_telepad
+    return 0
+elif <type>==t_termometro
+    return 0
+elif <type>==t_tp
+    return 0
+elif <type>==t_trap
+    return 0
+elif <type>==t_trap_active
+    return 0
+else
+    return 1
+endif    
+
+[EOF]

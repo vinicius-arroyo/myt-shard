@@ -1,0 +1,194 @@
+//**********************************************
+//**Scripted By: Blizzard (www.marchadium.com)**
+//**********************************************
+
+//Oil and Armor Rusting System
+//-This script will allows players to mine for oil
+//-This script will also rust armor/weapons after 15-20 minutes after being worn (note: rusting can destroy armor/weapons after long periods of time)
+//-This script will also allow players to oil their armor/weapons to prevent rusting
+
+//Info:
+//Players can mine up oil in swamps, and use the oil on armor to keep the armor from rusting and falling apart.
+
+//Installation:
+//-Make sure this file is loaded before spheremap.scp under the [RESOURCES] section in spheretables.scp
+//-Add RESOURCES=r_swamp_oil to all your swamps in spheremap.scp, if RESOURCES already exists, add this to the end of the line - ,r_swamp_oil (note: don't forget that ,)
+
+//Usage:
+//-Players can use any t_weapon_mace_pick (pickaxe, shovel, hammer-pick) to dig for oil in swamps, this works just like mining.
+//-Players will need 35.0 mining or more to dig up oil everytime, although there is a slight chance they can dig up oil with 0 mining
+//-Once oil is discovered, players can use an empty bottle on the oil, this will fill the empty bottle with oil, oil patches can be scooped up a few times before there is none left.
+//-The oil can be used to grease armor/weapons to prevent them from rusting.
+
+[REGIONTYPE r_mina_carvao]
+ON=@ENTER
+SRC.EVENTS +e_mina_carvao
+
+ON=@EXIT
+SRC.EVENTS -e_mina_carvao
+
+[EVENTS e_mina_carvao]
+ON=@ITEMTARGON_GROUND
+IF (<SRC.ACT.TYPE>==t_weapon_mace_pick)
+        IF (0<SRC.FINDID.i_memory_carvao.UID>)
+                SRC.MESSAGE * Cava Cava mas nao acha nada *
+                SRC.FINDID.i_memory_carvao.REMOVE
+        ENDIF
+        SRC.NEWITEM=i_gold
+        SRC.ACT.P=<SRC.TARGP>
+        VAR.OLD_X=<SRC.ACT.P.X>
+        VAR.OLD_Y=<SRC.ACT.P.Y>
+        SRC.ACT.REMOVE
+        IF (<SRC.P.X> > <VAR.OLD_X>)
+                VAR.OLD_DISTANCE_X=<SRC.P.X> +-<VAR.OLD_X>
+        ELSE
+                VAR.OLD_DISTANCE_X=<VAR.OLD_X> +-<SRC.P.X>
+        ENDIF
+        IF (<SRC.P.Y> > <VAR.OLD_Y>)
+                VAR.OLD_DISTANCE_Y=<SRC.P.Y> +-<VAR.OLD_Y>
+        ELSE
+                VAR.OLD_DISTANCE_Y=<VAR.OLD_Y> +-<SRC.P.Y>
+        ENDIF
+        SRC.f_oil_clear_sysmessage
+        IF (<EVAL <VAR.OLD_DISTANCE_X>> < 4) && (<EVAL <VAR.OLD_DISTANCE_Y>> < 4)
+                SRC.NEWITEM=i_memory_carvao
+                SRC.ACT.TAG.P.X=<VAR.OLD_X>
+                SRC.ACT.TAG.P.Y=<VAR.OLD_Y>
+                SRC.EQUIP=<SRC.ACT>
+        ELSE
+                SRC.SYSMESSAGE=Chegue mais perto.
+        ENDIF
+        VAR.OLD_X=
+        VAR.OLD_Y=
+        VAR.OLD_DISTANCE_X=
+        VAR.OLD_DISTANCE_Y=
+ENDIF
+
+[ITEMDEF i_memory_carvao]
+DEFNAME=i_memory_carvao
+NAME=Memory de carvao
+ID=i_memory
+TYPE=t_eq_script
+
+ON=@CREATE
+ATTR=attr_move_never|attr_invis
+
+ON=@EQUIP
+SRC.ANIM=11
+SRC.MESSAGE * cavando *
+SRC.SOUND=050
+SRC.f_carvao_clear_sysmessage
+MORE=5
+TIMER=1
+
+ON=@TIMER
+IF (<TOPOBJ.P.X> > <TAG.P.X>)
+        VAR.OLD_DISTANCE_X=<TOPOBJ.P.X> +-<TAG.P.X>
+ELSE
+        VAR.OLD_DISTANCE_X=<TAG.P.X> +-<TOPOBJ.P.X>
+ENDIF
+IF (<TOPOBJ.P.Y> > <TAG.P.Y>)
+        VAR.OLD_DISTANCE_Y=<TOPOBJ.P.Y> +-<TAG.P.Y>
+ELSE
+        VAR.OLD_DISTANCE_Y=<TAG.P.Y> +-<TOPOBJ.P.Y>
+ENDIF
+IF (<EVAL <VAR.OLD_DISTANCE_X>> > 3) || (<EVAL <VAR.OLD_DISTANCE_Y>> > 3)
+        TOPOBJ.MESSAGE * chegue mais perto *
+        REMOVE
+ELSE
+        IF (0<MORE>)
+                TOPOBJ.ANIM=11
+                TOPOBJ.SOUND=050
+                MORE=<MORE> +-1
+                TIMER=1
+        ELSE
+                VAR.X=5 +-<EVAL <TOPOBJ.MINING> /7>
+                IF (0<VAR.X> <= 0)
+                        VAR.X=1
+                ENDIF
+                VAR.X=<EVAL {1 <VAR.X>}>
+                IF (<EVAL <VAR.X>>==1)
+                        TOPOBJ.NEWNPC=c_elem_water_oil
+                        TOPOBJ.ACT.P=<EVAL <TAG.P.X>>,<EVAL <TAG.P.Y>>,<TOPOBJ.Z>,<TOPOBJ.MAPPLANE>
+                        TOPOBJ.ACT.ANIM=3
+                        VAR.OLD_UID=<TOPOBJ.ACT>
+                        TOPOBJ.NEWITEM=i_memory_carvao_remove
+                        TOPOBJ.ACT.TIMER=1
+                        TOPOBJ.ACT.CONT=<VAR.OLD_UID>
+                        TOPOBJ.NEWITEM=i_oil_tile
+                        TOPOBJ.ACT.ATTR=attr_move_never|attr_decay
+                        TOPOBJ.ACT.TIMER=60
+                        TOPOBJ.ACT.P=<EVAL <TAG.P.X>>,<EVAL <TAG.P.Y>>,<TOPOBJ.Z>,<TOPOBJ.MAPPLANE>
+                        TOPOBJ.NEWITEM=03253
+                        TOPOBJ.ACT.ATTR=attr_move_never|attr_decay
+                        TOPOBJ.ACT.TIMER=60
+                        TOPOBJ.ACT.COLOR=083a
+                        TOPOBJ.ACT.P=<EVAL <TAG.P.X>>,<EVAL <TAG.P.Y>>,<TOPOBJ.Z>,<TOPOBJ.MAPPLANE>
+                        TOPOBJ.ACT.MOVE=e
+                        TOPOBJ.NEWITEM=03256
+                        TOPOBJ.ACT.ATTR=attr_move_never|attr_decay
+                        TOPOBJ.ACT.TIMER=60
+                        TOPOBJ.ACT.COLOR=083a
+                        TOPOBJ.ACT.P=<EVAL <TAG.P.X>>,<EVAL <TAG.P.Y>>,<TOPOBJ.Z>,<TOPOBJ.MAPPLANE>
+                        TOPOBJ.ACT.MOVE=n
+                        TOPOBJ.NEWITEM=03274
+                        TOPOBJ.ACT.ATTR=attr_move_never|attr_decay
+                        TOPOBJ.ACT.TIMER=60
+                        TOPOBJ.ACT.COLOR=083a
+                        TOPOBJ.ACT.P=<EVAL <TAG.P.X>>,<EVAL <TAG.P.Y>>,<TOPOBJ.Z>,<TOPOBJ.MAPPLANE>
+                        TOPOBJ.ACT.MOVE=s
+                        TOPOBJ.NEWITEM=03276
+                        TOPOBJ.ACT.ATTR=attr_move_never|attr_decay
+                        TOPOBJ.ACT.TIMER=60
+                        TOPOBJ.ACT.COLOR=083a
+                        TOPOBJ.ACT.P=<EVAL <TAG.P.X>>,<EVAL <TAG.P.Y>>,<TOPOBJ.Z>,<TOPOBJ.MAPPLANE>
+                        TOPOBJ.ACT.MOVE=w
+                        TOPOBJ.NEWITEM=03278
+                        TOPOBJ.ACT.ATTR=attr_move_never|attr_decay
+                        TOPOBJ.ACT.TIMER=60
+                        TOPOBJ.ACT.COLOR=083a
+                        TOPOBJ.ACT.P=<EVAL <TAG.P.X>>,<EVAL <TAG.P.Y>>,<TOPOBJ.Z>,<TOPOBJ.MAPPLANE>
+                        TOPOBJ.ACT.MOVE=ne
+                        TOPOBJ.NEWITEM=03279
+                        TOPOBJ.ACT.ATTR=attr_move_never|attr_decay
+                        TOPOBJ.ACT.TIMER=60
+                        TOPOBJ.ACT.COLOR=083a
+                        TOPOBJ.ACT.P=<EVAL <TAG.P.X>>,<EVAL <TAG.P.Y>>,<TOPOBJ.Z>,<TOPOBJ.MAPPLANE>
+                        TOPOBJ.ACT.MOVE=nw
+                        TOPOBJ.NEWITEM=0327a
+                        TOPOBJ.ACT.ATTR=attr_move_never|attr_decay
+                        TOPOBJ.ACT.TIMER=60
+                        TOPOBJ.ACT.COLOR=083a
+                        TOPOBJ.ACT.P=<EVAL <TAG.P.X>>,<EVAL <TAG.P.Y>>,<TOPOBJ.Z>,<TOPOBJ.MAPPLANE>
+                        TOPOBJ.ACT.MOVE=se
+                        TOPOBJ.NEWITEM=0327b
+                        TOPOBJ.ACT.ATTR=attr_move_never|attr_decay
+                        TOPOBJ.ACT.TIMER=60
+                        TOPOBJ.ACT.COLOR=083a
+                        TOPOBJ.ACT.P=<EVAL <TAG.P.X>>,<EVAL <TAG.P.Y>>,<TOPOBJ.Z>,<TOPOBJ.MAPPLANE>
+                        TOPOBJ.ACT.MOVE=sw
+                        TOPOBJ.MESSAGE=You strike oil
+                        VAR.OLD_P=
+                ELSE
+                        SRC.MESSAGE=You can not find any oil.
+                ENDIF
+                REMOVE
+        ENDIF
+ENDIF
+RETURN 1
+
+[ITEMDEF i_memory_carvao_remove]
+DEFNAME=i_memory_carvao_remove
+NAME=carvao removedor de memory
+ID=i_memory
+TYPE=t_eq_script
+
+ON=@CREATE
+ATTR=attr_move_never|attr_invis
+
+ON=@TIMER
+TOPOBJ.REMOVE
+REMOVE
+RETURN 1
+
+[EOF]

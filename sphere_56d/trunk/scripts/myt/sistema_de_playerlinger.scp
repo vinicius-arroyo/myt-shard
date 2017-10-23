@@ -1,0 +1,136 @@
+[FUNCTION checkplayers]
+SERV.ALLCLIENTS playerconter
+src.newitem i_mry_timercont
+src.act.link=<src.uid>
+src.act.equip
+src.act.use
+return 1
+
+[FUNCTION playerconter]
+if (<src.gm>==1)
+ src.sysmessage Tentativa de Linger:
+ src.sysmessage player logando.
+else
+ var.pconter=<var.pconter>+1
+endif
+return 1
+
+[FUNCTION linger]
+if (<gm>==1)
+ consume 2 i_mry_linger
+ sysmessage Linger desabilidato.
+ return 1
+else
+ var.pconter=0
+ say vou esconectar
+ tryp 1 disconnect
+ return 1
+endif
+
+
+[ITEMDEF i_mry_timercont]
+id=i_memory
+name=checkplayers timer
+type=t_eq_script
+layer=30
+
+on=@dclick
+cont.sysmessage Checando quantidade de players online
+cont.sysmessage O limite atual eh de 8 players.
+timer=1
+return 1
+
+on=@timer
+cont.sysmessage quantidade de players: <var.pconter>/08
+if (<eval <var.pconter>> >= 9)
+ cont.linger
+else
+ cont.sysmessage Check completo. Bem vindo.
+endif
+var.pconter=0
+remove
+return 1
+
+[ITEMDEF i_mry_disconnect]
+id=i_memory
+name=desconectando
+type=t_eq_script
+layer=30
+
+ON=@DCLICK
+cont.message Desconectarei em 30 segundos
+cont.nomove 30
+timer=30
+return 1
+
+ON=@TIMER
+cont.message adeus.
+cont.timerf 2,trysrv disconnect
+remove
+return 1
+
+[FUNCTION warnAndDisconnect]
+serv.newitem i_mry_disconnect
+NEW.equip
+NEW.use
+
+
+
+//*****************************************************************************
+// installAutoDisconnect <hour_to_disconnect>
+//*****************************************************************************
+//default: player to be disconnected
+[FUNCTION installAutoDisconnect]
+serv.newitem i_mry_timed_disconnect
+new.cont=<uid>
+new.more1=<argv0>
+
+src.sysmessageyellow Memory instalada em <tag.name> com sucesso.
+
+//*****************************************************************************
+// checkLogoutTime <hour_to_disconnect>
+//*****************************************************************************
+[FUNCTION checkLogoutTime]
+DB.QUERY "SELECT hour(now()) AS h, minute(now()) AS m"
+LOCAL.h=<DB.ROW.h>
+LOCAL.m=<DB.ROW.m>
+LOCAL.w=<eval <argv0>-1>
+
+if <LOCAL.w>==-1
+    LOCAL.w=23
+endif
+
+//warn or disconnect?
+if <LOCAL.h>==<LOCAL.w>
+    sysmessageyellow Falta(m) <eval 60-<dLOCAL.m>> minuto(s) para ser desconectado.
+elif <LOCAL.h>==<argv0>
+    warnAndDisconnect
+endif
+
+//*****************************************************************************
+// i_mry_timed_disconnect
+//*****************************************************************************
+//MORE1=hour to disconnect
+[ITEMDEF i_mry_timed_disconnect]
+ID=i_memory
+NAME=auto_disc
+TYPE=t_eq_script
+LAYER=layer_special
+
+ON=@CREATE
+timer=600
+more1=1
+
+ON=@TIMER
+timer=600
+cont.checkLogoutTime <more1>
+return 1
+
+
+
+
+[PLEVEL 1]
+checkplayers
+linger
+
+[EOF]

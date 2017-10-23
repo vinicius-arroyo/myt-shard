@@ -1,0 +1,294 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////						////////////////////////////////////////////
+//////////////////////	      Sistema de Churrasco - MyT	////////////////////////////////////////////
+//////////////////////		   By: Jean Gabin		////////////////////////////////////////////
+//////////////////////						////////////////////////////////////////////
+//////////////////////		  Versão: Beta 0.1		////////////////////////////////////////////
+//////////////////////						////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// Serão 5 tipos de carne que dá para assar na fogueira como churrasco:
+// coelho- i_rabbit_raw
+// pássaro ou frango (não a coxa, só o corpo) - i_bird_raw
+// costela - i_ribs_raw
+// peixe (sem escama e sem cabeça) - i_fish_raw
+// porco (ham) - i_ham_raw
+
+//////////////////////////////////////////////////////////
+///////////////////// itemdefs //////////////////////////
+////////////////////////////////////////////////////////
+
+[ITEMDEF i_churrasco_coelho]
+id=01e98
+name= Carne de coelho no espeto
+type=t_churrasco
+resources=1 i_kindling, 1 i_rabbit_raw
+
+//////////////////////////////////////////////////////
+
+[ITEMDEF i_churrasco_frango]
+id=01e97
+name= Carne de frango no espeto
+type=t_churrasco
+resources=1 i_kindling, 1 i_bird_raw
+
+//////////////////////////////////////////////////////
+
+[ITEMDEF i_churrasco_costela]
+id=09f1
+name= Carne de costela no espeto
+type=t_churrasco
+resources=1 i_kindling, 1 i_ribs_raw
+
+//////////////////////////////////////////////////////
+
+[ITEMDEF i_churrasco_peixe]
+id=01e17
+name= Carne de peixe no espeto
+type=t_churrasco
+resources=1 i_kindling, 1 i_fish_raw
+
+//////////////////////////////////////////////////////
+
+[ITEMDEF i_churrasco_porco]
+id=09c9
+name= Carne de porco no espeto
+type=t_churrasco
+resources=1 i_kindling, 1 i_ham_raw
+
+//////////////////////////////////////////////////////
+
+[itemdef i_suporte_churrasco]
+id=01e99
+name=graveto
+type=t_script
+
+ON=@PICKUP_GROUND
+MOVABLE=0
+SRC.RESEND
+return 1
+
+on=@dclick
+src.sysmessagered Clique na carne para interagir com o churrasco.
+return 1
+
+//////////////////////////////////////////////////////
+
+[itemdef i_suporte_churrasco_2]
+id=01e97
+name=graveto
+type=t_script
+
+ON=@PICKUP_GROUND
+MOVABLE=0
+SRC.RESEND
+return 1
+
+on=@dclick
+src.sysmessagered Clique na carne para interagir com o churrasco.
+return 1
+
+//////////////////////////////////////////////////////////
+/////////////// TYPE T_CHURRASCO ////////////////////////
+////////////////////////////////////////////////////////
+ 
+[TYPEDEF t_churrasco]
+
+ON=@CREATE
+more1=0  // guarda o uid do outro graveto
+more2=0  // guarda o uid do graveto por baixo da carne (só é utilizado para carnes não sejam coelho ou frango)
+morex=0  // determina se a carne está crua <0>, assada <1> ou queimada <2>
+morey=0  // determina o loop do timer
+morez=0  // liga e desliga a fogueira
+if (<baseid> == i_churrasco_porco)
+color=08d
+endif
+
+ON=@PICKUP_GROUND
+MOVABLE=0
+SRC.RESEND
+return 1
+
+on=@ClientToolTip
+if (<morex> == 0)
+ LOCAL.msg=Crua
+elif (<morex> == 1)
+ LOCAL.msg=Assada
+elif (<morex> == 2)
+ LOCAL.msg=Queimada
+endif
+f_sendToolTip <name>,(<LOCAL.msg>)
+return 1
+
+on=@dclick
+if (<src.targ.distance> > 1)
+	 src.sysmessagered <src.targ.name> esta muito longe. Chegue mais perto.
+return 1
+elif !(<more1>) // instala o suporte do churrasco
+	serv.newitem i_suporte_churrasco
+	new.p=<src.targ.p>
+	new.move 0 1
+	more1=<new.uid>
+	if (<baseid> == i_churrasco_costela) || (<baseid> == i_churrasco_peixe)
+		new.nudgedown 3
+		serv.newitem i_suporte_churrasco_2
+		new.p=<src.targ.p>
+		more2=<new.uid>
+		new.nudgedown 3
+	elif (<baseid> == i_churrasco_porco)
+		new.nudgedown 2
+		serv.newitem i_suporte_churrasco_2
+		new.p=<src.targ.p>
+		more2=<new.uid>
+		new.nudgedown 2
+	endif
+return 1
+elif (<morex> == 2) // se a carne queimou
+	src.sysmessagered Voce deixou a <name> tempo demais no fogo e ela queimou.
+	serv.newitem i_kindling
+	new.bounce
+	if (<more2> != 0)
+        serv.log [CHURRAS]Apagando more2 <more2> <uid.<more2>.name>
+		uid.<more2>.remove
+	endif
+    serv.log [CHURRAS]Apagando more1 <more1> <uid.<more1>.name>
+	uid.<more1>.remove
+	remove
+return 1
+elif !(<morex>) // se a carne ainda está crua
+	IF !<ChurrascoCheckFire>
+		src.sysmessagered A fogueira apagou. Da proxima vez use mais gravetos ou alimente o fogo periodicamente ate assar a <name>.
+		if (<baseid> == i_churrasco_coelho)
+			src.newitem=i_rabbit_raw
+		elif (<baseid> == i_churrasco_frango)
+			src.newitem=i_bird_raw
+		elif (<baseid> == i_churrasco_costela)
+			src.newitem=i_ribs_raw
+		elif (<baseid> == i_churrasco_peixe)
+			src.newitem=i_fish_raw
+		elif (<basid> == i_churrasco_porco)
+			src.newitem=i_ham_raw
+		endif
+		new.bounce
+		serv.newitem i_kindling
+		new.bounce
+		if (<more2> != 0)
+            serv.log [CHURRAS]Apagando more2 B <more2> <uid.<more2>.name>
+			uid.<more2>.remove
+		endif
+        serv.log [CHURRAS]Apagando more1 B <more1> <uid.<more1>.name>
+		uid.<more1>.remove
+		remove
+	else
+	src.sysmessagered Esta <name> ainda esta crua. Espere mais um pouco.
+	endif
+return 1
+elif (<morex>) // se a carne está assada
+	if (<baseid> == i_churrasco_coelho)
+		src.newitem=i_rabbit_cooked
+	elif (<baseid> == i_churrasco_frango)
+		src.newitem=i_bird_cooked
+	elif (<baseid> == i_churrasco_costela)
+		src.newitem=i_ribs_cooked
+	elif (<baseid> == i_churrasco_peixe)
+		src.newitem=i_fish_cooked
+	elif (<baseid> == i_churrasco_porco)
+		src.newitem=i_ham_cooked
+	endif
+	new.bounce
+	serv.newitem i_kindling
+	new.bounce
+	if (<more2> != 0)
+         serv.log [CHURRAS]Apagando more2 C <more2> <uid.<more2>.name>
+		uid.<more2>.remove
+	endif
+    serv.log [CHURRAS]Apagando more1 C <more1> <uid.<more1>.name>
+	uid.<more1>.remove
+	src.skill_gain skill_cooking
+	remove
+return 1 
+else
+	src.sysmessagered Esta <name> esta estragada.
+	if (<more2> != 0)
+        serv.log [CHURRAS]Apagando more2 D <more2> <uid.<more2>.name>
+		uid.<more2>.remove
+	endif
+    serv.log [CHURRAS]Apagando more1 D <more1> <uid.<more1>.name>
+	uid.<more1>.remove
+	remove
+return 1
+endif
+
+
+
+on=@timer
+if !<ChurrascoCheckFire> 	// se o fogo apagou
+	emotered esfriando
+	update
+	timer=5
+elif (<morey> == 0)
+	color=021e  
+	update
+	effect 2,i_fx_smoke,0,15,0
+	emotered queimou
+	morex=2
+	timer=<serv.DecayTimer>*60
+	update
+elif (<morey> < 15)
+	color=08f  
+	update
+	morey -= 1
+	morex=1
+	effect 2,i_fx_smoke,0,15,0
+	sfx 1210
+	timer=5
+elif (<morey>)
+	morey -= 1
+	effect 2,i_fx_smoke,0,15,0
+	sfx 1210
+	dorand (5)
+		emoteyellow assando <name>
+	enddo
+	timer=5
+else
+	return 0
+endif
+return 1
+
+//////////////// FUNCTIONS  ////////////////
+
+
+[FUNCTION ChurrascoCheckFire]
+LOCAL.p=<p>
+//Checa se há fogo perto do churrasco
+foritems 1
+ if (<baseid>==i_campfire) && (<p>==<LOCAL.p>)	//if ( (<baseid>==i_campfire) || (<type>==t_fire) )&& (<p>==<LOCAL.p>)
+  return 1
+ endif
+endfor
+return 0
+
+///////////////////////////////////////////
+
+[FUNCTION ChurrascoCheckChurrasco]
+LOCAL.p=<p>
+//Checa se há um churrasco já no fogo
+foritems 1
+ if (<type>==t_churrasco) && (<p>==<LOCAL.p>)
+  return 1
+ endif
+endfor
+return 0
+
+
+[eof]
+
+
+
+
+
+
+
+
+

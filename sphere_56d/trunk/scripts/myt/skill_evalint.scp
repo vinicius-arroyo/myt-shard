@@ -1,0 +1,137 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL EVAL INT por
+//
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+//
+//TAGS usadas:
+//*****************************************************************************
+
+[DEFNAME evin_msg]
+evin_int1=Parece mais esperto que uma pedra, porem menos que uma madeira
+evin_int2=Parece um pouco mais inteligente que uma pedra
+evin_int3=Parece um imbecil
+evin_int4=Nao parece muito brilhante
+evin_int5=Parece ter uma media inteligencia
+evin_int6=Parece ser muito inteligente
+evin_int7=Parece extremamente inteligente
+evin_int8=Parece extraordinariamente inteligente
+evin_int9=Parece possuir um intelecto perfeito
+evin_int10=Parece definitivamente um genio
+evin_int11=Possui uma inteligencia sobrenatural
+   
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// sk_evalint
+//*****************************************************************************
+[FUNCTION sk_evalint]
+
+if (!<Skill_InUse Skill_EvalInt>)
+    src.sysmessagered Voce so pode fazer uma coisa por vez
+    src.Skill_InUse 0
+    return 1
+elif !<argo>
+    src.sysmessagegreen Quem deseja analisar?
+    targetf sk_evalint
+    return 1
+elif !<argo.canseelos>
+    src.sysmessagered Seu alvo esta fora da linha de visao...
+    return 1
+elif <argo>==<src>
+    src.sysmessagered Voce nao pode usar em si mesmo...
+    return 1
+elif <argo.isitem>
+    src.sysmessagered Voce nao pode usar em objetos...
+    return 1
+elif <argo.flags>&statf_dead
+    src.sysmessagered Voce nao pode usar em almas...
+    return 1
+elif (<src.findid.i_evalint_mry>)
+    src.sysmessagered Voce ainda nao pode usar...
+    return 1
+endif
+
+src.emoteyellow Observando <argo.name>
+src.ctag.disturb=0
+src.newitem i_evalint_mry
+NEW.more=<eval 11-(<src.evaluatingintel>/100)>
+
+if ( <NEW.more> <= 0 )
+    NEW.more=1
+endif
+
+NEW.link=<argo>
+NEW.cont=<src>
+NEW.timer=1
+
+return 1
+
+
+
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+//more=tempo do eval
+[ITEMDEF i_evalint_mry]
+id=i_deed
+name=EvalInt
+type=t_eq_script
+layer=layer_special
+weight=0
+
+ON=@TIMER
+if !<cont.canseelos <link>>
+    cont.sysmessageyellow Seu alvo esta fora da linha de visao...
+    remove
+    return 1
+// Se for perturbado ou estiver incapacitado:
+elif (<cont.f_isDisturbed>) || (!<Skill_InUse Skill_EvalInt>)
+    cont.sysmessageyellow Voce nao esta em condicoes de analisar nada.
+    Skill_InUse 0
+    remove
+    return 1
+//loop de animacao
+elif (<more>)
+    more -= 1
+    timer=1
+    return 1 
+endif
+
+//transforma em uma escala de 0 a 10
+LOCAL.int=<eval <link.int>/10>
+
+//muda a escala para cada nivel de skill
+if ( <cont.evaluatingintel> < 30.0 )
+    LOCAL.int=<eval ((<LOCAL.int>/5)*5)+2>
+elif ( <cont.evaluatingintel> < 70.0 )
+    LOCAL.int=<eval ((<LOCAL.int>/2)*2)+1>
+else
+    LOCAL.int=<eval <LOCAL.int>+1>
+endif
+
+if ( <LOCAL.int> > 11 )
+    LOCAL.int = 11
+endif
+
+cont.sysmessagegreen <DEF.evin_int<eval <LOCAL.int>>>
+cont.sysmessagegreen Esta com <eval (<link.mana>*100)/<link.maxmana>>% de sua forca mental
+
+Skill_InUse 0
+cont.skill_gain skill_evalint
+remove
+return 1
+
+[EOF]

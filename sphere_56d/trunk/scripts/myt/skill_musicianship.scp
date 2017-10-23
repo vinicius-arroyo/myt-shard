@@ -1,0 +1,895 @@
+//***********************************************************************
+//***********************************************************************
+//
+//              Mystical Tales Shard
+//                Skills de bardo
+//              Galthar, o Errante
+//
+//***********************************************************************
+//***********************************************************************
+
+[PLEVEL 0]
+BARDO
+
+//***********************************************************************
+//***********************************************************************
+//                  DEFNAMES
+//***********************************************************************
+//***********************************************************************
+
+[DEFNAME bard_skills]
+SND_DRUM_BATTLE     02E7
+SND_DRUM_DRAMA      02E8
+SND_DRUM_PEACE      02E9
+SND_DRUM            02EA
+SND_DRUM_BAD        02EB
+
+SND_HARP_BATTLE     0391
+SND_HARP_DRAMA      0392
+SND_HARP_PEACE      0393
+SND_HARP            045
+SND_HARP_BAD        046
+
+SND_LUTE_BATTLE     0403
+SND_LUTE_DRAMA      040B
+SND_LUTE_PEACE      0418
+SND_LUTE            04C
+SND_LUTE_BAD        04D
+
+SND_TAMBOURINE_BATTLE   04B5
+SND_TAMBOURINE_DRAMA    04B6
+SND_TAMBOURINE_PEACE    04B7
+SND_TAMBOURINE          052
+SND_TAMBOURINE_BAD      053
+
+BARD_ACTION_PLAY    1
+BARD_ACTION_SONG    2
+BARD_ACTION_TEXT    3
+
+BARD_PLAY_BATTLE    Melodia de Batalha
+BARD_PLAY_DRAMA     Melodia Dramatica
+BARD_PLAY_PEACE     Melodia de Paz
+BARD_PLAY_HAPPY     Melodia Alegre
+
+BARD_P00_NAME=Encorajar
+BARD_P00_MANA=6
+BARD_P00_DIF=36.0
+BARD_P00_SKILL=0.0
+BARD_P00_DESC=" Encoraja um grupo de aventureiros dando a ele bonus de ataque e defesa. <DEF.BR> Continue tocando para aumentar o bonus."
+BARD_P00_FUNC=BARDSONG_VALOR
+BARD_P00_FAIL=Sua cancao nao foi muito encorajadora.
+
+BARD_P01_NAME=Adormecer
+BARD_P01_MANA=8
+BARD_P01_DIF=20.0
+BARD_P01_SKILL=50.0
+BARD_P01_DESC=" Entoa uma cancao de ninar para deixar um grupo de inimigos sonolento aplicando penalidades de ataque e defesa. <DEF.BR> Talvez alguns deles ate durmam."
+BARD_P01_FUNC=BARDSONG_LULABY
+BARD_P01_FAIL=Ninguem ficou com sono.
+
+BARD_P02_NAME=Encantar
+BARD_P02_MANA=15
+BARD_P02_DIF=47.0
+BARD_P02_SKILL=55.0
+BARD_P02_DESC=" Entoa uma bela cancao, tao bela que pode prender a atencao de um grupo de inimigos para que eles fiquem estaticos."
+BARD_P02_FUNC=BARDSONG_CHARM
+BARD_P02_FAIL=Sua cancao nao foi encantadora o suficiente para prender a atencao de ninguem.
+
+BARD_P03_NAME=Notas Cortantes
+BARD_P03_MANA=15
+BARD_P03_DIF=65.0
+BARD_P03_SKILL=60.0
+BARD_P03_DESC=" Toca uma cancao terrivel, com notas horriveis, produzindo uma rajada sonica direcionada a um inimigo."
+BARD_P03_FUNC=BARDSONG_PIERCING_NOTES
+BARD_P03_FAIL=Suas notas nao foram fortes o suficiente.
+
+BARD_P04_NAME=Cancao aterrorizante
+BARD_P04_MANA=15
+BARD_P04_DIF=80.0
+BARD_P04_SKILL=65.0
+BARD_P04_DESC=" Toca uma cancao terrivel, com notas horriveis, gerando medo em quem falhar a um teste de inteligencia contra o Bardo. <DEF.BR> A vitima ficara impossibilitada de atacar, usar pericias ou magias. NPCs fugirao tambem. <DEF.BR> O custo de mana eh para cada personagem que se tentar aplicar o efeito."
+BARD_P04_FUNC=BARDSONG_SCARE
+BARD_P04_FAIL=Sua cancao nao foi tao perturbadora assim.
+
+//***********************************************************************
+//***********************************************************************
+//                  TYPEDEFs
+//***********************************************************************
+//***********************************************************************
+
+//***********************************************************************
+// t_musical
+//***********************************************************************
+[TYPEDEF t_musical]
+ON=@DCLICK
+return 0
+if (<src.action> != -1) || (<timer> > 0)
+    src.sysmessageyellow Aguarde ate estar desocupado para fazer isso.
+    return 1
+endif
+src.act=<uid>
+src.action=Musicianship
+return 1
+
+//desocupa
+ON=@TIMER
+timer=-1
+return 1
+
+//***********************************************************************
+//***********************************************************************
+//                  SKILLS
+//***********************************************************************
+//***********************************************************************
+
+//***********************************************************************
+// PROVOCATION
+//***********************************************************************
+[SKILL 22]
+//DEFNAME=SKILL_PROVOCATION
+KEY=Provocation
+TITLE=Bard
+PROMPT_MSG=@036 Quem voce gostaria de provocar?
+DELAY=10.0,1.0
+STAT_STR=20
+STAT_INT=60
+STAT_DEX=70
+BONUS_STR=0
+BONUS_DEX=90
+BONUS_INT=10
+BONUS_STATS=5
+//ADV_RATE=2.5,50.0,200.0
+
+ON=@Fail
+    SRC.SYSMESSAGERED Sua musica falhou em provocar raiva o suficiente.
+    //Diminuir chance de ser atacado.
+    IF (<SRC.PROVOCATION> < <R600>)
+        return 0
+    ELSE
+        RETURN 1
+    ENDIF
+
+ON=@Abort
+    SRC.SYSMESSAGEYELLOW Sua musica falhou em provocar raiva o suficiente.
+    //Diminuir chance de ser atacado.
+    IF (<SRC.PROVOCATION> < <R600>)
+        return 0
+    ELSE
+        RETURN 1
+    ENDIF
+
+//***********************************************************************
+// ENTICEMENT
+//***********************************************************************
+[SKILL 15]
+//DEFNAME=Skill_Enticement
+KEY=Enticement
+TITLE=Bard
+PROMPT_MSG=Quem voce gostaria de incitar?
+DELAY=10.0,1.0
+STAT_STR=15
+STAT_INT=70
+STAT_DEX=50
+BONUS_STR=0
+BONUS_DEX=50
+BONUS_INT=50
+BONUS_STATS=5
+//ADV_RATE=2.5,50.0,200.0
+
+ON=@Fail
+    SRC.SYSMESSAGEYELLOW Voce falhou.
+
+ON=@Abort
+    SRC.SYSMESSAGEYELLOW Voce nao termina a musica.
+
+//***********************************************************************
+// PEACEMAKING
+//***********************************************************************
+[SKILL 9]
+//DEFNAME=SKILL_PEACEMAKING
+KEY=Peacemaking
+TITLE=Bard
+PROMPT_MSG=
+DELAY=2.0
+STAT_STR=0
+STAT_INT=70
+STAT_DEX=70
+BONUS_STR=0
+BONUS_DEX=50
+BONUS_INT=50
+BONUS_STATS=5
+//ADV_RATE=2.5,50.0,200.0
+
+ON=@Fail
+    SRC.SYSMESSAGEYELLOW Voce falha ao tentar acalmar.
+
+ON=@Abort
+    SRC.SYSMESSAGEYELLOW Voce nao termina a musica.
+
+//***********************************************************************
+// MUSICIANSHIP
+//***********************************************************************
+[SKILL 29]
+//DEFNAME=Skill_Musicianship
+KEY=Musicianship
+TITLE=Bard
+PROMPT_MSG=
+DELAY=2.0
+STAT_STR=20
+STAT_INT=50
+STAT_DEX=70
+BONUS_STR=0
+BONUS_DEX=80
+BONUS_INT=20
+BONUS_STATS=10
+//ADV_RATE=2.5,50.0,200.0
+
+ON=@START
+//default delay between retries
+src.act.timer 5
+//just play or sing?
+IF (<tag0.bard.action>==BARD_ACTION_PLAY)
+    emoteyellow tocando <act.name>
+    IF <BELLTEST <musicianship>,<R300,650>>
+        INSTRUMENT <tag.bard.item>
+    ELSE
+        INSTRUMENT BAD
+        src.act.timer 8
+        sysmessageyellow Voce tocou muito mal.
+    ENDIF
+ELIF (<tag0.bard.action>==BARD_ACTION_SONG)
+    TRY <DEF.BARD_P<hval <tag0.bard.item>>_FUNC>
+ELSE
+    INSTRUMENT
+    emoteyellow tocando <act.name>
+ENDIF
+action=-1
+return 1
+
+ON=@SUCCESS
+    return 1
+
+ON=@FAIL
+    return 1
+
+ON=@ABORT
+    return 1
+
+//***********************************************************************
+//***********************************************************************
+//                 FUNÇÕES
+//***********************************************************************
+//***********************************************************************
+
+//***********************************************************************
+//                 BARDO
+//***********************************************************************
+[FUNCTION BARDO]
+SDIALOG d_book_bard 1
+
+//***********************************************************************
+//                 INSTRUMENT
+//***********************************************************************
+[FUNCTION INSTRUMENT]
+//Faz o som do instrumeto que o jogador possui de acordo com o argumento <ARGS>
+// ARGS=[BATTLE | DRAMA | PEACE | BAD | <nada>]
+
+//Qual é o intrumento?
+IF (<src.act.type> == t_musical) && (<src.act.topobj> == <src.uid>)
+    obj=<src.act.uid>
+ELSE
+    obj=<src.findtype.t_musical>
+ENDIF
+
+// Determinar o tipo dos intrumento
+IF (<obj.baseid>==i_lute)
+    LOCAL.ins=LUTE
+ELIF (<obj.baseid>==i_lyre)
+    LOCAL.ins=HARP
+ELIF (<obj.baseid>==i_tambourine)
+    LOCAL.ins=TAMBOURINE
+ELIF (<obj.baseid>==i_drum)
+    LOCAL.ins=DRUM
+ELSE
+    RETURN 0
+ENDIF
+
+//Que tipo de som?
+IF (<ISEMPTY <args>>) || (<ISEMPTY <DEF.SND_<LOCAL.INS>_<ARGS>>>)
+    SFX <DEF.SND_<LOCAL.INS>>
+ELSE
+    SFX <DEF.SND_<LOCAL.INS>_<ARGS>>
+ENDIF
+RETURN 1
+
+//***********************************************************************
+//                 BARDSONG_TEST
+//***********************************************************************
+//Testa musicianship, gasta mana e retorna 0 ou 1.
+//Deduz qual canção bardica testar pelo tag.bard.item
+[FUNCTION BARDSONG_TEST]
+//GMs sempre se dão bem.
+IF (<IsGM>)
+    return 1
+ENDIF
+
+//Testa se tem mana
+LOCAL.mana=<DEF.BARD_P<hval <tag0.bard.item>>_MANA>
+IF <MANA> < <LOCAL.mana>
+    sysmessagered Voce nao tem mana o suficiente.
+    return 0
+ENDIF
+MANA -= <LOCAL.mana>
+
+//Testa a skill
+SKILL_GAIN Skill_Musicianship
+IF (!<BELLTEST <MUSICIANSHIP>,<DEF.BARD_P<hval <tag0.bard.item>>_DIF>>)
+    IF (!<IsEmpty <DEF.BARD_P<hval <tag0.bard.item>>_FAIL>>)
+        sysmessagered <DEF.BARD_P<hval <tag0.bard.item>>_FAIL>
+    ELSE
+        sysmessagered Voce falhou.
+    ENDIF
+    return 0
+ENDIF
+return 1
+
+//***********************************************************************
+//***********************************************************************
+//                 FUNÇÕES DE PODER
+//***********************************************************************
+//***********************************************************************
+
+//***********************************************************************
+//                 Encorajar
+//***********************************************************************
+
+[FUNCTION BARDSONG_VALOR]
+IF !(<INSTRUMENT BATTLE>)
+ sysmessagered Voce nao tem um instrumento
+ return 1
+endif
+emoteyellow entoa uma cancao encorajadora
+LOCAL.timer=<f_rangeValue 8,2,<musicianship>>
+TIMERf <LOCAL.timer>, _BARDSONG_VALOR
+
+[FUNCTION _BARDSONG_VALOR]
+IF (!<BARDSONG_TEST>)
+ return 1
+endif
+LOCAL.r=<f_rangeValue 1,5,<musicianship>>
+LOCAL.moddam=<f_rangeValue -1,3,<musicianship>>
+LOCAL.modar=<f_rangeValue -2,4,<musicianship>>
+LOCAL.timer=<f_rangeValue 0,35,<musicianship>>
+//sysmessageyellow r:<dLOCAL.r> moddam:<dLOCAL.moddam> modar:<dLOCAL.modar>
+OBJ=<UID>
+FORCHARS <LOCAL.r>
+ IF (!<IsMyEnemy <OBJ>>) && ((<IsMyMaster <OBJ>>) || (<IsPlayer>)) && (!<RESTEST 4 i_mry_COMBAT_MODS>)
+  EFFETCT_BARDSONG_VALOR <LOCAL.timer>,<LOCAL.modar>,<LOCAL.moddam>
+ ENDIF
+ENDFOR
+
+[FUNCTION EFFETCT_BARDSONG_VALOR]
+//EFFECT_BARDSON_VALOR <time>,<MODAR>,<MODDAM>
+serv.newitem i_mry_COMBAT_MODS
+new.more1=<argv1>
+new.more2=<argv2>
+equip <new>
+new.timer=<argv0>
+message=@02, *encorajad<sex o/a>* 
+sysmessagegreen Voce se sente mais corajos<sex o/a>!
+
+[ITEMDEF i_mry_COMBAT_MODS]
+ID=i_lyre
+NAME=Comat Mod (Bardsong)
+TYPE=t_eq_script
+LAYER=layer_special
+WEIGHT=0
+
+on=@equip
+cont.modar += <more1>
+cont.tag0.moddam += <more2>
+
+on=@timer
+cont.modar -= <more1>
+cont.tag.moddam -= <more2>
+remove
+return 1
+
+
+//***********************************************************************
+//                 SONOLÊNCIA
+//***********************************************************************
+
+[FUNCTION BARDSONG_LULABY]
+IF !(<INSTRUMENT PEACE>)
+ sysmessagered Voce nao tem um instrumento
+ return 1
+endif
+emoteyellow entoa uma cancao de ninar
+skill_Inuse skill_Musicianship
+events +e_no_attack
+events +e_no_dclick
+cTAG.DISTURB
+TIMERF 3,_BARDSONG_LULABY
+
+[FUNCTION _BARDSONG_LULABY]
+IF !(<INSTRUMENT PEACE>)
+ sysmessagered Voce nao tem um instrumento
+ return 1
+endif
+IF (<f_isDisturbed>) || (<cTAG0.DISTURB>) || (!<IsOnline>) || (!<BARDSONG_TEST>)
+ sysmessagered Voce foi perturbado
+ emotered para de cantar
+ skill_Inuse 0
+ events -e_no_attack
+ events -e_no_dclick
+ return 1
+ENDIF
+DOSWITCH <EVAL <cTAG0.ESTROFE>>
+ say=@06 E nessa cancao
+ say=@06 cancao de ninar
+ say=@06 Pode dormir
+ say=@06 Nao queira acordar
+ say=@06 Doces sonhos
+ say=@06 Ternura no ar
+ say=@06 Nao fique de pe
+ say=@06 Pode deitar
+ENDDO
+cTAG0.ESTROFE +=1
+IF (<cTAG0.ESTROFE>=8)
+ cTAG.ESTROFE
+ENDIF
+OBJ=<UID>
+FORCHARS 6
+ IF ((<IsMyEnemy <OBJ>>) || (!<IsPlayer>)) && (!<IsMyMaster <OBJ>>) && (<obj.CanSeeLos <UID>>) && (<UID> != <obj>)
+  EFFETCT_BARDSONG_LULABY <OBJ>
+ ENDIF
+ENDFOR
+TIMERF 3,_BARDSONG_LULABY
+
+[FUNCTION EFFETCT_BARDSONG_LULABY]
+obj=<argn1>
+IF ((<R<obj.int>> > <INT>) || (<BELLTEST <obj.Musicianship>,120.0>)) && (!<R6>)
+ f_faint
+ timerF <BETWEEN 10,60,<obj.Musicianship>,2000>,f_WakeUp
+elif (!<R2>)
+ F_SONOLENTO <argn1>
+ENDIF
+
+[FUNCTION f_sonolento]
+OBJ=<argn1>
+say=@038, *sonolent<sex o/a>*
+IF (!<RESTEST 4 i_mry_COMBAT_MODS>)
+ serv.newitem i_mry_COMBAT_MODS
+ new.more1=-<BETWEEN 0,25,<obj.Musicianship>,2000>
+ new.more2=-<BETWEEN 0,4,<obj.Musicianship>,2000>
+ equip <new>
+ new.timer=<BETWEEN 0,120,<obj.Musicianship>,2000>
+ sysmessageorange Voce se sente sonolent<sex o/a>...
+ENDIF
+
+
+
+//***********************************************************************
+//                 ENCANTAR
+//***********************************************************************
+[FUNCTION BARDSONG_CHARM]
+IF !(<INSTRUMENT PEACE>)
+ sysmessagered Voce nao tem um instrumento
+ return 1
+endif
+emoteyellow entoa uma cancao encantadora
+TIMERF <BETWEEN2 2,6,<musicianship>,200.0>,_BARDSONG_CHARM
+
+[FUNCTION _BARDSONG_CHARM]
+IF (!<BARDSONG_TEST>)
+ RETURN 1
+ENDIF
+OBJ=<UID>
+FORCHARS 12
+ IF ((<IsMyEnemy <OBJ>>) || (!<IsPlayer>)) && (!<IsMyMaster <OBJ>>) && (<CanSeeLos <OBJ>>) && (<UID> != <obj>)
+  EFFETCT_BARDSONG_CHARM
+ ENDIF
+ENDFOR
+
+[FUNCTION EFFETCT_BARDSONG_CHARM]
+if (<BELLTEST <obj.Musicianship>,60.0>) && (<R<INT>> <= <obj.int>)
+ emotered encantado
+ stun <BETWEEN 2,20,<obj.Musicianship>,200.0>
+endif
+
+
+//***********************************************************************
+//                 NOTAS CORTANTES
+//***********************************************************************
+[FUNCTION BARDSONG_PIERCING_NOTES]
+SYSMESSAGEYELLOW Para onde voce quer direcionar as notas cortantes?
+targetf _BARDSONG_PIERCING_NOTES
+
+[FUNCTION _BARDSONG_PIERCING_NOTES]
+if (!<argo>)
+ sysmessagered Voce deve escolher um alvo.
+ RETURN 0
+ELIF (!<ARGO.ISCHAR>)
+ sysmessagered Seu alvo deve ser uma criatura.
+ RETURN 0
+ELIF (<ARGO>==<UID>)
+ emoteyellow toca notas terriveis
+ INSTRUMENT BAD
+ sysmessagered Nao funciona apontar o som para voce <SEX mesmo/mesma>.
+ RETURN 0
+ELIF (!<CanSeeLos <ARGO>>)
+ sysmessagered Nao consegue ver o alvo.
+ RETURN 0
+endif
+INSTRUMENT BAD
+emoteyellow toca notas terriveis
+IF (!<BARDSONG_TEST>)
+ return 1
+ENDIF
+argo.effect 0 i_fx_ebolt 6 6 0
+LOCAL.DAM=<R5,<eval <musicianship>/50>>
+argo.DAMAGE <LOCAL.DAM> DAM_PHYSICAL <UID>
+
+
+//***********************************************************************
+//                 MEDO
+//***********************************************************************
+[FUNCTION BARDSONG_SCARE]
+IF !(<INSTRUMENT DRAMA>)
+ sysmessagered Voce nao tem um instrumento
+ return 1
+endif
+emoteyellow entoa uma cancao de fantasmagorica
+TIMERF <BETWEEN2 2,6,<musicianship>,200.0>,_BARDSONG_SCARE
+
+[FUNCTION _BARDSONG_SCARE]
+OBJ=<UID>
+FORCHARS 8
+ IF ((<IsMyEnemy <OBJ>>) || (!<IsPlayer>)) && (!<IsMyMaster <OBJ>>) && (<CanSeeLos <OBJ>>) && (<UID> != <obj>)
+  EFFETCT_BARDSONG_SCARE
+ ENDIF
+ENDFOR
+
+[FUNCTION EFFETCT_BARDSONG_SCARE]
+if (<OBJ.BARDSONG_TEST>) && (<R<INT>> <= <obj.int>)
+ emotered apavorado
+ flags &= ~statf_war
+ events +e_scared
+ timerf <BETWEEN 10,40,<obj.musicianship>,200.0>,events,-e_scared
+else
+ message=@036, *nem liga*
+endif
+
+//***********************************************************************
+//***********************************************************************
+//                  ITEMDEFS
+//***********************************************************************
+//***********************************************************************
+
+[ITEMDEF 0e9c]
+DEFNAME=i_drum
+NAME=tambor
+TYPE=T_MUSICAL
+TDATA1=
+TDATA2=
+WEIGHT=3
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Bard
+DESCRIPTION=Tambor
+NAME=tambor
+RESOURCES=1 i_madeiraenvergada, 1 i_couro_cru, 5 i_pregos
+SKILLMAKE=Carpentry 45.0
+
+[ITEMDEF 0e9d]
+//Tambourine
+DEFNAME=i_tambourine
+NAME=pandeiro
+TYPE=T_MUSICAL
+TDATA1=
+TDATA2=
+RESOURCES=1 i_madeiraenvergada, 1 i_arame_ferro, 5 i_pregos
+SKILLMAKE=Carpentry 55.0
+WEIGHT=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Bard
+DESCRIPTION=Pandeiro
+
+[ITEMDEF 0e9e]
+//tambourine (tassle)
+DEFNAME=i_tambourine_tas
+NAME=meia-lua
+RESOURCES=1 i_madeiraenvergada, 1 i_arame_ferro, 5 i_pregos, 1 i_bandage
+SKILLMAKE=Carpentry 55.0
+TYPE=T_MUSICAL
+TDATA1=
+TDATA2=
+WEIGHT=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Bard
+DESCRIPTION=Meia-lua
+
+[ITEMDEF 0eb1]
+//standing harp
+DEFNAME=i_HARP_LARGE
+NAME=arpa
+TYPE=T_MUSICAL
+TDATA1=
+TDATA2=
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Bard
+DESCRIPTION=Arpa
+RESOURCES=2 i_madeiraenvergada, 3 i_arame_ferro, 5 i_pregos
+SKILLMAKE=Carpentry 80.0
+
+[ITEMDEF 0eb2]
+//Lap Harp
+DEFNAME=i_lyre
+NAME=lira
+TYPE=T_MUSICAL
+TDATA1=
+TDATA2=
+WEIGHT=10
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Bard
+DESCRIPTION=Lira
+RESOURCES=1 i_madeiraenvergada, 3 i_arame_ferro, 5 i_pregos
+SKILLMAKE=Carpentry 75.0
+
+[ITEMDEF 0eb3]
+//Lute
+DEFNAME=i_lute
+NAME=alaude
+RESOURCES=1 i_madeiraenvergada, 3 i_arame_ferro, 5 i_pregos
+SKILLMAKE=Carpentry 60.0
+TYPE=T_MUSICAL
+TDATA1=
+TDATA2=
+WEIGHT=5
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Bard
+DESCRIPTION=Alaude
+DUPELIST=0eb4
+
+[ITEMDEF 0eb4]
+//lute
+DUPEITEM=0eb3
+
+//******************************************************************************
+//******************************************************************************
+//                  GUMP
+//******************************************************************************
+//******************************************************************************
+
+[DIALOG d_book_bard]
+250,150
+page 0
+gumppic 0 0 500
+tilepic 71 5 3762
+tilepic 275 8 3763
+page 1
+dtext 65 40 0 Mystical Tales
+dtext 91 62 0 Shard
+dtext 60 96 67 Livro de cancoes
+dtext 103 123 67 do
+dtext 91 156 67 Bardo
+dtext 221 33 4 Ao tocar:
+DOSWITCH <tag0.bard.action>
+ dtext 282 33 2100 Nada
+ dtext 282 33 2100 Entoar melodia
+ dtext 282 33 2100 Cancao bardica
+ dtext 282 33 2100 Recitar texto
+ENDDO
+dtext 222 54 2100 <f_book_bard_action_item>
+button 227 79 2472 2473 1 0 11
+dtext 256 83 2100 Entoar melodia
+button 227 109 2472 2473 1 0 12
+dtext 256 113 2100 Cancao bardica
+button 227 138 2472 2473 1 0 13
+dtext 256 142 2100 Recitar texto
+button 235 190 2103 2104 1 0 14
+tilepic 216 183 4084
+dtext 261 185 32 Gerenciar textos
+page 2
+dtext 65 40 0 Mystical Tales
+dtext 91 62 0 Shard
+dtext 60 96 67 Livro de cancoes
+dtext 103 123 67 do
+dtext 91 156 67 Bardo
+button 227 79 2472 2473 1 0 21
+dtext 256 83 2100 Batalha
+button 227 109 2472 2473 1 0 22
+dtext 256 113 2100 Drama
+button 227 138 2472 2473 1 0 23
+dtext 256 142 2100 Paz
+button 227 167 2472 2473 1 0 24
+dtext 256 171 2100 Alegre
+dtext 248 40 4 Slecione a melodia
+page 3
+dtext 57 38 4 Cancao bardica
+dtext 39 58 2100 <DEF.BARD_P<hval <tag0.bard.page>>_NAME>
+dtext 39 91 4 Mana:
+dtext 80 91 2100 <EVAL <DEF.BARD_P<hval <tag0.bard.page>>_MANA>>
+dtext 39 111 4 Dificuldade:
+dtext 117 111 2100 <DEF.BARD_P<hval <tag0.bard.page>>_DIF>
+dhtmlgump 226 69 161 136 0 1 <DEF.BFONT_DGRAY><DEF.BARD_P<hval <tag0.bard.page>>_DESC>
+dtext 266 43 67 Descricao
+button 67 169 2472 2473 1 0 33
+dtext 96 173 2100 Selecionar
+IF (<tag0.bard.page>)
+ button 0 0 501 501 1 0 31
+ENDIF
+button 355 0 502 502 1 0 32
+page 4
+dtext 65 40 0 Mystical Tales
+dtext 91 62 0 Shard
+dtext 60 96 67 Livro de cancoes
+dtext 103 123 67 do
+dtext 91 156 67 Bardo
+button 227 60 2472 2473 1 0 41
+dtext 256 64 2100 (Texto 1)
+dtext 250 40 4 Slecione o texto
+page 5
+dtext 53 41 32 Gerenciar textos
+button 223 64 1150 1151 1 0 60
+dtext 256 64 2100 (Texto 1)
+dtext 255 40 4 Remover texto
+dtext 63 130 0 Adicionar texto
+dtext 59 147 0 de livro ou carta
+button 94 168 2472 2473 1 0 51
+
+[DIALOG d_book_bard text]
+Mystical Tales
+Shard
+Livro de cancoes
+do
+Bardo
+Ao tocar:
+Entoar melodia
+(nome da coisa)
+Entoar melodia
+Cancao bardica
+Recitar texto
+Gerenciar textos
+Mystical Tales
+Shard
+Livro de cancoes
+do
+Bardo
+Batalha
+Drama
+Paz
+Alegre
+Slecione a melodia
+Cancao bardica
+(nome)
+Mana:
+(mana)
+Dificuldade:
+(dif)
+(descricao HTML)
+Descricao
+Selecionar
+Mystical Tales
+Shard
+Livro de cancoes
+do
+Bardo
+(Texto 1)
+Slecione o texto
+Gerenciar textos
+(Texto 1)
+Remover texto
+Adicionar texto
+de livro ou carta
+
+[DIALOG d_book_bard button]
+ON=11
+// sleect: melodia
+DIALOG d_book_bard 2
+
+ON=12
+// select: cancao
+DIALOG d_book_bard 3
+
+ON=13
+// select: recitar
+sysmessageyellow Nao implementado.
+bardo
+
+ON=14
+// Gerenciar textos
+sysmessageyellow Nao implementado.
+bardo
+
+ON=21
+// Entoar batalha
+tag.bard.action=BARD_ACTION_PLAY
+tag.bard.item=BATTLE
+bardo
+
+ON=22
+// Entoar drama
+tag.bard.action=BARD_ACTION_PLAY
+tag.bard.item=DRAMA
+bardo
+
+ON=23
+// Entoar paz
+tag.bard.action=BARD_ACTION_PLAY
+tag.bard.item=PEACE
+bardo
+
+ON=24
+// Entoar alegre
+tag.bard.action=BARD_ACTION_PLAY
+tag.bard.item=HAPPY
+bardo
+
+ON=33
+// Select song
+tag.bard.action=BARD_ACTION_SONG
+tag.bard.item=<tag0.bard.page>
+sysmessagegreen Cancao bardica: <DEF.BARD_P<hval <tag0.bard.page>>_NAME>
+DIALOG d_book_bard 1
+
+ON=31
+// song page -
+f_book_bard_page_previous
+
+ON=32
+// Song page +
+f_book_bard_page_next
+
+ON=41
+// Copy of Entoar batalha
+
+ON=60
+// remover texto 0
+
+ON=51
+// Adicionar texto
+
+
+[FUNCTION f_book_bard_action_item]
+IF (<tag0.bard.action>==BARD_ACTION_PLAY)
+ RETURN <DEF.BARD_PLAY_<tag.bard.item>>
+ELIF (<tag0.bard.action>==BARD_ACTION_SONG)
+ RETURN <DEF.BARD_P<hval <tag0.bard.item>>_NAME>
+ENDIF
+
+[FUNCTION f_book_bard_page_next]
+LOCAL.page=<hval <tag0.bard.page>>
+WHILE (!<IsEmpty <DEF.BARD_P<hval <LOCAL.page>+1>_NAME>>)
+ LOCAL.page += 1
+ IF (!<IsEmpty <DEF.BARD_P<LOCAL.page>_NAME>>)
+  IF (<musicianship> > <DEF.BARD_P<LOCAL.page>_SKILL>)
+   tag.bard.page=<LOCAL.page>
+   DIALOG d_book_bard 3
+   RETURN 1
+  ENDIF
+ ENDIF
+ENDWHILE
+tag.bard.page=<LOCAL.page>
+DIALOG d_book_bard 3
+
+[FUNCTION f_book_bard_page_previous]
+LOCAL.page=<hval <tag0.bard.page>>
+WHILE (<LOCAL.page>)
+ LOCAL.page -= 1
+ IF (<LOCAL.page>)
+  IF (<musicianship> > <DEF.BARD_P<LOCAL.page>_SKILL>)
+   tag.bard.page=<LOCAL.page>
+   DIALOG d_book_bard 3
+   RETURN 1
+  ENDIF
+ ENDIF
+ENDWHILE
+IF (!<LOCAL.page>)
+ tag.bard.page
+else
+ tag.bard.page=<LOCAL.page>
+endif
+DIALOG d_book_bard 3
+
+[EOF]

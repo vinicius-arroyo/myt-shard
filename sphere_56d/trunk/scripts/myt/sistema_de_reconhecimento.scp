@@ -1,0 +1,238 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE RECONHECIMENTO por
+//  Galthar     (galtar at terra.com.br)
+//  UsMarine    (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//TODO:
+
+//TAGS usadas:
+//src.tag.name
+//src.tag.uid_<uid_do_player_reconhecido>_name
+//src.ctag.recon
+//*****************************************************************************
+
+[PLEVEL 0]
+r
+
+//*****************************************************************************
+//*****************************************************************************
+// EVENTs
+//*****************************************************************************
+//*****************************************************************************
+[EVENTS e_recon]
+
+ON=@CLICK
+//hide names
+return 1
+
+ON=@CLIENTTOOLTIP
+//sem tooltips se tiver fora da visao
+if !<canseelos> && !<isgm>
+    //deveria mandar tooltip vazio pra tirar do cache
+    //mas pra evitar lag, deixa como esta
+    f_sendTooltipData Nao consegue ver...
+    return 1
+endif
+
+if <src.rec_canSee <uid>>
+ f_sendTooltip <tag.raca>,Conhecido como: <rec_getName>
+else
+ f_sendTooltip Desconhecido,Nao consegue ver o rosto
+endif
+
+return 1
+
+ON=@DCLICK //self click or someone clicked me
+//nao deixa abrir meu paperdoll se tiver fora de visao
+if !<canseelos> && !<isgm>
+    src.sysmessageyellow Nao consegue ver....
+    return 1
+endif
+resendtooltip
+
+
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// r - reconhecimento
+//*****************************************************************************
+[FUNCTION r]
+sysmessageyellow Quem voce gostaria de reconhecer?
+targetf rr
+
+//*****************************************************************************
+// rr - continuacao do reconhecimento
+//*****************************************************************************
+[FUNCTION rr]
+
+//É player?
+if (0<argo>==0) || (<argo>>040000000) || (0<argo.npc>!=0)
+ src.sysmessage Jogador invalido.
+ return 1
+endif
+    
+// É você mesmo?
+if (<argo.uid>==<src.uid>)
+ sysmessage Nao pode mudar seu nome real.
+ return 1
+endif
+
+if ( !<src.rec_canSee <argo>> ) || (!<argo.canseelos>)
+    src.sysmessage Nao consegue ver...
+    return 1
+endif
+
+src.ctag.recon=<argo.uid>
+src.dialog=d_recon
+src.emoteyellow observando
+src.sysmessage Reconhecendo...
+return 1
+
+//*****************************************************************************
+// rec_getName
+//*****************************************************************************
+//src eh o player vendo
+//default eh o player sendo olhado
+[FUNCTION rec_getName]
+//se estiver se olhando, se for gm, ou olhando gm
+if (<src.account.plevel> > 1)
+    return <tag.name> [<account>]
+elif (<uid> == <src.uid>) || (<isgm>)
+    return <tag.name>
+elif (<flags>&0400)
+    return <serv.chardef.<body>.name>
+else
+    LOCAL.name=<src.tag.uid_<uid>_name>
+    if (strmatch(<LOCAL.name>,0)
+        LOCAL.name=Desconhecido.
+    endif
+    return <LOCAL.name>
+endif
+
+//*****************************************************************************
+// rec_fGetName
+//*****************************************************************************
+//Retorna o nome pelo qual <src> reconhece <argv0>
+[FUNCTION rec_fGetName]
+//se estiver se olhando, se for gm, ou olhando gm
+if (!<argn>)
+    return 0
+elif (<uid.<argv0>.npc>)
+    return <uid.<argv0>.name>
+elif (<src.account.plevel> > 1)
+    return <uid.<argv0>.tag.name>[<uid.<argv0>.account>]
+elif (<uid> == <argv0>) || (<isgm>)
+    return <tag.name>
+elif (<flags>&0400)
+    return <serv.chardef.<uid.<argv0>.body>.name>
+else
+    LOCAL.name=<src.tag.uid_<argv0>_name>
+    if (strmatch(<LOCAL.name>,0)
+        LOCAL.name=Desconhecido.
+    endif
+    return <LOCAL.name>
+endif
+
+//*****************************************************************************
+// rec_checkName( name )
+//*****************************************************************************
+[FUNCTION rec_checkName]
+if (STRLEN(<ARGS>) >= 17)
+ src.sysmessage Nome muito longo.
+ return 1
+endif
+if strmatch(*[0-9]*, <args>)
+ src.sysmessage Nao pode conter numeros.
+ return 1
+endif
+if strmatch(* *, <args>)
+ src.sysmessage Nao pode conter letras separadas.
+ return 1
+endif
+if strmatch(*[\'!@#$%&*_+{}~^:?.<>;|/\\`´]*, <args>) //"()
+ src.sysmessage Nao pode conter simbolos. 
+ return 1
+endif
+return 0
+
+
+//*****************************************************************************
+// rec_canSee( UID )
+//*****************************************************************************
+//DEF deve ser quem esta olhando
+//UID eh quem esta sendo olhado
+[FUNCTION rec_canSee]
+
+OBJ=<argn>
+
+// Rosto coberto (barrar)
+LOCAL.h=<OBJ.findlayer(layer_helm).dispid>
+LOCAL.r=<OBJ.findlayer(layer_robe).dispid>
+LOCAL.c=<OBJ.restest i_capuz>
+
+if <IsEmpty <account>>
+    LOCAL.p=1
+else
+    LOCAL.p=<account.plevel>
+endif
+
+//Permite se ver, ver gm ou se for gm
+if (<LOCAL.p> > 1) || (<OBJ.isgm>) || (<uid>==<obj>)
+//    serv.log <name> ve <obj.name> [A] <LOCAL.p>/<OBJ.isgm>
+    return 1
+elif (<OBJ.flags>&statf_polymorph) || (<OBJ.tag0.comcapuz>) || ( <LOCAL.h> == 01408 ) || ( <LOCAL.h> == 01409 ) || ( <LOCAL.h> == 0140c ) || ( <LOCAL.h> == 0140d ) || ( <LOCAL.h> == 01412 ) || ( <LOCAL.h> == 01419 ) || ( <LOCAL.h> == 01451 )|| ( <LOCAL.h> == 01549 ) || ( <LOCAL.h> == 0154a ) || ( <LOCAL.h> == 0154b ) || ( <LOCAL.h> == 0154c )|| ( <LOCAL.h> == 01f0b ) || ( <LOCAL.h> == 01f0c ) || ( <LOCAL.r> == 0204e ) || ( <LOCAL.r> == 0204f ) || ( <LOCAL.r> == 04501 ) || ( <LOCAL.r> == 04502 ) || ( <LOCAL.r> == 04503 ) || ( <LOCAL.c> )
+//    serv.log <name> nao consegue ver <obj.name> (<OBJ.tag0.comcapuz>/<LOCAL.h>/<LOCAL.r>/<LOCAL.c>/<eval (<OBJ.flags>&statf_polymorph)>)
+    return 0
+else
+//    serv.log <name> ve <obj.name> [B]
+    return 1
+endif
+
+//*****************************************************************************
+//*****************************************************************************
+// GUMPs
+//*****************************************************************************
+//*****************************************************************************
+[DIALOG d_recon]
+200, 300
+PAGE 0
+resizepic 0 0 3500 356 136
+text 26 31 995 0
+text 141 10 152 1
+gumppic 39 63 1143
+textentry 59 66 220 600 1152 0 2
+button 55 97 239 240 1 0 1
+button 234 97 243 241 1 0 2
+
+[DIALOG d_recon TEXT]
+Como voce gostaria de reconhecer esta pessoa?
+-=MyT=-
+<var.blank>
+
+
+[DIALOG d_recon BUTTON]
+ON=1
+if ( <rec_checkName <ARGTXT[0]>> )
+    dialog d_recon
+    return 1
+endif
+
+OBJ=<src.ctag.recon>
+TRYP 0 src.tag.uid_<OBJ>_name = <ARGTXT[0]>
+src.sysmessage Agora voce <OBJ.SEX o/a> conhece como <ARGTXT[0]>
+src.update
+return 1
+
+ON=2
+return 1
+
+[EOF]

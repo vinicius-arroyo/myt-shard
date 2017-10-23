@@ -1,0 +1,740 @@
+/////////////////////////////////////////////////////////
+/////////////   Sistema de couro e pelo   ///////////////
+/////////////       Jean Gabin (MYT)     ///////////////
+/////////////         beta v. 08         ///////////////
+/////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////
+//////////////  hides  ///////////////////////////////////
+/////////////////////////////////////////////////////////
+
+
+[ITEMDEF i_couro_cru]
+NAME=couro cru
+ID=01078
+TYPE=t_hide
+VALUE=3
+WEIGHT=5
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Couro
+DESCRIPTION=Couro cru
+
+on=@click
+f_hide_click
+return 1
+
+on=@dclick
+src.sysmessageyellow Voce precisa esticar este couro em uma moldura para usar.
+return 1
+
+ON=@CLIENTTOOLTIP
+f_hide_tooltip
+return 1
+
+
+
+///////////////////////////////////////////////////////////
+
+[ITEMDEF i_couro_curtido]
+NAME=couro curtido
+ID=01078
+TYPE=t_leather
+VALUE=3
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Couro
+DESCRIPTION=Couro curtido
+
+on=@click
+f_hide_click
+return 1
+
+ON=@CLIENTTOOLTIP
+f_hide_tooltip
+return 1
+
+on=@dclick
+src.sysmessageyellow Voce precisa de um kit de costura para fazer algo com este pelo curtido.
+return 1
+
+///////////////////////////////////////////////////////////
+
+[ITEMDEF i_pelo_cru]
+NAME=pelo cru
+ID=011f6
+TYPE=t_fur
+WEIGHT=3
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Couro
+DESCRIPTION=Pelo cru
+
+on=@click
+f_hide_click
+return 1
+
+ON=@CLIENTTOOLTIP
+f_hide_tooltip
+return 1
+
+on=@dclick
+src.sysmessageyellow Voce precisa esticar este pelo em uma moldura para usar.
+return 1
+
+
+
+/////////////////////////////////////////////////////////////
+
+
+[ITEMDEF i_pelo_curtido]
+NAME=Pelo curtido
+ID=011f6
+TYPE=t_leather
+WEIGHT=3
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Couro
+DESCRIPTION=Pelo curtido
+
+on=@click
+f_hide_click
+return 1
+
+ON=@CLIENTTOOLTIP
+f_hide_tooltip
+return 1
+
+on=@dclick
+src.sysmessageyellow Voce precisa de um kit de costura para fazer algo com este pelo curtido.
+return 1
+
+
+///////////////////////////////////////////////////////////
+//////////////  moldura de couro   ///////////////////////
+/////////////////////////////////////////////////////////
+
+[ITEMDEF i_moldura_sem_couro]
+NAME=Moldura para esticar couro ou pelo
+ID=01bd8
+TYPE=t_buy_misc
+PILE=1
+RESOURCES=4 i_tabua, 8 i_pregos
+SKILLMAKE=Carpentry 22.0
+WEIGHT=5
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Couro
+DESCRIPTION=Moldura sem couro
+
+ON=@Create
+   COLOR=02a
+
+on=@click
+message <amount> <name>
+return 1
+
+on=@dclick
+if (<src.targ.distance>>2)&&(<topobj.uid> != <src.uid>)
+src.sysmessage Chegue mais perto.
+return 1
+else
+target Escolha um couro cru tratado ou um pelo cru tratado para esticar
+return 1
+endif
+return 1
+
+on=@targon_char
+src.sysmessage Use a moldura apenas em couro cru ou pelo cru.
+return 1
+
+on=@targon_ground
+src.sysmessage Use a moldura apenas em couro cru ou pelo cru.
+return 1
+
+on=@targon_item
+if (<src.targ.topobj.uid> != <src.uid>)
+  src.sysmessage O couro ou o pelo tem que estar na mochila para ser esticado
+return 1
+elif (<src.targ.baseid>==i_couro_cru)
+  src.sysmessage Voce colocou o couro cru na moldura para esticar.
+  src.newitem i_moldura_couro
+  src.act.more2=<src.targ.more2>
+  src.act.color=<src.targ.color>
+  src.act.bounce
+  consume 1 i_moldura_sem_couro
+  src.targ.consume 1 <src.targ.baseid>
+return 1
+elif (<src.targ.baseid>==i_pelo_cru)
+  src.sysmessage Voce colocou o pelo cru na moldura para esticar.
+  src.newitem i_moldura_pelo
+  src.act.more2=<src.targ.more2>
+  src.act.color=<src.targ.color>
+  src.act.bounce
+  consume 1 i_moldura_sem_couro
+  src.targ.consume 1 <src.targ.baseid>
+return 1
+else 
+src.sysmessage Isto nao e couro cru nem pelo cru.
+endif
+return 1
+
+//////////////////////////////////////////////////////////////////////
+
+
+[ITEMDEF i_moldura_couro]
+NAME=moldura com couro
+ID=0106b
+TYPE=T_hide
+WEIGHT=6
+dupelist=0107c
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Couro
+DESCRIPTION=Moldura com couro
+
+on=@create
+more1=0  // determina se o couro está tratado
+more2=0  // determina o tipo de couro que está na moldura
+morex=0  // determina se o couro já está curtido
+morey=0  // determina o loop do timer
+morez=0  // é o que liga e desliga a fogueira
+
+on=@click
+message=@036 <name>
+if (<morex>)
+ LOCAL.msg=curtido
+elif (<morey>)
+ LOCAL.msg=curtindo
+elif (<more1>)
+ LOCAL.msg=tratado
+else
+ local.msg=nao tratado
+endif
+message <LOCAL.msg> (<f_get_hide_name>)
+return 1
+
+on=@ClientToolTip
+if (<morex>)
+ LOCAL.msg=curtido
+elif (<morey>)
+ LOCAL.msg=meio curtido
+elif (<more1>)
+ LOCAL.msg=tratado
+else
+ local.msg=nao tratado
+endif
+f_sendTooltip <name>,<LOCAL.msg><DEF.BR>(<f_get_hide_name>)
+return 1
+
+on=@dclick
+if (<topobj.uid>!=<src.uid>)
+  src.sysmessagered A moldura tem que estar na mochila para ser usada.
+elif (<morex> == 1)
+  src.newitem=i_couro_curtido
+  src.act.more2=<more2>
+  src.act.color=<color>
+  local.max=<between 4,5,<src.anatomy>,100.0>
+  src.act.amount=<R3,<local.max>>
+  src.act.bounce
+  src.newitem=i_moldura_sem_couro
+  src.act.bounce
+  remove
+elif (<more1> == 0)
+ src.sysmessageyellow Voce precisa tratar este couro com oleo antes de curti-lo
+else
+ src.sysmessageyellow Escolha uma fonte de calor para curtir este couro.
+ TARGET
+endif
+return 1
+
+
+on=@TARGON_char
+src.sysmessageyellow Escolha uma fonte de calor para curtir este couro.
+return 1
+
+on=@TARGON_ground
+src.sysmessageyellow Escolha uma fonte de calor para curtir este couro.
+return 1
+
+on=@TARGON_ITEM
+if (<src.targ.distance> > 1)
+ src.sysmessagered Muito longe...
+elif (<src.targ.baseid>==i_campfire)||(<src.targ.baseid>==i_fire_pit)
+ if (<src.targ.more1>!=1)
+  src.newitem=i_moldura_couro
+  src.act.color=<color>
+  src.act.more2=<more2>
+  if (!<morey>)
+   src.act.morey=50
+  else
+   src.act.morey=<morey>
+  endif
+  src.act.more1=1
+  src.act.morez=1
+  src.act.p=<src.targ.p>
+  src.act.move 1 0 0
+  src.act.attr=08010
+  src.act.effect 2,i_fx_smoke,0,15,0
+  src.act.message=@036, *comeca a curtir*
+  src.act.link=<src.targ.uid>
+  src.act.timer=3
+  src.targ.more1=1
+  src.targ.link=<src.act.uid>
+  remove
+ else
+  src.sysmessagered Ja tem algo sendo usado nessa fogueira
+ endif
+else
+ src.sysmessagered Escolha uma fogueira para curtir este couro.
+endif
+return 1
+
+on=@timer
+if (<morey> == 0)
+ effect 2,i_fx_smoke,0,15,0
+ emotegreen ja esta curtido
+ morex=1
+ attr=02
+ timer=<serv.DecayTimer>*60
+ link.more1=0
+ link=04fffffff
+ update
+elif (<morez> == 0) || (!<link.isitem>)
+ emotered a fogueira apagou e interrompeu a curticao
+ attr=02
+ timer=<serv.DecayTimer>*60
+ link=04fffffff
+ update
+elif (<morey> < 10)
+ morey=<morey>+(-1)
+ effect 2,i_fx_smoke,0,15,0
+ emoteyellow quase curtido
+ timer=3
+elif (<morey>)
+ morey -= 1
+ effect 2,i_fx_smoke,0,15,0
+ dorand (4)
+  emoteyellow curtindo
+  sfx 054
+  sfx 02b
+ enddo
+ timer=3
+else
+ return 0
+endif
+return 1
+
+
+//////////////////////////////////////////////////////////////////
+
+
+[ITEMDEF i_moldura_pelo]
+NAME=moldura com pelo
+ID=01069
+TYPE=T_hide
+WEIGHT=6
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Couro
+DESCRIPTION=Moldura com pelo
+
+on=@create
+more1=0  // determina se o pelo está tratado
+more2=0  // determina o tipo de pelo que está na moldura
+morex=0  // determina se o pelo já está curtido
+morey=0  // determina o loop do timer
+morez=0  // liga e desliga a fogueira
+
+on=@click
+message=@036 <name>
+if (<morex>)
+ LOCAL.msg=curtido
+elif (<morey>)
+ LOCAL.msg=curtindo
+elif (<more1>)
+ LOCAL.msg=tratado
+else
+ local.msg=nao tratado
+endif
+message <LOCAL.msg> (<f_get_hide_name>)
+return 1
+
+on=@ClientToolTip
+if (<morex>)
+ LOCAL.msg=curtido
+elif (<morey>)
+ LOCAL.msg=meio curtido
+elif (<more1>)
+ LOCAL.msg=tratado
+else
+ local.msg=nao tratado
+endif
+f_sendTooltip <name>,<LOCAL.msg><DEF.BR>(<f_get_hide_name>)
+return 1
+
+on=@dclick
+if (<topobj.uid>!=<src.uid>)
+  src.sysmessagered A moldura tem que estar na mochila para ser usada.
+elif (<morex> == 1)
+  src.newitem=i_pelo_curtido
+  src.act.more2=<more2>
+  src.act.color=<color>
+  src.act.bounce
+  src.newitem=i_moldura_sem_couro
+  src.act.bounce
+  remove
+elif (<more1> == 0)
+ src.sysmessageyellow Voce precisa tratar este pelo com oleo antes de curti-lo
+else
+ src.sysmessageyellow Escolha uma fonte de calor para curtir este pelo.
+ TARGET
+endif
+return 1
+
+
+on=@TARGON_char
+src.sysmessageyellow Escolha uma fonte de calor para curtir este pelo.
+return 1
+
+on=@TARGON_ground
+src.sysmessageyellow Escolha uma fonte de calor para curtir este pelo.
+return 1
+
+on=@TARGON_ITEM
+if (<src.targ.distance> > 1)
+ src.sysmessagered Muito longe...
+elif (<src.targ.baseid>==i_campfire)||(<src.targ.baseid>==i_fire_pit)
+ if (<src.targ.more1>!=1)
+  src.newitem=i_moldura_pelo
+  src.act.color=<color>
+  src.act.more2=<more2>
+  if (!<morey>)
+   src.act.morey=50
+  else
+   src.act.morey=<morey>
+  endif
+  src.act.more1=1
+  src.act.morez=1
+  src.act.p=<src.targ.p>
+  src.act.move 1 0 0
+  src.act.attr=00010
+  src.act.effect 2,i_fx_smoke,0,15,0
+  src.act.message=@036, *comeca a curtir*
+  src.act.link=<src.targ.uid>
+  src.act.timer=3
+  src.targ.more1=1
+  src.targ.link=<src.act.uid>
+  remove
+ else
+  src.sysmessagered Ja tem algo sendo usado nessa fogueira
+ endif
+else
+ src.sysmessagered Escolha uma fogueira para curtir este pelo.
+endif
+return 1
+
+on=@timer
+if (<morey> == 0)
+ effect 2,i_fx_smoke,0,15,0
+ emotegreen ja esta curtido
+ morex=1
+ attr=02
+ timer=<serv.DecayTimer>*60
+ link.more1=0
+ link=04fffffff
+ update
+elif (<morez> == 0) || (!<link.isitem>)
+ emotered a fogueira apagou e interrompeu a curticao
+ attr=02
+ timer=<serv.DecayTimer>*60
+ link=04fffffff
+ update
+elif (<morey> < 10)
+ morey=<morey>+(-1)
+ effect 2,i_fx_smoke,0,15,0
+ emoteyellow quase curtido
+ timer=3
+elif (<morey>)
+ morey -= 1
+ effect 2,i_fx_smoke,0,15,0
+ dorand (4)
+  emoteyellow curtindo
+  sfx 054
+  sfx 02b
+ enddo
+ timer=3
+else
+ return 0
+endif
+return 1
+
+
+
+
+/////////////////////////////////////////////////////////////
+//////////// itens couro extras  //////////////////////////
+////////////////////////////////////////////////////////////
+
+
+
+[ITEMDEF 01545]
+DEFNAME=i_mask_bear
+NAME=Mascara de Urso
+TYPE=t_clothing
+RESOURCES=1 i_thread, 2 i_cloth, 1 i_urso_cabeca
+SKILLMAKE=TAILORING 85.0
+VALUE=126
+DYE=1
+REQSTR=5
+WEIGHT=6
+TDATA4=30
+DUPELIST=01546
+CATEGORY=MyT - Provisions - Clothes
+SUBSECTION=chapeus
+DESCRIPTION=Mascara de Urso
+
+
+ON=@CREATE
+MAXHITS={21 23}
+HITPOINTS=<MAXHITS>
+
+
+[ITEMDEF 01547]
+DEFNAME=i_mascara_veado
+name=Mascara de veado
+SKILLMAKE=TAILORING 16.1, t_sewing_kit
+WEIGHT=6
+TYPE=T_CLOTHING
+ARMOR=6
+CATEGORY=MyT - Provisions - Clothes
+SUBSECTION=Masks
+DESCRIPTION=Deer Mask
+DUPELIST=01548
+
+ON=@Create
+MAXHITS={21 23}
+HITPOINTS=<MAXHITS>
+
+[ITEMDEF i_urso_cabeca]
+ID=01545
+name=Cabeca de urso
+WEIGHT=3
+TYPE=T_script
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=cabeca urso (couro cru)
+
+on=@create
+more1=i_mask_bear
+
+
+on=@click
+message <NAME> (couro cru)
+return 1
+
+on=@dclick
+src.sysmessagered Voce nao pode vestir isso cru. Costure uma mascara
+return 1
+
+on=@equiptest
+src.sysmessagered Voce nao pode vestir isso cru. Costure uma mascara
+return 1
+
+
+[ITEMDEF i_veado_cabeca]
+ID=01547
+name=Cabeca de veado (couro cru)
+WEIGHT=3
+TYPE=T_script
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=cabeca urso
+
+on=@create
+more1=i_mask_deer
+
+
+on=@click
+message <NAME> (couro cru)
+return 1
+
+on=@dclick
+src.sysmessagered Voce nao pode vestir isso cru. Costure uma mascara
+return 1
+
+on=@equiptest
+src.sysmessagered Voce nao pode vestir isso cru. Costure uma mascara
+return 1
+
+
+
+/////////////////////////////////////////////////////////////
+///////////////// corpo sem couro //////////////////////////
+////////////////////////////////////////////////////////////
+
+
+
+[ITEMDEF 01e90]
+DEFNAME=i_corpo_grande_spele
+name=corpo sem pele
+TYPE=t_corpse
+WEIGHT=40
+FLIP=1
+DUPELIST=01e91
+
+on=@create
+attr=0a
+morey=0
+more2=0
+
+on=@click
+if (<more2> == 1)
+message <NAME> (Cavalo)
+return 1
+elif (<more2> == 2)
+message <NAME> (Lhama)
+return 1
+elif (<more2> == 3)
+message <NAME> (Veado)
+return 1
+elif (<more2> == 4)
+message <NAME> (Vaca)
+return 1
+elif (<more2> == 5)
+message <NAME> (Touro)
+return 1
+endif
+return 1
+
+on=@dclick
+src.sysmessage Use uma faca de acogueiro para cortar e extrair carne desse corpo
+return 1
+
+
+
+[ITEMDEF 01e88]
+DEFNAME=i_corpo_medio_spele
+name=corpo sem pele
+TYPE=t_corpse
+WEIGHT=20
+FLIP=1
+DUPELIST=01e89
+
+on=@create
+attr=0a
+morey=0
+more2=0
+
+on=@click
+if (<more2> == 1)
+message <NAME> (Corsa)
+return 1
+elif (<more2> == 2)
+message <NAME> (Bode)
+return 1
+elif (<more2> == 3)
+message <NAME> (Pantera)
+return 1
+elif (<more2> == 4)
+message <NAME> (Cachorro)
+return 1
+elif (<more2> == 5)
+message <NAME> (Ratazana)
+return 1
+elif (<more2> == 6)
+message <NAME> (Lobo)
+return 1
+endif
+return 1
+
+on=@dclick
+src.sysmessage Use uma faca de acogueiro para cortar e extrair carne desse corpo
+return 1
+
+
+[ITEMDEF 01e92]
+DEFNAME=i_corpo_pequeno_spele
+name=corpo sem pele
+TYPE=t_corpse
+WEIGHT=5
+FLIP=1
+DUPELIST=01e93
+
+on=@create
+attr=0a
+morey=0
+more2=0
+
+on=@click
+message <NAME> (Lebre)
+return 1
+
+on=@dclick
+src.sysmessage Use uma faca de acogueiro para cortar e extrair carne desse corpo
+return 1
+
+
+
+[ITEMDEF 01e8b]
+DEFNAME=i_corpo_ave_spele
+name=corpo sem penas
+TYPE=t_corpse
+WEIGHT=5
+
+on=@create
+attr=0a
+morey=0
+more2=0
+
+on=@click
+message <NAME> (Galinha)
+return 1
+
+on=@dclick
+src.sysmessage use uma faca de acogueiro para cortar e extrair carne desse corpo
+return 1
+
+//******************************************************************************
+//******************************************************************************
+//
+//                              FUNCTIONS
+//
+//******************************************************************************
+//******************************************************************************
+
+[FUNCTION f_get_hide_name]
+IF (<more2>)
+ IF (STRMATCH(#*,<serv.chardef.<more2>.name>))
+  LOCAL.tip=<streat<serv.chardef.<more2>.name>>
+ ELSE
+  LOCAL.tip=<serv.chardef.<more2>.name>
+ endif
+ return <LOCAL.tip>
+else
+ return normal
+endif
+
+[FUNCTION f_hide_tooltip]
+if (<amount> > 1)
+ f_sendTooltip <name>, Qtd.: <eval <amount>><DEF.br>(<f_get_hide_name>)
+else
+ f_sendTooltip <name>, (<f_get_hide_name>)
+endif
+
+[FUNCTION f_hide_click]
+if (<amount> > 1)
+ message=@036 <eval <amount>> <name>
+else
+ message=@036 <name>
+endif
+message (<f_get_hide_name>)
+
+
+
+
+
+[eof]
+ 

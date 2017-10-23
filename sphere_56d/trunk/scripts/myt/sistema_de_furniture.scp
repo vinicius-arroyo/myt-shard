@@ -1,0 +1,844 @@
+////////////////////////////////////
+//Sistema de furniture e movelaria//
+//   MyT - Mystical Tales Shard   //
+//     Por: Galthar, o Errante    //
+//              V 1.0             //
+////////////////////////////////////
+
+[COMMENT furniture]
+Tabela na DB:
+
+DROP TABLE IF EXISTS `mytserver`.`furniture`;
+CREATE TABLE  `mytserver`.`furniture` (
+  `furniture` int(10) unsigned NOT NULL,
+  `player` int(10) unsigned NOT NULL,
+  `since` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+TAGs utilizadas:
+
+ctag.furn_UID
+ctag.furn_Donnor
+ctag.furn_Donation
+ctag.furn_Page
+tag.owner
+
+  //////////////////////////////////////////////////////
+ //               Sistema de Furniture               //
+//////////////////////////////////////////////////////
+[DEFNAME funriture]
+//Minimo de móveis para qq um
+furn_min  3
+
+//Maximo de móveis para qq um
+furn_max  40
+
+//Minimo de móveis por Carpentry
+furn_CPmin  0
+
+//Maximo de móveis por Carpentry
+furn_CPmax  15
+
+//Quantos moveis por casa
+furn_HouseRate  10
+
+//Quanto tempo de jogo um char deve ter para ganhar +1 slot
+furn_TimeRate 20*24*60*60   //20 dias
+
+//ATTR de fixo de um movel
+furn_fixed  010
+
+[PLEVEL 0]
+moveis
+furniture
+
+
+
+//####################################################################################
+//                                  FUNCTIONS                                       ##
+//####################################################################################
+
+//*****************************************************
+[FUNCTION furniture_fixdb]
+//*****************************************************
+DB.QUERY SELECT furniture FROM furniture
+LOCAL.c=0
+LOCAL.s= 1
+if <DB.ROW.NUMROWS>
+    LOCAL.x=<DB.ROW.NUMROWS>-1
+    FOR R <LOCAL.x>
+        if !<uid.<DB.ROW.<dLOCAL.R>.furniture>>
+            serv.log Tem que apagar... <DB.ROW.<dLOCAL.R>.furniture>
+            LOCAL.c += 1
+            LOCAL.s= .= ,<DB.ROW.<dLOCAL.R>.furniture>
+        endif
+    ENDFOR
+endif
+//serv.log Apagando: <LOCAL.s>
+DB.EXECUTE DELETE FROM furniture WHERE furniture IN (<LOCAL.s>)
+src.sysmessageyellow <dLOCAL.c> itens removidos.
+
+
+//*****************************************************
+[FUNCTION moveis]
+//*****************************************************
+//Mime de .furniture
+furniture <args>
+
+//*****************************************************
+[FUNCTION furniture]
+//*****************************************************
+//Gerencia móveis.
+if (<IsGM>) && (STRMATCH(*info*,<args>))
+    furn_info
+    return 1
+elif (STRMATCH(*prender*,<args>))
+    furn_Fix
+    return 1
+elif (STRMATCH(*soltar*,<args>))
+    furn_UnFix
+    return 1
+elif (STRMATCH(*doar*,<args>))
+    furn_Donnate
+    return 1
+elif (STRMATCH(*remover*,<args>))
+    furn_Delete
+    return 1
+endif
+ctag.furn_page=0
+DIALOGCLOSE d_furniture
+DIALOG d_furniture
+
+//*****************************************************
+[FUNCTION furn_showFurn]
+//*****************************************************
+//Gerencia móveis.
+ctag.furn_page=1
+ctag.furn_uid=<cTAG.list_id_<hval <argn>>>
+DIALOGCLOSE d_furniture
+DIALOG d_furniture
+
+//*****************************************************
+[FUNCTION furn_ByCP]
+//*****************************************************
+//Retorna quantos móveis um jogador pode ter em função de Carpentry
+return <BETWEEN <DEF.furn_CPmin>,<DEF.furn_CPmax>,<Carpentry>,125.0>
+
+//*****************************************************
+[FUNCTION furn_ByTime]
+//*****************************************************
+//Retorna quantos móveis um jogador pode ter em função do tempo de jogo
+return <eval <f_age>/<DEF.furn_TimeRate>>
+
+//*****************************************************
+[FUNCTION furn_ByHouse]
+//*****************************************************
+//Retorna quantos móveis um jogador pode ter em função de casas
+DB.QUERY="SELECT count(idhouse) AS cnt FROM houses WHERE owner='<DB.ESCAPEDATA <uid>>';"
+return <eval <DB.ROW.0.cnt>*<DEF.furn_HouseRate>>
+
+//*****************************************************
+[FUNCTION furn_max]
+//*****************************************************
+if (<IsGM>)
+    return 999
+else
+    local.f=<DEF.furn_min>          //Mínimo de qq playa
+    local.f += <furn_ByCP>          //Bônus por Carpentry
+    local.f += <furn_ByTime>        //Bônus por tempo de jogo
+    local.f += <furn_ByHouse>       //Bônus por numero de casas
+    return <MINIMUMN <local.f>,<DEF.furn_max>>
+endif
+
+//*****************************************************
+[FUNCTION furn_act]
+//*****************************************************
+//Retorna quantos moveis tem atualmente
+DB.QUERY="SELECT count(furniture) AS cnt FROM furniture WHERE player=<dUID>;"
+return <DB.ROW.0.cnt>
+
+//*****************************************************
+[FUNCTION furn_owner]
+//*****************************************************
+//Retorna o dono do movel Default ou <argn> ou 0 se não houver
+if (<argn>)
+    local.uid=<argn>
+else
+    local.uid=<uid>
+endif
+DB.QUERY="SELECT player FROM furniture WHERE furniture=<dlocal.UID>;"
+ref1=<hval <DB.ROW.0.player>>
+if (<ref1.IsPlayer>)    //Tem dono e o dono existe
+    return <hval <DB.ROW.0.player>>
+elif <hval <DB.ROW.0.player>>   //Tem dono, mas ele nao existe mais
+    furn_RemFurn <local.uid>
+    return 0
+else            //Não tem dono
+    return 0
+endif
+
+//*****************************************************
+[FUNCTION furn_AskBelong]
+//*****************************************************
+//Pergunta se quer este móvel
+prompt_new Voce tem <dfurn_act> de <dfurn_max> moveis.<DEF.BR>Deseja fazer de <uid.<argn>.name> seu movel?<DEF.BR>Voce podera prende-lo no chao, entao solta-lo e ele nunca sumira enquanto for seu MAS NAO PODERA VENDE-LO NOS NPCs!
+prompt_setAction furn_AddFurn <argn>
+prompt_setActionBack=
+ynprompt_show
+
+//*****************************************************
+[FUNCTION furn_AddFurn]
+//*****************************************************
+//Testa possibilidade e adiciona um movel
+obj=<argn>
+if (<furn_act> >= <furn_max>)
+    sysmessagered Voce ja tem moveis de mais. Nao pode ter mais.
+elif (!<obj.IsEvent.t_furniture>) && (!<obj.IsTEvent.t_furniture>)
+    sysmessagered Isso nao eh um movel que voce possa ter.
+elif (<obj.furn_owner>)
+    sysmessagered Esse movel ja tem dono.
+else
+    serv.log [FURNITURE] <obj.name> (<argn>) novo dono: <uid>
+    DB.EXECUTE="INSERT INTO furniture SET furniture=<dargn>, player=<duid>, since=CURRENT_TIMESTAMP()";
+    sysmessagegreen <obj.name> agora pertence a voce.
+    obj.tag.owner=<uid>
+endif
+
+//*****************************************************
+[FUNCTION furn_RemFurn]
+//*****************************************************
+//Tira o dono do móvel DEFAULT ou <argn>
+if (<argn>)
+    local.uid=<argn>
+else
+    local.uid=<uid>
+endif
+DB.EXECUTE="DELETE FROM furniture WHERE furniture=<dlocal.UID>;"
+if (!<uid.<local.uid>.IsItem>)
+    serv.log [FURNITURE] <local.uid> :: Removido da DB. Nao existe mais.
+    return 1
+endif
+serv.log [FURNITURE] <obj.name> (<local.uid>) nao pertence mais a ninguem.
+ref1=<dlocal.uid>
+ref1.attr &= ~furn_fixed
+ref1.attr |= 04002 //Decay
+ref1.timer <eval <serv.DecayTimer>*60>
+ref1.tag.owner=
+
+//*****************************************************
+[FUNCTION furn_DelFurn]
+//*****************************************************
+//Deleta um móvel. Da DB e do game
+if (<argn>)
+    local.uid=<argn>
+else
+    local.uid=<uid>
+endif
+obj=<local.uid>
+DB.EXECUTE="DELETE FROM furniture WHERE furniture=<dlocal.UID>;"
+serv.log [FURNITURE] <obj.name> (<obj>) deletado por <src.tag.name> [<src.account>]
+obj.remove
+
+//*****************************************************
+[FUNCTION furn_Delete]
+//*****************************************************
+//Player deletando móvel por gump
+if (!<argo>)
+    sysmessageyellow Selecione o movel a desfazer-se:
+    targetf furn_Delete
+else
+    if (!<argo.IsItem>)
+        sysmessagered Huh? E <argo.name> eh um movel, por acaso?
+    elif (<argo.furn_owner>!=<uid>)
+        sysmessagered <argo.name> nao te pertence.
+    else
+        local.s=Voce realmente edseja se desfazer de <argo.name>? Ele sera REMOVIDO DO JOGO e esta acao eh irreverssivel.
+        if (<argo.type>==t_container) || (<argo.type>==t_container_locked)
+            local.s .= "<DEF.BR>Existem <argo.fcount> itens dentro de <argo.name>."
+        endif
+        prompt_new <local.s>
+        prompt_setAction furn_DelFurn <argo.uid>
+        prompt_setActionBack=
+        ynprompt_show
+    endif
+endif
+
+//*****************************************************
+[FUNCTION furn_Fix]
+//*****************************************************
+//Prende um móvel no chão
+if (!<argo>)
+    sysmessageyellow Selecione o movel a fixar ao chao:
+    targetf furn_Fix
+else
+    if (!<argo.IsItem>)
+        sysmessagered Huh? E <argo.name> eh um movel, por acaso?
+    elif (<argo.furn_owner>!=<uid>)
+        sysmessagered <argo.name> nao te pertence.
+    else
+        argo.attr |= furn_fixed
+        argo.attr &= ~04002 //Não decay
+        argo.timer -1
+        sysmessagegreen <argo.name> esta fixo.
+        argo.update
+    endif
+endif
+
+//*****************************************************
+[FUNCTION furn_UnFix]
+//*****************************************************
+//Solta um móvel no chão
+if (!<argo>)
+    sysmessageyellow Selecione o movel a soltar do chao:
+    targetf furn_UnFix
+else
+    if (!<argo.IsItem>)
+        sysmessagered Huh? E <argo.name> eh um movel, por acaso?
+    elif (<argo.furn_owner>!=<uid>)
+        sysmessagered <argo.name> nao te pertence.
+    else
+        argo.attr &= ~furn_fixed
+        argo.attr |= 04002 //Decay
+        argo.timer <eval <serv.DecayTimer>*60>
+        sysmessageorange <argo.name> esta solto! Pode ser levado e sumira em <serv.DecayTimer> minutos se nao for recolhido!
+        argo.update
+    endif
+endif
+
+//*****************************************************
+[FUNCTION furn_Transfer]
+//*****************************************************
+//Transfere o móvel <argv0> para DEFAULT.
+obj=<argv0>
+if (!<obj.IsItem>) || (!<IsPlayer>)
+    return 0
+elif (<furn_act> >= <furn_max>)
+    f_sendMessage <ref1>,<ref1.rec_fGetName <UID>> nao pode aceitar a doacao.,SM_ORANGE
+    f_sendMessage <UID>,Voce nao pode ter mais moveis.,SM_ORANGE
+    return 1
+endif
+ref1=<obj.furn_Owner>
+DB.EXECUTE="UPDATE furniture SET player=<dUID> WHERE furniture=<obj.dUID>;"
+
+//Rolou tranferencia?
+DB.QUERY="SELECT player FROM furniture WHERE furniture=<obj.dUID> AND player=<dUID>
+if (<DB.ROW.NUMROWS>)
+    f_sendMessage <ref1>,O movel '<obj.name>' nao pertence mais a voce. Agora pertence a <ref1.rec_fGetName <UID>>,SM_ORANGE
+    f_sendMessage <UID>,O movel '<obj.name>' pertence agora a voce.,SM_ORANGE
+    obj.tag.owner=<uid>
+    serv.log [FURNITURE] <obj.name> (<obj>) transferido: <ref1> -> <uid>
+    return 1
+endif
+serv.log [FURNITURE] <obj.name> (<obj>) TRANSFERENCIA FALHOU! <ref1> -> <uid>
+
+//*****************************************************
+[FUNCTION furn_Donnate]
+//*****************************************************
+//Doa um movel para outro player
+if (!<argo>)
+    sysmessageyellow Selecione o movel a doar:
+    targetf furn_Donnate
+else
+    if (!<argo.IsItem>)
+        sysmessagered Huh? E <argo.name> eh um movel, por acaso?
+    elif (<argo.furn_owner>!=<uid>)
+        sysmessagered <argo.name> nao te pertence.
+    else
+        ctag.furn_uid=<argo.uid>
+        sysmessageyellow Selecione o jogador para quem deseja doar:
+        targetf furn_DonSelectPlayer
+    endif
+endif
+
+//*****************************************************
+[FUNCTION furn_DonSelectPlayer]
+//*****************************************************
+//Seleciona player para doar móvel
+if (<argo.IsItem>)
+    sysmessagered <argo.name> permanece imovel e sem falar uma palavra. Voce comeca a desconfiar que nao aceitara seu movel.
+elif (!<argo.IsPlayer>)
+    sysmessagered Parece que <argo.name> nao tem interesse em seu movel.
+elif (!<argo.IsOnline>)
+    sysmessagered Parece que <argo.name> nao tem interesse em seu movel.
+elif (<argo>==<uid>)
+    sysmessagered Afff... JA EH SEU!!!
+elif (<argo.ctag0.furn_Donnor>)
+    sysmessagered <rec_fGetName <argo.uid>> esta no meio de outra transação.
+else
+    argo.ctag.furn_Donnor=<uid>
+    argo.ctag.furn_Donation=<ctag.furn_uid>
+    sysmessageyellow Aguarde a resposta de <rec_fGetName <argo.uid>>...
+    trysrc <argo> src.furn_AskDonnation
+endif
+
+//*****************************************************
+[FUNCTION furn_AskDonnation]
+//*****************************************************
+//Pergunta de Default quer o movel <ctag.furn_Donation> pertencente a <ctag.furn_Donnor>
+if (!<ctag0.furn_Donnor>) || (!<ctag0.furn_Donation>)
+    furn_CancelDonnation
+endif
+obj=<ctag0.furn_Donation>
+ref1=<ctag0.furn_Donnor>
+prompt_new <rec_fGetName <ref1>> deseja lhe dar o movel '<obj.name>'. Voce tem <dfurn_act>/<dfurn_max> moveis. Voce aceita o movel?
+prompt_setAction=furn_AcceptDonnation
+prompt_setActionBack=furn_CancelDonnation
+ynprompt_show
+
+//*****************************************************
+[FUNCTION furn_CancelDonnation]
+//*****************************************************
+//Cancela a doacao de <ctag.furn_Donation> feita por <ctag.furn_Donnor>
+if (<ctag0.furn_Donnor>)
+    uid.<ctag0.furn_Donnor>.sysmessageorange A doacao nao foi aceita.
+endif
+ctag.furn_Donation=
+ctag.furn_Donnor=
+
+//*****************************************************
+[FUNCTION furn_AcceptDonnation]
+//*****************************************************
+//Aceita a doacao de <ctag.furn_Donation> feita por <ctag.furn_Donnor>
+furn_Transfer <ctag.furn_Donation>
+ctag.furn_Donation=
+ctag.furn_Donnor=
+
+//*****************************************************
+[FUNCTION furn_show]
+//*****************************************************
+//Dá highlight nos moveis próximos.
+DB.QUERY="SELECT furniture AS furn FROM furniture WHERE player=<dUID>
+local.j=0
+for i 0 <eval <DB.ROW.NUMROWS>-1>
+    ref1=<hval <DB.ROW.<dlocal.i>.furn>>
+    if (!<ref1.IsItem>)//Auto prune. Tira do sistema se o item não existe mais.
+        furn_RemFurn <hval <DB.ROW.<dlocal.i>.furn>>
+        serv.log [FURNITURE] <DB.ROW.<dlocal.i>.furn> :: Movel de <uid> <tag.name> [<account>] Insexistente! Removido do sistema.
+    elif (<src.distance <ref1>> < 8)
+        blindItemMsg <ref1>, 044, [movel]
+        hilight <ref1>, 049
+        local.j += 1
+    endif
+end
+if (<local.j>)
+    sysmessagegreen <dlocal.j> moveis aqui perto.
+else
+    sysmessageyellow Nao ha moveis seus aqui perto
+endif
+
+//*****************************************************
+[FUNCTION furn_info]
+//*****************************************************
+//Mostra informacao de GM
+if (!<argo>)
+    sysmessageyellow Selecione o movel para obter a informacao:
+    targetf furn_info
+else
+    if (!<argo.IsItem>)
+        sysmessagered Huh? E <argo.name> eh um movel, por acaso?
+    else
+        ref1=<argo.furn_Owner>
+        sysmessagered <argo.name>
+        sysmessageorange Dono: <ref1.tag.name> [<ref1.account>]
+        sysmessageorange Moveis: <ref1.dfurn_act>/<ref1.dfurn_max>
+        sysmessageorange Ultimo login: <ref1.account.lastconnectdate>
+    endif
+endif
+
+//*****************************************************
+[FUNCTION furn_list]
+//*****************************************************
+//Lista todos os moveis de DEFAULT
+town_clearTable
+list_new "Seus moveis"
+list_newDbCol 25,furniture,Movel
+list_newCol 150,posicao
+list_newCol 350,imobilizado?
+list_setAction furn_showFurn
+list_setActionBack furniture
+list_loadFromDb SELECT furniture FROM furniture WHERE player=<dUID>
+//Montar tableta
+FOR t 1 <ctag.list_numitems>
+ obj=<ctag0.list_row<local.t>_01>
+ ctag.list_id_<local.t>=<obj>
+ ctag.list_row<local.t>_01=<obj.name>
+ if (<IsGM>)
+    ctag.list_row<local.t>_02=<obj.p>
+ else
+    ctag.list_row<local.t>_02=<SEXTANTP <obj.p>>
+ endif
+ if (<obj.attr>&furn_fixed)
+    ctag.list_row<local.t>_03=sim
+ else
+    ctag.list_row<local.t>_03=nao
+ endif
+end
+list_show 1
+
+//*****************************************************
+[FUNCTION furn_statistics]
+//*****************************************************
+//Monta HTML de estatisticas gerais de moveis
+local.s=<DEF.CENTER><DEF.BFONT_SIZE7><DEF.BFONT_DYELLOW>Moveis de <tag.name><DEF.CENTERE><DEF.BFONTE>
+local.s .= <DEF.BFONT_SIZE4><DEF.BFONT_LRED> Voce tem <dfurn_act>/<dfurn_max> moveis <DEF.BR><DEF.BFONT_WHITE>
+local.s .= " Minimo por personagem: <eval <DEF.furn_min>><DEF.BR>"
+local.s .= " Bonus por Carpentry: <dfurn_ByCP><DEF.BR>"
+local.s .= " Bonus por tempo de jogo: <dfurn_ByTime><DEF.BR>"
+local.s .= " Bonus por casas: <furn_ByHouse><DEF.BR>"
+local.s .= " Maximo por personagem: <eval <DEF.furn_max>><DEF.BR>"
+return <local.s>
+
+//*****************************************************
+[FUNCTION furn_StatInfo]
+//*****************************************************
+//Monta HTML de informações sobre um determinado móvel
+obj=<cTAG0.furn_UID>
+DB.QUERY="SELECT DATE_FORMAT(since,'%d/%m/%Y') AS date FROM furniture WHERE furniture=<dcTAG0.furn_UID>;"
+local.s=<DEF.CENTER><DEF.BFONT_SIZE7><DEF.BFONT_DYELLOW><obj.name><DEF.CENTERE><DEF.BFONTE>
+local.s .= "<DEF.BFONT_WHITE>Este movel esta em <obj.region.region.name> (<SEXTANTP <obj.p>>). "
+local.s .= "Foi adquirido no dia <DB.ROW.0.date> (REAL)."
+return <local.s>
+
+
+//*****************************************************
+[FUNCTION pack_unpack]
+//*****************************************************
+//Tenta desencaixotar uma caixa
+if (<src.region.flags>&<def.region_flag_nobuilding>) && (!<src.IsGM>)
+    src.sysmessagered Nao eh possovel colocar este item aqui por ordens superiores.
+    return 1
+endif
+src.ctag.pack=<uid>
+if (<IsEmpty <tag.south>>)
+    if (<IsEmpty <tag.east>>)
+        src.sysmessagered Item com problemas. Poste no post de bugs do forum.
+        return 1
+    else
+        src.sysmessageorange O item ficara voltado para o leste.
+        src.unpackToEast
+        return 1
+    endif
+else
+    if (<IsEmpty <tag.east>>)
+        src.sysmessageorange O item ficara voltado para o sul.
+        src.unpackToSouth
+        return 1
+    endif
+endif
+src.dialog d_unpack
+
+//*****************************************************
+[FUNCTION unpackToEast]
+//*****************************************************
+//Desencaixota um multi voltado para o leste
+obj=<ctag.pack>
+if (<obj.topobj>!=<src>)
+    src.sysmessagered Isso deve estar em sua posse.
+    return 1
+endif
+obj.type=t_deed
+obj.more1=<obj.tag.east>
+obj.use
+
+//*****************************************************
+[FUNCTION unpackToSouth]
+//*****************************************************
+//Desencaixota um multi voltado para o sul
+obj=<ctag.pack>
+if (<obj.topobj>!=<src>)
+    src.sysmessagered Isso deve estar em sua posse.
+    return 1
+endif
+obj.type=t_deed
+obj.more1=<obj.tag.south>
+obj.use
+
+
+//####################################################################################
+//                                  TYPEDEFS                                        ##
+//####################################################################################
+
+
+
+
+
+//*****************************************************
+[TYPEDEF t_furniture]
+//*****************************************************
+ON=@DCLICK
+if (!<DB.connected>)    //Se cair a DB, ng abrira baús se não tiver isso.
+    return 0
+elif (<furn_owner>) || (<ATTR>&010)    //Se já tem dono ou é státic comportamento normal ou está static.
+    return 0
+else
+    src.furn_AskBelong <uid>
+endif
+return 1
+
+ON=@Destroy
+local.owner=<furn_Owner>
+if (<local.owner>)
+    f_sendMessage <local.owner>,Seu movel '<name>' foi removido.,SM_RED
+endif
+DB.EXECUTE="DELETE FROM furniture WHERE furniture=<dUID>;"
+serv.log [FURNITURE] <name> (<UID>) foi apagado. ATTR=<attr> :: TIMER=<timer>
+
+ON=@ClientToolTip
+if (!<tag0.owner>)
+    f_sendTooltip Movel sem dono
+elif (<src.IsGM>)
+    ref1=<tag.owner>
+    f_sendTooltip Dono: <ref1.tag.name> [<ref1.account>]
+endif
+return 0
+
+ON=@Sell
+local.owner=<furn_Owner>
+if (<local.owner>)
+    f_sendMessage <local.owner>,<name> foi posto a venda e nao eh mais seu,SM_RED
+    furn_RemFurn
+endif
+
+//*****************************************************
+[TYPEDEF t_packed]
+//*****************************************************
+on=@Dclick
+if (<topobj>!=<src>)
+    src.sysmessagered Isso deve estar em sua posse.
+    return 1
+endif
+pack_unpack
+return 1
+
+//*****************************************************
+[TYPEDEF t_bancada]
+//*****************************************************
+on=@dclick
+src.sysmessage Objeto nao funcional.
+return 1
+
+//*****************************************************
+[TYPEDEF t_escrivaninha]
+//*****************************************************
+
+
+
+//####################################################################################
+//                                  ITEMDEFS                                        ##
+//####################################################################################
+
+
+  ///////////////////
+ //  ENCAIXOTADOS //
+///////////////////
+
+
+
+
+[ITEMDEF i_bancada_encaixotada]
+ID=0e3c
+NAME=bancada (desmontada)
+type=t_packed
+SKILLMAKE=Carpentry 91.2
+RESOURCES=4 i_mesa_p, 8 i_suporte, 200 i_parafuso, 12 i_barra_metal
+
+ON=@Create
+tag.south=i_bancada_n
+tag.east=i_bancada_w
+
+[ITEMDEF i_moinho_encaixotado]
+ID=0e3c
+NAME=moinho (desmontado)
+type=t_table
+SKILLMAKE=Carpentry 62.2
+RESOURCES=10 i_tabua, 2 i_trefila, 100 i_parafuso, 9 i_barra_metal
+
+on=@dclick
+src.addmoinho
+return 1
+
+  ///////////////////
+ //     GERAL     //
+///////////////////
+
+[ITEMDEF 0b49]
+NAME=escrivaninha
+TYPE=t_escrivaninha
+
+
+  ///////////////////
+ //  MULTI ITENS  //
+///////////////////
+
+
+
+[ITEMDEF 019f1]
+Name=bancada
+type=t_bancada
+
+[ITEMDEF 019f2]
+Name=bancada
+type=t_bancada
+
+[ITEMDEF 019f3]
+Name=bancada
+type=t_bancada
+
+[ITEMDEF 019f5]
+Name=bancada
+type=t_bancada
+
+[ITEMDEF 019f6]
+Name=bancada
+type=t_bancada
+
+[ITEMDEF 019f7]
+Name=bancada
+type=t_bancada
+
+[ITEMDEF i_bancada_w]
+name=bancada
+ID=0eed
+type=t_multi
+MULTIREGION 0,0,0,0
+
+COMPONENT=6641 0,1,0,0
+COMPONENT=6642 0,0,0,0
+COMPONENT=6643 0,-1,0,0
+
+[ITEMDEF i_bancada_n]
+name=bancada
+ID=0eed
+type=t_multi
+MULTIREGION 0,0,0,0
+
+COMPONENT=6645 1,0,0,0
+COMPONENT=6646 0,0,0,0
+COMPONENT=6647 -1,0,0,0
+
+//####################################################################################
+//                                  DIALOGS                                         ##
+//####################################################################################
+
+
+
+
+
+//*****************************************************
+[DIALOG d_furniture]
+//*****************************************************
+100,75
+page 0
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+gumppic 0 0 10400
+gumppic 0 160 10401
+gumppic 0 356 10402
+gumppic 518 0 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+gumppic 225 45 2501
+dtext 231 45 26 Mystical Tales Shard
+resizepic 92 87 2620 416 310
+
+if (!<ctag0.furn_page>)
+    resizepic 109 106 2620 380 145
+    dhtmlgump 114 113 368 130 0 0 <furn_statistics>
+    if (!<furn_act>)
+     dtext 185 300 38 Voce nao tem moveis para gerenciar
+    else
+     dorigin 115 230
+     button - *40 2151 2152 1 0 1
+     dtext +35 +3 67 Fixar no chao
+     button - *40 2151 2152 1 0 2
+     dtext +35 +3 67 Soltar
+     button - *40 2151 2152 1 0 3
+     dtext +35 +3 67 Mostrar moveis
+     dorigin 315 230
+     button - *40 2151 2152 1 0 4
+     dtext +35 +3 67 Doar
+     button - *40 2151 2152 1 0 5
+     dtext +35 +3 67 Desfazer-se
+     button - *40 2151 2152 1 0 6
+     dtext +35 +3 53 Listar todos
+    endif
+ 
+elif (<ctag0.furn_page>==1)
+    call furn_StatInfo
+    resizepic 109 106 2620 128 128
+    resizepic 270 106 2620 219 128
+    tilepichue 130 130 <obj.dispiddec> <obj.color> 
+    dhtmlgump 275 113 207 112 0 0 <local.s>
+    dorigin 115 230
+    button - *40 2151 2152 1 0 11
+    dtext +35 +3 67 Gerenciar moveis
+    button - *40 2151 2152 1 0 6
+    dtext +35 +3 67 Voltar a lista
+endif
+
+[DIALOG d_furniture text]
+
+[DIALOG d_furniture button]
+ON=1
+// Prende móvel
+furn_Fix
+
+ON=2
+// Soltar móvel
+furn_UnFix
+
+ON=3
+// Mostrar móveis próximos
+furn_show
+
+ON=4
+// Doar móvel para outro player
+furn_Donnate
+
+ON=5
+//Deleta um móvel
+furn_Delete
+
+ON=6
+//Lista os móveis
+furn_list
+
+ON=11
+//Voltar ao geral
+furniture
+
+[DIALOG d_unpack]
+100,75
+page 0
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+gumppic 0 0 10400
+gumppic 0 160 10401
+gumppic 0 356 10402
+gumppic 518 0 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+gumppic 225 45 2501
+dtext 231 45 26 Mystical Tales Shard
+resizepic 92 87 2620 416 310
+resizepic 112 107 2620 376 106
+dhtmlgump 120 115 360 89 0 0 <DEF.CENTER><DEF.BFONT_GREEN>Desempacotando<DEF.BR><DEF.DIV_E><DEF.BFONT_LGRAY>Voce esta prestes e desencaixotar este objeto. Selecione para qual direcao ele deve ficar voltado.<DEF.BR>Cuidado! Esta acao pode nao ter volta.
+tilepic 190 220 2713
+tilepic 361 220 2712
+button 172 316 2444 2444 1 0 1
+dtext 185 317 47 Leste
+button 355 316 2444 2444 1 0 2
+dtext 375 317 47 Sul
+
+[DIALOG d_unpack text]
+
+[DIALOG d_unpack button]
+ON=1
+// ToEast
+unpackToEast
+
+ON=2
+//ToSouth
+unpackToSouth
+
+[EOF]

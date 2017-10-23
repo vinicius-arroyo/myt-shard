@@ -1,0 +1,285 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE NEWS
+//
+//  Galthar, o Errante
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+[COMMENT sistema_de_news]
+
+	-=TAGs utilizadas=-
+	
+cTAG.news_title
+cTAG.news_date
+cTAG.news_ts
+cTAG.news_news
+cTAG.news_next
+cTAG.news_prev
+tag.news_lastseen
+
+	-=Tabelas MySQL=-
+	
+CREATE TABLE `mytserver`.`news` (
+  `NewsDate` DATETIME NOT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `news` TEXT(1024) NOT NULL,
+  PRIMARY KEY (`NewsDate`)
+)
+ENGINE = MyISAM;
+
+	-=Como fas/=-
+.addnews para adicionar nova notícia
+.news [1] para ler notícias
+	Se tiver argumento 1, ignora o comando caso não haja notícias novas.
+	
+##################################################################
+
+
+[PLEVEL 0]
+news
+noticias
+
+[PLEVEL 3]
+addnews
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// addnews
+//*****************************************************************************
+//Adiciona uma notícia
+[FUNCTION addnews]
+dialog d_news_add
+
+//*****************************************************************************
+// noticias
+//*****************************************************************************
+[FUNCTION noticias]
+news
+
+//*****************************************************************************
+// news
+//*****************************************************************************
+//Chama o dialog de notícias.
+//Se tem argn, evita chamar o dialog se não há notícias novas.
+[FUNCTION news]
+news_clearCTags
+
+//se nunca viu, pega somente a ultima
+if !<tag0.news_lastseen>
+
+    DB.QUERY=SELECT unix_timestamp( NewsDate ) AS ts FROM news ORDER BY NewsDate DESC LIMIT 1
+    tag.news_lastseen=<eval <DB.ROW.0.ts>-1>
+endif
+
+news_load NewsDate > FROM_UNIXTIME(<eval <tag0.news_lastseen>>) ORDER BY NewsDate LIMIT 2"
+
+if !<DB.ROW.NUMROWS>
+// serv.log [NEWS] Nao rolou
+    if !<argn>
+        //nenhuma noticia nova, pega a mais recente
+        news_load 1 ORDER BY NewsDate DESC LIMIT 1"
+    else
+        return 1
+    endif
+endif
+
+//tem proxima?
+ctag.news_next=0
+if <DB.ROW.NUMROWS>==2
+    ctag.news_next=1
+endif
+
+ctag.news_prev=0
+DB.QUERY="SELECT NewsDate FROM news WHERE NewsDate < FROM_UNIXTIME( <eval <cTAG.news_ts>> ) LIMIT 1"
+if <DB.ROW.NUMROWS>
+    ctag.news_prev=1
+endif
+
+dialog d_news
+
+//*****************************************************************************
+// news_clearCTags
+//*****************************************************************************
+[FUNCTION news_clearCTags]
+cTAG.news_title=
+cTAG.news_date=
+cTAG.news_ts=
+cTAG.news_news=
+ctag.news_next=
+ctag.news_prev=
+
+//*****************************************************************************
+// news_load
+//*****************************************************************************
+[FUNCTION news_load]
+LOCAL.q="SELECT title, news, DATE_FORMAT(NewsDate,'%d/%m/%Y %H:%i') AS date, unix_timestamp(NewsDate) AS ts FROM news WHERE <args>" 
+//serv.log [NEWS] <LOCAL.q>
+DB.QUERY=<LOCAL.q>
+if <DB.ROW.NUMROWS>
+    cTAG.news_title=<DB.ROW.0.title>
+    cTAG.news_ts=<DB.ROW.0.ts>
+    cTAG.news_date=<DB.ROW.0.date>
+    cTAG.news_news=<DB.ROW.0.news>
+endif
+
+//*****************************************************************************
+// news_previousNews
+//*****************************************************************************
+[FUNCTION news_previousNews]
+//Chama uma notícia mais velha
+news_load NewsDate < FROM_UNIXTIME( <eval <cTAG.news_ts>> ) ORDER BY NewsDate DESC LIMIT 2"
+ctag.news_next=1
+ctag.news_prev=0
+if <DB.ROW.NUMROWS>==2
+    ctag.news_prev=1
+endif
+dialog d_news
+
+//*****************************************************************************
+// news_nextNews
+//*****************************************************************************
+[FUNCTION news_nextNews]
+//Chama uma notícia mais nova
+news_load NewsDate > FROM_UNIXTIME( <eval <cTAG.news_ts>> ) ORDER BY NewsDate ASC LIMIT 2"
+ctag.news_next=0
+if <DB.ROW.NUMROWS>==2
+    ctag.news_next=1
+endif
+ctag.news_prev=1
+dialog d_news
+
+//*****************************************************************************
+//*****************************************************************************
+// DIALOGs
+//*****************************************************************************
+//*****************************************************************************
+//*****************************************************************************
+// m_news_del
+//*****************************************************************************
+
+[MENU m_news_del]
+Deseja mesmo remover a noticia '<cTAG.news_title>'?
+on=0 Sim
+DB.EXECUTE="DELETE FROM news WHERE NewsDate=FROM_UNIXTIME( <dcTAG.news_ts> )";
+news
+return 1
+
+on=0 Nao
+news
+return 1
+
+on=@Cancel
+news
+return 1
+
+// Created 10/4/2009 14:37:10, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+
+//*****************************************************************************
+// d_news
+//*****************************************************************************
+// Created 10/4/2009 14:37:10, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+[DIALOG d_news]
+30,30
+noclose
+page 0
+resizepic 0 0 2600 313 367
+dtext 130 17 62 Noticias
+dhtmlgump 27 43 258 37 0 0 <DEF.BFONT_RED><DEF.CENTER><DEF.BFONT_SIZE7><cTAG.news_title>
+dhtmlgump 27 85 258 21 0 0 <DEF.BFONT_DBLUE>Data: <DEF.BFONT_BLACK><cTAG.news_date>
+dhtmlgump 25 113 262 205 1 1 <cTAG.news_news>
+if (<ctag0.news_prev>)
+ button 50 326 4014 4015 1 0 1
+endif
+if (<ctag0.news_next>)
+ button 231 326 4005 4006 1 0 2
+else
+ //Ultima página. Botão de salvar data.
+ button 269 323 2609 2609 1 0 3
+endif
+if (<IsGM>)
+ button 75 327 2708 2708 1 0 4 //Delete
+ button 100 327 2714 2714 1 0 5 //Edit
+endif
+
+[DIALOG d_news text]
+
+[DIALOG d_news button]
+ON=1
+// Previous
+
+news_previousNews
+
+
+ON=2
+// Next
+
+news_nextNews
+
+
+ON=3
+// Close
+DB.QUERY="SELECT UNIX_TIMESTAMP() as nTime"
+tag.news_lastseen=<DB.ROW.0.nTime>
+news_clearCTags
+
+ON=4
+// GM deleta notícia
+MENU m_news_del
+return 1
+
+ON=5
+// GM edita notícia
+DIALOG d_news_add
+
+
+//*****************************************************************************
+// d_news_add
+//*****************************************************************************
+// Created 10/4/2009 14:43:24, with Gump Studio.
+// Exported with with SphereExporter ver 1.1.
+// Script for 0.56/Revisions
+[DIALOG d_news_add]
+0,30
+page 0
+resizepic 0 0 2600 493 367
+dtext 45 19 62 <QVAL <IsEmpty <cTAG.news_date>>?Adicionar Noticia:Editar de <cTAG.news_date>>
+dtext 23 48 2100 Titulo
+resizepic 62 45 9350 403 28
+dtextentry 67 49 390 20 0 0 <QVAL <IsEmpty <cTAG.news_title>>? :<cTAG.news_title>>
+dtext 218 73 2100 Noticia
+resizepic 23 93 9350 446 222
+dtextentry 29 98 432 211 0 1 <QVAL <IsEmpty <cTAG.news_news>>? :<cTAG.news_news>>
+button 207 321 247 248 1 0 1
+
+[DIALOG d_news_add text]
+
+[DIALOG d_news_add button]
+ON=0
+// Close
+
+ON=1
+Serv.log Botao 1
+IF !(<IsEmpty <cTAG.news_date>>)//Existe data. Estamos editando
+ DB.EXECUTE="UPDATE news SET title='<DB.ESCAPEDATA <argtxt[0]>>', news='<DB.ESCAPEDATA <argtxt[1]>>' WHERE NewsDate=FROM_UNIXTIME( <dcTAG.news_ts> );"
+ serv.log Update <cTAG.news_date>
+ELSE
+ DB.EXECUTE="INSERT INTO news SET NewsDate=CURRENT_TIMESTAMP(), title='<DB.ESCAPEDATA <argtxt[0]>>', news='<DB.ESCAPEDATA <argtxt[1]>>';"
+ serv.log Adicionar
+ENDIF
+news
+return 1
+
+
+[EOF]

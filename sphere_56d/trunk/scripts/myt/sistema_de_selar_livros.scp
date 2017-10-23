@@ -1,0 +1,639 @@
+//////////////////////////////////////////////////////////////////
+//                                                              //
+//                          TYPEDEFS                            //
+//                                                              //
+//////////////////////////////////////////////////////////////////
+
+[TYPEDEF t_book]
+on=@ClientToolTip
+if (<more2>)
+ return 0
+endif
+call f_book_start
+src.addcliloc 1042971,<LOCAL.name> <QVAL <morex>?(copia):>
+src.addcliloc 1070722,Por: <LOCAL.author>
+return 1
+
+on=@dclick
+if (<more2>)
+ return 0
+endif
+dialogclose d_book
+src.cTAG.book=<UID>
+src.ctag.book.page=1
+src.DIALOG d_book
+return 1
+
+[TYPEDEF t_book_scroll]
+on=@dclick
+if (<amount> > 1)
+        src.sysmessageyellow Tire uma da pilha antes de usar
+        return 1
+endif
+src.ctag.scroll=<UID>
+src.DIALOG d_scroll
+return 1
+
+//Triggers gambiarra para fizar em loot de NPCs. Se usar attr 010 ele some quando o char morre.
+on=@DropOn_Item
+if (<tag0.nomove>)
+ timerf 86400,remove
+endif
+
+on=@DropOn_Char
+if (<tag0.nomove>)
+ timerf 86400,remove
+endif
+
+on=@DropOn_Self
+if (<tag0.nomove>)
+ timerf 86400,remove
+endif
+
+
+
+
+//////////////////////////////////////////////////////////////////
+//                                                              //
+//                          ITEMDEFS                            //
+//                                                              //
+//////////////////////////////////////////////////////////////////
+
+[ITEMDEF 0fbf]
+//pen and ink
+NAME=tinta
+DEFNAME=i_pen_and_ink
+TYPE=t_buy_misc
+RESOURCES=1 i_FEATHER
+WEIGHT=0.1
+CATEGORY=MyT - Sistemas
+SUBSECTION=Livros
+DESCRIPTION=Tinta
+DUPELIST=0fc0
+
+on=@create
+more1=64
+
+ON=@DCLICK
+src.sysmessageyellow O que deseja fazer com a tinta?
+TARGET
+RETURN 1
+
+ON=@TARGON_ITEM
+if (<src.targ.baseid>==<baseid>)
+ if (<eval <more1>+<src.targ.more1>> < 300)
+  more1 += <src.targ.more1>
+  argo.remove  
+  src.newitem i_bottle_empty
+  src.bounce <new>
+ elif (<more1> >= 300)
+  sysmessagered cheio
+  return 1
+ else
+  LOCAL.amt=<eval 300-<more1>>
+  more1=300
+  src.targ.more1 -= <LOCAL.amt>
+  src.tag.update
+  sysmessageyellow Voce encheu o tubo de tinta.
+ endif
+ src.emoteyellow despejando tinta
+ sfx 0240
+ update
+ELIF (<src.targ.baseid>==i_bottle_empty)
+ more1=<more1>/2
+ update
+ dupe
+ src.emoteyellow despejando tinta
+ sfx 0240
+ src.targ.decrement
+ELIF (<src.targ.type>==t_book)
+ src.book_copy <src.targ.uid>
+ELSE
+ src.sysmessagered Selecione outro frasco te tinta, uma garrafa alquimica ou um livro original para copiar.
+endif
+return 1
+
+on=@ClientToolTip
+src.addcliloc 1042971,<name>
+src.addcliloc 1070722,Qtd: <eval <more1>>
+return 1
+
+[ITEMDEF 0fc0]
+//pen and ink
+DUPEITEM=0fbf
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Artists
+DESCRIPTION=Pen & Ink (N)
+
+
+
+
+
+[ITEMDEF i_bobina_papel]
+id=0f9c
+type=t_preitem_carpentry
+WEIGHT=4
+name=bobina%s de papel
+RESOURCES=5 i_log, 10 i_dose_water
+SKILLMAKE=35.0 Carpentry
+CATEGORY=MyT - Sistemas
+SUBSECTION=Papeis
+DESCRIPTION=Bobina de papel
+
+on=@create
+color=0fb
+
+
+[ITEMDEF i_carta]
+ID=0e34
+NAME=carta
+TYPE=t_book_scroll
+RESOURCES=1 i_bobina_papel
+SKILLMAKE=30.0 Carpentry
+PILE=0
+
+CATEGORY=MyT - Sistemas
+SUBSECTION=Livros
+DESCRIPTION=Carta
+
+on=@create
+more1=<R30000>  //Não empilhavel
+more2=1         //Editável
+
+
+
+
+
+
+[ITEMDEF 0fbd]
+//brown open book facing SE
+NAME=Livro
+DEFNAME=i_book_open
+RESOURCES=1 i_BOOK_LG_PUB
+WEIGHT=2
+TYPE=T_BOOK
+CATEGORY=MyT - Sistemas
+SUBSECTION=Livros
+DESCRIPTION=Livro marrom (aberto)
+DUPELIST=0fbe
+
+[ITEMDEF 0fbe]
+//brown open book facing SW
+DUPEITEM=0fbd
+
+[ITEMDEF 0fef]
+//brown book facing NE
+NAME=Livro
+DEFNAME=i_book_lg_pub
+RESOURCES=1 i_bobina_papel, 2 i_thread, 1 i_couro_curtido
+SKILLMAKE=40.0 Carpentry
+WEIGHT=2
+TYPE=T_BOOK
+CATEGORY=MyT - Sistemas
+SUBSECTION=Livros
+DESCRIPTION=Livro (marrom)
+
+[ITEMDEF 0ff0]
+//light tan book facing NE
+NAME=Livro
+DEFNAME=i_book_sm_pub
+RESOURCES=1 i_bobina_papel, 3 i_thread, 1 i_couro_curtido
+SKILLMAKE=45.0 Carpentry
+WEIGHT=2
+TYPE=T_BOOK
+CATEGORY=MyT - Sistemas
+SUBSECTION=Livros
+DESCRIPTION=Livro (bege)
+
+[ITEMDEF 0ff1]
+//dark brown book facing NE
+NAME=Livro
+DEFNAME=i_book_sm
+RESOURCES=1 i_bobina_papel, 1 i_thread, 1 i_couro_curtido
+SKILLMAKE=35.0 Carpentry
+TYPE=T_BOOK
+WEIGHT=2
+CATEGORY=MyT - Sistemas
+SUBSECTION=Livros
+DESCRIPTION=Livro (marrom escuro)
+
+[ITEMDEF 0ff2]
+//purple book facing NE
+NAME=Livro
+DEFNAME=i_book_lg
+RESOURCES=1 i_bobina_papel, 4 i_thread, 1 i_couro_curtido
+SKILLMAKE=50.0 Carpentry
+WEIGHT=2
+TYPE=T_BOOK
+CATEGORY=MyT - Sistemas
+SUBSECTION=Livros
+DESCRIPTION=Livro (roxo)
+
+[ITEMDEF 0ff3]
+//small open book facing SE
+NAME=Livro
+DEFNAME=i_book_sm_open
+RESOURCES=1 I_CANVAS, 10 I_PAPER, 1 I_THREAD, 1 I_HIDE
+WEIGHT=2
+TYPE=T_BOOK
+CATEGORY=MyT - Sistemas
+SUBSECTION=Livros
+DESCRIPTION=Livro aberto (marrom)
+
+[ITEMDEF 0ff4]
+//large open book facing SE
+NAME=Livro
+DEFNAME=i_book_lg_open
+RESOURCES=1 I_CANVAS, 10 I_PAPER, 1 I_THREAD, 1 I_HIDE
+WEIGHT=2
+TYPE=T_BOOK
+CATEGORY=MyT - Sistemas
+SUBSECTION=Livros
+DESCRIPTION=Livro aberto (grande)
+
+
+//////////////////////////////////////////////////////////////////
+//                                                              //
+//                         FUNCTIONS                            //
+//                                                              //
+//////////////////////////////////////////////////////////////////
+
+//*****************************************************************************
+[FUNCTION craft_i_bobina_papel]
+//*****************************************************************************
+//CALL craft_i_bobina_papel
+obj.tag.anim=9
+obj.tag.sfx=05ab
+obj.tag.neartype=t_bancada
+obj.tag.nearname=bancada
+obj.tag.emote=amassando serragem
+obj.tag.delay=12
+obj.tag.scrap=i_foligem_carp
+local.craftable=1
+
+//*****************************************************************************
+[FUNCTION craft_t_book]
+//*****************************************************************************
+//CALL craft_t_book
+obj.tag.delay=<BETWEEN 10,40,<eval <serv.itemdef.<argv[0]>.SKILLMAKE.1.val>,50.0>>
+obj.tag.anim=6
+obj.tag.sfx=058
+obj.tag.neartype=t_bancada
+obj.tag.nearname=bancada
+obj.tag.espid=i_adaga
+obj.tag.espname=adaga
+obj.tag.emote=encadernando
+local.craftable=1
+
+//*****************************************************************************
+[FUNCTION craft_t_book_scroll]
+//*****************************************************************************
+CALL craft_t_book
+obj.tag.emote=cortando e enrolando
+obj.tag.dupe=4
+local.craftable=1
+
+//ATALHO PARA GM
+[FUNCTION copiar]
+book_copy
+
+[FUNCTION book_copy]
+if (!<ISNUM <argv[0]>>)
+ sysmessageyellow Selecione o original.
+ targetf gm_book_copy
+elif (<uid.<argv[0]>.distance> > 1)
+ sysmessageyellow Longe demais...
+ RETURN 1
+elif !(<uid.<argv[0]>.more1>&080000000)
+ sysmessagered Este livro ainda esta aberto para edicao.
+ RETURN 1
+//elif (<uid.<argv[0]>.morex>==1) && (!<isgm>)
+ //sysmessagered Voce nao pode fazer uma segunda copia do livro. Procure o original.
+ //RETURN 1
+ENDIF
+LOCAL.pages=<book_getPages <argv[0]>>
+IF (!<LOCAL.pages>)
+ sysmessagered Este livro nao tem conteudo.
+ELIF (<LOCAL.pages> > <book_getInk>) && (!<isgm>)
+ sysmessagered Voce nao tem tinta o suficiente para copiar este livro.
+//elif (<UID.<argv[0]>.topobj>!=<UID>)
+ //sysmessagered O livro precisa estar em seu poder
+ELSE
+ cTAG.obook=<argv[0]>
+ sysmessageyellow Selecione um livro em branco:
+ TARGETF _book_copy
+endif
+RETURN 1
+
+[FUNCTION _book_copy]
+if (!<argo.isitem>)
+ sysmessagered Alvo invalido
+elif (<argo.type>!=t_book)
+ sysmessagered Isso nao eh um livro
+elif (<argo.more1>&080000000) || (<argo.morex>)
+ sysmessagered Este livro nao eh editavel
+elif (<argo.topobj>!=<UID>)
+ sysmessagered O livro em branco precisa estar em seu poder
+elif (<book_getPages <argo.uid>>)
+ sysmessagered Este livro nao esta em branco
+//elif (!<ISNEARTYPE t_escrivaninha 1>) && (!<ISNEARTYPE t_table 1>)
+ //sysmessagered Posicione-se adequadamente numa mesa ou escrivaninha
+else
+ cTAG.bookn=<argo.uid>
+ cTAG.timer=<eval <book_getPages <cTAG0.obook>>*3>
+ cTAG.timer=<BETWEEN2 <cTAG0.timer>,1,<inscription>,1500>
+ cTAG.cP.x=<p.x>
+ cTAG.cP.y=<p.y>
+ EVENTS +e_no_attack
+ EVENTS +e_no_dclick
+ TIMERF 1,__book_copy
+ emoteyellow copiando livro
+endif
+return 1
+
+[FUNCTION __book_copy]
+if (<cTAG0.disturb>) || (<cTAG0.cP.x>!=<p.x>) || (<cTAG0.cP.y>!=<p.y>)
+ EVENTS -e_no_attack
+ EVENTS -e_no_dclick
+ cTAG.disturb
+ sysmessagered Voce foi perturbado
+ return 1
+endif
+doswitch <cTAG0.anim>
+ emoteyellow escrevendo
+ anim 33
+ emoteyellow escrevendo
+ sfx 0249
+ anim 19
+enddo
+cTAG.anim <QVAL <cTAG0.anim> <= 6?<cTAG0.anim>+1:0>
+cTAG.timer -= 1
+if (!<cTAG0.timer>)
+ IF (<book_consumeInk <book_getPages <cTAG0.obook>>>)
+  UID.<cTAG0.obook>.dupe
+  NEW.morex=1
+  NEW.tag.owner=2
+  NEW.dispid=<UID.<cTAG0.bookn>.dispid>
+  NEW.more1=080000000
+  NEW.bounce
+  NEW.attr=00
+  NEW.color=0
+  NEW.update
+  UID.<cTAG0.bookn>.remove
+  emoteyellow terminou
+  sysmessagered Terminou de copiar <UID.<cTAG0.obook>.tag.name>
+  skill_gain Skill_Inscription
+ else
+  sysmessagered Sua tinta acabou.
+ endif
+else
+ timerf 1,__book_copy
+ EVENTS -e_no_attack
+ EVENTS -e_no_dclick
+ cTAG.disturb
+endif
+
+
+[FUNCTION gm_book_copy]
+if (<argo.type>==t_book)
+ argo.dupe
+ argo.dispid=i_book_lg_pub
+ argo.morex=1
+ argo.tag.owner=2
+ argo.update
+ argo.more1=080000000
+endif
+
+[FUNCTION book_getPages]
+obj=<argn1>
+for p 1 64
+ IF (!<ISEMPTY <obj.tag.page.<dLOCAL.p>>>)
+  LOCAL.pa += 1
+ endif
+endfor
+RETURN <LOCAL.pa>
+
+[FUNCTION book_getInk]
+FORCONTID i_pen_and_ink 3
+ LOCAL.ret += <more1>
+ENDFOR
+RETURN <LOCAL.ret>
+
+[FUNCTION book_consumeInk]
+//<argn1> quantidade a gastar
+//retorna 1 se bem sucedido
+OBJ=<UID>
+LOCAL.ret=0
+LOCAL.amt=<argn1>
+FORCONTID i_pen_and_ink 3
+ IF (<LOCAL.amt>)
+  IF (<more1> > <LOCAL.amt>)
+   MORE1 -= <LOCAL.amt>
+   LOCAL.amt=0
+   update
+   LOCAL.ret=1
+  ELSE
+   LOCAL.amt -= <MORE1>
+   serv.newitem i_bottle_empty
+   obj.bounce <new>
+   remove
+  ENDIF
+ ELSE
+  LOCAL.ret=1
+ ENDIF
+ENDFOR
+RETURN <LOCAL.ret>
+
+[FUNCTION desselar_livro]
+more1 ^= 080000000
+
+[FUNCTION selar_livro]
+more1 |= 080000000
+
+
+[FUNCTION f_book_start]
+if (<ISEMPTY <tag.name>>)
+ LOCAL.name=Livro
+ tag.name=Livro
+else
+ LOCAL.name=<tag.name>
+endif
+if (<ISEMPTY <tag.author>>)
+ LOCAL.author=Desconhecido
+ tag.author=Deconhecido
+else
+ LOCAL.author=<tag.author>
+endif
+
+
+
+
+//////////////////////////////////////////////////////////////////
+//                                                              //
+//                           DIALOGS                            //
+//                                                              //
+//////////////////////////////////////////////////////////////////
+
+[DIALOG d_book]
+150,150
+page 0
+obj=<src.ctag.book>
+gumppic 0 0 510
+
+//Pagina 1
+if (<src.ctag.book.page> == 1)
+ dtext 82 19 9 Titulo
+ dtext 86 102 9 Autor
+ if (<src.ctag0.book.edit>==1)
+  dtextentry 41 40 143 22 5 0 <obj.tag.name>
+  dtextentry 41 127 143 22 5 1 <obj.tag.author>
+ else
+  dtext 41 40 0 <obj.tag.name>
+  dtext 41 127 0 <obj.tag.author>
+ endif
+ if ((<src.isgm>) || (<obj.tag0.owner>==<src.uid>) || (!<obj.tag0.owner>)) && (!<src.ctag0.book.edit>)
+  button 54 161 2445 2445 1 0 5
+  if (!<obj.tag0.owner>)
+   dtext 80 162 92  ser dono
+  elif (<obj.more1>&080000000)
+   dtext 90 162 368  editar
+  else
+   dtext 80 162 38  nao editar
+  endif
+ endif
+else
+ if (<src.ctag0.book.edit>==<src.ctag0.book.page>)
+  dtextentry 40 41 143 155 5 0 <obj.tag.page.<src.dctag0.book.page>>
+ else
+  dhtmlgump 40 38 143 159 0 0 <obj.tag.page.<src.dctag0.book.page>>
+ endif
+endif
+dtext 100 200 894 <src.dctag.book.page>
+
+//Pagina 2
+if (<src.ctag0.book.edit>==<src.ctag0.book.page>+1)
+ dtextentry 232 40 143 156 3 0 <obj.tag.page.<eval <src.ctag0.book.page>+1>>
+else
+ dhtmlgump 232 40 146 156 0 0 <obj.tag.page.<eval <src.ctag0.book.page>+1>>
+endif
+dtext 300 200 894 <eval <src.ctag.book.page>+1>
+
+//Folhas
+if (<src.ctag.book.page> != 1) && (!<src.ctag0.book.edit>)
+ button 0 0 511 511 1 0 1       //folha -
+endif
+if (<src.ctag.book.page> < 62) && (!<src.ctag0.book.edit>)
+ button 356 0 512 512 1 0 2     //folha +
+endif
+
+if (!(<obj.more1>&080000000) || (<src.ISGM>)) && (!<src.ctag0.book.edit>)
+ tilepic 19 200 4032
+ button 49 205 1209 1210 1 0 3  //edit 1
+ tilepic 353 200 4032
+ button 355 205 1209 1210 1 0 4 //edit 2
+endif
+
+[DIALOG d_book text]
+HtmlGump id.0
+Textentry id.0
+HtmlGump id.1
+Textentry id.1
+
+[DIALOG d_book button]
+ON=0
+if (<src.ctag0.book.edit>)
+ obj=<src.ctag0.book>
+ //Estamos editando o cabeçalho aqui...
+ if (<src.ctag0.book.edit>==1)
+  obj.name=Livro <argtxt[0]> por <argtxt[1]>
+  obj.tag.name=<argtxt[0]>
+  obj.tag.author=<argtxt[1]>
+  obj.updatex
+ else
+  obj.tag.page.<src.dctag0.book.edit>=<argtxt[0]>
+ endif
+ src.ctag0.book.edit
+ dialog d_book
+ return 1
+endif
+
+ON=1
+// Folha -
+src.ctag.book.page -= 2
+dialog d_book
+return 1
+
+ON=2
+// Folha +
+src.ctag.book.page += 2
+dialog d_book
+return 1
+
+ON=3
+// Edit 1
+src.ctag.book.edit=<src.ctag0.book.page>
+dialog d_book
+return 1
+
+ON=4
+// Edit 2
+src.ctag.book.edit=<eval <src.ctag0.book.page>+1>
+dialog d_book
+return 1
+
+ON=5
+// Ownership
+obj=<src.ctag.book>
+if (!<obj.tag.owner>)
+ obj.tag.owner=<src.UID>
+elif (<obj.more1>&080000000)
+ obj.more1 ^= 080000000
+else
+ obj.more1 |= 080000000
+endif
+dialog d_book
+return 1
+
+
+
+[DIALOG d_scroll]
+150,150
+page 0
+obj=<src.ctag0.scroll>
+resizepic 0 0 9380 307 316
+if (!<src.ctag0.scroll.edit>) && (<obj.link> == 04fffffff)
+ dhtmlgump 32 35 253 245 0 1 <DEF.BFONT_BLACK><QVAL !<ISEMPTY <obj.tag.text>> ? <obj.tag.text> :>
+ELIF (<obj.link.baseid>==i_trig_msg_gen)
+ dhtmlgump 32 35 253 245 0 1 <DEF.BFONT_BLACK><QVAL !<ISEMPTY <obj.link.tag.text>> ? <obj.link.tag.text> :>
+else
+ dtextentry 32 35 234 244 0 1 <QVAL !<ISEMPTY <obj.tag.text>> ? <obj.tag.text> :>
+endif
+if ((<src.isgm>) || (<obj.tag0.owner>==<src.uid>) || (!<obj.tag0.owner>)) && (!<src.ctag0.scroll.edit>) && (<obj.link>==04fffffff)
+ button 27 292 2445 2445 1 0 1
+ if (!<obj.tag0.owner>)
+  dtext 55 293 92 ser dono
+ else
+  dtext 62 293 368 editar
+ endif
+endif
+
+
+[DIALOG d_scroll button]
+ON=0
+if (<src.ctag0.scroll.edit>)
+ uid.<src.ctag.scroll>.tag.text=<argtxt[1]>
+ src.ctag.scroll.edit
+ uid.<src.ctag.scroll>.more1=<R30000>
+ src.DIALOG d_scroll
+endif
+
+ON=1
+obj=<src.ctag0.scroll>
+if (!<obj.tag0.owner>)
+ obj.tag.owner=<src.UID>
+ src.DIALOG d_scroll
+else
+ src.ctag.scroll.edit=1
+ src.DIALOG d_scroll
+endif
+[EOF]

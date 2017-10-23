@@ -1,0 +1,227 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE DRESS
+//
+//  Metus
+//  Pomp
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//TAGS usadas:
+//tag.comcapuz  indica se player esta com capuz ou nao
+
+[PLEVEL 0]
+capuz
+
+[PLEVEL 2]
+dress
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_cabelo_escondido
+//*****************************************************************************
+//impede que o cabelo cresca enquanto estiver escondido
+[TYPEDEF t_cabelo_escondido]
+ON=@TIMER
+timer=10
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// EVENTs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// e_capuz
+//*****************************************************************************
+[EVENTS e_capuz]
+on=@ItemUnequip
+if (<act.layer>==layer_robe)
+ capuz
+endif
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// dress
+//*****************************************************************************
+[FUNCTION dress]
+src.menu sm_dress
+
+//*****************************************************************************
+// saveitens
+//*****************************************************************************
+[FUNCTION saveitens]
+FOR l 1 28
+    TRY findlayer.<LOCAL.l>.unequip
+ENDFOR
+
+//*****************************************************************************
+// limparlayers
+//*****************************************************************************
+[FUNCTION limparlayers]
+FOR l 1 28
+    TRY findlayer.<LOCAL.l>.remove
+ENDFOR
+
+//*****************************************************************************
+// capuz
+//*****************************************************************************
+[FUNCTION capuz]
+if (<findlayer.layer_robe>)
+    //poe capuz
+    if (<findlayer.layer_skirt.baseid>!=i_capuz)
+        tag.comcapuz=1
+        //salva alguns hair e skirt no layer_vendor_buys
+        obj=<findlayer.layer_hair>
+        obj.layer=layer_vendor_buys
+        obj.type=t_cabelo_escondido
+        obj.update
+        findlayer.layer_skirt.layer=layer_vendor_buys
+        //remove itens que atrapalham
+        findlayer.layer_collar.bounce
+        findlayer.layer_helm.bounce
+        //coloca capuz
+        serv.newitem i_capuz
+        new.color=<findlayer.layer_robe.color>
+        trysrc <uid> new.equip
+        events +e_capuz
+    else
+        tag.comcapuz=0
+        //remove capuz
+        findlayer.layer_skirt.remove
+        //recupera layers salvos
+        forcharlayer layer_vendor_buys
+            if (<type>==t_cabelo_escondido)
+                layer=layer_hair
+                type=t_hair
+            elif (<type>==t_clothing)
+                layer=layer_skirt
+            endif
+        endfor
+        events -e_capuz
+    endif
+    update
+else
+    sysmessageyellow Voce nao esta vestido com um robe.
+endif
+return 1
+
+//*****************************************************************************
+// uncapuz
+//*****************************************************************************
+[FUNCTION uncapuz]
+//Corrige comportamento por tirar capuz a força
+obj=<UID>
+//recupera layers salvos
+forcharlayer layer_vendor_buys
+    if (<type>==t_cabelo_escondido)
+        type=t_hair
+        cont=<obj>
+        layer=layer_hair
+    elif (<type>==t_clothing)
+        cont=<obj>
+        layer=layer_skirt
+    endif
+endfor
+events -e_capuz
+tag.comcapuz=0
+update
+
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_capuz
+//*****************************************************************************
+[ITEMDEF i_capuz]
+NAME=robe
+ID=0204E
+TYPE=t_clothing
+LAYER=layer_skirt
+
+ON=@CREATE
+attr=0100
+
+on=@unequip
+if (<src.tag0.comcapuz>)//Tirou forçadamente?
+    src.uncapuz
+endif
+timerf 1,remove
+
+
+//*****************************************************************************
+//*****************************************************************************
+// MENUs
+//*****************************************************************************
+//*****************************************************************************
+[MENU sm_dress]
+(MYT) Staff Dress System (MYT)
+
+on=0 Acionar Status de GM
+ gm 1
+ invis 1
+ invul 1
+ privshow 0
+on=0 Salvar itens do corpo
+ saveitens
+on=0 Admin
+ src.body c_man_gm
+ src.color 0846 //vermelho
+ src.underwear
+ src.nightsight 1
+ src.title Staff Mystical Tales
+ src.update
+on=0 iGM
+ src.body c_man_gm
+ src.color 09a4 //preto
+ src.underwear
+ src.nightsight 1
+ src.title iT Staff Mystical Tales
+ src.update
+on=0 GM
+ src.body c_man_gm
+ src.color 0549 //azul
+ src.underwear
+ src.nightsight 1
+ src.title GMT Staff Mystical Tales
+ src.update
+on=0 Seer
+ src.body c_man_gm
+ src.color 08a4 //verde
+ src.underwear
+ src.nightsight 1
+ src.title iT Staff Mystical Tales
+ src.update
+on=0 Counselor
+ src.body c_man_gm
+ src.color 0000 //cinza
+ src.nightsight 1
+ src.title GMT Staff Mystical Tales
+ src.update
+on=0 Humano
+ src.body c_man
+ src.color 083ea
+ src.nightsight 1
+ src.title=.
+ src.update
+[EOF]

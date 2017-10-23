@@ -1,0 +1,1068 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL TAILORING 
+//
+//  Galthar
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//TAGS usadas:
+//tag.tai_material  //uid do material usado (pano,linha,etc)
+//tag.mc            //medida de cintura do player
+//tag.mp            //medida de peito do player
+//tag.tai_mc        //medida de cintura das roupas feitas pelo tailor
+//tag.tai_mp        //medida de peito das roupas feitas pelo tailor
+//ctag_mc           //medida de cintura temporaria
+//ctag_mp           //medida de peito temporaria
+
+//nos itens:
+//tag.item          //id do item a ser confeccionado
+
+[PLEVEL 0]
+mc
+mp
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_wool - lã pura, use na roca para fazer novelos
+//*****************************************************************************
+[TYPEDEF t_wool]
+ON=@DCLICK
+if (<topobj>!=<src.uid>)
+    src.sysmessagered A la precisa estar na sua mala
+else
+    if (<amount>>5)
+        LOCAL.amt=5
+    else
+        LOCAL.amt=<amount>
+    endif
+    obj=<src.findid.i_faz_item.uid>
+    obj.cleartags
+    obj.tag.needtype=t_roca
+    obj.tag.need=roca
+    obj.tag.uid1=<uid>
+    obj.tag.amt1=<LOCAL.amt>
+    obj.tag.nam1=<name>
+    obj.tag.skill=tailoring
+    obj.tag.dif=0
+    obj.tag.emote=fiando
+    obj.tag.delay=<eval (15-(<src.tailoring>/104))*<LOCAL.amt>> //3 a 15 por lã
+    obj.tag.item=i_yarn_ball
+    obj.tag.amt=<LOCAL.amt>
+    obj.tag.color=<color>
+    obj.tag.f_init=iniciaRoca
+    obj.tag.f_step=animaRoca
+    obj.tag.f_end=paraRoca  
+    src.fazitem
+endif
+return 1
+
+//*****************************************************************************
+// t_yarn - fio/novelo de lã
+//*****************************************************************************
+[TYPEDEF t_yarn]
+ON=@DCLICK
+src.sysmessagered Utilize um kit para costura.
+return 1
+
+//*****************************************************************************
+// t_thread - linha
+//*****************************************************************************
+[TYPEDEF t_thread]
+
+//*****************************************************************************
+// t_cotton - algodão
+//*****************************************************************************
+[TYPEDEF t_cotton]
+ON=@DCLICK
+if (<topobj>!=<src.uid>)
+    src.sysmessagered O algodao precisa estar na sua mala
+else
+    if (<amount>>5)
+        LOCAL.amt=5
+    else
+        LOCAL.amt=<amount>
+    endif
+    obj=<src.findid.i_faz_item.uid>
+    obj.cleartags
+    obj.tag.needtype=t_roca
+    obj.tag.need=roca
+    obj.tag.uid1=<uid>
+    obj.tag.amt1=<LOCAL.amt>
+    obj.tag.nam1=<name>
+    obj.tag.skill=tailoring
+    obj.tag.dif=0
+    obj.tag.emote=fiando
+    obj.tag.delay=<eval (10-<BETWEEN 0,7,<src.tailoring>,100.0>)*<LOCAL.amt>> //3 a 10 por algodão
+    obj.tag.item=i_thread
+    obj.tag.amt=<eval <LOCAL.amt>*3>
+    obj.tag.color=<color>
+    obj.tag.f_init=iniciaRoca
+    obj.tag.f_step=animaRoca
+    obj.tag.f_end=paraRoca
+    src.fazitem
+endif
+return 1
+
+//*****************************************************************************
+// t_tai_corte
+//*****************************************************************************
+[TYPEDEF t_tai_corte]
+ON=@DCLICK
+src.sysmessagered Utilize um kit para costura.
+return 1
+
+//*****************************************************************************
+// t_tai_corte_couro
+//*****************************************************************************
+[TYPEDEF t_tai_corte_couro]
+ON=@DCLICK
+src.sysmessagered Utilize um kit para costura.
+return 1
+
+//*****************************************************************************
+// t_roca
+//*****************************************************************************
+[TYPEDEF t_roca]
+ON=@DCLICK
+src.sysmessagered Utilize la ou algodao.
+timer=2
+iniciaRoca <uid>
+return 1
+
+ON=@TIMER
+paraRoca <uid>
+return 1
+
+//*****************************************************************************
+// t_tear
+//*****************************************************************************
+[TYPEDEF t_tear]
+ON=@DCLICK
+src.sysmessagered Utilize linha.
+return 1
+ 
+//*****************************************************************************
+// t_cloth
+//*****************************************************************************
+[TYPEDEF t_cloth]
+ON=@DCLICK
+src.sysmessagered Utilize tesoura.
+return 1
+
+//*****************************************************************************
+// t_tailoring
+//*****************************************************************************
+[TYPEDEF t_tailoring]
+//compatibilidade com sistema de vendas apenas.
+ON=@create
+return 0 
+
+//*****************************************************************************
+// t_dye_vat - tinta
+//*****************************************************************************
+[TYPEDEF t_dye_vat]
+ON=@DCLICK
+    targetf f_tingir <uid>
+  return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// clothes_checkSize( cloth )
+//*****************************************************************************
+//default is the player to be checked
+//return
+//0 if in wrong layer
+//1 if smaller
+//2 if fit
+//3 if bigger
+
+[FUNCTION clothes_checkSize]
+REF1=<argv0>
+LOCAL.min=-1
+LOCAL.max=4
+if (<REF1.layer>==layer_shirt) || (<REF1.layer>==layer_tunic) || (<REF1.layer>==layer_robe)
+    LOCAL.min=<LOCAL.min>+<TAG.mp>
+    LOCAL.max=<LOCAL.max>+<TAG.mp>
+elif (<REF1.layer>==layer_pants) || (<REF1.layer>==layer_skirt)  
+    LOCAL.min=<LOCAL.min>+<TAG.mc>
+    LOCAL.max=<LOCAL.max>+<TAG.mc>
+elif (<REF1.layer>==layer_shoes) || (<REF1.layer>==layer_wrist) || (<REF1.layer>==layer_gloves) || (<REF1.layer>==layer_cape) || (<REF1.layer>==layer_arms)
+    return 2
+else
+    return 0
+endif
+
+if ( <REF1.more2> < <LOCAL.min> )
+    return 1
+elif ( <REF1.more2> > <LOCAL.max> )
+    return 3
+else
+    return 2
+endif
+
+//*****************************************************************************
+// tai_cutCloth(name,finalCloth,threadAmount)
+//*****************************************************************************
+[FUNCTION tai_cutCloth]
+REF1=<src.ctag.tai_material>
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.uid1=<REF1.uid>
+obj.tag.amt1=1
+obj.tag.nam1=<REF1.name>
+obj.tag.skill=tailoring
+obj.tag.dif=50
+obj.tag.emote=cortando pano
+obj.tag.sfx=0248
+obj.tag.delay=<eval 25-(<src.tailoring>/62)> //5 a 25
+obj.tag.item=i_cloth_cut_1
+obj.tag.color=<REF1.color>
+obj.tag.name=corte para <argv0>
+obj.tag.type=t_tai_corte
+obj.tag.f_done=f_setItemTag <argv1>,
+obj.tag.more1=<argv1>   //tem q fazer isso para nao dar stack em cortes diferentes
+obj.tag.more2=<argv2>
+src.fazitem
+return 1
+
+//*****************************************************************************
+// tai_cutHide(name,finalCloth,threadAmount)
+//*****************************************************************************
+[FUNCTION tai_cutHide]
+REF1=<src.ctag.tai_material>
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.uid1=<REF1.uid>
+obj.tag.amt1=1
+obj.tag.nam1=<REF1.name>
+obj.tag.skill=tailoring
+obj.tag.dif=50
+obj.tag.emote=cortando couro
+obj.tag.sfx=0248
+obj.tag.delay=<eval 25-(<src.tailoring>/62)> //5 a 25
+obj.tag.item=i_hides_cut
+obj.tag.color=<REF1.color>
+obj.tag.name=corte para <argv0>
+obj.tag.type=t_tai_corte_couro
+obj.tag.f_done=f_setItemTag <argv1>,
+obj.tag.more1=<argv1>   //tem q fazer isso para nao dar stack em cortes diferentes
+obj.tag.more2=<argv2>
+src.fazitem
+return 1
+
+//*****************************************************************************
+// tai_cutPillow(finalCloth,threadAmount)
+//*****************************************************************************
+[FUNCTION tai_cutPillow]
+REF1=<src.ctag.tai_material>
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.uid1=<REF1.uid>
+obj.tag.amt1=1
+obj.tag.nam1=<REF1.name>
+obj.tag.res2=i_cotton
+obj.tag.amt2=1
+obj.tag.nam2=algodao
+obj.tag.skill=tailoring
+obj.tag.dif=60
+obj.tag.emote=cortando pano
+obj.tag.sfx=0248
+obj.tag.delay=<eval 25-(<src.tailoring>/62)> //5 a 25
+obj.tag.item=i_cloth_cut_1
+obj.tag.color=<REF1.color>
+obj.tag.name=corte para estofamento
+obj.tag.type=t_tai_corte
+obj.tag.f_done=f_setItemTag i_estofamento,
+obj.tag.more1=<argv1>   //tem q fazer isso para nao dar stack em cortes diferentes
+obj.tag.more2=4
+src.fazitem
+return 1
+
+//*****************************************************************************
+// f_tingir ( dye_uid )
+//*****************************************************************************
+//argo deve ser um alvo (target) para tentar tingir
+[FUNCTION f_tingir]
+    //deve ter todos os parametros
+    if ( !<argv0> ) || ( !<argo.uid> )
+        return 1
+    endif
+
+    //alvo deve ser um item (npcs e players sao descartados aqui)
+    if ( <argo> < 040000000 )
+     sysmessagered Nao pode tingir isso.
+     return 1
+    endif
+
+    OBJ=<argv0>
+    //alvo deve ser de um tipo tingivel
+    if (<argo.type>==t_cloth) || (<argo.type>==t_tai_corte) || (<argo.type>==t_yarn) || (<argo.type>==t_thread) || (<argo.type>==t_wool) || (<argo.type>==t_cotton) || ( (<argo.type>==t_clothing) && (!<argo.color>) )
+        argo.color=<OBJ.color>
+    elif (<argo.type>==t_armor) || ( (<argo.type>==t_clothing) && (<argo.color>) )
+        sysmessagered Voce nao pode tingir a roupa pronta. Tinja apenas roupa branca, linha, la crua, algodao cru ou tecidos.
+    else
+        sysmessagered Nao pode tingir isso.
+    endif
+    return 1
+
+//*****************************************************************************
+// tai_fazBandagemDe( uid_tecido )
+//*****************************************************************************
+[FUNCTION tai_fazBandagemDe]
+REF1=<argv0>
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.uid1=<REF1.uid>
+obj.tag.amt1=1
+obj.tag.nam1=<REF1.name>
+obj.tag.skill=tailoring
+obj.tag.dif=1
+obj.tag.emote=cortando pano
+obj.tag.sfx=0248
+obj.tag.delay=<eval 11-(<src.tailoring>/125)> 
+obj.tag.item=i_bandage
+obj.tag.amt=<eval 5+(<src.tailoring>/125)> 
+obj.tag.color=<REF1.color>
+src.fazitem
+
+//*****************************************************************************
+// tailor_init
+//*****************************************************************************
+[FUNCTION tailor_init]
+//determinar medida do player
+tag.mp=<eval ((<str>*6)/10)> //60% de str peito
+tag.mc=<eval ((<str>*5)/10)> //50% de str cintura
+
+// aplica mod de raça anã (80)
+if (strmatch(<tag.raca>,Anao))
+ tag.mp=<eval ((<tag.mp>*8)/10)>
+ tag.mc=<eval ((<tag.mc>*8)/10)>
+endif
+// aplica mod de raça Orc (120%)
+if (strmatch(<src.tag.raca>,Orc))
+ tag.mp=<eval ((<tag.mp>*12)/10)>
+ tag.mc=<eval ((<tag.mc>*12)/10)>
+endif
+
+//salva medidas nos respectivos layers
+findlayer.layer_shirt.more2=<tag.mp>
+findlayer.layer_tunic.more2=<tag.mp>
+findlayer.layer_robe.more2=<tag.mp>
+findlayer.layer_pants.more2=<tag.mc>
+findlayer.layer_skirt.more2=<tag.mc>
+
+//*****************************************************************************
+// tricota( item )
+//*****************************************************************************
+//inicia um novo trico
+[FUNCTION tricota]
+REF1=<src.ctag.tai_material>
+serv.newitem=i_trico
+new.color=<REF1.color>
+new.name=trico (<serv.itemdef.<argv0>.name>)
+new.link=<src.uid>
+new.cont=<src.uid>
+new.more1=<eval 120-<BETWEEN 0,90,<src.tailorign>,125.0>> //tempo: 30 a 120
+new.tag.item=<argv0>
+if (<argv0>==i_calcas_curtas_la) || (<argv0>==i_calcas_longas_la)
+    new.morex=<tag.tai_mc>
+else
+    new.morex=<tag.tai_mp>
+endif
+REF1.amount -= 1
+if !<REF1.amount>
+    REF1.remove
+endif
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.skill=tailoring
+obj.tag.dif=1
+obj.tag.emote=tricotando
+obj.tag.delay=<new.more1>
+obj.tag.item=<new.tag.item>
+obj.tag.color=<new.color>
+obj.tag.more2=<new.morex>
+obj.tag.f_end=tricoInterrompido <new.uid>,
+src.fazitem
+update
+//*****************************************************************************
+// tricoInterrompido(uid_trico,nada,tempo_restante)
+//*****************************************************************************
+[FUNCTION tricoInterrompido]
+emotered parou de tricotar
+
+//se acabou trico, remove item intermediario
+if (!<argv2>)
+    obj=<argv0>
+    obj.remove
+    
+    //impede que o item seja criado novamente
+    obj=<findid.i_faz_item.uid>
+    obj.tag.abort=1
+endif
+
+//*****************************************************************************
+// iniciaRoca(uid_roca)
+//*****************************************************************************
+[FUNCTION iniciaRoca]
+obj=<argv0>
+if ( <obj.dispid>==01017 ) || ( <obj.dispid>==i_spinning_wheel )
+    obj.dispid=01016
+elif ( <obj.dispid>==0101b ) || ( <obj.dispid>==01019 )
+    obj.dispid=0101a
+elif ( <obj.dispid>==0101e ) || ( <obj.dispid>==0101c )
+    obj.dispid=0101d
+elif ( <obj.dispid>==010a6 ) || ( <obj.dispid>==010a4 )
+    obj.dispid=010a5
+endif
+obj.update
+
+//*****************************************************************************
+// animaRoca(uid_roca)
+//*****************************************************************************
+[FUNCTION animaRoca]
+obj=<argv0>
+if (<distance <OBJ>> < 2)
+    dorand (2)
+        sfx 0184
+        sfx 184
+    enddo
+    dorand (5)
+        obj.say rinch!
+    enddo
+endif
+obj.update
+
+//*****************************************************************************
+// paraRoca(uid_roca)
+//*****************************************************************************
+[FUNCTION paraRoca]
+obj=<argv0>
+if ( <obj.dispid>==01016 )
+    obj.dispid=01017
+elif ( <obj.dispid>==0101a )
+    obj.dispid=0101b
+elif ( <obj.dispid>==0101d )
+    obj.dispid=0101e
+elif ( <obj.dispid>==010a5 )
+    obj.dispid=010a6
+endif
+obj.update
+ 
+ 
+//*****************************************************************************
+// animaTear(uid_tear)
+//*****************************************************************************
+[FUNCTION animaTear]
+obj=<argv0>
+if (<distance <OBJ>> < 2)
+    dorand (2)
+        sfx 0184
+        sfx 184
+    enddo
+    dorand (5)
+        obj.say clank!
+    enddo
+    if ( <obj.dispid>==0105f ) || <obj.dispid>==i_loom_upright )
+        obj.dispid=01063
+        obj.link.dispid=01064
+    elif ( <obj.dispid>==01060 )
+        obj.dispid=01064
+        obj.link.dispid=01063
+    elif ( <obj.dispid>==01061 )
+        obj.dispid=01065
+        obj.link.dispid=01066
+    elif ( <obj.dispid>==01062 )
+        obj.dispid=01066
+        obj.link.dispid=01065
+    elif ( <obj.dispid>==01063 )
+        obj.dispid=0105f
+        obj.link.dispid=01060
+    elif ( <obj.dispid>==01064 )
+        obj.dispid=01060
+        obj.link.dispid=0105f
+    elif ( <obj.dispid>==01065 )
+        obj.dispid=01061
+        obj.link.dispid=01062
+    elif ( <obj.dispid>==01066 )
+        obj.dispid=01062
+        obj.link.dispid=01061
+    endif
+endif
+obj.update
+obj.link.update
+
+//*****************************************************************************
+// paraTear(uid_tear)
+//*****************************************************************************
+[FUNCTION paraTear]
+obj=<argv0>
+if ( <obj.dispid>==01063 )
+    obj.dispid=0105f
+    obj.link.dispid=01060
+elif ( <obj.dispid>==01064 )
+    obj.dispid=01060
+    obj.link.dispid=0105f
+elif ( <obj.dispid>==01065 )
+    obj.dispid=01061
+    obj.link.dispid=01062
+elif ( <obj.dispid>==01066 )
+    obj.dispid=01062
+    obj.link.dispid=01061
+endif
+obj.update
+obj.link.update
+
+//*****************************************************************************
+// animaCostura()
+//*****************************************************************************
+[FUNCTION animaCostura]
+dorand (7)
+    sfx 04f
+    sfx 048
+    sfx 059
+    sfx 055
+enddo
+
+//*****************************************************************************
+// mc - medida de cintura
+//*****************************************************************************
+[FUNCTION mc]
+src.ctag.tai_mc=<src.tag.tai_mc>
+dialog d_mc
+
+//*****************************************************************************
+// mp - medida de peito
+//*****************************************************************************
+[FUNCTION mp]
+src.ctag.tai_mp=<src.tag.tai_mp>
+dialog d_mp
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_roca
+//*****************************************************************************
+[ITEMDEF i_roca]
+NAME=roca
+ID=0101e
+TYPE=t_roca
+WEIGHT=900
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Roca
+
+ON=@CREATE
+ATTR=010
+
+//*****************************************************************************
+// i_roca_2
+//*****************************************************************************
+[ITEMDEF i_roca_2]
+NAME=roca
+ID=01017
+TYPE=t_roca
+WEIGHT=900
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Roca
+
+ON=@CREATE
+ATTR=010
+
+//*****************************************************************************
+// i_roca_3
+//*****************************************************************************
+[ITEMDEF i_roca_3]
+NAME=roca
+ID=0101b
+TYPE=t_roca
+WEIGHT=900
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Roca
+
+ON=@CREATE
+ATTR=010
+
+//*****************************************************************************
+// i_roca_4
+//*****************************************************************************
+[ITEMDEF i_roca_4]
+NAME=roca
+ID=010a6
+TYPE=t_roca
+WEIGHT=900
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Roca
+
+ON=@CREATE
+ATTR=010
+
+//*****************************************************************************
+// i_tear_1
+//*****************************************************************************
+[ITEMDEF i_tear_1]
+NAME=tear
+ID=0105f
+TYPE=t_tear
+WEIGHT=900
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Tear 1
+
+ON=@CREATE
+ATTR=010
+
+//*****************************************************************************
+// i_tear_2
+//*****************************************************************************
+[ITEMDEF i_tear_2]
+NAME=tear
+ID=01064
+TYPE=t_tear
+WEIGHT=900
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Tear 2
+
+ON=@CREATE
+ATTR=010
+
+//*****************************************************************************
+// i_tear_3
+//*****************************************************************************
+[ITEMDEF i_tear_3]
+NAME=tear
+ID=01061
+TYPE=t_tear
+WEIGHT=900
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Tear 1
+
+ON=@CREATE
+ATTR=010
+
+//*****************************************************************************
+// i_tear_4
+//*****************************************************************************
+[ITEMDEF i_tear_4]
+NAME=tear
+ID=01062
+TYPE=t_tear
+WEIGHT=900
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Tear 1
+
+ON=@CREATE
+ATTR=010
+
+//*****************************************************************************
+// i_fita
+//*****************************************************************************
+[ITEMDEF i_fita]
+NAME=fita
+ID=01535
+TYPE=t_tailoring
+WEIGHT=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Fita metrica
+
+ON=@DCLICK
+TARGET Tirar as medidas de quem?
+return 1
+
+ON=@TARGON_GROUND
+src.sysmessagered Tire medidas de pessoas.
+return 1
+
+ON=@TARGON_ITEM
+src.sysmessagered Tire medidas de pessoas.
+return 1
+
+ON=@TARGON_CHAR
+if (!<src.targ.npc>)
+    if (<src.targ.distance> <2)
+        src.targ.message peito: <eval <src.targ.tag.mp>>
+        src.targ.message cintura: <eval <src.targ.tag.mc>>
+    else
+        src.sysmessagered Muito longe...
+    endif
+else
+    src.sysmessagered Alvo invalido.
+endif
+return 1
+
+//*****************************************************************************
+// i_tesoura
+//*****************************************************************************
+[ITEMDEF i_tesoura]
+NAME=tesoura de costura
+ID=0f9e
+TYPE=t_tailoring
+RESOURCES=1 i_ingot_iron
+SKILLMAKE=Tinkering 13.7
+WEIGHT=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Tesoura de costura
+TEVENTS=t_crafting_tool
+TDATA4=250
+
+ON=@CREATE
+MAXHITS=<R30,65>
+HITS=<MAXHITS>
+
+ON=@DCLICK
+src.sysmessageyellow Selecione pano ou couro.
+TARGET
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.topobj>!=<src.uid>)
+    src.sysmessagered <src.targ.name> deve estar na sua mochila.
+    return 1
+endif
+
+if (<src.targ.type>==t_cloth)
+     src.ctag.tai_material=<src.targ>
+     src.craftmenu 1152
+     src.ctag.craft_tool=<UID>
+elif (<src.targ.type>==t_leather)
+     src.ctag.tai_material=<src.targ>
+     src.craftmenu 1153
+     src.ctag.craft_tool=<UID>
+elif (<src.targ.type>==t_clothing)
+     src.ctag.tai_material=<src.targ>
+     src.ctag.craft_tool=<UID>
+     src.craftItem i_bandage
+else
+    src.sysmessagered Corte apenas pano novo ou couro curtido.
+endif
+return 1
+
+ON=@TARGON_CHAR
+src.sysmessagered Corte apenas pano novo ou couro curtido.
+return 1
+
+ON=@TARGON_GROUND
+src.sysmessagered Corte apenas pano novo ou couro curtido.
+return 1
+
+//*****************************************************************************
+[FUNCTION craft_skill_Tailoring]
+//*****************************************************************************
+// CALL craft_skill_tailoring
+REF1=<src.ctag.tai_material>
+serv.log ************8craft_skill_Tailoring
+//Reorganizar materias primas
+LOCAL.c=<serv.itemdef.<args>.resources.count>
+LOCAL.RN=2
+obj.tag.more2=0
+for R 1 <LOCAL.c>
+    try obj.tag.res<dLOCAL.R>=
+    try obj.tag.amt<dLOCAL.R>=
+    LOCAL.key=<serv.itemdef.<args>.resources.<local.r>.key>
+    if <LOCAL.key>==<REF1.DEFNAME>
+     obj.tag.uid1=<REF1.uid>
+     obj.tag.amt1=<serv.itemdef.<args>.resources.<local.r>.val>
+     obj.tag.nam1=<REF1.name>
+    elif <LOCAL.key>==i_thread
+     obj.tag.more2=<obj.tag0.more2>+<serv.itemdef.<args>.resources.<local.r>.val>
+    else
+     try obj.tag.res<dLOCAL.RN>=<serv.itemdef.<args>.resources.<local.r>.key>
+     try obj.tag.amt<dLOCAL.RN>=<serv.itemdef.<args>.resources.<local.r>.val>
+     try obj.tag.nam<dLOCAL.RN>=<serv.itemdef.<serv.itemdef.<args>.resources.<local.r>.key>.name>
+     LOCAL.RN += 1
+    endif
+endfor
+
+//Decidir pré-item
+if (<REF1.type>==t_cloth)
+ obj.tag.item=i_cloth_cut_1
+elif (<REF1.type>==t_leather)
+ obj.tag.item=i_hides_cut
+endif
+obj.tag.type=t_tai_corte
+obj.tag.emote=cortando <REF1.name>
+obj.tag.sfx=0248
+obj.tag.delay=<eval 25-(<src.tailoring>/62)> //5 a 25
+obj.tag.color=<REF1.color>
+obj.tag.name=corte para <serv.itemdef.<args>.name>
+obj.tag.f_done=f_setItemTag <args>,
+obj.tag.more1=<serv.itemdef.<args>.defname>//tem q fazer isso para nao dar stack em cortes diferentes
+local.craftable=1
+
+//[FUNCTION craft_Tailoring]
+//CALL craft_skill_tailoring <args>
+
+//*****************************************************************************
+// i_kit_costura
+//*****************************************************************************
+[ITEMDEF i_kit_costura]
+NAME=kit para costura
+ID=0f9d
+TYPE=t_tailoring
+RESOURCES=1 i_tabua, 1 i_cloth, 1 i_arame_ferro
+SKILLMAKE=Tinkering 14.6
+WEIGHT=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Kit para costura
+TEVENTS=t_crafting_tool
+TDATA4=200
+
+ON=@CREATE
+MAXHITS=<R30,65>
+HITS=<MAXHITS>
+
+ON=@DCLICK
+src.sysmessageyellow Costurar pano, la ou couro?
+TARGET
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.topobj>!=<src.uid>)
+    src.sysmessagered <src.targ.name> deve estar na sua mochila.
+    return 1
+endif
+
+//se usado em recortes de pano ou de couro
+if (<src.targ.type>==t_tai_corte) || (<src.targ.type>==t_tai_corte_couro)
+    obj=<src.findid.i_faz_item.uid>
+    obj.cleartags
+    obj.tag.uid1=<src.targ.uid>
+    obj.tag.amt1=1
+    obj.tag.nam1=<src.targ.name>
+    obj.tag.res2=i_thread
+    obj.tag.amt2=<src.targ.more2>
+    obj.tag.nam2=linha(s)
+    obj.tag.skill=tailoring
+    obj.tag.dif=50
+    obj.tag.emote=costurando
+    obj.tag.delay=<MINIMUMN 16,<eval (16-(<src.tailoring>/125))*<src.targ.more2>>> //6 a 16 por linha
+    obj.tag.item=<src.targ.tag.item>
+    obj.tag.color=<src.targ.color>
+    obj.tag.tool=<UID>
+    obj.tag.f_step=animaCostura
+    src.fazitem
+ return 1
+ 
+//se usado em novelo
+elif (<src.targ.type>==t_yarn)
+    if (<src.tailoring> < 599)
+        src.sysmessagered Voce ainda nao domina essas tecnicas.
+        return 1
+    endif
+    src.ctag.tai_material=<src.targ>
+    src.craftmenu 4204  //menu de tailor
+    return 1
+
+//se cabecas de bicho
+elif (<src.targ.baseid>==i_veado_cabeca) || (<src.targ.baseid>==i_urso_cabeca)
+    if (<src.tailoring> < 901)
+        src.sysmessagered Voce ainda nao domina essas tecnicas.
+        return 1
+    endif
+    obj=<src.findid.i_faz_item.uid>
+    obj.cleartags
+    obj.tag.uid1=<src.targ.uid>
+    obj.tag.amt1=1
+    obj.tag.nam1=<src.targ.name>
+    obj.tag.res2=i_thread
+    obj.tag.amt2=12
+    obj.tag.nam2=linha(s)
+    obj.tag.skill=tailoring
+    obj.tag.dif=90
+    obj.tag.emote=costurando
+    obj.tag.delay=21
+    obj.tag.item=<src.targ.tag.item>
+    obj.tag.color=<src.targ.color>
+    obj.tag.f_step=animaCostura
+    src.fazitem
+        return 1
+endif
+src.sysmessagered Costure somente la, cortes de pano ou couro.
+return 1
+
+ON=@TARGON_CHAR
+src.sysmessagered Costure somente la, cortes de pano ou couro.
+return 1
+
+ON=@TARGON_GROUND
+src.sysmessagered Costure somente la, cortes de pano ou couro.
+return 1
+
+//*****************************************************************************
+// i_trico
+//*****************************************************************************
+//more1 - tempo restante
+//tag.item - item
+//morex - tamanho da roupa
+
+[ITEMDEF i_trico]
+NAME=trico
+ID=0df6
+TYPE=t_script
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Item do trico
+
+ON=@DCLICK
+if (<link>!=<src.uid>)
+ src.sysmessagered Nao pode continuar o trico de outra pessoa.
+ return 1
+endif
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.skill=tailoring
+obj.tag.dif=1
+obj.tag.emote=tricotando
+obj.tag.delay=<more1>
+obj.tag.item=<tag.item>
+obj.tag.color=<color>
+obj.tag.more2=<morex>
+obj.tag.f_end=tricoInterrompido <uid>,
+src.fazitem
+src.emoteyellow continua a tricotar
+return 1
+
+
+//*****************************************************************************
+// i_thread
+//*****************************************************************************
+[ITEMDEF 0fa0]
+DEFNAME=i_thread
+RESOURCES=1 i_cotton
+TYPE=T_THREAD
+DYE=1
+WEIGHT=1
+SKILLMAKE=Tailoring 0.0
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Linha
+NAME=linha%s%
+DUPELIST=0fa1
+
+ON=@DCLICK
+if (<topobj>!=<src.uid>)
+ src.sysmessagered A linha precisa estar na sua mala
+else
+ TARGET Selecione roca ou tear.
+endif
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.type>==t_tear)
+    obj=<src.findid.i_faz_item.uid>
+    obj.cleartags
+    obj.tag.neartype=t_tear
+    obj.tag.nearname=tear
+    obj.tag.uid1=<uid>
+    obj.tag.amt1=6
+    obj.tag.nam1=<name>
+    obj.tag.skill=tailoring
+    obj.tag.dif=5
+    obj.tag.emote=tecendo
+    obj.tag.delay=<eval 23-(<src.tailoring>/62)> //3 a 23
+    obj.tag.item=i_cloth
+    obj.tag.color=<color>
+    obj.tag.f_step=animaTear <src.targ.uid>,
+    obj.tag.f_end=animaTear <src.targ.uid>,
+    src.fazitem
+    return 1 
+elif (<src.targ.type>==t_roca)
+    obj=<src.findid.i_faz_item.uid>
+    obj.cleartags
+    obj.tag.neartype=t_roca
+    obj.tag.nearname=roca
+    obj.tag.uid1=<uid>
+    obj.tag.amt1=5
+    obj.tag.nam1=<name>
+    obj.tag.skill=tailoring
+    obj.tag.dif=5
+    obj.tag.emote=fiando
+    obj.tag.delay=<eval 15-<BETWEEN 0,12,<src.tailoring>,100.0>> //3 a 23
+    obj.tag.item=i_barbante_algodao
+    obj.tag.color=<color>
+    obj.tag.f_init=iniciaRoca <src.targ.uid>,
+    obj.tag.f_step=animaRoca <src.targ.uid>,
+    obj.tag.f_end=paraRoca <src.targ.uid>,
+    src.fazitem
+    return 1 
+endif
+src.sysmessagered Use a linha no tear ou na roca.
+return 1 
+
+ON=@TARGON_CHAR
+ src.sysmessagered Use a linha no tear ou na roca.
+ return 1
+
+ON=@TARGON_GROUND
+ src.sysmessagered Use a linha no tear ou na roca.
+ return 1
+ 
+ 
+[ITEMDEF 0175d]
+// DEFNAME2=FOLDED_CLOTH_1
+DEFNAME=i_cloth
+NAME=pano
+WEIGHT=2
+VALUE=6
+TYPE=t_cloth
+DYE=1
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=Pano
+DUPELIST=0175e,0175f,01760,01761,01762,01763,01764,01765
+
+[ITEMDEF 0df8]
+DEFNAME=i_wool
+NAME=la crua
+VALUE=2
+TYPE=t_WOOL
+WEIGHT=3
+CATEGORY=Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=WOOL (PILE)
+DUPELIST=0101f
+
+[ITEMDEF 0e1d]
+// DEFNAME2=BALL_OF_YARN_1
+NAME=novelo de la
+DEFNAME=i_yarn_ball
+RESOURCES=1 I_WOOL
+TYPE=T_YARN
+WEIGHT=1
+VALUE=3
+CATEGORY=Items by Professions
+SUBSECTION=Tailor
+DESCRIPTION=BALL OF YARN
+DUPELIST=0e1e,0e1f
+
+
+[EOF]

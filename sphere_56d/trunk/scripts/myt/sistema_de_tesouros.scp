@@ -1,0 +1,883 @@
+[COMMENT TRESURES]
+-=   Mystical Tales Shard   =-
+Sistema de tesouros unificado v1.1      18/03/2010
+Galthar, o Errante
+
+
+-=TAGS ULTILIZADAS=-
+    obj.tag.tresure_create
+    obj.tag.tresure_last
+    obj.tag.tresure_uses
+    obj.tag.tresure_found
+    obj.tag.users
+    obj.tag.user_<UID>
+    obj.tag.tresure_timer
+    obj.tag.tresure_create
+    obj.tag.tresure_creator
+    obj.tag.tresure_lastGM
+    obj.tag.tresure_loot
+    obj.tag.tresure_link
+    obj.tag.tresure_text
+    obj.tag.tresure_only1
+    obj.tag.tresure_users
+    obj.tag.tresure_guard
+    obj.tag.Detecting_Hidden
+    obj.tag.tresure_found
+
+    ctag.tresure_UID
+    ctag.tresure_text
+    ctag.tresure_expires
+    ctag.tresure_link
+    ctag.tresure_key
+    ctag.tresure_loot
+    ctag.tresure_d
+    ctag.tresure_h
+    ctag.tresure_hide
+    ctag.tresure_DH
+    ctag.tresure_only1
+    ctag.tresure_guard
+
+-=Página do sistema=-
+http://wiki.myt.com.br/index.php/Sistema_de_tesouros
+
+-=Regras de uso=-
+http://forum.myt.com.br/index.php?topic=3037.0
+
+
+[FUNCTION tesouro]
+// Configura o tesouro de um container
+if (!<argo>)
+    sysmessageyellow Selecione o container ou corpo:
+    TARGETF tesouro
+elif (<argo.type>!=t_container) && (<argo.type>!=t_container_locked) && (<argo.type>!=t_corpse)
+    sysmessagered Invalido. Containeres ou corpos.
+else
+    cTAG.tresure_uid=<argo>
+    //Configura loot
+    if (!<IsEmpty <argo.tag.tresure_loot>>)
+        ctag.tresure_loot=<argo.tag.tresure_loot>
+        //Especial. Carta
+        if (STRMATCH(<argo.tag.tresure_loot>,Carta com texto))
+            ctag.tresure_text=<argo.tag.tresure_text>
+            ctag.tresure_expires=<argo.tag0.tresure_expires>
+        //Especial. Chave
+        elif (STRMATCH(Chave para*,<argo.tag.tresure_loot>))
+            ctag.tresure_link=<argo.tag.tresure_link>
+        else
+            ctag.tresure_text=
+            ctag.tresure_expires=
+            ctag.tresure_link=
+            ctag.tresure_key=
+        endif
+    else
+        ctag.tresure_loot=i_provisao
+    endif
+    //Tempo de respawn
+    if (!<IsEmpty <argo.tag.tresure_timer>>)
+        ctag.tresure_d=<eval <argo.tag.tresure_timer>/24*60*60*10>
+        ctag.tresure_h=<eval (<argo.tag.tresure_timer>-(<ctag.tresure_d>*24*60*60*10))/60*60*10>
+    else
+        ctag.tresure_d=1
+        ctag.tresure_h=6
+    endif
+    //Detecting hidden
+    if (!<IsEmpty <argo.tag.Detecting_Hidden>>)
+        ctag.tresure_hide=1
+        ctag.tresure_DH=<argo.tag.Detecting_Hidden>
+    else
+        ctag.tresure_hide=0
+        ctag.tresure_DH=
+    endif
+    //One shoot
+    if (!<IsEmpty <argo.tag.tresure_only1>>)
+        ctag.tresure_only1=<argo.tag.tresure_only1>
+    else
+        ctag.tresure_only1=
+    endif
+    //Guarda
+    if (!<IsEmpty <argo.tag.tresure_guard>>)
+        ctag.tresure_guard=<argo.tag.tresure_guard>
+    else
+        ctag.tresure_guard=
+    endif
+    tresure_openDialog
+endif
+
+[FUNCTION tresure_openDialog]
+//Abre o dialog de configuracao de tesouro
+DIALOGCLOSE d_tresures
+SDIALOG d_tresures
+
+[FUNCTION tresure_setLoot]
+//Seta ARGS como templet do tesouro
+ctag.tresure_loot=<args>
+tresure_openDialog
+
+[FUNCTION tresure_SetDH]
+//Seta a dificuldade de achar o tesouro para <argn>
+ctag.tresure_hide=1
+ctag.tresure_DH=<argn>
+tresure_openDialog
+
+[FUNCTION tresure_SetCoolDown]
+//Seta o tesouro como utilizavel apenas 1x a cada <argn> dias por player.
+//zero significa nunca.
+ctag.tresure_only1=<argn>
+tresure_openDialog
+
+[FUNCTION tresure_targKey]
+//Seleciona um porta ou container para conter a fechadura tipo <argn> (0 sem lockpick)
+//para este tesouro gerar dinamicamente uma chave.
+if (!<argo>)
+    sysmessageyellow Selecione a porta ou container:
+    TARGETF tresure_targKey
+elif (<argo.type>!=t_door) && (<argo.type>!=t_door_locked) &&  (<argo.type>!=t_container) &&  (<argo.type>!=t_container_locked)
+    sysmessagered Alvo invalido.
+    tresure_openDialog
+elif (<argo>==<ctag.tresure_uid>)
+    sysmessagered Nao pode guardar chave para ele mesmo.
+    tresure_openDialog
+else
+    ctag.tresure_link=<argo>
+    ctag.tresure_loot=Chave para <argo.name> (<argo.p>)
+    tresure_openDialog
+endif
+
+[FUNCTION tresure_targGuard]
+//Seleciona o spawn point dos NPCs que guardam o tesouro.
+if (!<argo>)
+    sysmessageyellow Selecione o spawnpoint do guarda:
+    TARGETF tresure_targGuard
+elif (!<argo.isitem>)
+    sysmessageyellow Voce deve selecionar o SPAWNPOINT do guarda!
+    TARGETF tresure_targGuard
+elif (<argo.type>!=t_spawn_char)
+    sysmessagered Spanwpoint invalido.
+    tresure_openDialog
+else
+    ctag.tresure_guard=<argo>
+    tresure_openDialog
+endif
+
+[FUNCTION tresure_ResetCounters]
+//Reseta os contadores do tesouro.
+obj=<ctag.tresure_UID>
+if (<argn>)
+    obj.tag.tresure_create=<serv.time>
+    obj.tag.tresure_last=
+    obj.tag.tresure_uses=
+    obj.tag.tresure_found=
+    if (!<IsEmpty <obj.tag.tresure_only1>>)
+        prompt_new Limpar tambem a lista de jogadores que ja utilizaram este tesouro?
+        prompt_setAction tresure_ResetUsers
+        prompt_setActionBack tresure_openDialog
+        ynprompt_show
+    else
+        tresure_openDialog
+    endif
+else
+    prompt_new Deseja mesmo resetar os contadores deste tesouro?
+    prompt_setAction tresure_ResetCounters 1
+    prompt_setActionBack tresure_openDialog
+    ynprompt_show    
+endif
+
+[FUNCTION tresure_ResetUsers]
+//Limpa a lista de jogadores que ja usaram.
+obj=<ctag.tresure_UID>
+obj.tag.users=
+obj.cleartags user_
+tresure_openDialog
+
+[FUNCTION tresure_clearctags]
+//Limpa as cTAGS do sistema no GM
+ctag.tresure_UID=
+ctag.tresure_text=
+ctag.tresure_expires=
+ctag.tresure_link=
+ctag.tresure_key=
+ctag.tresure_loot
+ctag.tresure_d=
+ctag.tresure_h=
+ctag.tresure_hide=
+ctag.tresure_DH=
+ctag.tresure_only1=
+ctag.tresure_guard=
+
+[FUNCTION tresure_Apply]
+//Aplica as variáveis em cache para o tesouro
+obj=<ctag.tresure_UID>
+
+//Invalidar sistemas antigos
+FORITEMS 16
+    IF (<DEFNAME>==i_trig_guarded_cont) || (<DEFNAME>==i_invis_generator) || (<DEFNAME>==i_respawn_loot)
+        if (<link>==<obj>)
+            remove
+        endif
+    ENDIF
+ENDFOR
+
+obj.events +t_tresure
+obj.tag.tresure_timer=<eval (<ctag.tresure_d>*24*60*60*10)+(<ctag.tresure_h>*60*60*10)>
+if (<IsEmpty <obj.tag.tresure_create>>)
+    obj.tag.tresure_create=<serv.time>
+    obj.tag.tresure_creator=<src.account>
+endif
+obj.tag.tresure_lastGM=<src.account>
+obj.tag.tresure_loot=<ctag.tresure_loot>
+//Guardar chave?
+if (STRMATCH(Chave para*,<obj.tag.tresure_loot>))
+    obj.tag.tresure_link=<ctag.tresure_link>
+//Guardar carta?
+elif (STRMATCH(Carta com text*,<obj.tag.tresure_loot>))
+    if (<IsEmpty <ctag.tresure_text>>)
+        say VOCE ESQUECEU DE POR UM TEXTO NA CARTA!
+    endif
+    obj.tag.tresure_text=<ctag.tresure_text>
+    obj.tag.tresure_expires=<ctag0.tresure_expires>
+else
+    obj.tag.tresure_link=
+    obj.tag.tresure_text=
+endif
+//Fechadura
+if (!<ctag0.tresure_lock>)
+    obj.tag.fechadura=
+    obj.type=<serv.itemdef.<obj.defname>.type>
+    obj.attr &= ~02040//Não lockpickavel, não rearmavel
+else
+    obj.tag.fechadura=<ctag.tresure_lock>
+    obj.type=t_container_locked
+    obj.attr |= 02040//Lockpickavel, rearmavel
+endif
+//One shoot
+if (!<IsEmpty <ctag.tresure_only1>>)
+    obj.tag.tresure_only1=<ctag.tresure_only1>
+else
+    obj.tag.tresure_only1=
+    obj.tag.tresure_users=
+    obj.cleartags user_
+endif
+//NPC guarda
+if (!<IsEmpty <ctag.tresure_guard>>)
+    obj.tag.tresure_guard=<ctag.tresure_Guard>
+else
+    obj.tag.tresure_guard=
+endif
+//Invisibilidade
+if (<ctag0.tresure_hide>)
+    obj.tag.Detecting_Hidden=<ctag0.tresure_DH>
+    obj.objinvis 1
+else
+    obj.tag.Detecting_Hidden=
+    obj.objinvis 0
+    obj.tag.tresure_found=
+endif
+//Cuidados com fechaduras
+if (<obj.tag0.fechadura> > 4)
+    DOSWITCH <eval <obj.tag0.fechadura>-5>
+        obj.tag.chars=3     //Tranca com 3 caracteres
+        obj.tag.chars=4     //Tranca com 4 caracteres
+        obj.tag.chars=5     //Tranca com 5 caracteres
+        obj.tag.chars=6     //Tranca com 6 caracteres
+    ENDIF
+    if (<IsEmpty <obj.tag.code>>)
+        lockc_OpenSet <obj>
+    elif (<eval STRLEN(<obj.tag.code>)>!=<obj.tag.chars>)
+        lockc_OpenSet <obj>
+    endif
+endif
+//Anti-GM descuidado
+IF (<obj.tag0.tresure_timer> < 600)
+    timerf 3,say Hey! O tesouro ficou sem timer!
+    timerf 6,say=@24 Hey! O tesouro ficou sem timer!
+ENDIF
+tresure_clearctags
+sysmessagegreen Tesouro configurado com sucesso.
+
+[FUNCTION tresure_Generate]
+//Gera o loot do tesouro.
+empty
+if (STRMATCH(Chave para*,<tag.tresure_loot>))
+    newitem i_key_quest
+    new.link=<tag0.tresure_link>
+    new.cont=<uid>
+elif (STRMATCH(Carta*,<tag.tresure_loot>))
+    newitem i_carta
+    new.tag.owner=1
+    new.tag.text=<tag.tresure_text>
+    if (<tag.tresure_expires>)
+        new.timerf 86400 remove
+    endif
+    new.cont=<uid>
+else
+    newitem <tag.tresure_loot>
+    new.cont=<uid>
+    obj=<uid>
+    FORCONT <UID> 10
+        if (<type>!=t_container)
+            local.ocont=<cont.name>
+            cont=<obj>
+            if (<cont>)//Bughunt. jóias que dão bug não tem cont.
+                contp=<R18,118>,<R105,169>
+            endif
+            //serv.log [TRESURES] <name> (<amount>) em <local.ocont> para <cont.name>
+        endif
+    ENDFOR
+    FORCONTTYPE t_container
+        remove
+    ENDFOR
+endif
+
+[TYPEDEF t_tresure]
+ON=@DCLICK
+//Tem algum outro script mais importante?
+if ( (<IsEvent.e_trapped>) ||  (<type>==t_container_locked) ) && (!<src.IsGM>)
+    return 0
+
+//Exite NPC guardando este tesouro?
+elif (<uid.<tag0.tresure_guard>.IsItem>)
+    ref1=<tag0.tresure_guard>
+    if (<ref1.more2>)
+        src.sysmessageorange <serv.chardef.<ref1.more1>.name> esta guardando este objeto com sua vida!
+        if (<src.IsGM>)
+            src.sysmessagegreen Mas GMs tem acesso.
+        else
+            return 1
+        endif
+    endif
+endif
+
+//Existe restrição de uso por jogador?
+if (!<IsEmpty <tag.tresure_only1>>)
+    if (!<tag0.tresure_only1>)   //A tag existe, mas é nula. Means player só pode usar 1x na vida.
+        if (<src.isGM>)
+            src.sysmessageyellow Configurado para usar so 1x na vida. Mas GM pode.
+        elif (STRMATCH(*<src.uid>*,<tag.tresure_users>))
+            src.sysmessagered Voce nao pode mais recolher este tesouso. Ja usou 1x na vida.
+            return 1
+        else
+            timerf 15 tag.tresure_users .= ";<src.uid>"
+            src.sysmessageorange ATENCAO!!!
+            src.sysmessageyellow Voce so podera acessar este tesouro 1x na vida! Ele nunca mais podera ser aberto por voce daqui a 15 segundos!
+       endif
+    else    //A tag.tresure_only1 guarda o numero de dias que o char deve esperar para usar de novo.
+        if (<src.isGM>)
+            src.sysmessageyellow Configurado para usar so 1x a cada <dtag.tresure_only1> dias. Mas GM pode.
+        elif (<IsEmpty <tag.user_<src.uid>>>)
+            src.sysmessageorange ATENCAO!!!
+            src.sysmessageyellow Voce so podera acessar este tesouro 1x a cada <dtag.tresure_only1> dias! Ele nao podera mais ser aberto por voce daqui a 15 segundos!
+            try timerf 15 tag.user_<src.uid>=<eval <serv.time>+(<tag.tresure_only1>*24*60*60*10)>
+        elif (<tag.user_<src.uid>> < <serv.time>)
+            src.sysmessageorange ATENCAO!!!
+            src.sysmessageyellow Voce so podera acessar este tesouro 1x a cada <dtag.tresure_only1> dias! Ele nao podera mais ser aberto por voce daqui a 15 segundos!
+            try timerf 15 tag.user_<src.uid>=<eval <serv.time>+(<tag.tresure_only1>*24*60*60*10)>
+        else
+            src.sysmessagered Voce ja recolheu este tesouro antes. So eh permitido 1x a cada <dtag.tresure_only1> dias.
+            return 1
+        endif
+    endif
+endif
+
+if (<eval <tag0.tresure_last>+<tag0.tresure_timer>> < <serv.time>)
+    tag0.tresure_last=<serv.time>
+    if (!<src.IsGM>)
+        tag0.tresure_uses += 1
+    endif
+    tresure_Generate
+endif
+    
+
+ON=@Found
+tag0.tresure_found += 1
+timerf 1800 objinvis,1
+
+[FUNCTION tresure_Info]
+//HTML informativo sobre o tesouro.
+obj=<ctag.tresure_uid>
+IF (<obj.tag0.tresure_create>
+    local.t=Criado por <obj.tag.tresure_creator>. Ultima mudanca por <obj.tag.tresure_lastGM>.<DEF.BR>
+    local.create=<f_timestring <eval (<serv.time>-<obj.tag.tresure_create>)/10>>
+    local.t .= Ultimo reset ha <local.create>.<DEF.BR>
+ELSE
+    local.t=Sem registro de criacao.<DEF.BR>
+ENDIF
+IF (<obj.tag0.tresure_last>)
+    local.last=<f_timestring <eval (<serv.time>-<obj.tag.tresure_last>)/10>>
+    local.t .= Ultimo uso ha <local.last>.<DEF.BR>
+    local.t .= Total de usos: <obj.dtag0.tresure_uses><DEF.br>
+    IF (!<IsEmpty <obj.tag.tresure_found>>)
+        local.t .= Invis descoberto <obj.dtag0.tresure_found> vezes.
+    ENDIF
+ELSE
+    local.t .= Nunca foi usado.<DEF.BR>
+ENDIF
+return <local.t>
+
+[DIALOG d_tresures]
+100,75
+noclose
+page 0
+obj=<ctag.tresure_uid>
+resizepic 50 31 2620 500 400
+checkertrans 55 38 490 385
+gumppic 0 0 10400
+gumppic 0 160 10401
+gumppic 0 356 10402
+gumppic 518 0 10410
+gumppic 518 160 10411
+gumppic 518 356 10412
+gumppic 225 45 2501
+dtext 231 45 26 Mystical Tales Shard
+resizepic 92 87 2620 416 310
+dtext 240 95 48 Configurar tesouro
+dorigin 110 97
+dhtmlgump - *20 380 60 2 1 <tresure_Info>
+dtext +30 *60 166 Container: <obj.name> (<obj.p>)
+button - *20 2224 2223 1 0 2
+dtext +30 -4 166 Loot: <ctag.tresure_loot>
+button - *20 2224 2223 1 0 3
+dtext +30 -4 166 Fechadura: <DEF.LOCK_NAME_<ctag0.tresure_lock>> <QVAL <ctag0.tresure_lock>?(Min. <fval <DEF.LOCK_MIN_SKILL_<ctag0.tresure_lock>>>):>
+if (<ctag0.tresure_hide>)
+    button - *15 211 210 1 0 4
+    dtext +30 +1 166 Esconder: <fval <ctag.tresure_DH>> de Detecting Hidden
+else
+    button - *15 210 211 1 0 4
+    dtext +30 +1 166 Esconder este container
+endif
+
+if (!<IsEmpty <ctag.tresure_only1>>)
+    button - *20 211 210 1 0 5
+    dtext +30 +1 166 Memso jogador pode usar somente 1x <QVAL <ctag0.tresure_only1>?a cada <dctag0.tresure_only1> dias:>
+else
+    button - *20 210 211 1 0 5
+    dtext +30 +1 166 Cada jogador so pode usar 1x
+endif
+
+if (!<IsEmpty <ctag.tresure_guard>>)
+    button - *20 211 210 1 0 6
+    ref1=<ctag.tresure_guard>
+    dtext +30 +1 166 Guardado por <serv.chardef.<ref1.more1>.name> (<ref1.dmore2>/<ref1.amount>)
+else
+    button - *20 210 211 1 0 6
+    ref1=<ctag.tresure_guard>
+    dtext +30 +1 166 Mater guardado por um NPC
+endif
+button - *25 2224 2223 1 0 8
+dtext +30 -4 166 Resetar contadores
+
+
+dtext 114 318 166 Respawn em
+resizepic 190 317 9350 35 21
+dtextentry 202 318 15 20 166 0 <dctag.tresure_d>
+dtext 228 318 166 dias
+resizepic 258 317 9350 35 21
+dtextentry 267 318 15 20 166 1 <dctag.tresure_h>
+dtext 297 318 166 horas.
+button 115 356 22153 22153 1 0 7
+dtext 135 354 166 LEIA-ME MESMO SE VOCE FOR UM MANJADOR
+button 96 398 241 242 1 0 0
+button 445 398 247 248 1 0 1
+
+[DIALOG d_tresures text]
+
+[DIALOG d_tresures button]
+ON=0
+// Cencelar
+tresure_clearctags
+
+ON=1
+// Aplicar
+ctag.tresure_d=<argtxt[0]>
+ctag.tresure_h=<argtxt[1]>
+tresure_Apply
+
+ON=2
+// Trocar loot
+ctag.tresure_d=<argtxt[0]>
+ctag.tresure_h=<argtxt[1]>
+MENU m_tresure
+
+ON=3
+// Alterar fechadura
+ctag.tresure_d=<argtxt[0]>
+ctag.tresure_h=<argtxt[1]>
+ctag0.tresure_lock += 1
+IF (<ctag0.tresure_lock> > 8)
+    ctag.tresure_lock=0
+ENDIF
+tresure_openDialog
+
+ON=4
+// Esconder/desesconder
+ctag.tresure_d=<argtxt[0]>
+ctag.tresure_h=<argtxt[1]>
+if (!<ctag0.tresure_hide>)
+    prompt_new Qual nivel de skill Detecting Hidden? Lembre-se que jogadores com este nivel terao somente 50% de detectar. Use um valor abaixo do necessario.
+    prompt_setAction tresure_SetDH
+    prompt_setActionBack tresure_openDialog
+    prompt_show
+else
+    ctag.tresure_hide=0
+    tresure_openDialog
+endif
+
+ON=5
+//Usar somente 1x
+ctag.tresure_d=<argtxt[0]>
+ctag.tresure_h=<argtxt[1]>
+if (!<IsEmpty <ctag.tresure_only1>>)
+    ctag.tresure_only1=
+    tresure_openDialog
+else
+    prompt_new Quantos dias de Cool Down para usar novamente? 0 para nunca. Ideal 60 dias.
+    prompt_setAction tresure_SetCoolDown
+    prompt_setActionBack tresure_openDialog
+    prompt_show
+endif
+
+ON=6
+//Guardado por NPC
+ctag.tresure_d=<argtxt[0]>
+ctag.tresure_h=<argtxt[1]>
+if (!<IsEmpty <ctag.tresure_guard>>)
+    ctag.tresure_guard=
+    tresure_openDialog
+else
+    tresure_targGuard
+endif
+
+ON=7
+// Manual de tesouros
+ctag.tresure_d=<argtxt[0]>
+ctag.tresure_h=<argtxt[1]>
+tresure_openDialog
+weblink forum.myt.com.br/index.php?topic=3037.0
+
+ON=8
+//Resetar contadores
+ctag.tresure_d=<argtxt[0]>
+ctag.tresure_h=<argtxt[1]>
+tresure_ResetCounters
+
+[DIALOG d_tresure_scroll]
+225,150
+page 0
+obj=<src.cTAG.tresure_uid>
+resizepic 0 0 9380 307 316
+if (!<src.ctag0.conf.edit>)
+ dhtmlgump 32 95 253 185 1 1 <QVAL !<ISEMPTY <ctag.tresure_text>> ? <ctag.tresure_text>:>
+ button 27 292 2445 2445 1 0 2
+ dtext 61 293 59 Editar
+ button 36 74 1209 1209 1 0 1
+ dtext 56 71 2057 <QVAL <ctag.tresure_expires> ? Some em 24h se pego : Players podem ficar com a carta>
+else
+ dtextentry 32 97 234 182 0 1 <QVAL !<ISEMPTY <ctag.tresure_text>> ? <ctag.tresure_text>:>
+endif
+dtext 49 4 4 Configurar gerador de mensagens
+dtext 77 25 0 Quando este tesouro for colhido
+dtext 26 38 0 gerara uma carta comum com os seguintes
+dtext 26 51 0 dizeres:
+
+
+[DIALOG d_tresure_scroll button]
+ON=0
+//Sai da edicao ou fecha scroll
+if (<src.ctag0.conf.edit>)
+ ctag.tresure_text=<argtxt[1]>
+ src.ctag.conf.edit
+ src.DIALOG d_tresure_scroll
+else
+ tresure_setLoot Carta com texto
+ tresure_openDialog
+endif
+
+ON=1
+//Decide se o item tem vida util ou nao
+obj=<src.cTAG.tresure_uid>
+IF (!<ctag.tresure_expires>)
+ ctag.tresure_expires=1
+else
+ ctag.tresure_expires=0
+endif
+src.DIALOG d_tresure_scroll
+
+ON=2
+//Edita o texto
+src.ctag.conf.edit=1
+src.DIALOG d_tresure_scroll
+
+
+[MENU m_tresure]
+Que tipo de tesouro?
+ON=0 CASOS ESPECIAIS - Chave para outro item, carta premeditada ou loot especifico.
+MENU m_tresure_special
+
+ON=0 TESOUROS DE 1 ITEM (mais) - Dinheiro, provisoes, itens ordinarios, pocoes, armas especiais.
+MENU m_tresure_1
+
+ON=0 TESOUROS DE ATEH 3 ITENS (mais) - Tesouros simples com 1 a 3 itens. Diversas escolhas.
+MENU m_tresure_3
+
+ON=0 TESOUROS DE ATEH 6 ITENS (mais) - Tesouros simples com a 1 a 6 itens. Diversas escolhas.
+MENU m_tresure_6
+
+ON=0 TESOUROS DE QUEST (mais) - Tesouros poupudos com diversos itens interessantes.
+MENU m_tresure_quest
+
+ON=@Cancel
+tresure_openDialog
+
+[MENU m_tresure_special]
+O que contera este tesouro?
+
+ON=0 GUARDAR CHAVE - Chave para outro container ou porta. Nao altera as configuracoes de fechadura do outro item.
+tresure_targKey
+
+ON=0 GUARDAR TEXTO - Deixara apenas uma carta com o texto indicado.
+DIALOG d_tresure_scroll
+
+ON=0 DEFINIDO PELO USUARIO - Digite o defname do templete ou iten que aparecera no tesouro.
+    prompt_new Digite o defname do templete ou iten que aparecera no tesouro. Teste para ver se ele eh valido!
+    prompt_setAction tresure_setLoot
+    prompt_setActionBack MENU m_tresure_special
+    prompt_show
+
+ON=@Cancel
+MENU m_tresure
+
+[MENU m_tresure_1]
+Que tipo de tesouro de 1 item?
+ON=0 DINHEIRO (mais)
+MENU m_tresure_dinheiro
+
+ON=0 ITENS PARA MAGOS (mais)
+MENU m_tresure_magics
+
+ON=0 ITENS RAROS (mais)
+MENU m_tresure_raros
+
+ON=0 PROVISOES - 5 a 10 bandagens, 1 ou 2 pocao de ajuda, 8 a 12 flechas/dardos, tocha, barbante de algodao, cobre ou 5 a 15 gravetos.
+tresure_setLoot i_provisao
+
+ON=0 ITEM POBRE - Ateh 7mc, ateh 4 reags normais, sementes, barbante de algodao, scroll baixo, joia pobre, bebida, pocao de ajuda, utilidades (fumo, suco, projeto, dados...) (raro), pocao fraca, (raro), item raro baixo (raro).
+tresure_setLoot i_item_dungeon_1
+
+ON=0 ITEM MEDIO - Ateh 12mc, scrolls variado, ateh 12 reags normais, utilidades (fumo, suco, projeto, dados...), sucos, joia regular, pocao media (raro), projeto (raro), barbantes de cobre (raro), joias buff pobre (raro), item raro medio (raro).
+tresure_setLoot i_item_dungeon_2
+
+ON=0 ITEM RICO - Ateh 25mc, scroll medio, projeto, joia rica, flechas especiais (raro), pocao forte (raro), gema do poder media (raro), ferramenta especial (raro), emplastro (raro), joia buff pobre (raro), barbantes raros (raro), item raro rico (raro).
+tresure_setLoot i_item_dungeon_3
+
+ON=0 ITEM MILHONARIO - Ateh 75mc, ateh 25 reags normais, scroll alto, emplastro, ferramenta especial, pocao rara (raro), gema magica fore (raro), barbante raro abecoado (raro), arma encantada (raro), joia buff regular (raro), item raro milhonario (raro).
+tresure_setLoot i_item_dungeon_4
+
+ON=@Cancel
+MENU m_tresure
+
+[MENU m_tresure_dinheiro]
+Quanto em dinheiro?
+
+ON=0 COBRE POBRE - 0 a 7mc
+tresure_setLoot I_COPPER_POBRE
+
+ON=0 COBRE REGULAR - 7 a 12mc
+tresure_setLoot I_COPPER_REGULAR
+
+ON=0 COBRE MEDIO - 12 a 25mc
+tresure_setLoot I_COPPER_MEDIO
+
+ON=0 COBRE RICO - 25 a 40mc
+tresure_setLoot I_COPPER_RICO
+
+ON=0 COBRE MILHONARIO - 40 a 75mc
+tresure_setLoot I_COPPER_MILHONARIO
+
+ON=0 PRATA POBRE - 0 a 7mp
+tresure_setLoot I_SILVER_POBRE
+
+ON=0 PRATA REGULAR - 7 a 12mp
+tresure_setLoot I_SILVER_REGULAR
+
+ON=0 PRATA MEDIO - 12 a 25mp
+tresure_setLoot I_SILVER_MEDIO
+
+ON=0 PRATA RICO - 25 a 40mp
+tresure_setLoot I_SILVER_RICO
+
+ON=0 PRATA MILHONARIO - 40 a 75mp
+tresure_setLoot I_SILVER_MILHONARIO
+
+ON=0 OURO POBRE - 0 a 7mo
+tresure_setLoot I_GOLD_POBRE
+
+ON=0 OURO REGULAR - 7 a 12mo
+tresure_setLoot I_GOLD_REGULAR
+
+ON=0 OURO MEDIO - 12 a 25mo
+tresure_setLoot I_GOLD_MEDIO
+
+ON=0 OURO RICO - 25 a 40mo
+tresure_setLoot I_GOLD_RICO
+
+ON=0 OURO MILHONARIO - 40 a 75mo
+tresure_setLoot I_GOLD_MILHONARIO
+
+ON=@Cancel
+MENU m_tresure_1
+
+[MENU m_tresure_magics]
+Que tipo de tesouro magico?
+
+ON=0 REAGENTES POBRE - De 1 a 4 de um dado reagente normal.
+tresure_setLoot I_reag_pobre
+
+ON=0 REAGENTES MEDIO - De 5 a 12 de um dado reagente normal.
+tresure_setLoot I_reag_medio
+
+ON=0 REAGENTES RICO - De 13 a 25 de um dado reagente normal.
+tresure_setLoot I_reag_rico
+
+ON=0 GEMA MAGICA FRACA - Uma gema magica com as magias basicas de qq caminho com 1 a 6 cargas.
+tresure_setLoot tmp_orb_lo
+
+ON=0 GEMA MAGICA MEDIA - Uma gema magica com as magias medias de qq caminho com 1 a 6 cargas.
+tresure_setLoot tmp_orb_reg
+
+ON=0 GEMA MAGICA FORTE - Uma gema magica com as magias avancadas de qq caminho com 1 a 6 cargas.
+tresure_setLoot tmp_orb_hi
+
+ON=0 VIDRARIA - Tubos de ensaio, almofarizes, baloes, destiladores, misturadores normais.
+tresure_setLoot I_alquimia
+
+ON=0 FOCUS MAGICO - Joias, chapeis ou bastoes para lancar magias.
+tresure_setLoot tmp_magic_focus
+
+ON=@Cancel
+MENU m_tresure_1
+
+
+[MENU m_tresure_raros]
+Que tipo de tesouro raro?
+
+ON=0 TESOURO RARO POBRE - Pocao de ajuda, Buff para magos (0.0 a 5.0, 10minutos) (raro), Pre-item de flecha medio, receita (raro), gema magica fraca de Destruicao (rara), 1 scroll variado (raro).
+tresure_setLoot I_item_especial_1
+
+ON=0 TESOURO RARO MEDIO - Flechas especiais, Buff para magos (0.0 a 5.0, 10minutos), gema magica fraca de qq caminho, 1~4 lingotes raros, bola de cristal, caixa de fadas, la ou tecido cor rara (raro), joia buff fraco (raro), ferramentas especiais (raro).
+tresure_setLoot I_item_especial_2
+
+ON=0 TESOURO RARO RICO - 1 a 4 lingotes raros, tecidos ou la de cores raras, gema magica forte, carma dos aventureiros (raro), arma encantada (raro), joia de buff regular (raro), focus magico (raro).
+tresure_setLoot I_item_especial_3
+
+ON=0 TESOURO RARO MINHONARIO - Arma encantada, carma dos aventureiros, focus magico, joia de buff regular, joia de buff forte (raro).
+tresure_setLoot I_item_especial_4
+
+ON=0 JOIAS DE BUFF FRACO - Joias de cobre e bronze que dao de 0.3 a 0.9 em uma skill aleatoria.
+tresure_setLoot i_joia_pobre_buff
+
+ON=0 JOIAS DE BUFF MEDIO - Joias de prata e ouro que dao de 1.0 a 4.0 em uma skill aleatoria.
+tresure_setLoot i_joia_regular_buff
+
+ON=0 JOIAS DE BUFF FORTE - Joias de mithril, rubridium, ebano, obsidiana e eldasthar que dao de 5.0 a 20.0 em uma skill aleatoria.
+tresure_setLoot i_joia_rica_buff
+
+ON=0 ARMA ENCANTADA - Arma de kith, chamas, glacial, pestilencia, tempestade ou dancante.
+tresure_setLoot i_weapon_chanted
+
+ON=0 FERRAMENTAS ESPECIAIS - Kit contra armadilha, kit de chave micha ou po de grafiti.
+tresure_setLoot I_random_ferramenta
+
+ON=0 EMPLASTRO OU PEDRA DE AMOLAR - Emplastro magico com dano elemental de +2 a +7 ou pedra de amolar com dano +2 a +5 que pode raparar (5 a 50%) armas.
+tresure_setLoot i_random_plaster
+
+ON=@Cancel
+MENU m_tresure_1
+
+[MENU m_tresure_3]
+Que tipo de tesouro?
+
+ON=0 3 ITENS POBRES - 1 a 3x: Ateh 7mc, <4 reags normais, sementes, barbante, scroll baixo, joia pobre, bebida, pocao de ajuda, utilidades (fumo, suco, projeto, dados...) (raro), pocao fraca, (raro), item raro baixo (raro).
+tresure_setLoot i_3itens_dungeon_1
+
+ON=0 3 ITENS MEDIOS - 1 a 3x: Ateh 12mc, scrolls variado, ateh 12 reags normais, utilidades (fumo, suco, projeto, dados...), sucos, joia regular, pocao media (raro), projeto (raro), barbantes de cobre (raro), joias buff pobre (raro), item raro medio (raro).
+tresure_setLoot i_3itens_dungeon_2
+
+ON=0 3 ITENS RICOS - 1 a 3x: Ateh 25mc, scroll medio, projeto, joia rica, flechas especiais (r), pocao forte (r), gema do poder media (r), ferramenta especial (r), emplastro (r), joia buff pobre (r), barbantes raros (r), item raro rico (r).
+tresure_setLoot i_3itens_dungeon_3
+
+ON=0 3 ITENS MILHONARIOS - 1 a 3x: Ateh 75mc, ateh 25 reags normais, scroll alto, emplastro, ferramenta especial, pocao rara (r), gema magica fore (r), barbante raro abecoado (r), arma encantada (r), joia buff regular (r), item raro milhonario (r).
+tresure_setLoot i_3itens_dungeon_4
+
+ON=0 3 ITENS MAGICOS POBRES - 3 itens entre: Item de alquimia, pocao fraca, pocao media (raro), 0 a 7 reagentes, scroll baixo, scroll medio (raro).
+tresure_setLoot I_magia_3_pobre
+
+ON=0 3 ITENS MAGICOS MEDIOS - 3 itens entre: Item de alquimia, 7 a 12 reagentes, scroll regular, pocao forte, pocao media (raro), scroll forte (raro), gem magica fraca (raro), 2 a 4 reagentes especiais (raro).
+tresure_setLoot I_magia_3_medio
+
+ON=0 3 ITENS MAGICOS RICOS - 3 itens entre: Item de alquimia, 12 a 23 reagentes, 2 a 5 scroll alto, 3 a 4 reagente especial, pocao forte, pocao rara (raro), gema magica media (raro).
+tresure_setLoot I_magia_3_rico
+
+ON=0 3 ITENS MAGICOS MILHONARIOS - 3 itens entre: 12 a 23 reagentes, 3 a 7 pocao forte, scroll forte, 4 a 6 reagente especial, gema magica forte (raro).
+tresure_setLoot I_magia_3_milhonario
+
+ON=@Cancel
+MENU m_tresure
+
+[MENU m_tresure_6]
+Que tipo de tesouro?
+
+ON=0 6 ITENS POBRES - 3 a 6x: Ateh 7mc, ateh 4 reags normais, sementes, barbante de algodao, scroll baixo, joia pobre, bebida, pocao de ajuda, utilidades (fumo, suco, projeto, dados...) (raro), pocao fraca, (raro), item raro baixo (raro).
+tresure_setLoot i_6itens_dungeon_1
+
+ON=0 6 ITENS MEDIOS - 3 a 6x: Ateh 12mc, scrolls variado, ateh 12 reags normais, utilidades (fumo, suco, projeto, dados...), sucos, joia regular, pocao media (raro), projeto (raro), barbantes de cobre (raro), joias buff pobre (raro), item raro medio (raro).
+tresure_setLoot i_6itens_dungeon_2
+
+ON=0 6 ITENS RICOS - 3 a 6x: Ateh 25mc, scroll medio, projeto, joia rica, flechas especiais (r), pocao forte (r), gema do poder media (r), ferramenta especial (r), emplastro (r), joia buff pobre (r), barbantes raros (r), item raro rico (r).
+tresure_setLoot i_6itens_dungeon_3
+
+ON=0 6 ITENS MILHONARIOS - 3 a 6x: Ateh 75mc, ateh 25 reags normais, scroll alto, emplastro, ferramenta especial, pocao rara (r), gema magica fore (r), barbante raro abecoado (r), arma encantada (r), joia buff regular (r), item raro milhonario (r).
+tresure_setLoot i_6itens_dungeon_4
+
+ON=0 6 ITENS MAGICOS POBRES - 6 itens entre: Item de alquimia, pocao fraca, pocao media (raro), 0 a 7 reagentes, scroll baixo, scroll medio (raro).
+tresure_setLoot I_magia_6_pobre
+
+ON=0 6 ITENS MAGICOS MEDIOS - 6 itens entre: Item de alquimia, 7 a 12 reagentes, scroll regular, pocao forte, pocao media (raro), scroll forte (raro), gem magica fraca (raro), 2 a 4 reagentes especiais (raro).
+tresure_setLoot I_magia_6_medio
+
+ON=0 6 ITENS MAGICOS RICOS - 6 itens entre: Item de alquimia, 12 a 23 reagentes, 2 a 5 scroll alto, 3 a 4 reagente especial, pocao forte, pocao rara (raro), gema magica media (raro).
+tresure_setLoot I_magia_6_rico
+
+ON=0 6 ITENS MAGICOS MILHONARIOS - 6 itens entre: 12 a 23 reagentes, 3 a 7 pocao forte, scroll forte, 4 a 6 reagente especial, gema magica forte (raro).
+tresure_setLoot I_magia_6_milhonario
+
+ON=@Cancel
+MENU m_tresure
+
+
+[MENU m_tresure_quest]
+Pacote basico: Ateh 12mo em trocados, talvez carma dos aventureiros ou gems ou armas encantadas, ateh 3 receitas, talvez 1 joia buff media ou ateh 1 forte, resource raro como ingots ou tecidos raros + 3 itens fortes de magia OU 3 itens fores geral.
+
+ON=0 HENFASE EM DINHEIRO - Mais uns 3mo.
+tresure_setLoot tmp_main_loot_money
+
+ON=0 HENFASE EM ARQUEIRO - Mais 2 sets de flechas raras de 40 a 75 cada, mais 2 a 3 de um barbante abencoado.
+tresure_setLoot tmp_main_loot_archery
+
+ON=0 HENFASE EM GUERREIRO - Mais 1 arma encantada com durabilidade media, mais 3 a 6 de um emplastro + 8 a 12 de uma pocao forte p/ guerreiro
+tresure_setLoot tmp_main_loot_warrior
+
+ON=0 HENFASE EM LADINO - Mais 10 a 20 michas, mais 8 a 12 de uma pocao para ladino, mais kit de desarmar armadilha, mais 7 a 11 po de grafiti.
+tresure_setLoot tmp_main_loot_thief
+
+ON=0 HENFASE EM MAGO - Mais 1 gema forte, mais 6 a 9 buff de mago (caveira, sino, pera ou testiculo), mais 3 itens fortes de mago OU focus de magia.
+tresure_setLoot tmp_main_loot_mage
+
+ON=0 HENFASE EM CRAFTING - Mais uma receita e um resource raro (como tecido, la ou lingote).
+tresure_setLoot tmp_main_loot_crafting
+
+ON=0 RANDOM ANTERIORES - Qualquer uma das anteriores aleatoriamente.
+tresure_setLoot tmp_main_loot_geral
+
+ON=@Cancel
+MENU m_tresure
+
+[EOF]

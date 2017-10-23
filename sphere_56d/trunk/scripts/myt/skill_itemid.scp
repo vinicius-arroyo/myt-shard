@@ -1,0 +1,131 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL ARMS LORE
+//
+//  Galthar  
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//TAGS usadas:
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// sk_itemid
+//*****************************************************************************
+//Função inicial chamada pelo botão da skill
+[FUNCTION sk_itemid]
+if (<src.findid.i_itemid_mry>)
+    src.sysmessagered Voce ainda nao pode analisar outro item.
+else
+    sysmessageyellow O que gostaria de identificar?
+    targetf sk_itemid_
+endif    
+return 1
+
+[FUNCTION sk_itemid_]
+
+if !<argo>
+    src.sysmessagered Selecione um objeto em sua posse para identificar.
+    return 1
+elif <argo.topobj>!=<uid>
+    src.sysmessagered Voce deve ter o objeto em sua posse.
+    return 1
+elif (<argo.type>==t_potion) || (<argo.type>==t_food) || (<argo.type>==t_food_raw) || (<argo.type>==t_fruit)
+    src.sysmessagered Voce nao pode identificar isto sem experimentar.
+    return 1
+elif (<argo.attr>&attr_identified)
+    src.analisar_ <argo>
+    return 1
+elif !<argo.isitem>
+    src.sysmessagered Voce nao pode identificar isso.
+    return 1
+endif
+
+src.emoteyellow observando <argo.name>
+src.ctag.disturb=0
+src.newitem i_itemid_mry
+NEW.more=<eval 11-(<src.itemid>/100)>
+
+if ( <NEW.more> <= 0 )
+    NEW.more=1
+endif
+
+NEW.link=<argo>
+NEW.cont=<src>
+NEW.timer=1
+
+return 1    
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+[ITEMDEF i_itemid_mry]
+id=i_deed
+name=ItemID
+type=t_eq_script
+layer=layer_special
+weight=0
+
+ON=@TIMER
+
+// Se estiver fora de visao
+if <cont>!=<link.topobj>
+    cont.sysmessageyellow O objeto que estava analisando sumiu!!
+    remove
+    return 1
+endif 
+
+// Se for perturbado ou estiver incapacitado:
+if (<cont.f_isDisturbed>)
+    cont.sysmessageyellow Voce nao esta em condicoes de analisar nada.
+    remove
+    return 1
+endif
+
+//loop de animacao
+if (<more>)
+    more=<more>-1
+    timer=1
+    return 1 
+endif
+
+//Determina dificuldade
+if (<link.skillmake.0.val>)
+    local.diff=<link.skillmake.0.val>
+    //Determina bonus de skill.
+    local.bonus = <eval <cont.<DEF.<link.skillmake.0.key>>>/3>
+    //serv.log [ITEMID] Skill: <link.skillmake.0> Bonus: <fval <cont.<DEF.<link.skillmake.0.key>>>/3> Teste: <fval <cont.ITEMID>+<local.bonus>>x<fval <local.diff>>
+else
+    local.diff=<R1000>
+endif
+
+if (<cont.BELLTEST <eval <cont.ITEMID>+<local.bonus>>,<local.diff>>)
+    link.attr |= attr_identified
+    link.trigger @Identify
+    link.update
+    
+    cont.surpreso
+    cont.sysmessagegreen Voce identificou o item.
+else
+    cont.confuso
+    cont.sysmessagered Voce nao identificou o item.
+endif
+
+cont.skill_gain skill_appraise
+remove
+return 1
+
+[EOF]

@@ -1,0 +1,1107 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SISTEMA DE CRAFTING por
+//
+//          Galthar
+//          UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+//MODO DE USAR:
+
+//obj=<src.findid.i_faz_item.uid>       //chamar o objeto de controle
+//obj.cleartags                                             //apagar TODAS as tags do objeto
+//selecione das tags abaixo somente as que o item ira usar e atribua os valores
+//src.fazitem                                                   //inicia a manufatura
+
+//TAGS usadas:
+//opções de resources:
+//obj.tag.neartype      tipo do item que tem que estar perto (2 tiles)
+//obj.tag.nearname      nome representando o tipo
+//obj.tag.espid             id da ferramenta necessaria
+//obj.tag.espname           nome da ferramenta necessaria
+//obj.tag.res1 [2,3,4]  id da materia prima 1,2,3,4
+//obj.tag.amt1 [2,3,4]  quantidade da materia prima 1,2,3,4
+//obj.tag.nam1 [2,3,4]  nome da materia prima 1,2,3,4
+//obj.tag.liq           liquido necessário (num recipiente)
+//obj.tag.liqamt        quantas doses de liquido
+//obj.tag.uid1              uid da materia prima 1, usado no lugar do res1
+//obj.tag.needtype      tipo do item que eh pedido no inicio do processo
+//obj.tag.need              nome do item que eh pedido no inicio do processo
+//obj.tag.devolute      id do item a ser criado no momento da coleta da materia prima
+
+//opções de sucesso/falha
+//obj.tag.skill             skill a ser testado
+//obj.tag.dif                   dificuldade do skill a ser testado em % (FORMATO 35 = 35.0)
+//obj.tag.nofail            Sucesso automático
+
+//opções de animação
+//obj.tag.sfx                   id do som
+//obj.tag.anim              id da animacao
+//obj.tag.emote             emote gerado
+//obj.tag.delay             duracao da animação em segundos
+//obj.tag.scrap             item colocado no chao no final do processo (sujeira)
+
+//opções do item
+//obj.tag.item              id do item a ser gerado no final do processo
+//obj.tag.morex             
+//obj.tag.morey
+//obj.tag.morez
+//obj.tag.morem
+//obj.tag.more1h
+//obj.tag.more1l
+//obj.tag.more1
+//obj.tag.color
+//obj.tag.name              nome a ser dado ao item gerado
+//obj.tag.type
+//obj.tag.amt               amount (só para itens que tenham PILE=1)
+//obj.tag.dono              FLAG: faz o uid do crafter ser o dono do item
+//obj.tag.wmakefurn         FLAG: faz este item pertencer ao sistema de furniture
+//obj.tag.iswpn             FLAG: faz o maxhits do item (arma) ser gerado de acordo com armslore
+//obj.tag.dupe              FLAG: Duplica o item criado. Pode usar-se obj.tag.dupe=3 para ter 4 no final
+//obj.tag.dispid            dispid do item
+
+//opções avançadas
+//obj.tag.f_init            funcao chamada quando inicia o processo (todos resources ok)
+//obj.tag.f_step            funcao chamada a cada step do processo (pode gerar animacoes diferentes)
+//obj.tag.f_end             funcao chamada no fim do processo
+//obj.tag.f_done            funcao chamada no fim do processo com o item gerado ou a falha
+//obj.tag.abort             aborta repeticoes (mais itens) se diferente de 0
+
+//EXEMPLO
+
+//obj=<src.findid.i_faz_item.uid>
+//obj.cleartags
+//obj.tag.delay=3               //3 segundos
+//obj.tag.skill=alchemy         
+//obj.tag.dif=30
+//obj.tag.res1=i_potion_yellow
+//obj.tag.nam1=pocao amarela
+//obj.tag.amt1=1
+//obj.tag.item=i_pocao_verde
+//fazitem
+
+//ver manual de craft para maiores informacoes
+
+[PLEVEL 0]
+fazitem
+
+[DEFNAME craft_system]
+statf_cantcraft         080d50436 //statf_onhorse|statf_hidden|statf_hallucinating|statf_fly|statf_stone|statf_hasshield|statf_polymorph|statf_war|statf_sleeping|statf_freeze|statf_dead
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNTCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// crafting_init
+//*****************************************************************************
+//inicializa sistema no char
+[FUNCTION crafting_init]
+serv.newitem i_mry_fazitem
+new.equip
+
+//*****************************************************************************
+// dialog_fazitem ()
+//*****************************************************************************
+[FUNCTION dialog_fazitem]
+if !(<src.ctag0.qtditem>)
+    src.ctag.qtditem=1
+endif
+dialog d_fazitem
+return 1
+
+//*****************************************************************************
+// fazitem ([amount])
+//*****************************************************************************
+//faz o item que esta configurado pelo i_faz_item
+//se a quantidade nao for especificada, faz 1
+[FUNCTION fazitem]
+
+//cria memory de controle se nao houver
+if !(<restest 1 i_faz_item>)
+    serv.newitem i_faz_item
+    new.equip
+endif
+
+obj=<src.findid.i_faz_item.uid>
+
+if (<obj.timer>!=-1)
+    sysmessagered Voce so pode trabalhar com um item por vez.
+    return 1
+endif
+
+if !(<obj.tag0.item>)
+    sysmessagered Nao ha item para ser feito.
+    return 1
+endif
+
+//acerta a quantidade a ser feita
+if (!<ISNUM <argv[0]>>)
+    obj.more2=1
+elif <argv0> > 10
+    sysmessagered So e possivel fazer ate dez itens por vez.
+    obj.more2=10
+elif <argv0> < 1
+    sysmessagered Quantidade invalida.
+    return 1
+else
+    obj.more2=<argv[0]>
+endif
+
+//acerta a ferramenta. Isso vai consumí-la
+if (!<IsEmpty <src.ctag.craft_tool>>)
+    obj.tag.tool=<src.ctag.craft_tool>
+    src.ctag.craft_tool=
+endif
+
+//faz
+if (!<checkResources>)
+    startCraft
+endif
+return 1
+
+//*****************************************************************************
+// checkResources()
+//*****************************************************************************
+//usado pelo i_faz_item e fazItem() para verificar os resources e fazer o item
+//objeto padrao deve ser o player
+//return 0 if resources available
+//return 1 of something is missing
+[FUNCTION checkResources]
+obj=<findid.i_faz_item.uid>
+
+//gm can make anything
+if (<isgm>)
+    return 0
+endif
+
+//verifica se esta perto do tipo desejado
+if (<obj.tag0.neartype>)
+    if !(<isneartype <obj.tag.neartype> 2>)
+        sysmessageyellow Voce precisa estar proximo de um(a) <obj.tag.nearname>.
+        return 1
+    endif
+endif
+
+//verifica se tem ferramenta necessaria
+if !(strmatch(<obj.tag.espid>,)) 
+    if !(<restest 1 <obj.tag.espid>>)
+        cantCraft
+        return 1
+    endif
+endif 
+if !(<IsEmpty <obj.tag.tool>>)
+    if !(<restest 1 <uid.<obj.tag0.tool>.defname>>) && (<distance <obj.tag0.tool>> > 1)
+        obj.tag.espid=<uid.<obj.tag0.tool>.defname>
+        obj.tag.espname=<uid.<obj.tag0.tool>.name>
+        cantCraft
+        return 1
+    endif
+endif
+
+
+//verifica resources
+if (<obj.tag0.amt1>) 
+    if !(<obj.tag0.uid1>)
+        if !(<restest <obj.tag0.amt1> <obj.tag.res1>>)
+            cantCraft
+            return 1
+        endif
+    else
+        REF1=<obj.tag0.uid1>
+        if (<REF1.amount><<obj.tag0.amt1>)
+            cantCraft
+            return 1            
+        endif
+    endif
+endif
+
+if (<obj.tag0.amt2>) 
+    if !(<restest <obj.tag0.amt2> <obj.tag.res2>>)
+        cantCraft
+        return 1
+    endif
+endif
+
+if (<obj.tag0.amt3>) 
+    if !(<restest <obj.tag0.amt3> <obj.tag.res3>>)
+        cantCraft
+        return 1
+    endif
+endif
+
+if (<obj.tag0.amt4>)
+    if !(<restest <obj.tag0.amt4> <obj.tag.res4>>)
+        cantCraft
+        return 1
+    endif
+endif
+
+if (!<IsEmpty <obj.tag.liq>>)
+    if !(<liquidtest <obj.tag0.liqamt>,<obj.tag.liq>>)
+        cantCraft
+        return 1
+    endif
+endif
+
+return 0
+
+//*****************************************************************************
+// startCraft( repeat )
+//*****************************************************************************
+//objeto padrao deve ser o player
+[FUNCTION startCraft]
+obj=<findid.i_faz_item.uid>
+
+//inicializa i_faz_item
+ctag.disturb=
+ctag.e_no_move_x=<p.x>
+ctag.e_no_move_y=<p.y>
+events +e_no_attack
+events +e_no_dclick
+
+obj.more1=<obj.tag0.delay>
+obj.tag.falha=0
+
+//pede pelo tipo necessario se for a primeira vez
+if (<obj.tag0.needtype>) && !(0<argv[0]>)
+    sysmessageyellow Selecionar <obj.tag.need>:
+    obj.target
+else
+    obj.timer=1
+    
+    if !(strmatch(<obj.tag.f_init>,))
+        TRY <obj.tag.f_init> <obj.tag0.selection>
+    endif
+endif
+
+//*****************************************************************************
+// consumeResources
+//*****************************************************************************
+//usado pelo i_faz_item para consumir a materia prima
+//objeto padrao deve ser o player
+[FUNCTION consumeResources]
+obj=<findid.i_faz_item.uid>
+
+//gm can make anything
+if (<isgm>)
+    return 0
+endif
+
+if (<obj.tag0.amt1>)
+    if (<obj.tag0.uid1>)
+        REF1=<obj.tag.uid1>
+        REF1.decrement <obj.tag0.amt1>
+    else
+        findid.<obj.tag.res1>.trigger @Consume,<DEF.TAT_AS_ARGN>,<obj.tag0.amt1>
+        consume <obj.tag0.amt1> <obj.tag.res1>
+    endif
+endif
+if (<obj.tag0.amt2>)
+    findid.<obj.tag.res2>.trigger @Consume,<DEF.TAT_AS_ARGN>,<obj.tag0.amt2>
+    consume <obj.tag0.amt2> <obj.tag.res2>
+endif
+if (<obj.tag0.amt3>)
+    findid.<obj.tag.res3>.trigger @Consume,<DEF.TAT_AS_ARGN>,<obj.tag0.amt3>
+    consume <obj.tag0.amt3> <obj.tag.res3>
+endif
+if (<obj.tag0.amt4>)
+    findid.<obj.tag.res4>.trigger @Consume,<DEF.TAT_AS_ARGN>,<obj.tag0.amt4>
+    consume <obj.tag0.amt4> <obj.tag.res4>
+endif
+//if (!<IsEmpty <obj.tag.liq>>)
+//    consumeliquid <obj.tag0.liqamt>,<obj.tag.liq>
+//endif
+if !(strmatch(<obj.tag.devolute>,))
+    serv.newitem <obj.tag.devolute>
+    new.cont=<findlayer.layer_pack.uid>
+endif
+update
+
+//*****************************************************************************
+// cantCraft
+//*****************************************************************************
+//OBJ é o i_faz_item que nao pode ser feito
+//objeto padrao deve ser o player
+[FUNCTION cantCraft]
+sysmessagered Voce precisa de:
+    
+if !(strmatch(<obj.tag.espid>,))
+    sysmessagered - <obj.tag.espname>
+endif
+
+
+if (!<IsEmpty <obj.tag.uid1>>)
+    REF1=<obj.tag0.uid1>
+    if (<REF1.amount><<obj.tag0.amt1>)
+        sysmessagered - <UID.<obj.tag.UID1>.name> ( <eval <obj.tag0.amt1>> )
+    else
+        sysmessagegreen - <UID.<obj.tag.UID1>.name> ( <eval <obj.tag0.amt1>> )
+    endif
+else
+    if !(<restest <obj.tag0.amt1> <obj.tag.res1>>)
+        sysmessagered - <serv.itemdef.<obj.tag.res1>.name> ( <eval <obj.tag0.amt1>> )
+    else
+        sysmessagegreen - <serv.itemdef.<obj.tag.res1>.name> ( <eval <obj.tag0.amt1>> )
+    endif
+endif
+
+if (<obj.tag0.res2>)
+    if !(<restest <obj.tag0.amt2> <obj.tag.res2>>)
+        sysmessagered - <serv.itemdef.<obj.tag.res2>.name> ( <eval <obj.tag0.amt2>> )
+    else
+        sysmessagegreen - <serv.itemdef.<obj.tag.res2>.name> ( <eval <obj.tag0.amt2>> )
+    endif
+endif
+
+if (<obj.tag0.res3>)
+    if !(<restest <obj.tag0.amt3> <obj.tag.res3>>)
+        sysmessagered - <serv.itemdef.<obj.tag.res3>.name> ( <eval <obj.tag0.amt3>> )
+    else
+        sysmessagegreen - <serv.itemdef.<obj.tag.res3>.name> ( <eval <obj.tag0.amt3>> )
+    endif    
+endif
+
+if (<obj.tag0.res4>)
+    if !(<restest <obj.tag0.amt4> <obj.tag.res4>>)
+        sysmessagered - <serv.itemdef.<obj.tag.res4>.name> ( <eval <obj.tag0.amt4>> )
+    else
+        sysmessagegreen - <serv.itemdef.<obj.tag.res4>.name> ( <eval <obj.tag0.amt4>> )
+    endif        
+endif
+
+if (!<IsEmpty <obj.tag.liq>>)
+    if !(<liquidtest <obj.tag0.liqamt>,<obj.tag.liq>>)
+        sysmessagered - <obj.dtag0.liqamt> doses de <DEF.LIQUID_<DEF.<obj.tag.liq>>_NAME>
+    else
+        sysmessagegreen - <obj.dtag0.liqamt> doses de <DEF.LIQUID_<DEF.<obj.tag.liq>>_NAME>
+    endif
+endif
+
+//*****************************************************************************
+// craftAborted
+//*****************************************************************************
+//objeto padrao deve ser o player
+[FUNCTION craftAborted]
+if (<flags>&statf_onhorse)
+    sysmessageyellow Nao pode fazer isso estando em uma montaria.
+elif (<flags>&statf_hidden)
+    sysmessageyellow Nao pode fazer isso escondido.
+elif (<flags>&statf_hallucinating)
+    sysmessageyellow Nao pode fazer isso tendo alucinacoes.
+elif (<flags>&statf_fly)
+    sysmessageyellow Nao pode fazer isso correndo/voando.
+elif (<flags>&statf_stone)
+    sysmessageyellow Nao pode fazer isso petrificado.
+elif (<flags>&statf_hasshield)
+    sysmessageyellow Nao pode fazer isso com escudo na mao.
+elif (<flags>&statf_polymorph)
+    sysmessageyellow Nao pode fazer isso estando em outra forma.
+elif (<flags>&statf_war)
+    sysmessageyellow Nao pode fazer isso em luta.   
+elif (<flags>&statf_sleeping)
+    sysmessageyellow Nao pode fazer isso dormindo.  
+elif (<flags>&statf_dead)
+    sysmessageyellow Nao pode fazer isso morto. 
+else
+    sysmessageyellow Interrompido.
+endif
+
+//*****************************************************************************
+// generateItem
+//*****************************************************************************
+//usado pelo i_faz_item quando vai gerar o item final
+//objeto padrao deve ser o i_faz_item
+//Só gera o item. Não põe na bag. Aumenta a escalabilidade do código
+//chamando craft_bounceItem depois de TRY <tag.f_done>
+[FUNCTION generateItem] 
+
+if (<tag.item>==1)
+    return 1
+endif
+
+//cria item com caracteristicas desejadas
+serv.newitem=<tag.item>
+if (<tag0.more1l>)
+ new.more1l=<tag.more1l>
+endif
+if (<tag0.more1h>)
+ new.more1h=<tag.more1h>
+endif
+if (<tag0.more1>)
+ new.more1=<tag.more1>
+endif
+if (<tag0.more2>)
+ new.more2=<tag.more2>
+endif
+if (<tag0.color>)
+ new.color=<tag.color>
+endif
+if (<tag0.morex>)
+ new.morex=<tag.morex>
+endif
+if (<tag0.morey>)
+ new.morey=<tag.morey>
+endif
+if (<tag0.morez>)
+ new.morez=<tag.morez>
+endif
+if (<tag0.morem>)
+ new.morem=<tag.morem>
+endif
+if !(strmatch(<tag.name>,))
+ new.name=<tag.name>
+endif
+if !(strmatch(<tag.type>,))
+ new.type=<tag.type>
+endif
+if (<tag0.amt>>1)
+ new.amount=<tag.amt>
+endif
+if !(strmatch(<tag.dispid>,))
+ new.dispid=<tag.dispid>
+endif
+if (<tag0.wmakefurn>)
+ new.events +e_furniture
+endif
+
+if (<new.type>==t_incomplete_forged)
+    local.type=<serv.itemdef.<streat <tag.f_done>>.type>
+    if (STRMATCH(t_weapon*,<local.type>)) || (STRMATCH(t_armo*,<local.type>))
+        generateWpnMaxHits <streat <tag.f_done>>
+    elif (<local.type>==t_crafting_tool) || (STRMATCH(*t_crafting_tool*,<serv.itemdef.<streat <tag.f_done>>.tevents>))
+        generateToolMaxHits <streat <tag.f_done>>
+    endif
+elif (<new.IsWeapon>) || (<new.type>==t_armor) || (<new.type>==t_armor_leather) || (<new.type>==t_shield)
+    generateWpnMaxHits
+endif
+
+if (<new.type>==t_crafting_tool) || (<new.IsEvent.t_crafting_tool>) || (STRMATCH(*t_crafting_tool*,<new.TEvents>))
+    generateToolMaxHits
+endif
+
+if (<tag0.isclt>) || (STRMATCH(*clothing*,<new.type>))
+    generateCltMaxHits
+endif
+
+
+//*****************************************************************************
+// craft_bounceItem
+//*****************************************************************************
+//usado pelo i_faz_item depois de gerar o item final para colocá-lo no world.
+//Aumenta a escalabilidade do código chamando craft_bounceItem depois de TRY <tag.f_done>
+//objeto padrao deve ser o i_faz_item
+[FUNCTION craft_bounceItem]
+
+if (<tag.item>==1)
+    return 1
+endif
+
+TRYSRC <cont> src.bounce,<new>
+
+if (<tag0.dupe>)
+    new.dupe <tag0.dupe>
+endif
+
+new.update
+
+cont.sysmessageorange Terminou <new.name>.
+
+//*****************************************************************************
+// generateWpnMaxHits
+//*****************************************************************************
+//usado pelo i_faz_item quando vai gerar o max hits de uma arma
+//NEW deve ser o item gerado
+//objeto padrao deve ser o i_faz_item 
+[FUNCTION generateWpnMaxHits]
+if (!<IsEmpty <args>>)//Estamos falando de um item que não seja o NEW?
+    local.item=<argv0>
+    local.type=<serv.itemdef.<argv0>.type>
+    local.tevents=<serv.itemdef.<argv0>.tevents>
+else //Estamos falando do item que é o NEW sim.
+    local.item=<new.defname>
+    local.type=<new.type>
+    local.tevents=<new.tevents>
+endif
+
+if (STRMATCH(*t_crafting_tool*,<local.tevents>))
+    local.skill=<topobj.<def.<serv.itemdef.<local.item>.skillmake.0.key>>>
+elif (<local.type>==t_weapon_bow) || (<local.type>==t_weapon_xbow)
+    LOCAL.skill=<topobj.bowcraft>
+elif (<serv.itemdef.<local.item>.skillmake.0.key>!=SKILL_Blacksmith)
+    LOCAL.skill=<MAXIMUM <topobj.armslore>, <MULDIV <topobj.<def.<serv.itemdef.<local.item>.skillmake.0.key>>>,75,100>>
+    topobj.skill_gain SKILL_ARMSLORE
+else
+    LOCAL.skill=<topobj.armslore>
+    topobj.skill_gain SKILL_ARMSLORE
+endif
+
+LOCAL.max=1000
+if <serv.itemdef.<local.item>.TDATA4>
+    LOCAL.max=<serv.itemdef.<local.item>.TDATA4>
+endif
+
+if (STRMATCH(*_exp,<local.item>))
+    new.hits=<local.max>
+    new.maxhits=<local.max>
+    serv.log [generateWpnMaxHits] EXCEPCIONAL!!! <dlocal.max> / <new.hits> / <dLOCAL.skill> / <local.type>
+    return 1
+endif
+
+
+//acha durabilidade em funcao da skill
+LOCAL.dur = <BETWEEN 10,<LOCAL.max>,<LOCAL.skill>,1250>
+//da bonus de ateh 10% da skill
+LOCAL.dur += <R<eval <LOCAL.skill>/10>>
+
+new.maxhits=<MINIMUM <local.max>,<LOCAL.dur>>
+new.hits=<new.maxhits>
+
+serv.log [generateWpnMaxHits] <dlocal.max> / <new.hits> / <dLOCAL.skill> / <local.type>
+//*****************************************************************************
+// generateCltMaxHits
+//*****************************************************************************
+//usado pelo i_faz_item quando vai gerar o max hits de uma roupa
+//NEW deve ser o item gerado
+//objeto padrao deve ser o i_faz_item 
+[FUNCTION generateCltMaxHits]
+if (<cont.tailoring> >= 950)
+ new.more1l=1000
+elif (<cont.tailoring> >= 800)
+ new.more1l={750 1000}
+elif (<cont.tailoring> >= 700)
+ new.more1l={450 750}
+elif (<cont.tailoring> >= 600)
+ new.more1l={250 450}
+elif (<cont.tailoring> >= 500)
+ new.more1l={100 250}
+else
+ new.more1l={50 100}
+endif
+new.more1h=<new.more1l>
+
+//*****************************************************************************
+// generateToolMaxHits
+//*****************************************************************************
+//usado pelo i_faz_item quando vai gerar o max hits de uma ferramenta t_crafting_tool
+//NEW deve ser o item gerado
+//objeto padrao deve ser o i_faz_item 
+[FUNCTION generateToolMaxHits]
+if (!<IsEmpty <args>>)//Estamos falando de um item que não seja o NEW?
+    local.item=<argv0>
+else //Estamos falando do item que é o NEW sim.
+    local.item=<new.defname>
+endif
+
+LOCAL.max=1000
+if <serv.itemdef.<local.item>.TDATA4>
+    LOCAL.max=<serv.itemdef.<local.item>.TDATA4>
+endif
+
+local.skill=<topobj.<def.<serv.itemdef.<local.item>.skillmake.0.key>>>
+
+if (STRMATCH(*_exp,<local.item>))
+    new.hits=<local.max>
+    new.maxhits=<local.max>
+    serv.log [generateToolMaxHits] EXCEPCIONAL!!! <dlocal.max> / <new.hits> / <dLOCAL.skill> / <new.type>
+    return 1
+endif
+
+//acha durabilidade em funcao da skill
+LOCAL.dur = <BETWEEN 10,<LOCAL.max>,<LOCAL.skill>,1250>
+//da bonus de ateh 10% da skill
+LOCAL.dur += <R<eval <LOCAL.skill>/10>>
+
+new.maxhits=<MINIMUM <local.max>,<LOCAL.dur>>
+new.hits=<new.maxhits>
+
+serv.log [generateToolMaxHits] <dlocal.max> / <new.hits> / <dLOCAL.skill> / <new.type>
+
+//*****************************************************************************
+// testitem
+//*****************************************************************************
+[FUNCTION testitem]
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.delay=3
+obj.tag.skill=cooking
+obj.tag.dif=35
+obj.tag.anim=9
+obj.tag.sfx=019
+obj.tag.res1=i_log
+obj.tag.nam1=toras
+obj.tag.amt1=1
+obj.tag.liq=LIQUID_WATER
+obj.tag.liqamt=9
+obj.tag.espid=i_alicate
+obj.tag.espname=alicate
+obj.tag.neartype=t_anvil
+obj.tag.nearname=bigorna
+obj.tag.item=i_chest_metal
+obj.tag.emote=moldando
+obj.tag.wmakefurn=1
+obj.tag.devolute=i_bacia
+src.fazitem
+return 1
+
+//*****************************************************************************
+// craftItem <DEFNAME>,<AMOUNT>
+//*****************************************************************************
+//carrega automaticamente as informacoes sobre o craft do item desejado
+//na memory de craft e inicia a producao
+[FUNCTION craftItem]
+if !<argv[0]>
+    return 0
+elif !<serv.itemdef.<argv[0]>>
+    return 0
+endif
+
+obj=<findid.i_faz_item>
+obj.cleartags
+
+LOCAL.c=<serv.itemdef.<argv[0]>.resources.count>
+for R 1 <LOCAL.c>
+    try obj.tag.res<dLOCAL.R>=<serv.itemdef.<argv[0]>.RESOURCES.<dLOCAL.R>.key>
+    try obj.tag.amt<dLOCAL.R>=<serv.itemdef.<argv[0]>.RESOURCES.<dLOCAL.R>.val>
+endfor
+obj.tag.item=<argv[0]>
+obj.tag.dif=<eval <serv.itemdef.<argv[0]>.SKILLMAKE.1.val>/10>
+obj.tag.skill=<serv.skill.<DEF.<serv.itemdef.<argv[0]>.SKILLMAKE.1.key>>.key>
+
+local.res=2
+WHILE (!<IsEmpty <serv.itemdef.<argv[0]>.SKILLMAKE.<dlocal.res>.key>>)
+ //serv.log [Cooking] <serv.itemdef.<argv[0]>.SKILLMAKE.<dlocal.res>.key>
+ if (<DEF.<serv.itemdef.<argv[0]>.SKILLMAKE.<dlocal.res>.key>>)
+  if (<serv.itemdef.<serv.itemdef.<argv[0]>.SKILLMAKE.<dlocal.res>.key>.type>==t_crafting_tool)
+   if (!<ctag0.craft_tool>)
+    ctag.craft_tool=<findid.<serv.itemdef.<argv[0]>.SKILLMAKE.<dlocal.res>.key>>
+   endif
+   obj.tag.espid=<serv.itemdef.<argv[0]>.SKILLMAKE.<dlocal.res>.key>
+   obj.tag.espname=<serv.itemdef.<serv.itemdef.<argv[0]>.SKILLMAKE.<dlocal.res>.key>.name>
+  endif
+ endif
+ local.res += 1
+ENDWHILE
+
+//Casos especiais
+call craft_<serv.itemdef.<argv[0]>.baseid>
+if (!<local.craftable>)
+    call craft_<serv.itemdef.<argv[0]>.type> <argv[0]>
+endif
+if (!<local.craftable>)
+    call craft_<serv.itemdef.<argv[0]>.skillmake.1.key> <argv[0]>
+endif
+if (!<local.craftable>)
+    obj.tag.dif=<eval <serv.itemdef.<argv[0]>.SKILLMAKE.1.val>/10>
+    obj.tag.delay=<eval <serv.itemdef.<argv[0]>.SKILLMAKE.1.val>/22>
+    obj.tag.anim=6
+    obj.tag.emote=trabalhando
+endif
+
+fazitem <argv[1]>
+return 1
+
+//*****************************************************************************
+// repairItem
+//*****************************************************************************
+[FUNCTION repairItem]
+//Função target para reparar um item.
+if (!<argo>)
+    sysmessageyellow O que voce gostaria de reparar?
+    targetf repairItem
+elif (!<argo.IsWeapon>) && (!<argo.IsArmor>) && (<argo.type>!=t_crafting_tool) && (!<argo.IsTEvent.t_crafting_tool>) && (!<argo.IsEvent.t_crafting_tool>)
+    sysmessagered Este item nao pode ser reparado.
+else
+    clearctags repair_
+
+    //Define necessidades para reparar
+    //Skill: Skillmake -25%
+    if !(<argo.attr>&01)
+        sysmessagered Voce precisa de mais dados sobre este item.
+        sysmessageyellow Identifique <argo.name>!
+        return 1
+    elif (<argo.attr>&020) && (<src.<def.<argo.skillmake.0.key>>> < 100.0)
+        sysmessagered Voce precisa de pelo menos 100.0 em <serv.skill.<argo.skillmake.0.key>.name> para reparar <argo.name>.
+        sysmessageyellow <argo.name> eh um item magico!
+        return 1
+    endif
+    local.skill = <MULDIV <argo.skillmake.0.val>,75,100>
+    if (<src.<def.<argo.skillmake.0.key>>> < <local.skill>)
+        sysmessagered Voce precisa de pelo menos <fval <local.skill>> em <serv.skill.<argo.skillmake.0.key>.name> para reparar <argo.name>.
+        return 1
+    endif
+    //Qualidade do reparo
+    local.Quality=<MINIMUM <MULDIV <src.<def.<argo.skillmake.0.key>>>,550,1000>+400,950>
+    //sysmessageyellow Qualidade do reparo: <fval <local.Quality>>
+    local.newMaxHits=<MULDIV <argo.maxhits>,<local.Quality>,1000>
+    //sysmessageyellow Novo maxhits: <dlocal.newMaxHits> (antigo: <argo.maxhits>)
+    //Quantos % dos recursos serão necessários
+    local.Demand=<MULDIV <eval <local.newMaxhits>-<argo.hits>>,100.0,<local.newMaxhits>>
+    //sysmessageyellow Demanda: <fval <local.Demand>>
+    if (<local.Demand> < 0)// || (<local.newMaxHits> < <obj.hits>)
+        sysmessagered No estado em que o item esta e com seu nivel de conhecimento, se voce reparar este item ele ficara pior do que esta agora.
+        return 1
+    endif
+    //Calcular recursos
+    local.rescount=0
+    local.rescache_amt=0
+    local.rescache_res=0
+    FOR r 1 <argo.resources.count>
+        local.amt=<EVAL (<argo.resources.<dlocal.r>.val>*<local.Demand>)/100.0>
+        if (<local.amt> > 0)    //Haverá demanda neste item? Inclua.
+            try ctag.repair_res<dlocal.rescount>=<argo.resources.<dlocal.r>.key>
+            try ctag.repair_amt<dlocal.rescount>=<local.amt>
+            local.rescount += 1
+        elif (<argo.resources.<dlocal.r>.val> > <local.rescache_amt>)
+            //Não haverá demanda deste item. Mas salve em cash o resource de maior amount para
+            //o caso de não haver demanda em nenhum.
+            local.rescache_amt=1
+            local.rescache_res=<argo.resources.<dlocal.r>.key>
+        endif
+    END
+
+    IF (!<local.rescount>)//Não houve nenhum item cuja demanda foi > 0. Escolha o que precise de mais amt.
+        try ctag.repair_res0=<local.rescache_res>
+        try ctag.repair_amt0=1
+        local.rescount=1
+    ENDIF
+
+    ctag.repair_message=Para reparar <argo.name> voce precisara de
+
+    //sysmessagegreen Materiais:
+    FOR r 0 <eval <local.rescount>-1>
+    //    sysmessageyellow + <dctag.repair_amt<dlocal.r>> <serv.itemdef.<ctag.repair_res<dlocal.r>>.name>
+        ctag.repair_message .= " + <dctag.repair_amt<dlocal.r>> <serv.itemdef.<ctag.repair_res<dlocal.r>>.name>"
+    END
+
+    if (<IsGM>) || (<argo.attr>&attr_identified)
+        ctag.repair_message .= " No final do processo <argo.name> tera <dlocal.newMaxHits> hitpoints."
+    endif
+    ctag.repair_message .= " Deseja continuar?"
+    
+    //Salvar ultimas variáveis
+    ctag.repair_item=<argo>
+    ctag.repair_maxhits=<local.newMaxHits>
+    
+    prompt_new <ctag.repair_message>
+    prompt_setAction repair_Start
+    prompt_setActionBack clearctags rapair_
+    ynprompt_show
+    
+endif
+
+//*****************************************************************************
+// repair_Start
+//*****************************************************************************
+[FUNCTION repair_Start]
+//Inicia o reparo de um item já carregado em cache.
+obj=<ctag.repair_item>
+if (<obj.topobj>!=<uid>)
+    sysmessagered Cade o item?
+else
+    local.item=<obj.defname>
+    obj=<findid.i_faz_item>
+    obj.cleartags
+    local.r=0
+    WHILE (!<IsEmpty <ctag.repair_res<dlocal.r>>>)
+        try obj.tag.res<eval <local.r>+1>=<ctag.repair_res<dlocal.r>>
+        try obj.tag.amt<eval <local.r>+1>=<ctag.repair_amt<dlocal.r>>
+        local.r += 1
+    ENDWHILE
+    
+    //Carrega behaviors
+    call craft_<serv.itemdef.<local.item>.baseid>
+    if (!<local.craftable>)
+        call craft_<serv.itemdef.<local.item>.type> <local.item>
+    endif
+    if (!<local.craftable>)
+        call craft_<serv.itemdef.<local.item>.skillmake.0.key> <local.item>
+    endif
+    if (!<local.craftable>)
+        obj.tag.delay=<eval <serv.itemdef.<local.item>.SKILLMAKE.0.val>/22>
+        obj.tag.anim=6
+        obj.tag.emote=trabalhando
+    endif
+    
+    obj.tag.dif=0
+    obj.tag.nofail=1
+    obj.tag.abort=1
+    obj.tag.delay=<MAXIMUM 5,<eval <obj.tag.delay>/3>>
+    obj.tag.repair=<ctag.repair_item>
+    obj.tag.repair_hits=<ctag.repair_maxhits>
+    obj.tag.item=1
+    obj.tag.f_Done=rapair_End
+    fazitem
+endif
+
+//*****************************************************************************
+// rapair_End
+//*****************************************************************************
+[FUNCTION rapair_End]
+//Termina o loop de reparar item
+ref1=<findid.i_faz_item>
+ref2=<ref1.tag.repair>
+if (<ref2.topobj>!=<uid>)
+    sysmessagered Cade o item?// REF1=<ref1.name> REF2=<REF2>
+    return 1
+endif
+ref2.maxhits=<ref1.tag0.repair_hits>
+ref2.hits=<ref2.maxhits>
+ref2.update
+sysmessagegreen O reparo em <ref2.name> esta completo.
+clearctags repair_
+
+//*****************************************************************************
+//*****************************************************************************
+// EVENTs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// e_exceptional_item
+//*****************************************************************************
+[TYPEDEF e_exceptional_item]
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// i_mry_fazitem
+//*****************************************************************************
+//memory com as caracteristicas do item a ser criado e os efeitos usados
+//obj.tag.falha             indica falha no processo devido a movimento ou dclick do player
+
+//more1                             duração restante da animação
+//more2                             quantidade de vezes que vai repetir todo o processo
+
+[ITEMDEF i_mry_fazitem]
+DEFNAME=i_faz_item
+ID=01ebc
+TYPE=t_eq_script
+NAME=Fazendo item
+LAYER=layer_special
+
+ON=@TARGON_CHAR
+cont.sysmessagered Alvo invalido.
+timer=-1
+return 1
+
+ON=@TARGON_GROUND
+cont.sysmessagered Alvo invalido.
+timer=-1
+return 1
+
+ON=@TARGON_ITEM
+if (<cont.targ.type>==<tag.needtype>)
+    if (<cont.targ.distance> >= 2)
+        cont.sysmessagered Chegue mais perto.
+        timer=-1
+    else
+        tag.selection=<cont.targ.uid>
+        if !(strmatch(<tag.f_init>,))
+            TRY cont.<tag.f_init> <tag.selection>
+        endif
+        timer=1
+    endif
+    return 1
+endif
+cont.sysmessagered Alvo invalido.
+return 1
+
+ON=@TIMER
+timer=-1
+
+//caso player se mova, cancela
+if (<cont.ctag0.disturb>) || (<cont.flags>&statf_cantcraft) || (<cont.ctag0.e_no_move_x>!=<cont.p.x>) || (<cont.ctag0.e_no_move_y>!=<cont.p.y>)
+    more2=1
+    tag.falha=1
+endif
+
+//ainda esta no loop de animacao?
+//faz anim., sfx e emotes
+if (<more1>) && (!<tag0.falha>)
+    more1=<more1>-1
+    timer=1
+    dorand (3)
+        cont.sfx <tag.sfx>
+    enddo
+    if ( <tag0.anim> )
+        cont.anim <tag0.anim>
+    endif
+    if !(strmatch(<tag.emote>,))
+        dorand (5)
+            cont.emoteyellow <tag.emote>
+        enddo
+    endif
+    if !(strmatch(<tag.f_step>,))
+        TRY cont.<tag.f_step> <tag0.selection>
+    endif
+    return 1
+//fim do loop, gera resultado
+else
+    
+    if (!<IsEmpty <tag.tool>>)
+        obj=<tag.tool>
+        obj.hits -= 1
+        if (!<obj.hits>)
+           cont.sysmessageorange <obj.name> se quebrou.
+           tag.abort=1           
+           obj.remove
+        else
+           obj.update
+        endif
+    endif
+    
+    if !(strmatch(<tag.f_end>,))
+        TRY cont.<tag.f_end> <tag0.selection>,<more1>
+    endif
+
+    if (<tag0.falha>)
+        cont.craftAborted
+        return 1
+    endif
+    
+    //se não houve falha gerada por movimento ou dclick
+    if !(<cont.checkResources>)
+        //consome itens
+        cont.consumeResources
+        //ganha skill e verifica sucesso
+        cont.skill_gain skill_<tag.skill>
+        if (<cont.skillcheck <tag.skill> <tag.dif>> == 1) || (<tag0.nofail>)
+            generateItem
+            LOCAL.u=1,<new>
+        else
+            cont.sysmessageyellow Falhou.
+            LOCAL.u=0,0
+        endif
+
+        if !(strmatch(<tag.f_done>,))
+            TRYSRC <cont> cont.<tag.f_done> <LOCAL.u>
+        endif
+        //Põe o item na bag se houve sucesso
+        if (STRMATCH(1*,<local.u>))
+            craft_bounceItem
+        endif
+    else
+        return 1
+    endif
+
+    if !(<tag0.abort>)
+        //verifica se ha mais para tentar fazer 
+        more2=<more2>-1
+        if (<more2>)
+            if (!<cont.checkResources>)
+                cont.startCraft 1
+            endif
+        //acabou, gera sujeira
+        else
+            if !(strmatch(<tag.scrap>,))
+                serv.newitem <tag.scrap>
+                new.p=<cont.p>
+                new.timer {5 10}
+                new.attr= 012
+            endif
+        endif
+    else
+        cleartags
+    endif
+endif
+return 1
+
+//*****************************************************************************
+//*****************************************************************************
+// DIALOGs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// d_fazitem - Gera menu para refazer ultimo item
+//*****************************************************************************
+[DIALOG d_fazitem]
+-310, 120
+
+PAGE 0
+//noclose
+//nomove
+resizepic 312 219 3500 165 135
+button 325 250 2224 2224 1 0 1  // <- botao do +1
+button 325 270 2224 2224 1 0 2  // <- botao do -1
+button 325 310 2224 2224 1 0 3  // <- botao de MIN
+button 400 270 2224 2224 1 0 4  // <- botao de fazer
+button 400 310 2224 2224 1 0 5  // <- botao de sair
+button 325 290 2224 2224 1 0 6  // <- botao de MAX
+text 345 225 152 0  //<--- texto label
+text 345 246 1345 1     //<--- texto do mais 1
+text 435 226 162 2  //<--- texto do contador    
+text 345 267 95 3   //<--- texto do menos 1
+text 345 305 95 4   //<--- texto de zerar
+text 420 267 95 5       //<--- texto para fazer
+text 420 305 41 6       //<--- texto para sair
+text 345 285 95 7   //<--- texto para MAX
+
+[DIALOG d_fazitem TEXT]
+Quantidade:
++1
+<eval 0<src.ctag.qtditem>>
+-1
+min
+fazer
+sair
+max
+[DIALOG d_fazitem BUTTON]
+
+ON=1                    //INCREMENTA
+    if ( <src.ctag.qtditem> < 10 )
+        src.ctag.qtditem=<src.ctag.qtditem>+1
+        src.dialog=d_fazitem
+        src.update
+        return 
+    else
+        src.sysmessageyellow Limite alcancado
+        src.dialog=d_fazitem
+        src.update
+        return 
+ON=2                    //DECREMENTA
+    if ( <src.ctag.qtditem> > 1 )   
+        src.ctag.qtditem=<src.ctag.qtditem>-1
+        src.update
+        src.dialog=d_fazitem
+        return 
+    else
+        src.sysmessageyellow Limite alcancado
+        src.dialog=d_fazitem
+        src.update
+        return 
+ON=3                    //MINIMO
+    src.ctag.qtditem=1
+    src.update
+    src.dialog=d_fazitem
+    return 
+ON=4                    //FAZ O ITEM
+    if !(<src.ctag0.qtditem>)
+        src.sysmessageyellow Nao foi selecionada a quantidade
+        return
+    else
+        src.fazitem <src.ctag.qtditem>
+        src.update  
+        return 
+ON=5
+    return
+
+ON=6                //MAXIMO
+    src.ctag.qtditem=10
+    src.dialog=d_fazitem
+    src.update
+    return
+
+[EOF]

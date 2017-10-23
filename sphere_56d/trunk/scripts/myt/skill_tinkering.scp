@@ -1,0 +1,250 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL TINKERING
+//
+//  Galthar
+//  Silver
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+//Antigo sistema_de_artesao.scp
+
+//*****************************************************************************
+//*****************************************************************************
+// TYPEDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// t_tinker_tools
+//*****************************************************************************
+[TYPEDEF t_tinker_tools]
+ON=@DCLICK
+src.craftmenu 614
+return 1
+
+[TYPEDEF t_tinker_parts]
+//Peças de Tinkering
+//TDATA4=Quantidade pra fazer se Tinkering=100.0
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+[FUNCTION craft_t_tinker_parts]
+//CALL Behavior de crafting para t_tinker_parts
+obj.tag.anim=6
+obj.tag.sfx=1453
+obj.tag.espid=i_ferramentas_artesao
+obj.tag.espname=ferramentas de artesao
+obj.tag.neartype=t_bancada
+obj.tag.nearname=bancada
+obj.tag.item=<argv[0]>
+obj.tag.amt=<eval (<tinkering>*<serv.itemdef.<argv[0]>.tdata4>)/100.0>
+obj.tag.emote=cortando e limando
+obj.tag.delay=<eval <serv.itemdef.<argv[0]>.skillmake.0.val>/33>
+local.craftable=1
+
+[FUNCTION craft_t_espiriteira]
+//CALL Behavior de crafting para t_espiriteira
+obj.tag.anim=6
+obj.tag.sfx=1453
+obj.tag.espid=i_ferramentas_artesao
+obj.tag.espname=ferramentas de artesao
+obj.tag.neartype=t_bancada
+obj.tag.nearname=bancada
+obj.tag.item=<argv[0]>
+obj.tag.more1h=<BETWEEN 60,<eval (<serv.itemdef.<argv[0]>.TDATA4>*<R90,110>)/100>,<Tinkering>,100.0>
+obj.tag.more1l=<obj.tag.more1h>
+obj.tag.emote=montando vela
+obj.tag.delay=<eval <serv.itemdef.<argv[0]>.skillmake.0.val>/33>
+local.craftable=1
+
+[FUNCTION craft_t_wand]
+//CALL Behavior de crafting para varinhas
+obj.tag.anim=6
+obj.tag.sfx=1453
+obj.tag.espid=i_ferramentas_artesao
+obj.tag.espname=ferramentas de artesao
+obj.tag.neartype=t_bancada
+obj.tag.nearname=bancada
+obj.tag.item=<argv[0]>
+obj.tag.emote=cortando e limando
+obj.tag.delay=<eval <serv.itemdef.<argv[0]>.skillmake.0.val>/33>
+if (STRMATCH(*i_gem_*,<serv.itemdef.<argv0>.resources>))    
+    obj.tag.f_end=f_endCraftWand <argv0>,
+endif
+local.craftable=1
+
+[FUNCTION f_endCraftWand]
+for r 1 <serv.itemdef.<argv0>.resources.count>
+    local.res=<findid.<serv.itemdef.<argv0>.resources.<dlocal.r>.key>.uid>
+    if (<uid.<local.res>.type>==t_wand)
+        local.gem=<local.res>
+    endif
+end
+if <local.gem>
+    findid.i_faz_item.tag.morex=<uid.<local.gem>.morex>
+    findid.i_faz_item.tag.morey=<uid.<local.gem>.morey>
+    findid.i_faz_item.tag.more2=<uid.<local.gem>.more2>
+    findid.i_faz_item.tag.f_done=f_doneCraftWand
+endif
+
+[FUNCTION f_doneCraftWand]
+uid.<argv1>.attr |= 021
+uid.<argv1>.update
+
+[FUNCTION craft_t_tubo]
+//CALL Behavior de crafting para tubos de ensaio
+CALL craft_glasses
+
+[FUNCTION craft_t_misturador]
+//CALL Behavior de crafting para vidrarias
+CALL craft_glasses
+
+[FUNCTION craft_t_potion_empty]
+//CALL Behavior de crafting para garrafas alquimicas
+CALL craft_glasses
+
+[FUNCTION craft_t_recipient]
+//CALL Behavior de crafting para recipientes
+if (STRMATCH(*i_areia*,<serv.itemdef.<args>.resources>))
+    CALL craft_glasses
+endif    
+
+[FUNCTION craft_glasses]
+//CALL Behavior de crafting para sopracção vidral
+obj.tag.anim=6
+obj.tag.sfx=02b
+obj.tag.espid=i_soprador_vidro
+obj.tag.espname=soprador de vidro
+obj.tag.neartype=t_forge
+obj.tag.nearname=forja acesa
+obj.tag.emote=soprando vidro
+obj.tag.delay=<eval <serv.itemdef.<argv[0]>.skillmake.0.val>/33>
+local.craftable=1
+
+[FUNCTION craft_t_trap_kit]
+//CALL Behavior de crafting para armadilhas
+obj.tag.anim=6
+obj.tag.sfx 577
+obj.tag.espid=i_ferramentas_artesao
+obj.tag.espname=ferramentas de artesao
+obj.tag.neartype=t_bancada
+obj.tag.nearname=bancada
+obj.tag.item=<argv[0]>
+obj.tag.emote=montando
+obj.tag.delay=<eval <serv.itemdef.<argv[0]>.skillmake.0.val>/33>
+obj.tag.f_done=f_endCraftTrap
+local.craftable=1
+
+[FUNCTION f_endCraftTrap]
+if (<argn1>)
+    ref2=<argn2>
+    ref2.more2=<MULDIV <tinkering>,<R90,110>,100>
+    if (<BELLTEST <ItemID>,<ref2.more2>>)
+        ref2.attr |= 01
+    endif
+endif
+
+//*****************************************************************************
+// art_copyKey
+//*****************************************************************************
+//Player copia chave
+[FUNCTION art_copyKey]
+sysmessageyellow Selecione a chave a copiar:
+targetf _art_copyKey
+
+[FUNCTION _art_copyKey]
+obj=<argo>
+if (<obj.type>!=t_key)
+ sysmessageyellow Isso nao eh uma chave.
+ return 1
+elif (<obj.topobj>!=<uid>)
+ sysmessageyellow A chave deve estar em sua posse.
+ return 1
+elif (!<obj.more1>)
+ sysmessageyellow Esta chave esta em branco.
+ return 1
+elif ((<obj.baseid>==i_key_copper) && (<tinkering> < 55.0)) || ((<obj.baseid>==i_key_iron) && (<tinkering> < 65.0)) || ((<obj.baseid>==i_key_gold) && (<tinkering> < 70.0))
+ sysmessageyellow Voce nao tem habilidade para copiar uma <obj.name>.
+ return 1
+endif
+LOCAL.key=<obj.uid>
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.delay=12
+obj.tag.skill=tinkering
+obj.tag.dif=55
+obj.tag.anim=19
+obj.tag.sfx=02e2
+obj.tag.res1=i_barra_metal
+obj.tag.nam1=barra de metal
+obj.tag.amt1=1
+obj.tag.emote=limando
+obj.tag.neartype=t_bancada
+obj.tag.nearname=bancada
+obj.tag.item=<UID.<LOCAL.key>.baseid>
+obj.tag.more1=<UID.<LOCAL.key>.more1>
+obj.tag.abort=1
+src.fazitem
+
+return 1
+
+//*****************************************************************************
+// art_stoneGem
+//*****************************************************************************
+[FUNCTION art_stoneGem]
+if (!<argo>)
+ sysmessageyellow Selecione a pedra para lapidar:
+ targetf art_stoneGem
+ return 1
+elif (<argo.type>!=t_gem)
+ sysmessagered Isso nao eh uma padra lapidavel.
+ return 1
+elif (<argo.topobj>!=<UID>)
+ sysmessagered A pedra precisa estar em seu poder.
+ return 1
+endif
+obj=<src.findid.i_faz_item.uid>
+obj.cleartags
+obj.tag.delay=12
+obj.tag.skill=tinkering
+obj.tag.dif=62
+obj.tag.anim=19
+obj.tag.sfx=02e2
+obj.tag.res1=<argo.baseid>
+obj.tag.nam1=<argo.name>
+obj.tag.amt1=1
+obj.tag.emote=limando
+obj.tag.neartype=t_bancada
+obj.tag.nearname=bancada
+obj.tag.item=<argo.tdata1>
+src.fazitem <argo.amount>
+return 1
+
+[ITEMDEF 0e40]
+// DEFNAME2=METAL_CHEST_1
+DEFNAME=i_chest_metal_brass
+NAME=bau enfeitado
+TYPE=T_CONTAINER
+SKILLMAKE=TINKERING 82.5
+RESOURCES=6 i_tabua, 2 i_plate_bronze, 2 i_hinge
+TEVENTS=t_furniture
+FLIP=1
+WEIGHT=20.0
+TDATA2=042
+TAG.LOCKTYPE=10
+TAG.OVERRIDE.MAXWEIGHT=7350
+DUPELIST=0e41
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Tinker
+DESCRIPTION=Bau enfeitado
+
+
+[EOF]

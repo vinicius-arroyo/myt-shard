@@ -1,0 +1,333 @@
+//*****************************************************************************
+//*****************************************************************************
+//
+// SKILL CAMPING 
+//
+//  Galthar
+//  UsMarine (vinicius.arroyo at gmail.com)
+//
+//*****************************************************************************
+//*****************************************************************************
+
+//TODO:
+
+
+//TAGS usadas:
+[DEFNAME camping]
+i_gravetos      i_kindling
+
+//*****************************************************************************
+//*****************************************************************************
+// FUNCTIONs
+//*****************************************************************************
+//*****************************************************************************
+
+//*****************************************************************************
+// campheal
+//*****************************************************************************
+[FUNCTION campheal]
+
+//faz efeito do healing
+IF <HITS> < <STR>
+    HITS += <argv0>
+    IF <HITS> > <STR>
+        HITS = <STR>
+    ENDIF
+ENDIF
+
+IF <MANA> < <INT>
+    MANA += <argv0>
+    IF <MANA> > <INT>
+        MANA = <INT>
+    ENDIF
+ENDIF
+
+IF <STAM> < <DEX>
+    STAM += <argv0>
+    IF <STAM> > <DEX>
+        STAM = <DEX>
+    ENDIF
+ENDIF
+
+//*****************************************************************************
+//*****************************************************************************
+// ITEMDEFs
+//*****************************************************************************
+//*****************************************************************************
+
+
+//*****************************************************************************
+// i_multi_campfire
+//*****************************************************************************
+[ITEMDEF i_multi_campfire]
+ID=i_campfire
+TYPE=t_multi
+MULTIREGION=-3,-3,3,3
+
+ON=@Create
+MOREZ=29
+ATTR=attr_move_never
+//*****************************************************************************
+// i_campfire_tracker - cura hits, mana e stam de quem estiver proximo
+//*****************************************************************************
+[ITEMDEF i_campfire_tracker]
+ID=01ea7
+TYPE=t_eq_script
+
+ON=@CREATE
+ATTR=attr_move_never|attr_invis
+
+ON=@TIMER
+//remove tracker e campfire se acabou o tempo
+IF (<MORE2> < 1)
+    REMOVE
+    RETURN 1
+ENDIF
+
+//cura quem estiver na regiao
+FORCLIENTS 1
+    //cancela efeito do camping se alguem em warmode
+    IF (<FLAGS> & statf_war) 
+        FORCLIENTS 1
+            SYSMESSAGERED <rec_fGetName <uid>> perturbou o acampamento!
+        END
+        REMOVE  
+        RETURN 1
+    ENDIF
+
+    CAMPHEAL <R1,2>
+ENDFOR
+
+//subtrai tempo percorrido
+MORE2 -= <MORE1>
+TIMER=<MORE1>
+RETURN 1
+
+//*****************************************************************************
+// i_gravetos
+//*****************************************************************************
+[ITEMDEF 0de1]
+DEFNAME=i_kindling
+TYPE=t_kindling
+NAME=graveto%s%
+RESOURCES=
+SKILLMAKE=0.7 Lumberjacking
+RESOURCES=i_log
+REPLICATE=1
+WEIGHT=.5
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Camping
+DESCRIPTION=gravetos
+DUPELIST=0de2
+
+on=@create
+ATTR=attr_decay
+
+ON=@DCLICK
+if (<distance> > 1)
+    src.sysmessagered Voce esta muito longe. Chegue mais perto. 
+    return 1
+elif (<cont>)
+    src.sysmessageyellow escolha uma fogueira para usar estes gravetos ou coloque no chao para fazer uma fogueira nova.
+    target
+    return 1
+elif (!<Skill_InUse Skill_Camping>)
+    src.sysmessagered Voce so pode fazer uma coisa por vez
+    src.Skill_InUse 0
+    return 1
+endif
+
+src.Skill_InUse 0
+
+src.skill_gain skill_camping
+
+if (!<belltest <SRC.CAMPING>,<R40.0>>) && (<R5>) && (!<src.IsGm>)
+    SRC.emotered falhou ao acender a fogueira
+    src.anim 020
+    return 1
+endif
+
+SERV.newitem i_campfire
+NEW.morez=29
+NEW.p=<p>
+//tempo total (30 a 330 segundos)
+
+//Determina tempo mínimo por graveto pelo Camping
+local.timer=<BETWEEN 150,500,<src.camping>,125.0>
+
+//Determina o tempo pela quantidade de gravetos
+local.timer=<MINIMUM 6000,<MAXIMUM 300,<eval (<amount>*<local.timer>)>>>
+
+NEW.decay=<local.timer>
+
+//teste se sera um caping de cura
+if (!<belltest <SRC.CAMPING>,700>)
+    SRC.emotered acende a fogueira
+    src.anim 020
+    sfx 054
+    remove
+    return 1
+endif
+
+NEW.NUDGEUP 1
+SERV.newitem i_fire_pit  // implementação de fire pit como acampamento de cura
+NEW.morez=29
+NEW.p=<p>
+NEW.decay=<local.timer>  // fim da implementação de fire pit
+
+SERV.NEWITEM i_campfire_tracker 
+NEW.P=<P>
+//tempo total (max 300 segundos)
+NEW.MORE2=<EVAL (<SRC.CAMPING>*3)/10>
+//healing interval (de 2 a 12 segundos)
+NEW.MORE1=<EVAL 14-(<SRC.CAMPING>/100)>
+NEW.TIMER=<NEW.MORE1>
+UPDATE
+SRC.emotered faz uma bela fogueira
+src.anim 020
+sfx 054
+remove
+return 1
+
+
+on=@TARGON_ITEM
+if (<src.targ.distance> > 1)
+    src.sysmessagered Muito longe.
+    return 1
+elif (<src.targ.baseid>==i_campfire)
+    src.targ.timer=<src.targ.timer> + <eval (((<src.camping>/10)+1)*<amount>)> // aumenta o timer decay do fogo com base na skill camping dividida por 10, multiplicada pelo amount de gravetos)
+    src.anim 020
+    src.emote joga gravetos na fogueira
+    src.newitem=i_fire
+    src.act.p=<src.targ.p>
+    src.act.z=<src.targ.z>+2
+    src.act.timer=2
+    src.act.attr=012
+    src.targ.effect 2,i_fx_smoke,0,15,0
+    sfx 054
+    remove
+    return 1
+else
+    src.sysmessagered Escolha uma fogueira para usar isto
+endif
+return 1
+
+
+on=@TARGON_ground
+ src.sysmessagered Escolha uma fogueira para usar isto
+return 1
+
+
+on=@TARGON_char
+ src.sysmessagered Escolha uma fogueira para usar isto
+return 1
+
+
+[ITEMDEF 0de2]
+DUPEITEM=0de1
+
+
+//*****************************************************************************
+// i_campfire
+//*****************************************************************************
+[ITEMDEF 0de3]
+DEFNAME=i_campfire
+TYPE=t_fire
+NAME=fogueira
+RESOURCES=i_kindling
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Camping
+DESCRIPTION=fogueira
+DUPELIST=0de4,0de5,0de6,0de7,0de8
+
+ON=@PICKUP_GROUND
+MOVABLE=0
+SRC.RESEND
+return 1
+
+ON=@DCLICK
+if (<src.camping> >= 150)
+    if (<timer> < 20)
+        src.sysmessagered A <name> esta quase apagando!
+    return 1
+    elif (<timer> < 40)
+        src.sysmessagered O fogo esta fraco
+    return 1
+    elif (<timer> < 60)
+        src.sysmessageyellow O fogo esta enfraquecendo
+    return 1
+    elif (<timer> < 80)
+        src.sysmessagegreen O fogo esta consistente
+    return 1
+    else
+        src.sysmessagegreen O fogo esta bem consistente
+    return 1
+    endif
+return 1
+else
+    src.sysmessagered Voce nao tem conhecimento suficiente para analisar a <name>
+return 1
+endif
+
+on=@timer
+serv.newitem i_ember_lit
+NEW.morez=2
+new.p=<p>
+new.decay=1200
+new.emoteyellow apagou
+
+[ITEMDEF 0de4]
+DUPEITEM=0de3
+
+[ITEMDEF 0de5]
+DUPEITEM=0de3
+
+[ITEMDEF 0de6]
+DUPEITEM=0de3
+
+[ITEMDEF 0de7]
+DUPEITEM=0de3
+
+[ITEMDEF 0de8]
+DUPEITEM=0de3
+
+//*****************************************************************************
+// i_ember_lit
+//*****************************************************************************
+[ITEMDEF 0de9]
+NAME=brasa
+DEFNAME=i_ember_lit
+TYPE=t_fire
+VALUE=2
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Camping
+DESCRIPTION=brasas
+
+ON=@PICKUP_GROUND
+MOVABLE=0
+return 1
+
+on=@timer
+serv.newitem i_ember
+new.p=<p>
+new.decay=1200
+new.emoteyellow apagou
+
+
+//*****************************************************************************
+// i_ember
+//*****************************************************************************
+[ITEMDEF 0dea]
+DEFNAME=i_ember
+TYPE=t_garbage
+name=madeira queimada
+RESOURCES=1 i_kindling
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Camping
+DESCRIPTION=madeira queimada
+
+ON=@PICKUP_GROUND
+MOVABLE=0
+return 1
+
+[EOF]

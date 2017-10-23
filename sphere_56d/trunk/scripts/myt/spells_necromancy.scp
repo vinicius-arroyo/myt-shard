@@ -1,0 +1,1643 @@
+//###################################################################################
+//                         Mystical Tales Shard
+//                      MAGIAS DE CAMINHO "Necromancia"
+//                          Galthar, o Errante
+//                                04/2009
+//###################################################################################
+//
+//                              RANGE: 200 a 250
+//
+//###################################################################################
+
+[COMMENT spells_necro]
+nº      Ataque
+201     Dom Negro
+206     Infestação
+214     Choque mental
+        
+        Buff
+202     Proteção contra veneno
+210     Mascara da morte
+        
+        Debuff
+200     Cançar musculos
+204     Envelhecer (stats)
+207     Envenanar
+208     Invenenar mente
+211     Demência
+215     Pacto de sangue (dano contra)
+217     Pânico
+        
+        Summon
+209     Morto vivo menor
+212     Morto vivo
+218     Morto vivo maior
+        
+        Poly
+203     Rato
+215     Esqueleto
+219     Liche
+        
+        RP
+205     Vomitar sapos
+213     Putrefação
+
+Agle    Animar
+Bal     Maldade/maldoso
+Char    Corpo
+Dix     Defazer/diminuir
+En      Invocar
+Flar    Desintegrar
+Gra     Pedra/terra
+Hur     Grande
+In      Invocar menor
+Jux     Comando/vontade
+Kal     Invocar maior
+Luk     Medo
+Mai     Alterar
+Nox     Veneno
+Ort     Objeto
+Pas     Sangue
+Qii     Mente
+Rij     Criatura
+Sar     Doença
+Tym     Tempo
+Um      Mágica
+Voy     Imitação
+Wox     Podre
+Xen     Morte
+Ylm     Osso
+Zu      Impacto
+
+ToDo:
+- Modernizar o Effect da Spell 200
+
+//***********************************************************
+//              SPELL NECRO Cansar musculos
+//***********************************************************
+
+[ITEMDEF i_scroll_cansar_musculos]
+ID=02260
+NAME=Pergaminho Fadigar
+RESOURCES=i_carta,i_r_nightshade
+SKILLMAKE=INSCRIPTION 20.0, Necromancy 10.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Cansar Musculos
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=200
+        MOREY={30 70}
+
+[Spell 200]
+DEFNAME=s_cansar_musculos
+NAME=Fadigar
+SOUND=01E6
+RUNES=DC
+CAST_TIME=2.0
+RESOURCES=i_r_nightshade
+RUNE_ITEM=2240
+SCROLL_ITEM=i_scroll_cansar_musculos
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_fx_targ | spellflag_resist
+EFFECT=5,60
+DURATION=10,40 
+MANAUSE=10
+SKILLREQ=NECROMANCY 10.0
+INTERRUPT=15.0,100.0
+
+on=@START
+//f_CleanDeBuffs
+if <act.restest i_mry_fadiga>
+src.sysmessageyellow Voce pode ter apenas um Fadigar ativo em um alvo num dado momento.
+return 1
+endif
+
+
+
+ON=@Success
+serv.newitem i_fx_curse
+new.attr = attr_static|attr_decay
+new.timer = 2
+new.p = <act.p>
+
+
+on=@Effect
+local.modnec=<eval ((<argn2>*<src.int>)/150)+<MULDIV <src.SpiritSpeak>,25,100>>
+local.effect=<EFFECTSPELL s_cansar_musculos,<local.modnec>,<src.uid>>
+local.time=<DURATIONSPELL s_cansar_musculos,<argn2>,<src.uid>>
+local.dex=<maximum <eval 1-<DEX>>,-<local.effect>>
+Buff_DEX <local.dex>,<local.time>
+STAM=<minimum <dex>,<stam>>
+
+newitem i_mry_fadiga
+new.link <uid>
+new.more1 <eval <local.time>/2>
+trysrc <uid> src.new.equip
+
+
+
+skill_gain skill_spiritspeak
+return 1
+    
+    
+   
+[ITEMDEF i_mry_fadiga]
+ID=i_rune_poison
+name=memory debuff
+type=t_eq_script
+layer=layer_special
+TEVENTS=e_BuffStats
+
+ON=@Create
+ATTR=attr_cursed2 
+  
+on=@equip
+timer=1
+cont.sysmessagered Voce se sente extremamente cansado, como se nao dormisse a dias.
+
+on=@unequip
+cont.sysmessagegreen O cansaco dissipa-se.
+
+on=@timer
+if (!<more1>)
+ remove
+endif
+more1 -= 1
+if (<link.stam> > 3)
+ link.stam -= 3
+endif
+timerd 15
+return 1
+
+
+//***********************************************************
+//              SPELL NECRO Dark Gift
+//***********************************************************
+
+[ITEMDEF i_scroll_dark_gift]
+ID=02261
+NAME=Pergaminho Dom Negro
+RESOURCES=i_carta,i_r_nightshade,i_r_teia_de_aranha
+SKILLMAKE=INSCRIPTION 20.0, Necromancy 10.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Presente Negro
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=201
+        MOREY={30 70}
+
+[Spell 201]
+DEFNAME=s_dark_gift
+NAME=Dom Negro
+SOUND=01E1
+RUNES=IB
+CAST_TIME=7
+RESOURCES=i_r_nightshade,i_r_teia_de_aranha
+RUNE_ITEM=2252
+SCROLL_ITEM=i_scroll_dark_gift
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_dir_anim | spellflag_fx_bolt | spellflag_fx_targ
+EFFECT=5,10
+MANAUSE=5
+SKILLREQ=NECROMANCY 10.0
+INTERRUPT=15.0,100.0
+
+on=@Effect
+local.dam=<EFFECTSPELL s_dark_gift,<argn2>,<src.uid>>
+IF (<distance> > 1)
+ EFFECT 0,i_fx_fireball_small,5,0,0,4,5
+ELSE
+ EFFECT 3,i_fire_column,0,16,0,4,5
+ local.dam += <eval <src.spiritspeak>/100>
+ENDIF
+DAMAGE <local.dam>,DAM_POISON,<src.uid>
+
+skill_gain skill_spiritspeak
+return 1
+
+
+//***********************************************************
+//              SPELL NECRO Protect from poison
+//***********************************************************
+
+[ITEMDEF i_scroll_protect_poison]
+ID=02262
+NAME=Pergaminho proteção contra o Mal
+RESOURCES=i_carta,i_r_nightshade,i_r_ginseng
+SKILLMAKE=INSCRIPTION 30.0, Necromancy 20.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Protecao contra veneno
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=202
+        MOREY={30 70}
+
+[Spell 202]
+DEFNAME=s_protect_poison
+NAME=Protecao Contra o Mal
+SOUND=01ED
+RUNES=CGN
+CAST_TIME=4.0
+RESOURCES=i_r_nightshade,i_r_ginseng
+RUNE_ITEM=2250
+SCROLL_ITEM=i_scroll_protect_poison
+FLAGS=SPELLFLAG_GOOD | spellflag_targ_char | spellflag_scripted
+EFFECT=10,60
+DURATION=5*60,15*60
+MANAUSE=20
+SKILLREQ=NECROMANCY 20.0
+INTERRUPT=25.0,100.0
+
+ON=@Success
+if <restest i_mry_RESBUFF>
+src.sysmessageyellow Voce pode ter apenas um buff de protecao ativo num determinado momento. 
+return 1
+endif
+
+serv.newitem i_fx_sparkle
+new.attr = attr_static|attr_decay
+new.timer = 2
+new.p = <act.p>
+
+
+on=@Effect
+local.time= <DURATIONSPELL s_protect_poison,<argn2>,<src.uid>>
+
+local.prot= <EFFECTSPELL s_protect_poison,<argn2>,<src.uid>>
+local.prot=<minimumN <eval 60-<respoison>>,<local.prot>>
+
+IF (<argn2> > 750)
+ local.buffar=<eval(<local.prot>/3)>
+ local.buffar=<minimumN <eval 30-<AR>>,<local.buffar>>
+ Buff_Armor <local.buffar>,<local.time>
+ENDIF
+Buff_respoison <local.prot>,<local.time>
+
+
+newitem i_mry_RESBUFF
+new.equip
+new.timer <local.time>
+new.link=<uid>
+
+skill_gain skill_spiritspeak
+return 1
+    
+    
+[ITEMDEF i_mry_RESBUFF]
+ID=i_rune_poison
+name=memory buff de resistencia
+type=t_eq_script
+layer=layer_special
+    
+ON=@Create
+ATTR=attr_blessed2
+    
+on=@equip
+timer 1
+cont.sysmessagegreen As resistencias do alvo foram aumentadas.
+    
+on=@timer
+cont.sysmessagegreen O efeito de sua magia protetora acabou.
+remove
+return 1
+
+//***********************************************************
+//              SPELL NECRO Polymorphar pra rato
+//***********************************************************
+
+[ITEMDEF i_scroll_poly_rat]
+ID=02263
+NAME=Pergaminho forma de rato
+RESOURCES=i_carta,i_r_nightshade,i_r_olho_morto_vivo
+SKILLMAKE=INSCRIPTION 30.0, Necromancy 20.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Polimorph rato
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=203
+        MOREY={30 70}
+
+[Spell 203]
+DEFNAME=s_polymorph_rat
+NAME=Forma de Rato
+SOUND=
+RUNES=CR
+CAST_TIME=10
+RESOURCES=i_r_nightshade,i_r_olho_morto_vivo
+RUNE_ITEM=23008
+SCROLL_ITEM=i_scroll_poly_rat
+FLAGS=SPELLFLAG_GOOD | spellflag_scripted
+DURATION=60,120
+MANAUSE=20
+SKILLREQ=NECROMANCY 20.0
+INTERRUPT=25.0,100.0
+
+on=@Effect
+local.time=<DURATIONSPELL s_polymorph_rat,<argn2>,<src.uid>>
+src.f_polymorph c_rato_poly,0,<local.time>
+src.haste <local.time>
+
+skill_gain skill_spiritspeak
+return 1
+
+//***********************************************************
+//              SPELL NECRO Envelhecer
+//***********************************************************
+
+[ITEMDEF i_scroll_envelhecer]
+ID=02264
+NAME=Pergaminho Envelhecer
+RESOURCES=i_carta,i_r_nightshade,i_r_asa_morcego 
+SKILLMAKE=INSCRIPTION 40.0, Necromancy 40.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Envelhecer
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=204
+        MOREY={30 70}
+
+[Spell 204]
+DEFNAME=s_envelhecer
+NAME=Envelhecer
+SOUND=01E6
+RUNES=MCW
+CAST_TIME=15
+RESOURCES=i_r_nightshade,i_r_asa_morcego
+RUNE_ITEM=2247
+SCROLL_ITEM=i_scroll_envelhecer
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_resist
+EFFECT=5,20
+DURATION=20,60
+MANAUSE=12
+SKILLREQ=NECROMANCY 30.0
+INTERRUPT=35.0,100.0
+
+
+
+ON=@Start
+if <act.restest i_mry_envelhecer>
+src.sysmessageyellow Voce pode ter somente um Envelhecer ativo sobre um alvo num dado momento. 
+return 1
+endif
+
+ON=@Success
+serv.newitem i_fx_smoke
+new.attr = attr_static|attr_decay
+new.timer = 1
+new.p = <act.p>
+
+
+ON=@Effect
+local.modnec=<eval ((<argn2>*<src.int>)/150)+<MULDIV <src.SpiritSpeak>,25,100>>
+local.effect=<EFFECTSPELL s_envelhecer,<local.modnec>,<src.uid>>
+local.time=<DURATIONSPELL s_envelhecer,<argn2>,<src.uid>>
+local.str=<maximum <eval 1-<STR>>,-<local.effect>>
+local.dex=<maximum <eval 1-<DEX>>,-<local.effect>>
+local.int=<maximum <eval 1-<INT>>,-<local.effect>>
+if (<npc>==brain_undead)
+    src.sysmessagered O efeito eh oposto em mortos vivos!
+    Buff_STR (<local.effect>*10),<local.time>
+    Buff_DEX (<local.effect>*8),<local.time>
+    Buff_INT (<local.effect>*10),<local.time>
+else    
+    Buff_STR <local.str>,<local.time>
+    Buff_DEX <local.dex>,<local.time>
+    Buff_INT <local.int>,<local.time> 
+    MANA -= -<local.int>
+    STAM -= -<local.dex>
+    HITS -= -<local.str>
+  
+endif
+
+newitem i_mry_envelhecer
+new.link <uid>
+trysrc <uid> src.new.equip
+new.timer=<local.time>
+
+skill_gain skill_spiritspeak
+return 1
+
+
+[ITEMDEF i_mry_envelhecer]
+ID=i_rune_poison
+name=memory debuff envelhecer
+type=t_eq_script
+layer=layer_special
+TEVENTS=e_BuffStats
+    
+on=@create
+ATTR=attr_cursed2
+
+on=@equip
+cont.sysmessagegreen Voce sente como se tivesse envelhecido muitos anos num piscar de olhos.
+
+on=@unequip
+cont.sysmessagegreen Voce se sente rejuvenescido.
+
+on=@timer
+remove
+return 1
+
+
+//***********************************************************
+//              SPELL NECRO Vomitar sapos
+//***********************************************************
+
+[ITEMDEF i_scroll_vomitar_sapos]
+ID=02265
+NAME=Pergaminho Maldicao de Kali Naj
+RESOURCES=i_carta,i_r_nightshade,i_r_musgo_sangue
+SKILLMAKE=INSCRIPTION 40.0, Necromancy 40.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Vomitar sapos
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=205
+        MOREY={30 70}
+
+[Spell 205]
+DEFNAME=s_vomitar_sapos
+NAME=Maldicao de Kali Naj
+SOUND=01E6
+RUNES=CSR
+CAST_TIME=50
+RESOURCES=i_r_nightshade,i_r_musgo_sangue
+RUNE_ITEM=2266
+SCROLL_ITEM=i_scroll_vomitar_sapos
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted
+EFFECT=5,20
+MANAUSE=35
+SKILLREQ=NECROMANCY 30.0
+INTERRUPT=35.0,100.0
+
+on=@Effect
+if (<flags>&statf_conjured)
+ vomitar
+ return 1
+endif
+newitem i_mry_frog_vomit
+new.more1=<EFFECTSPELL s_vomitar_sapos,<argn2>,<src.uid>>
+new.link=<uid>
+new.equip
+
+
+skill_gain skill_spiritspeak
+return 1
+
+[ITEMDEF i_mry_frog_vomit]
+ID=02130
+NAME=Vomitando sapos
+TYPE=t_eq_script
+
+on=@equip
+timer=<R3,12>
+ATTR=attr_cursed2
+
+on=@timer
+if (!<more1>) || (<link.flags>&040007)
+ remove
+ return 1
+endif
+more1 -= 1
+//disturb
+serv.newitem i_vomito
+new.p=<link.p>
+new.movedir <link.dir>
+new.timer={8 12}
+link.emotegreen vomita um sapo
+IF (<link.isplayer>)
+ link.sfx <link.SEX 043f/032d>
+ link.anim 20
+else
+ link.cry
+endif
+serv.newnpc c_bullfrog
+new.p=<link.p>
+new.movedir <link.dir>
+new.flags |= statf_conjured
+new.timerf 35 suicide
+timer <R5,12>
+return 1
+
+
+//***********************************************************
+//              SPELL NECRO Infestação
+//***********************************************************
+
+[ITEMDEF i_scroll_infestacao]
+ID=02266
+NAME=Pergaminho infestacao
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_musgo_sangue
+SKILLMAKE=INSCRIPTION 40.0, Necromancy 50.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Infestação
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=206
+        MOREY={30 70}
+
+[Spell 206]
+DEFNAME=s_infestation
+NAME=Infestacao
+SOUND=
+RUNES=ICW
+CAST_TIME=15
+RESOURCES=i_r_raiz_de_mandrake,i_r_teia_de_aranha,i_r_musgo_sangue
+RUNE_ITEM=23005
+SCROLL_ITEM=i_scroll_infestacao
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted
+DURATION=30,60
+MANAUSE=16
+SKILLREQ=NECROMANCY 40.0
+INTERRUPT=45.0,100.0
+
+ON=@Success
+if <restest i_mry_infestacao>
+src.sysmessageyellow Voce deve esperar antes de usar essa magia novamente. 
+return 1
+endif
+
+on=@Select
+if (<argn3>==3)
+ sysmessageyellow Para atacar quem?
+endif
+
+
+on=@Effect
+local.crit=<MAXIMUM <eval ((<src.Necromancy>+<src.SpiritSpeak>)/250>,2>
+local.time=<DURATIONSPELL s_infestation,<argn2>,<src.uid>>
+for i 1 <local.crit>
+ obj=<f_conjure_creature c_rato_sepultura_sum,<local.time>>
+ obj.attack <uid>
+end
+
+newitem i_mry_infestacao
+new.equip
+new.timer <local.time>
+new.link=<uid>
+
+skill_gain skill_spiritspeak
+return 1
+
+    
+[ITEMDEF i_mry_infestacao]
+ID=i_rune_poison
+name=memory infestacao
+type=t_eq_script
+layer=layer_special
+    
+ON=@Create
+ATTR=attr_blessed2
+    
+on=@timer
+cont.sysmessagegreen Voce e capaz de invocar ratos novamente.
+remove
+return 1
+
+
+//***********************************************************
+//              SPELL NECRO Envenenar
+//***********************************************************
+
+[ITEMDEF i_scroll_envenenar]
+ID=02266
+NAME=Pergaminho Presenca de Min Gorad
+RESOURCES=i_carta,i_r_nightshade,i_r_asa_morcego
+SKILLMAKE=INSCRIPTION 40.0, Necromancy 50.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Envenenar
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=207
+        MOREY={30 70}
+
+[Spell 207]
+DEFNAME=s_envenenar
+NAME=Presenca de Min Gorad 
+SOUND=0474
+RUNES=CN
+CAST_TIME=20
+RESOURCES=i_r_nightshade,i_r_asa_morcego
+RUNE_ITEM=2259
+SCROLL_ITEM=i_scroll_envenenar
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted
+EFFECT=100,1000
+MANAUSE=14
+SKILLREQ=NECROMANCY 40.0
+INTERRUPT=45.0,100.0
+
+on=@Effect
+veneno <argn2>
+
+
+skill_gain skill_spiritspeak
+return 1
+
+
+//***********************************************************
+//              SPELL NECRO Envenenar mente
+//***********************************************************
+
+[ITEMDEF i_scroll_envenenar_mente]
+ID=02267
+NAME=Pergaminho Desespero
+RESOURCES=i_carta,i_r_nightshade,i_r_perola_negra,i_r_teia_de_aranha
+SKILLMAKE=INSCRIPTION 50.0, Necromancy 60.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Envenenar mente
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=208
+        MOREY={30 70}
+
+[Spell 208]
+DEFNAME=s_envenenar_mente
+NAME=Desespero
+SOUND=01E4
+RUNES=DQ
+CAST_TIME=25
+RESOURCES=i_r_nightshade,i_r_perola_negra,i_r_teia_de_aranha
+RUNE_ITEM=20487
+SCROLL_ITEM=i_scroll_envenenar_mente
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_resist
+EFFECT=5,60
+DURATION=10,40
+MANAUSE=15
+SKILLREQ=NECROMANCY 50.0
+INTERRUPT=55.0,100.0
+
+on=@START
+//f_CleanDeBuffs
+if <act.restest i_mry_poison_mind>
+src.sysmessageyellow Voce pode ter apenas um Envenenar Mente ativo sobre um determinado alvo em um dado momento.
+return 1
+endif
+
+
+ON=@SUCCESS
+serv.newitem = i_fx_sparkle_2
+new.color=000bc
+new.attr=attr_static|attr_decay
+new.timer=2
+new.p=<act.p>
+
+on=@Effect
+local.modnec=<eval ((<argn2>*<src.int>)/150)+<MULDIV <src.SpiritSpeak>,25,100>>
+local.effect=<EFFECTSPELL s_envenenar_mente,<local.modnec>,<src.uid>>
+local.time=<DURATIONSPELL s_envenenar_mente,<argn2>,<src.uid>>
+local.int=<maximum <eval 1-<INT>>,-<local.effect>>
+Buff_INT <local.int>,<local.time>
+MANA=<minimum <int>,<mana>>
+
+newitem i_mry_poison_mind
+
+new.link <uid>
+new.more1 <eval <local.time>/2>
+trysrc <uid> src.new.equip
+
+
+skill_gain skill_spiritspeak
+return 1
+
+[ITEMDEF i_mry_poison_mind]
+ID=02082
+NAME=Envenenar mente
+TYPE=t_eq_script
+
+ON=@Create
+ATTR=attr_cursed2
+
+on=@equip
+timer=1
+
+on=@timer
+if (!<more1>)
+ remove
+endif
+more1 -= 1
+if (<link.mana>)
+ link.mana -= 1
+endif
+timerd 15
+return 1
+
+
+
+//***********************************************************
+//              SPELL NECRO Morto-Vivo Menor
+//***********************************************************
+
+[ITEMDEF i_scroll_summon_undead_lo]
+ID=02268
+NAME=Pergaminho Morto-Vivo menor
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_nightshade,i_r_musgo_sangue
+SKILLMAKE=INSCRIPTION 50.0, Necromancy 60.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Morto-Vivo Menor
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=209
+        MOREY={30 70}
+
+[Spell 209]
+DEFNAME=s_summon_undead_lo
+NAME=Morto-Vivo Menor
+SOUND=0216
+RUNES=ICX
+CAST_TIME=40
+RESOURCES=i_r_raiz_de_mandrake,i_r_nightshade,i_r_musgo_sangue
+RUNE_ITEM=05000
+SCROLL_ITEM=i_scroll_summon_undead_lo
+FLAGS=SPELLFLAG_GOOD | spellflag_scripted | spellflag_summon
+DURATION=2*60,6*60
+MANAUSE=22
+SKILLREQ=NECROMANCY 50.0
+INTERRUPT=55.0,100.0
+
+on=@SUCCESS //on=@Effect
+f_summon_undead_lo <argn2>,<src.uid>
+f_summon_undead_lo <argn2>,<src.uid>
+if (<BELLTEST <argn2>,75.0,16.5>) || (<argn2> > 80.0)
+ f_summon_undead_lo <argn2>,<src.uid>
+ if (<BELLTEST <argn2>,95.0>16.5)
+  f_summon_undead_lo <argn2>,<src.uid>
+ endif
+endif
+return 0
+
+[FUNCTION f_summon_undead_lo]
+local.crit={c_zombie_sum 4 c_skeleton_sum 3 c_skeleton_w_axe_sum 2 c_spectre_sum 1}
+local.time=<DURATIONSPELL s_summon_undead_lo,<argv0>,<argv1>>
+f_summon_creature <local.crit>,<local.time>
+
+skill_gain skill_spiritspeak
+return 1
+
+
+//***********************************************************
+//              SPELL NECRO Mascara da morte
+//***********************************************************
+
+[ITEMDEF i_scroll_mascara_morte]
+ID=02269
+NAME=Pergaminho mascara da morte
+RESOURCES=i_carta,i_r_nightshade,i_r_teia_de_aranha,i_r_musgo_sangue
+SKILLMAKE=INSCRIPTION 60.0, Necromancy 70.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Mascara da morte
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=210
+        MOREY={30 70}
+
+[Spell 210]
+DEFNAME=s_mascara_morte
+NAME=Masscara da Morte
+SOUND=01EB
+RUNES=VX
+CAST_TIME=50
+RESOURCES=i_r_nightshade,i_r_teia_de_aranha,i_r_musgo_sangue
+RUNE_ITEM=20486
+SCROLL_ITEM=i_scroll_mascara_morte
+FLAGS=SPELLFLAG_GOOD | spellflag_scripted | spellflag_targ_char
+DURATION=5*60,10*60
+MANAUSE=18
+SKILLREQ=NECROMANCY 60.0
+INTERRUPT=65.0,100.0
+
+on=@Effect
+if (!<restest i_spl_death_mask>)
+    local.body=<body>
+    IF (<isplayer> && <R0,<argn2>> < 25.0)
+        local.body={c_zombie_poly 2 c_grim_reaper_poly 1}
+        //lembrar que quando polimorfa pra corpo nao humano o equipamento vai pra bag
+        //preferencialmente remover essa magia de npcs agressivos pra evitar possiveis apelacoes
+    ENDIF
+    local.time=<DURATIONSPELL s_mascara_morte,<argn2>,<src.uid>>
+    f_polymorph <local.body>,0,<local.time>
+    newitem i_spl_death_mask
+    new.equip
+    new.timer <local.time>
+else
+    consume 1 i_spl_death_mask, 1 i_spl_polymorph
+endif
+
+skill_gain skill_spiritspeak
+return 1
+
+[ITEMDEF i_spl_death_mask]
+ID=i_rune_poison
+name=death mask
+type=t_eq_script
+layer=layer_special
+
+ON=@Create
+ATTR=attr_blessed2
+
+on=@equip
+timer 1
+cont.sysmessagegreen O alvo se torna palido e sem vida como um defunto.
+
+on=@timer
+cont.sysmessagegreen O alvo volta ao seu estado natural de ser vivo.
+remove
+return 1
+
+
+//***********************************************************
+//              SPELL NECRO Demencia
+//***********************************************************
+
+[ITEMDEF i_scroll_demencia]
+ID=0226A
+NAME=Pergaminho demencia
+RESOURCES=i_carta,i_r_nightshade,i_r_alho,i_r_teia_de_aranha
+SKILLMAKE=INSCRIPTION 60.0, Necromancy 70.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Demencia
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=211
+        MOREY={30 70}
+
+[Spell 211]
+DEFNAME=s_demencia
+NAME=Demencia
+SOUND=0212
+RUNES=QJS
+CAST_TIME=50
+RESOURCES=i_r_nightshade,i_r_nightshade,i_r_alho,i_r_teia_de_aranha
+RUNE_ITEM=2242
+SCROLL_ITEM=i_scroll_demencia
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_resist
+DURATION=3,20//O real é isso x3 por causa do TIMER da memory
+MANAUSE=15
+SKILLREQ=NECROMANCY 60.0
+INTERRUPT=65.0,100.0
+
+on=@Effect
+newitem i_spl_demence
+new.link <UID>
+new.more2 <src.uid>//Guardar o caster pra fugir
+new.equip
+new.more1 <DURATIONSPELL s_demencia,<argn2>,<src.uid>>
+new.timer=1
+
+skill_gain skill_spiritspeak
+return 1
+
+[ITEMDEF i_spl_demence]
+ID=i_rune_curse
+name=Demencia
+type=t_eq_script
+layer=layer_special
+
+on=@create
+attr=0222
+more1=5
+
+on=@equip
+timer 1
+if (!<link.isplayer>)
+ link.mana=0
+else
+ link.flags |= 0400000//Hallu
+ link.sysmessagegreen Voce se sente muito estranho 
+ link.update
+endif
+
+on=@timer
+IF (!<more1>)
+ remove
+else
+more1=<more1>-1
+timer=<R2,4>
+ENDIF
+
+IF (!<link.isplayer>)
+ link.mana=0
+ link.act=<more2>//UID do caster
+ link.action=069//Flee
+ return 1
+ENDIF
+
+IF (!(<link.flags>&012))
+  DORAND 5
+  link.msay louco
+  link.stun 3
+  link.msay louco
+  link.msay sentidos
+  link.f_vomita
+ enddo
+ link.update
+ENDIF
+return 1
+
+on=@destroy
+link.flags &= ~0400000        //Tira hallu
+link.update
+link.sysmessagegreen Voce se sente melhor
+return 0
+
+[FUNCTION msay]
+if (strmatch(<args>,louco)
+    sysmessagered Voce esta completamente louco!
+    dorand 21
+        say Eu vim pelo portal dos deuses do passado!
+        emotered morde os bracos
+        say Eu sou Atila, o Ardente! Meu pubis esta em chamas!
+        say Mamaaaaaae! Cuspiram em mim!
+        say Cadela, vadia... humpf!
+        say Posso segurar seu olho?
+        say MWAHUAHUAHUAHUAHUAHUAHUAAAAAaaaaaaa!!!
+        say Bilurilis? Onde esta voce, Bilurilis?
+        emotered defecando
+        say O homem de burro comeu a lingua! Eu vi sim!
+        say A palavra dele e falsa! Tao falsa quanto o meu cajado!
+        emotegreen apalpa as nadegas
+        say Nao fui eu! Pergunte a Mond!
+        say Como voce pode fumar isto?
+        say Nao me toque! Estou purificado pelo nome de... MIM! HAHAHA!
+        say *sussura* Coeliiiiiiinho, vem, vem, veeeeem.. pspssssss.
+        emotegreen vomita sangue
+        say Nao conte com isso...
+        emotered arregala os olhos
+        say Hummmm!!! Que delicia de perninha!
+        emotered abocanha
+    enddo
+elif (strmatch(<args>,sentidos)
+    DORAND 11
+        sysmessagegreen Voce sente seus tentaculos alongarem-se ate a lua.
+        sysmessagegreen Voce esta pisando nos seus olhos!
+        sysmessageblue Nem mesmo um dragao pode deter sua furia!
+        sysmessagegreen Os duendes da gelatina estao pinicando sua barbatana.
+        sysmessageblue Voce esta invisivel. Ninguem pode te ver.
+        sysmessagered Voce esta cozinhando num enorme caldeirao!
+        sysmessageyellow Aquele sujeito beliscou sua bunda.
+        sysmessageyellow Seu amigo Salcichao esta do seu lado.
+        sysmessagegreen Voce ve o homem de burro comer a lingua. Ve sim.
+        sysmessage Bilurilis acaba de fugir.
+        sysmessageblue Voce esta purificado em nome de <tag.name>!
+    ENDDO
+endif
+
+
+//***********************************************************
+//              SPELL NECRO Morto-Vivo
+//***********************************************************
+
+[ITEMDEF i_scroll_summon_undead_re]
+ID=0226B
+NAME=Pergaminho Morto-Vivo
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_nightshade,i_r_perola_negra
+SKILLMAKE=INSCRIPTION 70.0, Necromancy 80.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Morto-Vivo
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=212
+        MOREY={30 70}
+
+[Spell 212]
+DEFNAME=s_summon_undead_re
+NAME=Morto-Vivo
+SOUND=0216
+RUNES=ECX
+CAST_TIME=55
+RESOURCES=i_r_raiz_de_mandrake,i_r_nightshade,i_r_perola_negra
+RUNE_ITEM=20495
+SCROLL_ITEM=i_scroll_summon_undead_re
+FLAGS=SPELLFLAG_GOOD | spellflag_scripted | spellflag_summon
+DURATION=2*60,5*60
+MANAUSE=28
+SKILLREQ=NECROMANCY 70.0
+INTERRUPT=75.0,100.0
+
+on=@SUCCESS  //on=@Effect
+obj=<f_summon_undead_re <argn2>,<src.uid>>
+if (<BELLTEST <argn2>,72.5,15.0>)
+ f_summon_undead_lo <argn2>,<src.uid>
+ if (<BELLTEST <argn2>,80.0,15.0>)
+  f_summon_undead_lo <argn2>,<src.uid>
+ endif
+ if (<BELLTEST <argn2>,90.0,15.0>)
+  f_summon_undead_re <argn2>,<src.uid>
+ endif
+ src.sysmessagegreen <obj.name> trouxe um lacaio.
+endif
+
+skill_gain skill_spiritspeak
+return 0
+
+[FUNCTION f_summon_undead_re]
+local.crit={c_grim_reaper_sum 3 c_skeleton_w_sword_sum 3 c_zumbi_quadrupide_sum 2 c_massa_carne_sum 1}
+local.time=<DURATIONSPELL s_summon_undead_re,<argv0>,<argv1>>
+local.ret=<f_summon_creature <local.crit>,<local.time>>
+return <local.ret>
+
+//***********************************************************
+//              SPELL NECRO Putrefação
+//***********************************************************
+
+[ITEMDEF i_scroll_putrefacao]
+ID=0226C
+NAME=Pergaminho putrefacao
+RESOURCES=i_carta,i_r_nightshade,i_r_musgo_sangue,i_r_olho_morto_vivo
+SKILLMAKE=INSCRIPTION 70.0, Necromancy 80.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Putrefacao
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=213
+        MOREY={30 70}
+
+[Spell 213]
+DEFNAME=s_putrefacao
+NAME=Putrefacao
+SOUND=0216
+RUNES=CVW
+CAST_TIME=55
+RESOURCES=i_r_nightshade,i_r_musgo_sangue,i_r_olho_morto_vivo
+RUNE_ITEM=20482
+SCROLL_ITEM=i_scroll_putrefacao
+FLAGS=SPELLFLAG_HARM | spellflag_scripted | spellflag_targ_char
+EFFECT=
+DURATION=30,60
+MANAUSE=24
+SKILLREQ=NECROMANCY 70.0
+INTERRUPT=75.0,100.0
+
+on=@EFFECT
+
+local.time=<DURATIONSPELL s_putrefacao,<argn2>,<src.uid>>
+f_polymorph <body>,0b53,<local.time>
+slow <local.time>
+
+IF (<tag0.aggravate>&DAM_POISON) //Já tem dano agravado por veneno?
+ if (<restest i_rune_poison_weakness>) //O que agrava o dano é essa magia?
+  findid.i_rune_poison_weakness.timerd 1 //Então cancele a magia e fim.
+ endif //Se ele já tiver agravamento por veneno, pode ser natural ou ter outra fonte. Abortar.
+ELIF (<tag0.immune>&DAM_POISON) || (<tag0.regendam>&DAM_POISON) //Ele pode sofrer agravante por poison?
+ src.sysmessagered <name> eh imune a ataques venenosos!
+ELSE //Ele ainda não tem agravamento de dano para fogo, não é imune e nem se regenera com poison.
+ newitem i_rune_poison_weakness
+ trysrc <uid> src.new.equip
+ new.timer=<local.time>
+
+return 1
+
+[ITEMDEF i_rune_poison_weakness]
+NAME=Poison Weakness
+ID=020A4
+TYPE=t_eq_script
+LAYER=layer_special
+
+on=@equip
+cont.sysmessagered Voce esta extremamente sensivel a ataques venenosos!
+cont.tag0.aggravate |= <DEF.DAM_POISON>
+ATTR=attr_cursed2
+
+on=@unequip
+cont.sysmessageblue Sua sensibilidade a veneno passou.
+cont.sfx 0208
+cont.tag0.aggravate &= ~<DEF.DAM_POISON>
+
+on=@timer
+remove
+
+
+skill_gain skill_spiritspeak
+return 1
+
+
+
+//***********************************************************
+//              SPELL NECRO Choque Mental
+//***********************************************************
+
+[ITEMDEF i_scroll_choque_mental]
+ID=0226D
+NAME=Pergaminho Pesadelo Recorrente
+RESOURCES=i_r_nightshade,i_r_musgo_sangue,i_r_teia_de_aranha,i_r_cinza_sulfurosa
+SKILLMAKE=INSCRIPTION 80.0, Necromancy 90.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Choque mental
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=214
+        MOREY={30 70}
+
+[Spell 214]
+DEFNAME=s_choque_mental
+NAME=Pesadelo Recorrente
+SOUND=0213
+RUNES=HZQ
+CAST_TIME=25
+RESOURCES=i_r_nightshade,i_r_musgo_sangue,i_r_teia_de_aranha,i_r_cinza_sulfurosa
+RUNE_ITEM=2276
+SCROLL_ITEM=i_scroll_choque_mental
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_dir_anim | SPELLFLAG_RESIST
+EFFECT=15,30
+MANAUSE=20
+SKILLREQ=NECROMANCY 80.0
+INTERRUPT=85.0,100.0
+
+on=@Effect
+EFFECT 3, i_fx_vortex, 0, 43, 0, 0B53, 5
+local.dam=<EFFECTSPELL 214,<argn2>,<src.uid>> + <MULDIV <src.SpiritSpeak>,30,1000>
+DAMAGE <local.dam>,DAM_POISON,<src.uid>
+f_consumemana <eval <maxmana>/5>
+
+
+skill_gain skill_spiritspeak
+return 1
+
+
+//***********************************************************
+//              SPELL NECRO Polymorphar esqueleto
+//***********************************************************
+
+[ITEMDEF i_scroll_poly_esqueleto]
+ID=0226E
+NAME=Pergaminho Disciplina dos Ossos
+RESOURCES=i_carta,i_r_nightshade,i_r_olho_morto_vivo,i_r_asa_morcego,i_r_raiz_de_mandrake
+SKILLMAKE=INSCRIPTION 80.0, Necromancy 90.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Polimorph esqueleto
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=215
+        MOREY={30 70}
+
+[Spell 215]
+DEFNAME=s_polymorph_esqueleto
+NAME=Disciplina dos Ossos
+SOUND=01F5
+RUNES=CRX
+CAST_TIME=70
+RESOURCES=i_r_nightshade,i_r_olho_morto_vivo,i_r_asa_morcego,i_r_raiz_de_mandrake
+RUNE_ITEM=23013
+SCROLL_ITEM=i_scroll_poly_esqueleto
+FLAGS=SPELLFLAG_GOOD | spellflag_scripted
+DURATION=3*60,5*60
+EFFECT=20,35
+MANAUSE=30
+SKILLREQ=NECROMANCY 80.0
+INTERRUPT=85.0,100.0
+
+
+on=@EFFECT
+//Determina se pode morphar (anti-exploit)
+if (<restest 1 i_spl_polymorph>)
+sysmessayellow voce ja possui um efeito desses ativo.
+ return 1
+endif
+
+//Determina o tempo de duração
+local.time=<DURATIONSPELL s_polymorph_esqueleto,<argn2>,<src.uid>>
+
+//buffa stats
+local.str=<EFFECTSPELL s_polymorph_esqueleto,<argn2>,<src.uid>>
+local.str=<minimumN 75-<str>,<local.str>>
+    Buff_STR,<local.str>,<local.time>
+    
+local.dex=<EFFECTSPELL s_polymorph_esqueleto,<argn2>,<src.uid>>
+local.dex=<minimumN 75-<dex>,<local.dex>>
+    Buff_DEX,<local.dex>,<local.time>
+    
+
+//buffa skills
+local.wrestling=<eval(<EFFECTSPELL s_polymorph_esqueleto,<argn2>,<src.uid>>) *20>
+local.wrestling=<minimumN 750-<wrestling>,<local.wrestling>>
+    BuffSkill Wrestling,<local.wrestling>,<local.time>
+    
+
+stam += <local.dex>
+hits += <local.str>
+
+
+//Determina corpo e itens se tiver.
+if (<argn2> > 90.0)
+ if (<argn2> > 100.0)
+  local.body=c_demonio_ossos_poly
+ else
+  local.body=c_golem_ossos_poly
+ endif
+endif
+
+//Polimorpha
+src.f_polymorph <local.body>,0,<local.time>
+src.timerf <local.time> tag.immune=<tag0.immune>
+src.timerf <local.time> tag.aggravate=<tag0.aggravate>
+src.tag.immune=<src.tag0.immune>|DAM_PIERCE
+src.tag.aggravate=<src.tag0.aggravate>|02
+local.i=0
+
+newitem i_mry_spkmage
+new.equip
+new.timer <local.time>
+new.link=<uid>
+
+skill_gain skill_spiritspeak
+return 1
+
+
+//nao tá sendo usado?
+//Gera item equipavel
+//IF (!<isempty <local.weapon>>)
+// newitem <local.weapon>
+// new.timerf <local.time> remove
+// new.link=<src>
+// new.attr=0104 //cursed | newbie
+// new.tag.override.skill=SpiritSpeak
+// new.cont=<src>
+//ENDIF
+
+//jeito de eventualmente controlar atk speed?
+
+//***********************************************************
+//              SPELL NECRO Pacto de sangue
+//***********************************************************
+
+[ITEMDEF i_scroll_pacto_sangue]
+ID=0226F
+NAME=Pergaminho pacto de sangue
+RESOURCES=i_carta,i_r_nightshade,i_r_perola_negra,i_r_musgo_sangue,i_r_asa_morcego
+SKILLMAKE=INSCRIPTION 90.0, Necromancy 100.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Pacto de sangue
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=216
+        MOREY={30 70}
+
+[Spell 216]
+DEFNAME=s_pacto_sangue
+NAME=Pacto de Sangue
+SOUND=024A
+RUNES=TZP
+CAST_TIME=2.0
+RESOURCES=i_r_nightshade,i_r_perola_negra,i_r_musgo_sangue,i_r_asa_morcego
+RUNE_ITEM=20481
+SCROLL_ITEM=i_scroll_pacto_sangue
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_targ_noself
+DURATION=30,60
+MANAUSE=20
+SKILLREQ=NECROMANCY 90.0
+INTERRUPT=95.0,100.0
+
+on=@Effect
+effect 3 i_fx_sparkle 0 32 0 026
+tag.pacto_sangue=<src.uid>
+events +e_pacto_sangue
+sysmessageorange <g_GetName <src.uid>> fez um pacto de sangue com voce.
+local.time=<DURATIONSPELL s_pacto_sangue,<argn2>,<src.uid>>
+timerf <local.time> events,-e_pacto_sangue
+timerf <local.time> sysmessageorange,Acabou o pacto de sangue entre voce e <g_GetName <tag0.pacto_sangue>>.
+timerf <local.time> tag.pacto_sangue
+
+
+
+skill_gain skill_spiritspeak
+return 1
+
+[EVENTS e_pacto_sangue]
+on=@Hitting//Para playas
+if (<src.uid>==<tag0.pacto_sangue>)
+ local.dam=<eval (<argn1>*<R105,120>)/100)>
+ DAMAGE <local.dam> <argn2> <argn3>
+endif
+
+on=@Hit//Para NPCs
+if (<src.uid>==<tag0.pacto_sangue>)
+ local.dam=<eval (<argn1>*<R105,120>)/100)>
+ DAMAGE <local.dam> <argn2> <argn3>
+endif
+
+
+//***********************************************************
+//              SPELL NECRO Panico
+//***********************************************************
+
+[ITEMDEF i_scroll_panico]
+ID=0226F
+NAME=Pergaminho panico
+RESOURCES=i_carta,i_r_nightshade,i_r_perola_negra,i_r_musgo_sangue,i_r_olho_morto_vivo
+SKILLMAKE=INSCRIPTION 90.0, Necromancy 100.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Panico
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=217
+        MOREY={30 70}
+
+[Spell 217]
+DEFNAME=s_panico
+NAME=Panico
+SOUND=0246
+RUNES=KBL
+CAST_TIME=40
+RESOURCES=i_r_nightshade,i_r_perola_negra,i_r_musgo_sangue,i_r_olho_morto_vivo
+RUNE_ITEM=2277
+SCROLL_ITEM=i_scroll_panico
+FLAGS=SPELLFLAG_HARM | spellflag_targ_char | spellflag_scripted | spellflag_targ_noself | spellflag_resist
+DURATION=10,30
+MANAUSE=24
+SKILLREQ=NECROMANCY 90.0
+INTERRUPT=95.0,100.0
+
+on=@SUCCESS
+
+serv.newitem = i_fx_spin_head
+new.color=00B38
+new.attr=attr_static|attr_decay
+new.more1=30
+new.timer={5 10}
+new.p=<act.p>
+serv.newitem =  i_fx_spin_head  
+new.color=00B38
+new.attr=attr_static|attr_decay
+new.more1=30
+new.timer={5 10}
+new.p=<act.p>
+new.move n
+serv.newitem = i_fx_spin_head
+new.color=00B38
+new.attr=attr_static|attr_decay
+new.more1=30
+new.timer={5 10}
+new.p=<act.p>
+new.move s
+serv.newitem=  i_fx_spin_head
+new.color=00B38
+new.attr=attr_static|attr_decay
+new.more1=30
+new.timer={5 10}
+new.p=<act.p>
+new.move e
+serv.newitem = i_fx_spin_head
+new.color=00B38
+new.attr=attr_static|attr_decay
+new.more1=30
+new.timer={5 10}
+new.p=<act.p>
+new.move w
+serv.newitem = i_fx_spin_head
+new.color=00B38
+new.attr=attr_static|attr_decay
+new.more1=15
+new.timer={5 10}
+new.p=<act.p>
+
+
+
+on=@Effect
+if (<belltest <argn2>,90.0,20.0>)
+ forchars 4
+  if (<uid>!=<src.uid>)
+   f_spl_panico <argn2>,<src.uid>
+   endif
+ end
+else
+ f_spl_panico <argn2>,<src.uid>
+endif
+
+
+
+skill_gain skill_spiritspeak
+return 1
+
+
+[FUNCTION f_spl_panico]
+local.time=<DURATIONSPELL s_panico,<argv0>,<argv1>>
+events +e_scared
+timerf <local.time> events,-e_scared
+
+//***********************************************************
+//              SPELL NECRO Morto-Vivo maior
+//***********************************************************
+
+[ITEMDEF i_scroll_summon_undead_hi]
+ID=02260
+NAME=Pergaminho Morto-Vivo maior
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_nightshade,i_r_perola_negra,i_r_olho_morto_vivo
+SKILLMAKE=INSCRIPTION 100.0, Necromancy 110.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Morto-Vivo maior
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=218
+        MOREY={30 70}
+
+[Spell 218]
+DEFNAME=s_summon_undead_hi
+NAME=Morto-Vivo Maior
+SOUND=0216
+RUNES=KCX
+CAST_TIME=65
+RESOURCES=i_carta,i_r_raiz_de_mandrake,i_r_nightshade,i_r_perola_negra,i_r_olho_morto_vivo
+RUNE_ITEM=20485
+SCROLL_ITEM=i_scroll_summon_undead_hi
+FLAGS=SPELLFLAG_GOOD | spellflag_scripted | spellflag_summon
+DURATION=2*60,4*60
+MANAUSE=35
+SKILLREQ=NECROMANCY 100.0
+INTERRUPT=100.0,100.0
+
+on=@SUCCESS  //on=@Effect
+obj=<f_summon_undead_hi <argn2>,<src.uid>>
+if (<belltest <argn2>,50.0,25.0>)
+ f_summon_undead_re <argn2>,<src.uid>
+ if (<belltest <argn2>,98.5,20.0>)
+  f_summon_undead_lo <argn2>,<src.uid>
+  if (<belltest <argn2>,115.0,20.0>)
+   f_summon_undead_lo <argn2>,<src.uid>
+  endif
+ endif
+ src.sysmessagegreen <obj.name> trouxe lacaios.
+endif
+
+
+
+skill_gain skill_spiritspeak
+return 0
+
+[FUNCTION f_summon_undead_hi]
+local.crit={c_senhor_sombras_sum 1 c_cavaleiro_sombras_sum 3 c_mummy_sum 3}
+local.time=<DURATIONSPELL s_summon_undead_hi,<argv0>,<argv1>>
+local.ret=<f_summon_creature <local.crit>,<local.time>>
+return <local.ret>
+
+//***********************************************************
+//              SPELL NECRO Polymorphar lich
+//***********************************************************
+
+[ITEMDEF i_scroll_poly_lich]
+ID=02261
+NAME=Pergaminho Necropotencia
+RESOURCES=i_carta,i_r_nightshade,i_r_olho_morto_vivo,i_r_asa_morcego,i_r_raiz_de_mandrake,i_r_alho
+SKILLMAKE=INSCRIPTION 100.0, Necromancy 110.0
+TYPE=T_SCROLL
+WEIGHT=1
+//CIRCLE=1
+CATEGORY=MyT - Provisions - Alchemy & Magic
+SUBSECTION=Scrolls - Necromancy
+DESCRIPTION=Polimorph liche
+
+ON=@Create
+        ATTR=ATTR_MAGIC
+        MOREX=219
+        MOREY={30 70}
+
+[Spell 219]
+DEFNAME=s_polymorph_liche
+NAME=Necropotencia
+SOUND=01F5
+RUNES=HCX
+CAST_TIME=10.0
+RESOURCES=i_r_nightshade,i_r_olho_morto_vivo,i_r_asa_morcego,i_r_raiz_de_mandrake,i_r_alho
+RUNE_ITEM=20486
+SCROLL_ITEM=i_scroll_poly_lich
+FLAGS=SPELLFLAG_GOOD | spellflag_scripted
+EFFECT=25,100
+DURATION=5*60,10*60
+MANAUSE=70
+SKILLREQ=NECROMANCY 100.0
+INTERRUPT=100.0,100.0
+
+on=@Effect
+//Determina se pode morphar (anti-exploit)
+if (<restest 1 i_spl_polymorph>)
+ sfx 0301
+ spelleffect s_choque_mental <argn2>
+ sysmessagered Nao ouse, mortal!
+ return 1
+endif
+
+//Determina o tempo de duração e bonus de int
+local.time=<DURATIONSPELL s_polymorph_liche,<argn2>,<src.uid>>
+local.int=<EFFECTSPELL s_polymorph_liche,<argn2>,<src.uid>>
+local.body=c_lich_poly
+
+//Determina corpo e itens se tiver.
+if (<belltest <argn2>,125.0,20.0>)
+ local.int += 20
+endif
+
+//Buffa skils
+local.necromancy=<eval(<EFFECTSPELL s_polymorph_liche,<argn2>,<src.uid>>) *20>
+    BuffSkill Necromancy,<local.necromancy>,<local.time>
+local.spiritspeak=<eval(<EFFECTSPELL s_polymorph_liche,<argn2>,<src.uid>>) *20>
+    BuffSkill Spiritspeak,<local.spiritspeak>,<local.time>
+
+//Polimorpha
+src.f_polymorph <local.body>,0,<local.time>
+// timerf <local.time> tag.immune=<tag0.immune>
+// tag.immune=<tag0.immune>|DAM_PIERCE
+Buff_INT <local.int>,<local.time>
+MANA=<INT>
+
+// Adiciona caster
+newitem i_mry_spkmage
+new.equip
+new.timer <local.time>
+new.link=<uid>
+
+skill_gain skill_spiritspeak
+return 1
+
+
+[EOF]
