@@ -3203,4 +3203,135 @@ SKILLMAKE=Tinkering 500
 TEVENTS=t_furniture
 //aqui termina o extraido do itemforge. 172 linhas. 2017-10-22
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+//*****************************************************************************
+//Item: i_alvo_arremesso
+//*****************************************************************************
+//Rev: 3 Ts: 2017-10-25 02:12:21
+[ITEMDEF i_alvo_arremesso]
+ID=01e2e
+NAME=Alvo de Madeira
+CATEGORY=Myt - items by professions
+SUBSECTION=Barkeep
+DESCRIPTION=Alvo de Madeira
+WEIGHT=10.0
+VALUE=50
+TYPE=t_buy_misc
+RESOURCES=4 i_tabua, 7 i_pregos
+SKILLMAKE=CARPENTRY 300
+TEVENTS=t_furniture
+
+ON=@CREATE
+COLOR=0
+//Criacao automatica
+ON=@DCLICK
+if (<src.distance <uid>> > 8) // verifica distancia e se o alvo esta disponivel
+    .sysmessageyellow Muito longe...
+    return 1
+    elif (<dispid>==i_dartboard) || (<dispid>==01e2f)
+        IF (<SRC.RESTEST 1 i_machadinha>) || (<src.restest 1 i_adaga)
+        src.emotered faz mira no alvo
+        Target Selecione uma machadinha ou adaga para arremessar
+        return 1
+        else
+            src.sysmessagered Voce precisa de uma adaga ou machadinha para arremessar
+            return 1
+        endif
+    elif (!<dispid>==i_dartboard) && (!<dispid>==01e2f)
+        src.emotered observa armas cravadas no alvo
+        src.sysmessagered O alvo precisa ser limpo
+    return 1
+endif
+
+if (<src.distance <uid> < 3) && ((<dispid>==i_dartboard) || (<dispid>==01e2f))
+    src.emotered passa a mao no alvo
+    src.sysmessage voce pensa se eh capaz de acertar o 10.
+    return 0
+endif
+
+if (<src.distance <UID>> < 3) && ((<dispid>==i_dartboard_axe)||(<dispid>==01e31)||(<dispid>==i_dartboard_knives)||(<dispid>==01e33))  //retirar arma presa no alvo
+        src.emotered retira arma presa no alvo
+        src.anim 07
+        sfx 051
+        serv.newitem <tag0.arma>
+        new.p <p>
+        new.maxhits=<tag0.armaMAXHITS>
+        new.hits =<tag0.armaHITS> - 1
+        
+        if (<dispid>==i_dartboard_axe) //ajuste do dispid na posicao correta depois de tirar arma
+            dispid=i_dartboard
+            update
+            return 0
+            
+            elif (<dispid>==01e31)
+                dispid=01e2f
+                update
+                return 0
+                
+            elif (<dispid>==i_dartboard_knives)
+                dispid=i_dartboard
+                update
+                return 0
+        
+            elif (<dispid>==01e33)
+                dispid=01e2f
+                update
+                return 0
+            
+        endif
+
+endif
+    
+on=@targon_item
+if ( <src.uid> != <topobj.uid> )
+    src.sysmessageyellow Precisa ser algo de dentro da sua mochila.
+    
+ elif (<src.targ.baseid>==i_machadinha) || (<src.targ.baseid>==i_adaga) //permite arremessar se for machadinha ou adaga
+    if (<src.distance <uid>> > 8)
+        .sysmessageyellow Aproxime-se do alvo...
+        return 1
+        
+        elif (<src.distance <uid>> < 2)
+            .sysmessageyellow Vai alisar o alvo ou arremessar? Voce esta muito perto
+            return 1
+            elif (<src.distance <uid> > 2)
+        src.SFX 0232
+        src.emotered arremessa uma <src.targ.name> e acerta em <EVAL <R1,10>> pontos
+        src.targ.remove
+        SFX 042
+        
+        if (<src.targ.baseid>==i_machadinha) // se for machadinha ajusta tag da arma e o dartboard
+            tag0.arma i_machadinha
+            tag0.armaMAXHITS <src.targ.maxhits>
+            tag0.armaHITS <src.targ.hits>
+                    if (<dispid>==01e2f)
+                        dispid=01e31
+                        update
+                        return 1
+                        elif (<dispid>==i_dartboard)
+                            dispid=i_dartboard_axe
+                        update
+                        return 1
+                    endif
+            
+            elif (<src.targ.baseid>==i_adaga) // se for adaga ajusta a tag da arma e o dartboard
+                tag0.arma i_adaga
+            tag0.armaMAXHITS <src.targ.maxhits>
+            tag0.armaHITS <src.targ.hits>
+                    if (<dispid>==01e2f)
+                        dispid=01e33
+                        update
+                        return 1
+                        elif (<dispid>==i_dartboard)
+                            dispid=i_dartboard_knives
+                        update
+                        return 1
+                    endif
+             return 0
+        endif
+    endif
+endif
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 [EOF]
