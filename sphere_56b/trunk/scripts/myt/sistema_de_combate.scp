@@ -28,7 +28,7 @@
 //  ANATOMY
 //    + (ANATOMY / 2)%  - 0 a 50%
 //  TACTICS
-//    + (TACTICS / 2)%  - 0 a 50%
+//    + (TACTICS / 2)%  - 0 a 50%hit
 //  ATACANTE ENVENENADO
 //   !!!! - (more2 / 15)
 //  STAMINA
@@ -93,6 +93,7 @@ WPE_20    1 //poison
 WPE_30    1 //lightning
 WPE_38    1 //paralyse
 WPE_51    1 //flamestrike
+WPE_200   1 //cansar músculos
 WPE_350   1 //chill
 
 SPE_11    1 //cure
@@ -290,6 +291,48 @@ ON=@KILL
 event_kill
 
 //*************************************
+// @HITCHECK
+//*************************************
+//	- Args
+//		Argn1 = SWING_TYPE. Swing will be set to this value after the trigger so you can 'jump' between swings with or without default checks.
+//		Argn2 = DAM_FLAGS
+//	- Returns
+//		return -1 SWING_INVALID
+//		return 0 default checks
+//		return 1 will make Sphere return the SWING_TYPE applied in argn1, so if you are in SWING_SWINGING and you set argn1 to SWING_EQUIPPING you'll have to start the hit proccess again.
+//				(Note, argn1 there will NOT set SWING to it's value).
+//	- Special returns will be fired when SWING_TYPE = SWING_SWINGING & FLAGS & DAM_FIXED
+//		return 0 will generate the default damage formula and flags (if not set via argn2) and then call the gethit function without DAM_FIXED applied.
+//		return 2 will finish the hit function AS IT IS and will NOT call the gethit function (this asume you are creating the damage, formulas and calling .damage function).
+//Note: Using new DAM_FIXED or return 1, -1 will obviously NOT call any skillgain, memory change, exp, attacker update, notoriety, actions, etc. Using this will (almost) make you to rewrite the whole system as shown in the given script.
+ON=@HITCHECK
+//Acerta que flecha usar. Cancela se não houve flecha.
+if (<WEAPON.type>==t_weapon_bow) || (<WEAPON.type>==t_weapon_xbow)
+	ref1 = <WEAPON.tag0.arrow> 	//tag.arrow do arco é a pilha de flechas sendo usada
+	local.HasArrow=<ref1.IsItem>
+	local.ArrowInPack=0
+	if (<local.HasArrow>)
+		local.ArrowInPack = <qval <ref1.topobj> == <UID> ? 1 : 0>
+	endif
+	if (!<local.HasArrow>) || (!<local.ArrowInPack>) //Não tenho mais flechas ou elas não estão comigo
+		if (!<WEAPON.f_find_new_arrows>)			 //Tenta achar mais flechas iguais na bag. Se não achar...
+			sysmessagered Voce esta sem flechas.
+			action=0
+			return -1
+		endif
+	endif
+	if <WEAPON.type>==t_weapon_bow
+		if !<WEAPON.AMMOANIM>
+			WEAPON.AMMOANIM=i_arrow_x
+		endif
+	elif <WEAPON.type>==t_weapon_xbow
+		if !<WEAPON.AMMOANIM>
+			WEAPON.AMMOANIM=i_xbolt_x
+		endif
+	endif    
+endif
+
+//*************************************
 // @HITTRY
 //*************************************
 //SRC:      esta apanhando
@@ -314,16 +357,11 @@ actdiff=1000
 //event de Town
 TRIGGER @TownHit,<DEF.TAT_AS_ARGN><src>
 
-//fix do bug causado pelo uso do TDATA4 como hitpoints
-if <WEAPON.type>==t_weapon_bow
-    if !<WEAPON.AMMOANIM>
-        WEAPON.AMMOANIM=i_arrow_x
-    endif
-elif <WEAPON.type>==t_weapon_xbow
-    if !<WEAPON.AMMOANIM>
-        WEAPON.AMMOANIM=i_xbolt_x
-    endif
-endif    
+//Gastar flechas
+if (<WEAPON.type>==t_weapon_bow) || (<WEAPON.type>==t_weapon_xbow)
+	ref1=<weapon.tag0.arrow>
+	ref1.decrement
+endif
 
 //*************************************
 // @HITMISS - somente evita mensagem de miss
@@ -596,9 +634,6 @@ else
         src.trigger @KILL
     endif
 endif
-
-//src.TRIGGER @TownHit,<DEF.TAT_AS_ARGN><uid>
-
 return 1
 
 //*************************************
@@ -793,6 +828,21 @@ else
 
 endif //verificação se o sistema de combate novo está ligado
 
+//Para coletar flecha do chão, ela tem que ser coletável e quem tem 100.0 de archery tem 20% de chance
+if (<WEAPON.type>==t_weapon_bow) || (<WEAPON.type>==t_weapon_xbow)
+	ref1=<WEAPON.tag0.arrow>
+	if (<ref1.IsItem>)
+		if (<ref1.tag0.colect>)
+			if (<R5> <= <archery>)	//20% de chance com 100.0 de archery
+				newitem <WEAPON.AMMOTYPE>
+				new.amount=1
+				new.p=<src.p>
+				new.update
+				new.decay
+			endif
+		endif
+	endif
+endif
 
 if !<npc>
     sysmessageyellow <src.name> esquiva-se de seu golpe!
@@ -905,7 +955,11 @@ endif
 [FUNCTION cmb_wpe_20]
 if (<action>==skill_archery)
 //Arcos
-    return 0    //depende da flecha e do Special Move
+    //depende da flecha e do Special Move
+    if ( (!<R33>) || (<BELLTEST <TACTICS>,<eval <weapon.morex>+15.0>,10.0>) ) && (!<src.IsPoisoned>)
+        src.veneno <weapon.morex>
+    endif
+    serv.log [<weapon.name>] :: <weapon.morex> :: <eval <weapon.morex>/178> :: <src.name>
 elif ((<weapon.morex> <= 150) || (<weapon.morex> > 2000))
 //Armas melee perdendo a carga
     weapon.more2=0
@@ -923,7 +977,7 @@ else
         src.veneno <weapon.morex>
     endif
     serv.log [<weapon.name>] :: <weapon.morex> :: <eval <weapon.morex>/100>>
-    src.damage <eval <weapon.morex>/100>> dam_poison <uid>
+    src.damage <eval <weapon.morex>/100> dam_poison <uid>
     weapon.morex=<eval (<weapon.morex>*50)/51>
 endif
 
@@ -962,6 +1016,25 @@ src.damage <R5,10> dam_fire <uid>
 weapon.morex -= 1
 if !<weapon.morex>
     weapon.more2=0
+endif
+
+//*****************************************************************************
+// cmb_wpe_200 -- cansar músculos
+//*****************************************************************************
+[FUNCTION cmb_wpe_200]
+if (<src.stam> > 10)
+	local.penalty=<eval (<archery>/250)+1>	//Perde de 1 a 5 stam, de 0 a 125.0 archery
+	src.stam -= <local.penalty>
+endif
+if (!<R99>)									//1% de chance de acontecer
+	if (<BELLTEST <archery>,90.0,10.0>)		//Se passar num teste de 90.0 de archery
+		src.stun 3
+		src.emotered paralizado
+	else
+		local.penalty=-<eval <src.dex>/4>	//Reduz a dex por 1/4 por 15 segundos
+		src.Buff_DEX <local.penalty> 15
+		src.emotered cansado (<src.dex>)		
+	endif
 endif
 
 //*****************************************************************************

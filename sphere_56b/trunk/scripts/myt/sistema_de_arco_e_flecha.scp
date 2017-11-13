@@ -160,45 +160,72 @@ ON=@EQUIP
 //*****************************************************************************
 //Corrige o arco de acordo com a munição
 [FUNCTION correctammo] 
-
-LOCAL.wtype=<src.weapon.type>
-
-//garante que esta com arco/dardo e flecha correspondente
-if <topobj>!=<src>
-    return 1
-elif (<LOCAL.wtype>!=t_weapon_bow) && (<LOCAL.wtype>!=t_weapon_xbow)
-    return 1
-elif  (<LOCAL.wtype>==t_weapon_bow) && (<type>!=T_WEAPON_ARROW)
-    return 1
-elif  (<LOCAL.wtype>==t_weapon_xbow) && (<type>!=T_WEAPON_BOLT)
-    return 1
+if (<src.weapon.f_set_ammo <uid>>)
+	src.sysmessageblue Agora usando <name>!
 endif
 
-src.weapon.AMMOTYPE=<baseid>
-src.weapon.AMMOANIMHUE=<color>
+//*****************************************************************************
+// f_set_ammo
+//*****************************************************************************
+// DEFAULT: arma t_weapon_bow ou t_weapon_xbow
+// <argo>: Pilha de flechas ou dardos
+// retorna 0 se não selecionou corretamente
+// retorna 1 se selecionou corretamente
+// ex: src.weapon.f_set_ammo <finditemid.i_arrow>
+[FUNCTION f_set_ammo]
+argo=<argn1>
 
-src.weapon.more2=<more1>
-if (!<TAG0.effect>)
-    src.weapon.morex=500
+if (<type>!=t_weapon_bow) && (<type>!=t_weapon_xbow)
+    return 0
+elif  (<type>==t_weapon_bow) && (<argo.type>!=T_WEAPON_ARROW)
+    return 0
+elif  (<type>==t_weapon_xbow) && (<argo.type>!=T_WEAPON_BOLT)
+    return 0
+endif
+
+AMMOTYPE=<argo.baseid>
+AMMOANIMHUE=<argo.color>
+
+more2=<argo.more1>
+if (!<argo.TAG0.effect>)
+    morex=500
 else
-    src.weapon.morex=<TAG0.effect>
+    morex=<argo.TAG0.effect>
 endif
 
-if (<tag0.anim>)
-    src.weapon.AMMOANIM=<tag0.anim>
+if (<argo.tag0.anim>)
+    AMMOANIM=<tag0.anim>
 else
-    src.weapon.AMMOANIM=
+    AMMOANIM=
 endif
 
-src.weapon.tag.sfx=<tag0.sfx>
-src.weapon.tag.colect=<tag0.colect>
-src.weapon.morez=<morez>
-src.weapon.modAR=<more2>
-src.weapon.dmgfire=<morex>
-src.weapon.dmgcold=<morey>
-src.weapon.dmgpoison=<morez>
-src.weapon.dmgenergy=<morem>
-src.sysmessageblue Agora usando <name>!
+tag.sfx=<argo.tag0.sfx>
+tag.colect=<argo.tag0.colect>
+morez=<argo.morez>
+modAR=<argo.more2>
+damfire=<argo.morex>
+damcold=<argo.morey>
+dampoison=<argo.morez>
+damenergy=<argo.morem>
+tag.arrow=<argo.UID> //Não é uma boa ideia usar LINK. Flechas vão, vem, se perdem, sofrem decay... Se durante um save o Link não for válido, o arco sofre Garbage Collection.
+return 1
+
+//*****************************************************************************
+// f_find_new_arrows
+//*****************************************************************************
+// <arco/xbow>.f_find_new_arrows
+// Obriga o arco a procurar uma nova pilha de flechas com o defname = AMMOTYPE
+// Retorna 0 se falahar ou 1 se novas flechas achadas com sucesso.
+[FUNCTION f_find_new_arrows]
+ref1=<topobj>
+if (!<ref1.IsPlayer>)
+	return 0
+endif
+ref2=<ref1.findid.<AMMOTYPE>>
+if (!<ref2.IsItem>)
+	return 0
+endif
+return <f_set_ammo <ref2>> //Retorna 1 se equipou okay ou 0 se falhou em equipar
 
 //*****************************************************************************
 // f_use_string
@@ -775,7 +802,7 @@ ON=@CREATE
 more1=20//Poison
 morez=2
 color=0455
-TAG.effect=31.3
+TAG.effect=25.0
 
 //*****************************************************************************
 // i_arrow_poison
@@ -789,7 +816,7 @@ ON=@CREATE
 more1=20//Poison
 morez=3
 color=0455
-TAG.effect=62.6
+TAG.effect=50.0
 
 //*****************************************************************************
 // i_arrow_poison_hi
@@ -803,7 +830,7 @@ ON=@CREATE
 more1=20//Poison
 morez=5
 color=0455
-TAG.effect=93.9
+TAG.effect=75.0
 
 //*****************************************************************************
 // i_arrow_poison_xhi
@@ -817,7 +844,7 @@ ON=@CREATE
 more1=20//Poison
 morez=7
 color=0455
-TAG.effect=125.0
+TAG.effect=100.0
 
 //*****************************************************************************
 // i_arrow_ice
@@ -836,15 +863,15 @@ attr=04020          //attr_can_decay|attr_magic
 //*****************************************************************************
 // i_arrow_stun
 //*****************************************************************************
-//[ITEMDEF i_arrow_stun]
-//ID=i_arrow
-//NAME=flecha%s% de paralizia
-//TYPE=T_WEAPON_ARROW
+[ITEMDEF i_arrow_stun]
+ID=i_arrow
+NAME=flecha%s% de paralizia
+TYPE=T_WEAPON_ARROW
 
-//ON=@CREATE
-//more1=026           //Paralyze
-//color=01a
-//attr=04020          //attr_can_decay|attr_magic
+ON=@CREATE
+more1=200			//cançar músculos
+color=01a
+attr=04020          //attr_can_decay|attr_magic
 
 //*****************************************************************************
 // i_arrow_energy
