@@ -1,9 +1,9 @@
-//*****************************************************************************
+﻿//*****************************************************************************
 //*****************************************************************************
 //
 // SISTEMA DE ACOGUE por Jean Gabin
 //  modificado por UsMarine (vinicius.arroyo at gmail.com)
-//
+//  ampliado por Miss e Pyrilin com novas comidas
 // Para usar:
 // 
 //*****************************************************************************
@@ -17,10 +17,12 @@ comida
 // TYPEDEFs
 //*****************************************************************************
 //*****************************************************************************
+
 [TYPEDEF t_food]
 //morex=mordidas
 //morey=magia/veneno (se houver)
 //morez=Força da magia/veneno (se houver)
+//morem=Efeito especial (se houver)
 //TDATA1=máximo de mordidas.
 //TDATA2=Item que devolve quando terminar de comer.
 //TAG.SOURCE=DEFNAME do animal que veio (se ouver). Não usei more2 pq quando synca ou restarta fode tudo.
@@ -43,6 +45,9 @@ if (<amount>==1)
 endif
 
 on=@dclick
+newitem i_mry_foodeffect
+new.more1 <morem>
+src.new.equip
 if (<amount> > 1)
  decrement 1
  src.newdupe <uid>
@@ -84,95 +89,95 @@ return 1
 //////////////////////////////////////  sistema de churrasco começa aqui
 on=@dclick
 IF (STRMATCH(Orc,<tag.raca>))
-	f_consumeFood
+    f_consumeFood
 return 1
 elif (<distance> > 1)
-	src.sysmessagered <name> esta muito longe. Chegue mais perto. 
+    src.sysmessagered <name> esta muito longe. Chegue mais perto. 
 return 1
 elif (<topobj.uid> != <src.uid>)
-	bounce
-	src.sysmessagered Voce colocou <name> na mochila
+    bounce
+    src.sysmessagered Voce colocou <name> na mochila
 return 1
 else
-	if (<baseid> == i_rabbit_raw) || (<baseid> == i_bird_raw) || (<baseid> == i_ribs_raw) || (<baseid> == i_fish_raw) || (<baseid> == i_ham_raw)
-		if (<src.camping> >= 100)
-			src.sysmessageyellow Selecione a fogueira para assar <name>
-			TARGET
-		return 1
-		else
-			src.sysmessagered Esta cru e voce nao possui habilidade suficiente para fazer churrasco.
-		return 1
-		endif
-	return 1
-	else
-		src.sysmessagered Esta cru...
-	return 1
-	endif
+    if (<baseid> == i_rabbit_raw) || (<baseid> == i_bird_raw) || (<baseid> == i_ribs_raw) || (<baseid> == i_fish_raw) || (<baseid> == i_ham_raw)
+        if (<src.camping> >= 100)
+            src.sysmessageyellow Selecione a fogueira para assar <name>
+            TARGET
+        return 1
+        else
+            src.sysmessagered Esta cru e voce nao possui habilidade suficiente para fazer churrasco.
+        return 1
+        endif
+    return 1
+    else
+        src.sysmessagered Esta cru...
+    return 1
+    endif
 return 1
 endif
 
 on=@TARGON_char
-	src.sysmessageyellow Selecione uma fogueira para assar <name>.
-	TARGET
+    src.sysmessageyellow Selecione uma fogueira para assar <name>.
+    TARGET
 return 1
 
 on=@TARGON_ground
-	src.sysmessageyellow Selecione uma fogueira para assar <name>.
-	TARGET
+    src.sysmessageyellow Selecione uma fogueira para assar <name>.
+    TARGET
 return 1
 
 on=@TARGON_ITEM
 if (<src.targ.distance> > 1)
-	 src.sysmessagered <src.targ.name> esta muito longe. Chegue mais perto.
+     src.sysmessagered <src.targ.name> esta muito longe. Chegue mais perto.
 return 1
 elif !(<src.targ.baseid> == i_campfire)
-	src.sysmessageyellow Selecione uma fogueira para assar <name>.
-	TARGET
+    src.sysmessageyellow Selecione uma fogueira para assar <name>.
+    TARGET
 return 1
 elif <ChurrascoCheckChurrasco>
-	src.sysmessagered Ja tem uma carne sendo assada nesta fogueira.
+    src.sysmessagered Ja tem uma carne sendo assada nesta fogueira.
 return 1
 elif !(<src.findtype.t_kindling>)
-	src.sysmessagered Voce precisa de gravetos para espetar <name> e fazer churrasco.
+    src.sysmessagered Voce precisa de gravetos para espetar <name> e fazer churrasco.
 return 1
 elif (!(<belltest <src.cooking>,200>) && (<baseid> == i_rabbit_raw) && (!<src.IsGm>)) || (!(<belltest <src.cooking>,150>) && (<baseid> == i_ham_raw) && (!<src.IsGm>)) || (!(<belltest <src.cooking>,100>) && (<baseid> == i_ribs_raw) && (!<src.IsGm>)) || (!(<belltest <src.cooking>,50>) && (<baseid> == i_bird_raw) && (!<src.IsGm>)) 
-	src.sysmessagered Seus baixos conhecimentos em cooking fizeram voce estragar <name>
-	src.confuso
-	src.anim 020
-	src.findtype.t_kindling.consume 1
-	consume 1
+    src.sysmessagered Seus baixos conhecimentos em cooking fizeram voce estragar <name>
+    src.confuso
+    src.anim 020
+    src.findtype.t_kindling.consume 1
+    consume 1
 return 1
 else
-	src.anim 020
-	src.emote colocando <name> para assar na fogueira.
-	if (<baseid> == i_rabbit_raw)
-		src.newitem=i_churrasco_coelho
-		src.newname= churrasco de coelho na brasa
-		new.morey=50
-	elif (<baseid> == i_bird_raw)
-		src.newitem=i_churrasco_frango
-		new.morey=35
-	elif (<baseid> == i_ribs_raw)
-		src.newitem=i_churrasco_costela
-		new.morey=40
-	elif (<baseid> == i_ham_raw)
-		src.newitem=i_churrasco_porco
-		new.morey=45
-	endif
-	new.more1=0
-	new.more2=0 
-	new.morex=0 
-	new.p=<src.targ.p>
-	new.timer=5
-	if (<baseid> == i_ribs_raw)
-		new.nudgeup 3
-	elif (<baseid> == i_ham_raw)
-		new.nudgeup 2 
-	endif
-	new.use
-	src.skill_gain skill_camping
-	src.findtype.t_kindling.consume 1
-	consume 1
+    src.anim 020
+    src.emote colocando <name> para assar na fogueira.
+    if (<baseid> == i_rabbit_raw)
+        src.newitem=i_churrasco_coelho
+        src.newname= churrasco de coelho na brasa
+        new.morey=50
+    elif (<baseid> == i_bird_raw)
+        src.newitem=i_churrasco_frango
+        new.morey=35
+    elif (<baseid> == i_ribs_raw)
+        src.newitem=i_churrasco_costela
+        new.morey=40
+    elif (<baseid> == i_ham_raw)
+        src.newitem=i_churrasco_porco
+        new.morey=45
+    endif
+    new.more1=0
+    new.more2=0 
+    new.morex=0 
+    new.p=<src.targ.p>
+    new.timer=5
+    if (<baseid> == i_ribs_raw)
+        new.nudgeup 3
+    elif (<baseid> == i_ham_raw)
+        new.nudgeup 2 
+    endif
+    new.use
+    src.skill_gain skill_camping
+    src.findtype.t_kindling.consume 1
+    consume 1
 return 1
 endif
 
@@ -191,79 +196,79 @@ return 1
 //////////////////////////////////////  sistema de churrasco começa aqui
 on=@dclick
 IF (STRMATCH(Orc,<tag.raca>))
-	f_consumeFood
+    f_consumeFood
 return 1
 elif (<distance> > 1)
-	src.sysmessagered <name> esta muito longe. Chegue mais perto. 
+    src.sysmessagered <name> esta muito longe. Chegue mais perto. 
 return 1
 elif (<topobj.uid> != <src.uid>)
-	bounce
-	src.sysmessagered Voce colocou <name> na mochila
+    bounce
+    src.sysmessagered Voce colocou <name> na mochila
 return 1
 else
-	if (<baseid> == i_fish_raw)
-		if (<src.camping> >= 100)
-			src.sysmessageyellow Selecione a fogueira para assar <name>
-			TARGET 
-		return 1
-		else
-			src.sysmessagered Esta cru e voce nao possui habilidade suficiente para fazer churrasco.
-		return 1
-		endif
-	return 1
-	else
-		src.sysmessagered Esta cru...
-	return 1
-	endif
+    if (<baseid> == i_fish_raw)
+        if (<src.camping> >= 100)
+            src.sysmessageyellow Selecione a fogueira para assar <name>
+            TARGET 
+        return 1
+        else
+            src.sysmessagered Esta cru e voce nao possui habilidade suficiente para fazer churrasco.
+        return 1
+        endif
+    return 1
+    else
+        src.sysmessagered Esta cru...
+    return 1
+    endif
 return 1
 endif
 
 on=@TARGON_char
-	src.sysmessageyellow Selecione uma fogueira para assar <name>.
-	TARGET
+    src.sysmessageyellow Selecione uma fogueira para assar <name>.
+    TARGET
 return 1
 
 on=@TARGON_ground
-	src.sysmessageyellow Selecione uma fogueira para assar <name>.
-	TARGET
+    src.sysmessageyellow Selecione uma fogueira para assar <name>.
+    TARGET
 return 1
 
 on=@TARGON_ITEM
 if (<src.targ.distance> > 1)
-	 src.sysmessagered <src.targ.name> esta muito longe. Chegue mais perto.
+     src.sysmessagered <src.targ.name> esta muito longe. Chegue mais perto.
 return 1
 elif !(<src.targ.baseid> == i_campfire)
-	src.sysmessageyellow Selecione uma fogueira para assar <name>.
-	TARGET
+    src.sysmessageyellow Selecione uma fogueira para assar <name>.
+    TARGET
 return 1
 elif <ChurrascoCheckChurrasco>
-	src.sysmessagered Ja tem uma carne sendo assada nesta fogueira.
+    src.sysmessagered Ja tem uma carne sendo assada nesta fogueira.
 return 1
 elif !(<src.findtype.t_kindling>)
-	src.sysmessagered Voce precisa de gravetos para espetar <name> e fazer churrasco.
+    src.sysmessagered Voce precisa de gravetos para espetar <name> e fazer churrasco.
 return 1
 elif (!(<belltest <src.cooking>,50>) && (!<src.IsGm>)
-	src.sysmessagered Seus baixos conhecimentos em cooking fizeram voce estragar <name>
-	src.confuso
-	src.anim 020
-	src.findtype.t_kindling.consume 1
-	consume 1
+    src.sysmessagered Seus baixos conhecimentos em cooking fizeram voce estragar <name>
+    src.confuso
+    src.anim 020
+    src.findtype.t_kindling.consume 1
+    consume 1
 return 1
 else
-	src.anim 020
-	src.emote colocando <name> para assar na fogueira.
-	src.newitem=i_churrasco_peixe
-	new.morey=30
-	new.more1=0
-	new.more2=0 
-	new.morex=0 
-	new.p=<src.targ.p>
-	new.timer=5
-	new.nudgeup 3 
-	new.use
-	src.skill_gain skill_camping
-	src.findtype.t_kindling.consume 1
-	consume 1
+    src.anim 020
+    src.emote colocando <name> para assar na fogueira.
+    src.newitem=i_churrasco_peixe
+    new.morey=30
+    new.more1=0
+    new.more2=0 
+    new.morex=0 
+    new.p=<src.targ.p>
+    new.timer=5
+    new.nudgeup 3 
+    new.use
+    src.skill_gain skill_camping
+    src.findtype.t_kindling.consume 1
+    consume 1
 return 1
 endif
 
@@ -333,7 +338,7 @@ return 1
 //*****************************************************************************
 // f_consumeFood
 //*****************************************************************************
-//SRC       - player consumindo
+//SRC - player consumindo
 //DEFAULT   - item sendo consumido
 
 [FUNCTION f_consumeFood]
@@ -355,10 +360,10 @@ ELSE
  if (<morey>) && (!<src.tag0.food_cooldown>)
   src.spelleffect <morey>,<eval <morez>*10>//,<src.uid>
   src.tag0.food_cooldown=1
-  src.timerf 60,tag0.food_cooldown=
+  src.timerf 60*5,tag0.food_cooldown=
  elif (<morey>)
-  src.sysmessageyellow Espere 60 segundos antes de receber novamente o efeito especial de <name>
-  src.timerf 60,tag0.food_cooldown
+  src.sysmessageyellow Espere 5 minutos antes de receber novamente o efeito especial de <name>
+  src.timerf 60*5,tag0.food_cooldown
  endif
 
  if ( <morex> > 1 )
@@ -406,7 +411,8 @@ if (<argn>)
  sfx <SEX 042B/031B>
 ELIF (<ctag0.congestao>)
  ctag0.congestao -= 1
- DORAND 6
+ DORAND 7
+  stam 00
   sfx <SEX 042C/031C>
   vomitar
   sfx <SEX 042B/031B>
@@ -474,6 +480,68 @@ endif
 //*****************************************************************************
 
 //*****************************************************************************
+// Efeitos adicionais de comidas
+//*****************************************************************************
+
+[ITEMDEF i_mry_foodeffect]
+NAME=Comida com Efeito
+ID=0993
+TYPE=t_eq_script
+LAYER=layer_special
+WEIGHT=0
+
+on=@Equip
+if (<more1>==1)
+    //empadao de coelho
+    src.sysmessageyellow Voce se sente POTENTE
+    src.emotered coca virilha e bate pe no chao repetidas vezes
+    remove
+    return 0
+elif (<more1>==2)
+    //gemada mu sun
+    sfx <src.SEX 042C/031B>
+    src.sysmessagegreen Isso tem um gosto horrivel, mas eh revigorante!
+    remove
+    return 0
+elif (<more1>==3)
+    //bagos de alkron e racho de luna
+    sfx <src.SEX 042C/031B>
+    src.sysmessagegreen Isso tem um gosto horrivel!!!
+    remove
+    return 0
+elif (<more1>==4)
+    //linguica laveque
+    src.sysmessagered VOCE SE EXCITA
+    src.emotered estremece
+    src.anim 20
+    remove
+    return 0
+    IF (<src.0body> c_man)
+        src.sfx 608
+        src.emotered Um volume protubera na regiao pubiana
+        remove
+        return 0        
+    ELSE
+        src.sfx 1340
+        src.emotered ensopada
+        src.emotered na regiao pubiana
+        remove
+        return 0    
+    ENDIF
+elif (<more1>==5)
+    //picanha de gorgon
+    sfx <src.SEX 044A/0338>
+    emotegreen grita
+    src.anim 33
+    src.sysmessage voce se sente mais vigoroso
+    remove
+    return 0
+endif
+remove
+return 1
+
+
+//*****************************************************************************
 // COSTELA
 //*****************************************************************************
 
@@ -495,12 +563,16 @@ NAME=costela frita
 SKILLMAKE=15.0 Cooking
 RESOURCES=1 i_ribs_raw
 TYPE=t_food
-TDATA1=5
+TDATA1=2
 WEIGHT=1
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Costela assada
+
+ON=@CREATE
+morex=1
+
 
 //*****************************************************************************
 // FRANGO
@@ -526,12 +598,15 @@ RESOURCES=1 I_BIRD_RAW
 SKILLMAKE=35.0 Cooking
 TYPE=t_food
 WEIGHT=2
-TDATA1=15
+TDATA1=4
 DUPELIST=09b8
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Frango assado
+
+ON=@CREATE
+morex=1
 
 //*****************************************************************************
 // COELHO
@@ -558,10 +633,11 @@ SKILLMAKE=40.0 cooking
 TYPE=t_food
 WEIGHT=1
 DUPELIST=01e93
-TDATA1=18
+TDATA1=5
 
 ON=@CREATE
 color=08f
+morex=2
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
@@ -595,12 +671,15 @@ RESOURCES=1 i_ham_raw
 SKILLMAKE=37.5 Cooking
 TYPE=t_food
 WEIGHT=2
-TDATA1=10
+TDATA1=5
 //DUPEITEM=09d3
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Presunto assado
+
+ON=@CREATE
+morex=2
 
 [ITEMDEF 01e1f]
 DEFNAME=i_ham_slices
@@ -609,12 +688,14 @@ SKILLMAKE=6.8 Cooking
 RESOURCES=1 i_ham_raw
 TYPE=t_food
 WEIGHT=2
-TDATA1=10
-//TDATA3=4
+TDATA1=3
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Presunto frito
+
+ON=@CREATE
+morex=1
 
 [ITEMDEF i_pig_raw]
 ID=01E88
@@ -631,38 +712,62 @@ DESCRIPTION=Porco pelado
 NAME=leitao assado
 DEFNAME=i_pig_roast
 SKILLMAKE=85.3 cooking, 1 i_assadeira
-RESOURCES=1 i_pig_raw, 3 i_fruit_apple, 2 i_fruit_lettuce
+RESOURCES=1 i_pig_raw, 3 i_fruit_apple, 2 i_fruit_lettuce, 1 i_bacia
 VALUE=75
 TYPE=T_FOOD
 WEIGHT=45
 TDATA1=40
-TDATA2=i_assadeira
+TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=@
 DUPELIST=09bc
 
-[ITEMDEF i_leitao_lumenor]
-// DEFNAME2=ROAST_PIG
-NAME=leitao a Lumenor
+ON=@CREATE
+morex=20
+
+[ITEMDEF i_leitao_moraviano]
 ID=09bb
-SKILLMAKE=88.8 cooking, 1 i_assadeira
-RESOURCES=1 i_pig_raw, 3 i_fruit_apple, 6 i_dose_honey, 10 i_r_raiz_de_mandrake
+NAME=Leitao Moraviano
+CATEGORY=Myt - items by professions
+SUBSECTION=Cook
+DESCRIPTION=Leitao Marinado
+WEIGHT=20.0
+VALUE=100
+TYPE=T_FOOD
+RESOURCES=1 i_pig_raw, 6 i_r_alho, 2 i_pimenta_eilyel, 5 i_dose_blood, 1 i_bacia
+SKILLMAKE=Cooking 700
+TDATA1=20
+TDATA2=i_bacia
+
+ON=@CREATE
+COLOR=083ea
+more1 i_unused
+morey=157//Força divina
+morez=75
+morex=10
+
+[ITEMDEF i_leitao_belsand]
+// DEFNAME2=ROAST_PIG
+NAME=leitao belsanita
+ID=09bb
+SKILLMAKE=88.8 cooking
+RESOURCES=1 i_pig_raw, 3 i_fruit_apple, 6 i_dose_honey, 10 i_r_raiz_de_mandrake, 1 i_bacia
 VALUE=75
 TYPE=T_FOOD
 WEIGHT=45
 TDATA1=60
-TDATA2=i_assadeira
+TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=@
-DUPELIST=09bc
 
 on=@create
 morey=157//Força divina
 morez=75
+morex=30
 
 //*****************************************************************************
 // BACON
@@ -692,7 +797,7 @@ RESOURCES=1 i_bacon_slab_raw
 SKILLMAKE=32.5 Cooking
 TYPE=t_food
 WEIGHT=2
-TDATA1=12
+TDATA1=4
 DUPELIST=0977
 
 CATEGORY=MyT - Items by Professions
@@ -708,11 +813,13 @@ TYPE=t_food
 WEIGHT=0.2
 DUPELIST=0979
 TDATA1=2
-TDATA3=6
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Toucinho frito em tiras
+
+ON=@CREATE
+morex=1
 
 
 //*****************************************************************************
@@ -738,11 +845,14 @@ SKILLMAKE=29.6 COOKING
 RESOURCES=I_CHICKEN_LEG_RAW
 WEIGHT=1
 TYPE=t_food
-TDATA1=5
+TDATA1=3
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Coxa frango assado
+
+ON=@CREATE
+morex=1
 
 
 //*****************************************************************************
@@ -769,23 +879,36 @@ SKILLMAKE=62.5 Cooking
 RESOURCES=i_lamb_leg_raw
 WEIGHT=2
 TYPE=t_food
-TDATA1=15
+TDATA1=7
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Coxa ovelha assada
+
+ON=@CREATE
+morex=3
 
 
 //*****************************************************************************
 // Peixes
 //*****************************************************************************
 
+[ITEMDEF 01e1a]
+DEFNAME=i_fish_head
+NAME=Cabeca de peixe
+TYPE=t_script
+DUPELIST=01e19
+SKILLMAKE=FISHING 0.0
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Cabeca peixe
 
 [ITEMDEF 09cc]
 defNAME=i_fish_big_1
 NAME=truta%s
 TYPE=t_fish
-SKILLMAKE=FISHING 0.0
+SKILLMAKE=FISHING 5.1
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
@@ -794,53 +917,14 @@ DESCRIPTION=Truta
 on=@create
 tag.fish=1 i_fish_raw
 
-[ITEMDEF 09cd]
-defNAME=i_fish_big_2
-NAME=salmao
-TYPE=t_fish
-SKILLMAKE=FISHING 5.0
-
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Cook
-DESCRIPTION=Salmão
-
-on=@create
-tag.fish=9 i_fish_cut_raw,1 i_fish_head
-
-[ITEMDEF 09ce]
-defNAME=i_fish_big_3
-NAME=atum
-TYPE=t_fish
-SKILLMAKE=FISHING 15.0
-
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Cook
-DESCRIPTION=Atum
-
-on=@create
-tag.fish=18 i_fish_cut_raw,1 i_fish_head
-
-[ITEMDEF 09cf]
-defNAME=i_fish_big_4
-NAME=bacalhau
-TYPE=t_fish
-SKILLMAKE=FISHING 72.5
-
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Cook
-DESCRIPTION=Bacalhau
-
-on=@create
-tag.fish=1 i_fish_raw
-
 [ITEMDEF 0dd6]
 //Small Fish
 DEFNAME=i_fish_small
-NAME=sardinhas
+NAME=sardinha%s%
 TYPE=t_fish
 WEIGHT=1
 DUPELIST=0dd7,0dd8,0dd9
-SKILLMAKE=FISHING 87.5
+SKILLMAKE=FISHING 10.1
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
@@ -849,15 +933,70 @@ DESCRIPTION=Sardinhas
 on=@create
 tag.fish=5 i_fish_raw_small
 
-[ITEMDEF 01e1a]
-defNAME=i_fish_head
-NAME=Cabeca de peixe
-TYPE=t_script
-DUPEITEM=01e19
+[ITEMDEF 09cd]
+defNAME=i_fish_big_2
+NAME=salmao
+TYPE=t_fish
+SKILLMAKE=FISHING 20.1
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
-DESCRIPTION=Cabeca peixe
+DESCRIPTION=Salmão
+
+on=@create
+tag.fish=9 i_fish_cut_raw,1 i_fish_head
+
+[ITEMDEF i_camarao]
+ID=03b14
+DEFNAME=i_camarao
+NAME=Camarao
+TYPE=t_fish
+SKILLMAKE=FISHING 30.1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Camarao
+
+on=@create
+tag.fish=1 i_camarao_raw
+
+[ITEMDEF 09ce]
+defNAME=i_fish_big_3
+NAME=atum
+TYPE=t_fish
+SKILLMAKE=FISHING 40.1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Atum
+
+on=@create
+tag.fish=18 i_fish_cut_raw,1 i_fish_head
+
+[ITEMDEF i_mexilhao]
+id=0fc8
+defNAME=i_mexilhao
+NAME=Mexilhao
+TYPE=t_fruit
+SKILLMAKE=FISHING 60.1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Mexilhao
+
+[ITEMDEF 09cf]
+defNAME=i_fish_big_4
+NAME=bacalhau
+TYPE=t_fish
+SKILLMAKE=FISHING 87.5
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Bacalhau
+
+on=@create
+tag.fish=1 i_fish_raw
+
 
 
 //*****************************************************************************
@@ -885,13 +1024,51 @@ SKILLMAKE=12.3 Cooking
 RESOURCES=1 i_fish_raw_small
 TYPE=T_FOOD
 WEIGHT=1
-TDATA1=4
+TDATA1=2
 DUPELIST=01e1d
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Sardinha assada
 
+ON=@CREATE
+morex=1
+
+//*****************************************************************************
+// CAMARAO
+//*****************************************************************************
+
+[ITEMDEF i_camarao_raw]
+id=03b14
+DEFNAME=i_camarao_raw
+NAME=Camarao Descascado
+TYPE=T_FOOD_RAW
+TDATA1=i_camarao_cooked
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Sardinha crua
+
+ON=@CREATE
+color=08d
+
+[ITEMDEF i_camarao_cooked]
+id=03b14
+DEFNAME=i_camarao_cooked
+NAME=Camarao Frito
+SKILLMAKE=30.0 Cooking
+RESOURCES=1 i_camarao
+TYPE=T_FOOD
+WEIGHT=1
+TDATA1=2
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=camarao frito
+
+ON=@CREATE
+morex=1
 
 //*****************************************************************************
 // PEIXE GRANDE
@@ -918,12 +1095,15 @@ SKILLMAKE=37.5 Cooking
 RESOURCES=1 i_fish_raw
 TYPE=t_food
 WEIGHT=1
-TDATA1=10
+TDATA1=6
 DUPELIST=01e1d
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Peixe assado
+
+ON=@CREATE
+morex=3
 
 //*****************************************************************************
 // BIFE DE PEIXE
@@ -948,11 +1128,14 @@ RESOURCES=1 i_fish_cut_raw
 SKILLMAKE=16.8 Cooking
 TYPE=t_food
 WEIGHT=0.1
-TDATA1=4
+TDATA1=2
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Peixe assado fatiado
+
+ON=@CREATE
+morex=1
 
 
 //*****************************************************************************
@@ -1025,6 +1208,7 @@ DESCRIPTION=Coracao assado
 
 ON=@CREATE
 color=040c
+morex=2
 
 //*****************************************************************************
 // FIGADO
@@ -1048,7 +1232,7 @@ id=01cee
 NAME=Figado frito
 RESOURCES=1 i_flesh_liver
 SKILLMAKE=48.2 Cooking
-TDATA1=5
+TDATA1=4
 TYPE=t_food
 WEIGHT=1
 
@@ -1058,6 +1242,7 @@ DESCRIPTION=Figado assado
 
 ON=@CREATE
 color=040c
+morex=2
 
 
 //*****************************************************************************
@@ -1084,13 +1269,14 @@ RESOURCES=1 i_flesh_brain
 SKILLMAKE=35.6 Cooking
 TYPE=t_food
 WEIGHT=1
-TDATA1=5
+TDATA1=4
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Cerebro assado
 
 ON=@CREATE
 color=040c
+morex=2
 
 //*****************************************************************************
 // LINGUICA
@@ -1158,25 +1344,18 @@ SKILLMAKE=0.5 Cooking
 TYPE=t_food
 WEIGHT=0.3
 DUPELIST=09c1
-TDATA1=25
+TDATA1=6
+
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Linguica assada
 
+ON=@CREATE
+morex=3
 
-[ITEMDEF 09b6]
-DEFNAME=i_eggs_fried
-NAME=ovo%s% frito%s%
-RESOURCES=1 i_EGGS_FRESH
-SKILLMAKE=1.5 Cooking
-TYPE=T_FOOD
-VALUE={5 9}
-WEIGHT=0.1
-TDATA1=2
-
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Cook
-DESCRIPTION=Ovo Frito
+//*****************************************************************************
+// ENSOPADOS E SOPAS
+//*****************************************************************************
 
 [ITEMDEF 01602]
 DEFNAME=i_bowl_pewter_potatoes
@@ -1186,12 +1365,15 @@ WEIGHT=1
 TYPE=T_FOOD
 SKILLMAKE=30.0 cooking
 RESOURCES=4 i_batata, 5 i_dose_water, 1 i_bacia
-TDATA1=10
+TDATA1=4
 TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Ensopado de batatas
+
+ON=@CREATE
+morex=2
 
 [ITEMDEF 015f9]
 //DEFNAME=i_BOWL_CARROTS
@@ -1201,27 +1383,71 @@ SKILLMAKE=40.0 cooking
 RESOURCES=5 i_fruit_carrot, 5 i_dose_water, 1 i_bacia
 WEIGHT=1
 TYPE=T_FOOD
-TDATA1=15
+TDATA1=5
 TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Ensopado de cenouras
 
+ON=@CREATE
+morex=3
+
+[ITEMDEF i_sopa_mariscos]
+ID=015f9
+NAME=sopa de mariscos
+DEFNAME=i_sopa_ervilha
+SKILLMAKE=40.0 cooking
+RESOURCES=4 i_camarao_raw,4 i_mexilhao,5 i_dose_water,1 i_bacia
+WEIGHT=1
+TYPE=T_FOOD
+TDATA1=8
+TDATA2=i_bacia
+VALUE=35
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Sopa de Mariscos
+
+ON=@CREATE
+morex=5
+
+[ITEMDEF i_sopa_ervilha]
+ID=015fc
+NAME=sopa de ervilha
+DEFNAME=i_sopa_ervilha
+SKILLMAKE=40.0 cooking
+RESOURCES=8 i_ervilha,5 i_dose_water,1 i_bacia
+WEIGHT=1
+TYPE=T_FOOD
+TDATA1=5
+TDATA2=i_bacia
+VALUE=35
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Sopa de Ervilha
+
+ON=@CREATE
+morex=3
+
 [ITEMDEF 015fa]
 //DEFNAME=i_BOWL_CORN
-NAME=ensopado de milho
+NAME=Angu
 DEFNAME=i_bowl_wood_corn
 SKILLMAKE=50.0 cooking
 RESOURCES=6 i_fruit_corn, 5 i_dose_water, 1 i_bacia
 WEIGHT=1
 TYPE=T_FOOD
-TDATA1=19
+TDATA1=6
 TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
-DESCRIPTION=Ensopado de milho
+DESCRIPTION=Angu
+
+ON=@CREATE
+morex=3
 
 [ITEMDEF 015fb]
 //DEFNAME=i_BOWL_LETTUCE
@@ -1231,41 +1457,226 @@ SKILLMAKE=60.0 cooking
 RESOURCES=2 i_fruit_lettuce, 4 i_batata, 5 i_dose_water, 1 i_bacia
 WEIGHT=1
 type=t_food
-TDATA1=24
+TDATA1=12
 TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Ensopado de legumes
 
+ON=@CREATE
+morex=6
+
 [ITEMDEF 015fc]
 DEFNAME=i_bowl_wood_peas
 NAME=caldo verde
-VALUE=8
+VALUE=20
 WEIGHT=1
-SKILLMAKE=70.0 cooking
+SKILLMAKE=60.0 cooking
 RESOURCES=5 i_dose_water, 3 i_ribs_raw, 5 i_ervilha, 1 i_bacia
 TYPE=T_FOOD
-TDATA1=30
+TDATA1=10
 TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
 DESCRIPTION=Caldo verde
 
-[ITEMDEF 0103f]
-DEFNAME=i_cookie_mix
-NAME=massa para biscoitos
-TYPE=T_FOOD_RAW
-SKILLMAKE=55.8 Cooking
-RESOURCES=1 i_dose_honey, 1 i_massa, 1 i_bacia
+ON=@CREATE
+morex=5
+
+[ITEMDEF i_guisado_triade]
+//DEFNAME=i_guisado_triade
+ID=01606
+NAME=Guisado das Tres Rainhas
+DEFNAME=i_guisado_triade
+SKILLMAKE=70.0 cooking
+RESOURCES=3 i_fruit_carrot, 3 i_r_alho, 3 i_ribs_raw 5 i_dose_water, 1 i_bacia
 WEIGHT=1
-TDATA1=0
+type=t_food
+TDATA1=10
+TDATA2=i_bacia
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Ensopado de legumes
+
+on=@create
+color=00
+morex=6
+morey=154//Remover Doenças
+morez=28
+
+[ITEMDEF i_camarao_marinado]
+ID=01606
+NAME=Camarao Marinado
+WEIGHT=4.0
+VALUE=100
+TYPE=t_script
+RESOURCES=10 i_camarao, 15 i_dose_rum, 5 i_batata, 4 i_r_alho
+SKILLMAKE=Cooking 40.0
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Camarao Marinado
+
+on=@create
+more1=0
+
+on=@dclick
+ if <src.findid.i_mry_doidao>
+    src.findid.i_mry_doidao.more2=<morey>
+ else
+    src.emoteyellow comendo camarao marinado
+    src.newitem=i_mry_doidao
+    src.new.more2=<morey>
+    src.new.equip
+    src.new.timer=8
+    src.new.update
+    more1 +=1
+ endif
+
+ if (<more1>==6>)
+    remove
+ endif
+
+return 1
+
+//*****************************************************************************
+//Item: i_mexido_orc
+//*****************************************************************************
+//Rev: 11 Ts: 2014-03-15 14:58:52
+[ITEMDEF i_mexido_orc]
+ID=3619
+NAME=Ensopado Orcquico
+CATEGORY=Myt - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Ensopado Orcquico
+WEIGHT=1.0
+VALUE=12
+TYPE=t_food
+RESOURCES=5 i_dose_water,1 i_bacia,2 i_r_olho_morto_vivo,5 i_entranhas,2 i_ribs_raw,
+SKILLMAKE=Cooking 500
+TDATA1=5
+TDATA2=i_bacia
+
+ON=@CREATE
+morex=2
+morey=264//Força de Touro
+morez=28
+
+//*****************************************************************************
+// Carne de Gorgon
+//*****************************************************************************
+
+[ITEMDEF i_picanha_gorgon_raw]
+ID=09c9
+name=picanha de gorgon crua
+SKILLMAKE=ANATOMY 70.0
+type=t_meat_raw
+TDATA1=i_picanha_gorgon_assada
+WEIGHT=7
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Picanha de Gorgon
+
+ON=@CREATE
+COLOR=079c
+
+[ITEMDEF i_picanha_gorgon_assada]
+DISPID=09c9
+DEFNAME=i_picanha_gorgon_assada
+NAME=picanha de gorgon
+RESOURCES=1 i_picanha_gorgon_raw
+SKILLMAKE=43.5 Cooking
+TYPE=t_food
+WEIGHT=4
+TDATA1=13
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Picanha de Gorgon Assada
+
+ON=@CREATE
+COLOR=0a71
+morex=6
+morey=202//Proteção contra veneno
+morez=28
+morem=5
+
+
+//*****************************************************************************
+// Salada de frutas
+//*****************************************************************************
+
+[ITEMDEF i_salada_frutas]
+ID=2451
+NAME=Salada de Frutas
+WEIGHT=1.0
+VALUE=40
+TYPE=t_food
+RESOURCES=9 i_fruit_grapes, 6 i_fruit_banana, 4 i_fruit_apple, 1 i_bacia
+SKILLMAKE=Cooking 150
+TDATA1=15
+TDATA2=i_bacia
+
+CATEGORY=Myt - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Salada de Frutas
+
+ON=@CREATE
+morex=7
+
+//*****************************************************************************
+// Tortas e Assados
+//*****************************************************************************
+
+[ITEMDEF 01042]
+NAME=massa para torta
+DEFNAME=i_pie_unbaked
+TYPE=T_FOOD_RAW
+SKILLMAKE=25.8 Cooking
+RESOURCES=1 i_massa, 1 i_dose_honey
+WEIGHT=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Baker
+DESCRIPTION=Massa para torta
+
+
+[ITEMDEF i_banana_pie_mix]
+ID=0103f
+NAME=recheio para torta de banana
+TYPE=T_FOOD_RAW
+SKILLMAKE=75.0 Cooking
+RESOURCES=1 i_dose_honey, 1 i_massa, 3 i_fruit_banana, 1 i_bacia
+WEIGHT=1
+
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Baker
+DESCRIPTION=Recheio para torta de banana
+
+on=@create
+color=032
+
+[ITEMDEF 01041]
+NAME=torta de banana
+DEFNAME=i_pie_baked
+SKILLMAKE=70.8 Cooking
+RESOURCES=1 i_pie_unbaked, 1 i_banana_pie_mix
+WEIGHT=1
+TYPE=T_FOOD
+TDATA1=9
 TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Baker
-DESCRIPTION=Massa para biscoitos
+DESCRIPTION=Torta de banana
+
+ON=@CREATE
+morex=5
 
 [ITEMDEF i_apple_pie_mix]
 ID=0103f
@@ -1284,6 +1695,23 @@ DESCRIPTION=Recheio para torta de maçã
 on=@create
 color=08c
 
+[ITEMDEF i_aplle_pie_baked]
+NAME=torta de maca
+ID=01041
+SKILLMAKE=60.7 Cooking
+RESOURCES=1 i_pie_unbaked, 1 i_apple_pie_mix
+WEIGHT=1
+TYPE=T_FOOD
+TDATA1=9
+TDATA2=i_bacia
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Baker
+DESCRIPTION=Torta de maçã
+
+ON=@CREATE
+morex=5
+
 [ITEMDEF i_grape_pie_mix]
 ID=0103f
 NAME=recheio para torta de uva
@@ -1293,7 +1721,6 @@ RESOURCES=1 i_dose_honey, 1 i_massa, 3 i_fruit_grapes, 1 i_bacia
 WEIGHT=1
 TDATA1=0
 
-
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Baker
 DESCRIPTION=Recheio para torta de uva
@@ -1301,21 +1728,53 @@ DESCRIPTION=Recheio para torta de uva
 on=@create
 color=0e
 
-[ITEMDEF i_banana_pie_mix]
-ID=0103f
-NAME=recheio para torta de banana
-TYPE=T_FOOD_RAW
-SKILLMAKE=75.0 Cooking
-RESOURCES=1 i_dose_honey, 1 i_massa, 3 i_fruit_banana, 1 i_bacia
+[ITEMDEF i_grape_pie_baked]
+NAME=torta de uva
+ID=01041
+SKILLMAKE=50.6 Cooking
+RESOURCES=1 i_pie_unbaked, 1 i_grape_pie_mix
 WEIGHT=1
-
+TYPE=T_FOOD
+TDATA1=9
+TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Baker
-DESCRIPTION=Recheio para torta de banana
+DESCRIPTION=Torta de uva
 
-on=@create
-color=032
+ON=@CREATE
+morex=5
+
+[ITEMDEF 09e9]
+DEFNAME=i_cake
+NAME=bolo
+SKILLMAKE=COOKING 80.0
+RESOURCES=1 i_pie_unbaked, 2 i_massa, 2 i_eggs_fresh, 4 i_dose_honey, 1 i_bacia
+WEIGHT=1
+TYPE=T_FOOD
+TDATA1=27
+TDATA2=i_bacia
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Baker
+DESCRIPTION=Bolo
+
+ON=@CREATE
+morex=13
+
+
+[ITEMDEF 0103f]
+DEFNAME=i_cookie_mix
+NAME=massa para biscoitos
+TYPE=T_FOOD_RAW
+SKILLMAKE=55.8 Cooking
+RESOURCES=1 i_dose_honey, 1 i_massa, 1 i_bacia
+WEIGHT=1
+TDATA1=0
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Baker
+DESCRIPTION=Massa para biscoitos
 
 [ITEMDEF 0160c]
 DEFNAME=i_plate_cookies
@@ -1326,8 +1785,12 @@ RESOURCES=3 i_dose_honey, 1 i_cookie_mix
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Baker
 DESCRIPTION=Plate of Cookies
-TDATA1=15
+TDATA1=7
 TDATA2=i_bacia
+
+
+ON=@CREATE
+morex=4
 
 [ITEMDEF 0103b]
 // Has a bite ?
@@ -1337,11 +1800,14 @@ TYPE=T_FOOD
 SKILLMAKE=23.4 COOKING
 RESOURCES=1 i_massa, 1 i_porcao_farinha
 WEIGHT=1
-TDATA1=6
+TDATA1=3
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Baker
 DESCRIPTION=Broa de pão
+
+ON=@CREATE
+morex=2
 
 [ITEMDEF 098c]
 DEFNAME=i_bread_french
@@ -1350,85 +1816,360 @@ SKILLMAKE=7.8 Cooking
 RESOURCES=1 i_massa
 TYPE=T_FOOD
 VALUE={4 8}
-WEIGHT=0.5
-TDATA1=4
+WEIGHT=0.2
+TDATA1=2
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Baker
 DESCRIPTION=Pão de viagem
 
+ON=@CREATE
+morex=2
 
-[ITEMDEF 01042]
-NAME=massa para torta
-DEFNAME=i_pie_unbaked
-TYPE=T_FOOD_RAW
-SKILLMAKE=25.8 Cooking
-RESOURCES=1 i_massa, 1 i_dose_honey
+
+//*****************************************************************************
+// Variados
+//*****************************************************************************
+
+
+[ITEMDEF i_gemada_mu]
+ID=09c8
+DEFNAME=i_gemada_mu
+NAME=Gemada do rei mu sun
+SKILLMAKE=70.0 Cooking
+RESOURCES=15 i_dose_milk, 6 i_eggs_fresh, 2 i_reag_ginseng, 1 i_jarra_ceramica
+TYPE=t_food
+TDATA1=8
+TDATA2=i_jarra_ceramica
 WEIGHT=1
 
 CATEGORY=MyT - Items by Professions
-SUBSECTION=Baker
-DESCRIPTION=Massa para torta
+SUBSECTION=Cook
+DESCRIPTION=Gemada do Rei Mu Sun
 
-[ITEMDEF 01041]
-NAME=torta de banana
-DEFNAME=i_pie_baked
-SKILLMAKE=70.8 Cooking
-RESOURCES=1 i_pie_unbaked, 1 i_banana_pie_mix
-WEIGHT=1
+
+on=@create
+COLOR=054b
+morex=4
+morey=156//Cura leve
+morez=28
+morem=2
+
+[ITEMDEF i_milho_cozido]
+ID=3199
+NAME=Milho Cozido
+RESOURCES=1 i_fruit_corn
+SKILLMAKE=Cooking 100
+TYPE=t_food
+WEIGHT=0.1
+VALUE=4
+TDATA1=2
+CATEGORY=Myt - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Milho Cozido
+
+ON=@CREATE
+morex=1
+
+[ITEMDEF 09b6]
+DEFNAME=i_eggs_fried
+NAME=ovo%s% frito%s%
+RESOURCES=1 i_EGGS_FRESH
+SKILLMAKE=1.5 Cooking
 TYPE=T_FOOD
-TDATA1=20
-TDATA2=i_bacia
+VALUE={5 9}
+WEIGHT=0.1
+TDATA1=1
 
 CATEGORY=MyT - Items by Professions
-SUBSECTION=Baker
-DESCRIPTION=Torta de banana
+SUBSECTION=Cook
+DESCRIPTION=Ovo Frito
 
-[ITEMDEF i_aplle_pie_baked]
-NAME=torta de maca
-ID=01041
-SKILLMAKE=60.7 Cooking
-RESOURCES=1 i_pie_unbaked, 1 i_apple_pie_mix
+ON=@CREATE
+morex=1
+
+[ITEMDEF i_tira_gosto]
+ID=5624
+NAME=Tira Gosto
+CATEGORY=Myt - items by professions
+SUBSECTION=Cook
+DESCRIPTION=Tira Gosto
+WEIGHT=1.0
+VALUE=15
+TYPE=t_normal
+RESOURCES=1 i_bacia
+SKILLMAKE=330 Cooking
+
+ON=@CREATE
+COLOR=0
+
+ON=@DClick
+IF (<src.distance <UID>> > 1) && (!<SRC.IsGM>)
+ src.sysmessageyellow Muito longe...
+ return 1
+endif
+src.food 0
+src.emotegreen come tira gosto
+src.say *ROOOONC!*
+src.emoteyellow estomago ronca
+src.sysmessageblue De repente te bate uma baita fome!!!
+return 1
+
+
+//*****************************************************************************
+// Afrodisiacos e abortivos
+//*****************************************************************************
+
+[ITEMDEF i_empadao_coelho]
+id=010e3
+DEFNAME=i_empadao_coelho
+NAME=Empadao de Coelho
+RESOURCES=2 i_rabbit_raw, 10 i_dose_milk, 3 i_ovo_harpia, 2 i_porcao_farinha, 1 i_r_raiz_de_mandrake, 1 i_bottle_blue
+SKILLMAKE=80.5 Cooking
+TYPE=t_food
+WEIGHT=0.3
+TDATA1=5
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Empadão de Coelho
+
+on=@create
+COLOR=032
+morex=3
+morey=254//Agilidade Felina
+morez=50
+morem=1
+
+[ITEMDEF i_pimenta_eilyel]
+ID=5919
+NAME=pimenta Fogo de Eilyel
+CATEGORY=Myt - provisions - alchemy & magic
+SUBSECTION=reagentes
+DESCRIPTION=pimenta Fogo de Eilyel
+WEIGHT=0.5
+VALUE=200
+TYPE=t_script
+
+ON=@Create
+COLOR=026
+
+ON=@dclick
+src.emoteyellow come <name>
+src.sysmessagered VOCE SE EXCITA
+src.emotered estremece
+src.anim 20
+src.emotegreen geme profundamente
+IF (<src.0body> c_man)
+src.sfx 608
+src.emotered Um volume protubera na regiao pubiana
+ELSE
+src.sfx 1340
+src.emotered ensopada
+src.emotered na regiao pubiana
+ENDIF
+remove
+return 0
+
+
+[ITEMDEF i_racho_luna]
+ID=097b
+DEFNAME=i_racho_luna
+NAME=Racho de Luna
+RESOURCES=2 i_dose_blood, 1 i_fibras_vegetais, 1 i_flesh_heart
+SKILLMAKE=40.0 Cooking
+TYPE=t_food
+WEIGHT=0.1
+TDATA1=1
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Racho de Luna
+
+on=@create
+COLOR=021b
+morex=1
+morem=3
+
+
+[ITEMDEF i_bagos_alkron]
+ID=0e73
+DEFNAME=i_bagos_alkron
+NAME=Bago%s% de Alkron
+SKILLMAKE=40.0 Cooking
+RESOURCES=2 i_dose_swamp, 1 i_dose_honey, 1 i_ribs_raw
+TYPE=t_food
+TDATA1=1
 WEIGHT=1
-TYPE=T_FOOD
-TDATA1=15
-TDATA2=i_bacia
 
 CATEGORY=MyT - Items by Professions
-SUBSECTION=Baker
-DESCRIPTION=Torta de maçã
+SUBSECTION=Cook
+DESCRIPTION=Bago de Alkron
 
-[ITEMDEF i_grape_pie_baked]
-NAME=torta de uva
-ID=01041
-SKILLMAKE=50.6 Cooking
-RESOURCES=1 i_pie_unbaked, 1 i_grape_pie_mix
+on=@create
+COLOR=054b
+morex=1
+morem=3
+
+[ITEMDEF i_oco_yarret]
+ID=01f14
+DEFNAME=i_oco_yarret
+NAME=Oco de Yarret
+SKILLMAKE=40.0 Cooking
+RESOURCES=2 i_dose_swamp, 1 i_r_nightshade, 2 i_r_olho_morto_vivo
+TYPE=t_script
+TDATA1=1
 WEIGHT=1
-TYPE=T_FOOD
-TDATA1=13
-TDATA2=i_bacia
 
-CATEGORY=MyT - Items by Professions
-SUBSECTION=Baker
-DESCRIPTION=Torta de uva
+on=@create
+COLOR=05a4
 
-[ITEMDEF 09e9]
-DEFNAME=i_cake
-NAME=bolo
-SKILLMAKE=COOKING 80.0
-RESOURCES=1 i_pie_unbaked, 2 i_massa, 2 i_eggs_fresh, 4 i_dose_honey, 1 i_assadeira
+on=@dclick
+sfx <src.SEX 042C/031B>
+src.sysmessagegreen Isso tem um gosto horrivel!!!
+src.sysmessagegreen Voce sente suas entranhas virarem do avesso!!!
+src.f_congestao 21
+serv.newitem i_mry_sm_bleed
+new.more1=7
+new.link=<UID>
+src.equip <new>
+if (<SRC.BODY> == c_woman) || (<SRC.BODY> == c_elf_female)
+    src.sysmessagered Se voce estava gravida, acaba de abortar!
+    decrement 1
+endif
+return 1
+
+[ITEMDEF i_sausages_laveque_raw]
+id=09c0
+NAME=Linguica Laveque Crua
+TYPE=t_meat_raw
+RESOURCES=1 i_entranhas, 1 i_picanha_gorgon_raw, 4 i_pimenta_eilyel
+SKILLMAKE=75.3 Cooking
+TDATA1=i_sausages_laveque
 WEIGHT=1
-TYPE=T_FOOD
-TDATA1=27
-TDATA2=i_assadeira
 
 CATEGORY=MyT - Items by Professions
-SUBSECTION=Baker
-DESCRIPTION=Bolo
+SUBSECTION=Cook
+DESCRIPTION=Linguica crua
+
+ON=@CREATE
+color=079c
+
+[ITEMDEF i_sausages_laveque]
+id=09c0
+DEFNAME=i_sausages_laveque
+NAME=Linguica Laveque
+RESOURCES=1 i_sausages_laveque_raw
+SKILLMAKE=37.5 Cooking
+TYPE=t_food
+WEIGHT=0.3
+TDATA1=5
+
+CATEGORY=MyT - Items by Professions
+SUBSECTION=Cook
+DESCRIPTION=Linguica Laveque
+
+on=@create
+COLOR=026
+morex=3
+morey=164//Purificação
+morez=30
+morem=4
+
+
+//*****************************************************************************
+// Sucos 
+//*****************************************************************************
+
+[ITEMDEF i_suco_risadinha]
+ID=3836
+NAME=Suco da Risada
+CATEGORY=Myt - provisions - miscellaneous
+SUBSECTION=Bebidas
+DESCRIPTION=Suco da Risada
+WEIGHT=1.0
+VALUE=30
+TYPE=t_script
+RESOURCES=1 i_r_risonha, 1 i_garrafa, 5 i_dose_water
+SKILLMAKE=Cooking 400
+LAYER=00
+PILE=0
+TDATA1=00
+
+
+ON=@CREATE
+COLOR=0
+//Criacao automatica
+on=@dclick
+src.emoteyellow tomando <name>
+src.sfx 050
+src.sysmessageyellow Voce se sente subtamente Feliz!!!
+src.timerf 10 f_suco_risada,15
+remove
+serv.newitem i_garrafa
+new.bounce
+return 1
+
+[ITEMDEF i_suco_fedorento]
+ID=3837
+NAME=Suco do Alivio
+CATEGORY=Myt - provisions - miscellaneous
+SUBSECTION=Bebidas
+DESCRIPTION=Suco do Alivio
+WEIGHT=1.0
+VALUE=30
+TYPE=t_script
+RESOURCES=1 i_r_fedentina, 1 i_garrafa, 9 i_dose_water
+SKILLMAKE=Cooking 400
+LAYER=00
+PILE=0
+TDATA1=00
+
+
+ON=@CREATE
+COLOR=0
+//Criacao automatica
+on=@dclick
+src.emoteyellow tomando <name>
+src.sfx 050
+src.timerf 5 f_suco_fedor
+remove
+serv.newitem i_garrafa
+new.bounce
+return 1
+
+[ITEMDEF i_suco_berro]
+ID=3840
+NAME=Tonico para Garganta
+CATEGORY=Myt - provisions - miscellaneous
+SUBSECTION=Bebidas
+DESCRIPTION=Tonico para Garganta
+WEIGHT=1.0
+VALUE=30
+TYPE=t_script
+RESOURCES=1 i_r_berradeira, 1 i_bottle_empty, 5 i_dose_water
+SKILLMAKE=Alchemy 500
+LAYER=00
+PILE=0
+TDATA1=00
+
+
+ON=@CREATE
+COLOR=0
+//Criacao automatica
+on=@dclick
+src.emoteyellow Gargareja e engole <name>
+src.sfx 050
+src.sysmessageyellow Voce sente sua garganta vibrante!!!
+src.spelleffect s_ampli_voz,1000
+remove
+serv.newitem i_bottle_empty
+new.bounce
+return 1
+
 
 //*****************************************************************************
 // Ovo de Harpia 
-
 //*****************************************************************************
 
 [ITEMDEF i_ovo_harpia]
@@ -1455,8 +2196,7 @@ SKILLMAKE=53.4 Cooking; 1 i_frigideira
 RESOURCES=1 i_ovo_harpia
 VALUE=31
 TYPE=t_food
-TDATA1=11
-TDATA2=i_frigideira
+TDATA1=6
 
 CATEGORY=MyT - Items by Professions
 SUBSECTION=Cook
@@ -1464,7 +2204,65 @@ DESCRIPTION=Ovo de Harpia Frito
 
 on=@create
 color=09a8
+morex=3
 morey=254//Agilidade Felina
 morez=28
+
+//*****************************************************************************
+//*****************************************************************************
+//Item: i_rotulador
+//*****************************************************************************
+//*****************************************************************************
+
+[ITEMDEF i_rotulador]
+ID=01031
+NAME=Rotulador de Alimentos
+CATEGORY=Myt - items by professions
+SUBSECTION=Cook
+DESCRIPTION=Rotulador de Alimentos e Bebidas
+WEIGHT=1.0
+VALUE=80
+TYPE=t_buy_misc
+RESOURCES=1 i_pen_and_ink, 1 i_bobina_papel
+SKILLMAKE=Tinkering 700
+
+ON=@CREATE
+COLOR=08ac
+ON=@DCLICK
+if (<topobj> != <src>)
+    src.sysmessageyellow Coloque rotulador na bolsa antes de usa-lo.
+    return 1
+endif
+
+target Selecione o que deseja rotular
+return 1
+
+ON=@TARGON_ITEM
+if (<src.targ.topobj> != <src>)
+    src.sysmessageyellow Coloque isso na bolsa para rotular.
+    else
+    if (<src.targ.type>==t_food)
+        src.sysmessageyellow Digite um nome para o rotulo:
+        src.promptconsole rotulo_comida
+    elif (<src.targ.type>==t_recipient) && (<src.targ.more2>>=10) && (<src.targ.more2><=14)
+        src.sysmessageyellow Digite um nome para o rotulo:
+        src.promptconsole rotulo_bebida
+    endif
+endif
+return 1
+
+//*****************************************************************************
+// rotulo_comida
+//*****************************************************************************
+[FUNCTION rotulo_comida]
+src.targ.name <targ.name>, <args>
+src.targ.update
+
+//*****************************************************************************
+// rotulo_bebida
+//*****************************************************************************
+[FUNCTION rotulo_bebida]
+src.targ.name <targ.name>, <args>
+src.targ.update
 
 [EOF]

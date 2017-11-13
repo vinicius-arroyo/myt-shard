@@ -79,7 +79,7 @@ SMO24_NAME      Bladeweave
 SMO25_NAME      Force Arrow
 SMO26_NAME      Lighting Arrow
 SMO27_NAME      Psychic Attack
-SMO28_NAME  Serpent Arrow
+SMO28_NAME  	Serpent Arrow
 SMO29_NAME      Force of Nature
                     
 SMO1_MANA       10          //IgnoreAR
@@ -270,7 +270,7 @@ if (<src.restest 2 <baseid>>)
 else
  timerd = 1
 endif
-return 1
+return 0
 
 on=@timer
 if (!<more1>)
@@ -293,7 +293,7 @@ return 1
 LOCAL.dam=<QVAL <src.hits> > <src.mana> ? <eval <src.hits>-<src.mana>> : <eval <src.mana>-<src.hits>>>
 //Não sei pq QVAL não funcionou aqui. Nem evalutando.
 IF <LOCAL.dam> > 30
- LOCAL.dam=30
+ LOCAL.dam=40
 ENDIF
 sfx 04f4
 src.emotered abalado
@@ -306,7 +306,7 @@ return <LOCAL.dam>
 [FUNCTION f_sm_crushingBlow]
 emotered bate forte
 sfx 051C
-return <eval <tactics>/33>
+return <eval <tactics>/40>
 
 //*****************************************************************************
 // f_sm_disarm
@@ -329,13 +329,22 @@ else
     OBJ.timer=600
     OBJ.attr |= attr_decay
     OBJ.tag.owner = 
+	src.events +e_no_equip_weapon
 endif    
 
 OBJ.movenear <src> 1
 
 sfx 033
 src.emotered desarmado
-return 0
+	
+[EVENTS e_no_equip_weapon]
+on=@ItemEquip
+timerf 5,events -e_no_equip_weapon
+if (<act.IsWeapon>)
+    sysmessagered Voce nao pode se armar ainda.
+return 1 
+endif
+
 
 //*****************************************************************************
 // f_sm_dismount
@@ -346,9 +355,10 @@ if <src.findlayer.layer_horse>
  OBJ=<src.findlayer.layer_horse.more2>
  src.emotered cai
  src.dismount
- LOCAL.dam=<R5,10>
+ src.ctag0.nomount = <eval (<serv.time> + 200)>
+ LOCAL.dam=<R5,15>
  OBJ.DAMAGE <local.dam> dam_god <UID>   //ferir o cavalo
- return <LOCAL.dam> //Aumenta o dano de 5 a 10
+ return <LOCAL.dam> 
 endif
 sysmessageyellow Seu alvo nao esta montado...
 return 0
@@ -448,6 +458,7 @@ ID=i_arrow_x
 TYPE=t_eq_script
 name=Moving Shot
 layer=LAYER_SPECIAL
+weight=0
 
 on=@equip
 if (<src.restest 2 <baseid>>)
@@ -465,10 +476,10 @@ return 1
 //*****************************************************************************
 // f_sm_paralyzingBlow
 //*****************************************************************************
-//Paraliza SRC por 3 a 7 segundos e põe a culpa em DEFAULT
+//Paraliza SRC por 2 a 3 segundos e põe a culpa em DEFAULT
 [FUNCTION f_sm_paralyzingBlow]
 sfx 0525
-src.stun <R3,7>
+src.stun <R2,3>
 src.emotered paralizado
 return 0
 
@@ -481,8 +492,8 @@ sfx 051b
 flags &= ~statf_war //Tira de warmode
 
 //SCP de hiding.
-act=0
-ctag.disturb=0
+//act=0
+//ctag.disturb=0
 serv.newitem i_hiding
 new.cont=<uid>
 
@@ -516,7 +527,7 @@ return 0
 [FUNCTION f_sm_ForceArrow]
 emotered atira mais forte
 sfx 02b1
-return <eval <tactics>/33>
+return <eval <tactics>/45>
 return 0
 
 //*****************************************************************************
@@ -551,8 +562,8 @@ if !(0<argn>)
  sfx 0521
  emotered apura a defesa
  //calcula e salva bonus de ar
- tag.sm_bonus=<eval <tactics>/29>
- modar += <tag.sm_bonus>        //0 a 33 de ar a + 
+ tag.sm_bonus=<eval <tactics>/25>
+ modar += <tag.sm_bonus>        //0 a 40 de ar a + 
  //calcula e salva penalidade de dano
  tag.sm_onus=<eval <tactics>/100>
  weapon.modar -= <tag.sm_onus>     //0 a 10 de penalidade de dano
@@ -605,7 +616,7 @@ DORAND <eval <tactics>/100>                            //Onze coisas imprevisív
  begin
   src.events +e_scared
   src.emotered apavorado
-  src.timerf 7,events,-e_scared
+  src.timerf 7,events -e_scared
  end                                                   //Não luta, nem usa skill alguma por 7 segundos
  local.ret <R15,20>                                    //Bônus de 15 a 20 no dano
  f_sm_DefMastery                                       //Aumenta defesa e diminui dano temporariamente
@@ -643,10 +654,10 @@ timerf 7,sfx,0543                                                        //Sonzi
 // f_sm_Feint
 //*****************************************************************************
 [FUNCTION f_sm_Feint]
-//Anula a armadura do oponente por 7 segundos
+//Anula a armadura do oponente por 8 segundos
 src.emotered vulderavel
 src.modar=-<src.ar>
-src.timerf 7 src.modar,<src.ar>
+src.timerf 8 src.modar,<src.ar>
 
 //*****************************************************************************
 // f_sm_PsyAttack
@@ -655,7 +666,7 @@ src.timerf 7 src.modar,<src.ar>
 //Diminui a mana do oponente e dá leve bonus de dano
 src.mana /= 2
 src.emotered desconcentrado
-return <R3,8>
+return <R5,12>
 
 //*****************************************************************************
 // f_sm_Block
@@ -666,7 +677,7 @@ if !(0<argn>)
  sfx 0520
  tag.sm_block_bonus=<BETWEEN 10,30,<TACTICS>,1000>
  modar += <tag.sm_block_bonus>
- timerf 7 f_sm_Block,1
+ timerf 12 f_sm_Block,1
 else
  modar -= <tag.sm_block_bonus>
  tag.sm_block_bonus=
@@ -675,13 +686,13 @@ endif
 //*****************************************************************************
 // f_sm_TalonStrike
 //*****************************************************************************
-//Sangra por 3 segundos perdendo 3! hits ao total
+//Sangra por 6 segundos perdendo 24! hits ao total
 [FUNCTION f_sm_TalonStrike]
 serv.newitem i_mry_sm_bleed
-new.more1=3
+new.more1=6
 new.link=<UID>
 src.equip <new>
-return <R1,10>
+return <R3,5>
 
 //*****************************************************************************
 // f_sm_FenziWhirl
@@ -704,7 +715,7 @@ end
 //*****************************************************************************
 [FUNCTION f_sm_ForceNature]
 //50 de dano poison
-src.timerf 1 damage,50,dam_poison,<uid>
+src.timerf 1 damage,27,dam_poison,<uid>
 sfx 05BE
 
 //*****************************************************************************
@@ -713,14 +724,15 @@ sfx 05BE
 [FUNCTION f_sm_LightArrow]
 //Dano em corrente para quem está a x tiles de distância
 if !(0<argn>)
- src.f_sm_LightArrow <BETWEEN 1,4,<tactics>,1000>
+ src.f_sm_LightArrow <BETWEEN 5,10,<tactics>,1000>
+ src.effect,1,1,1,1
  timerf 1,sfx,<eval <DEF.SND_THUNDER>>
  return 0
 endif
 obj=<UID>
 forchars <argn>
  if (<uid>!=<obj>)
-  timerf 1 damage,<R5,10>,dam_energy,<obj.uid>
+  timerf 1 damage,<R15,30>,dam_energy,<obj.uid>
   timerf 1 effect,1,1,1,1
  endif
 end
@@ -731,32 +743,25 @@ end
 [FUNCTION f_sm_NerveStrike]
 //Dano extra e rápida paralizia
 sfx 0525
-src.stun <R2,5>
+src.stun <R1,3>
 src.emotered paralizado
 return <R7,12>
 
 //*****************************************************************************
 // f_sm_RidingSwipe
 //*****************************************************************************
-[FUNCTION f_sm_RidingSwipe]
-//Se você está a pé, desmonta oponente e dá Mortal Strike no cavalo.
-//Se você esta motnado, Aumenta dano e da Stun
-if !(<src.flags>&statf_onhorse)
- sysmessageyellow Seu alvo nao esta montado...
- return 0
-endif
-if <findlayer.layer_horse>
+//Desmonta o SRC e põe a culpa em DEFAULT
+[FUNCTION f_sm_dismount]
+if <src.findlayer.layer_horse>
  OBJ=<src.findlayer.layer_horse.more2>
  src.emotered cai
  src.dismount
- LOCAL.dam=<R5,10>
+ src.ctag0.nomount = <eval (<serv.time> + 100)>
+ LOCAL.dam=<R15,30>
  OBJ.DAMAGE <local.dam> dam_god <UID>   //ferir o cavalo
- OBJ.events +e_mortalStrike
- OBJ.timerf,60,events,-e_mortalStrike
- return <LOCAL.dam> //Aumenta o dano de 5 a 10
+ return <LOCAL.dam> 
 endif
-src.stun <R2,5>
-src.emotered paralizado
-return <R7,12>
+sysmessageyellow Seu alvo nao esta montado...
+return 0
 
 [EOF]

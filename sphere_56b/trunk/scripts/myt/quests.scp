@@ -3009,4 +3009,394 @@ IF (<src.restest 1 i_spl_death_mask>)
     return 1
 ENDIF
 
+/////////////////////////////////////////////////////////////////////////////////
+//aqui começa o extraido do itemforge. 388 linhas. 2017-10-22
+
+//*****************************************************************************
+//Item: i_trava_portas
+//*****************************************************************************
+//Rev: 6 Ts: 2014-01-01 20:58:07
+//Quando é pisado, link baixa 20z
+[ITEMDEF i_trava_portas]
+ID=6920
+NAME=mecanismo discreto
+TYPE=t_normal
+CATEGORY=Myt - quest items
+SUBSECTION=Gatilhos
+DESCRIPTION=mecanismo discreto
+
+ON=@CREATE
+COLOR=0
+//Criacao automatica
+ON=@step
+link.say=@026 TRANK!
+link.nudgedown 20
+remove
+return 1
+
+//*****************************************************************************
+//Item: i_dismount
+//*****************************************************************************
+//Rev: 5 Ts: 2016-04-21 13:51:23
+//Quando pisado, se montado, char cai e montaria morre
+[ITEMDEF i_dismount]
+ID=1305
+NAME=Desmontador
+TYPE=t_normal
+CATEGORY=Myt - quest items
+SUBSECTION=Gatilhos
+DESCRIPTION=Desmontador
+
+ON=@CREATE
+COLOR=38
+attr=090
+ON=@step
+if (<src.flags>&statf_onhorse)
+    src.sysmessagered Sua montaria patina e cai!!!
+    src.emotered cai
+    src.dismount
+    src.damage=<R5,50>
+endif
+
+if (<src.npc>=brain_animal)
+    src.emotered quebra perna e cai
+    src.hits 00
+endif
+return 0
+
+
+   /////////////////////////////////////
+  ///        SIMBOLOS DIVINOS       ///
+ /////////////////////////////////////
+//Marcas no chão visíveis que devem ser usadas em entradas de areas ou ao
+// redor de idolos, totens e simbolos de poder.
+//
+//*****************************************************************************
+//Item: i_simbolo_abencoado
+//*****************************************************************************
+//Quando pisado undeads, char necromante ou com karma negativo pega fogo
+[ITEMDEF i_simbolo_abencoado]
+ID=3685
+NAME=Simbolo Divino
+TYPE=t_light_lit
+CATEGORY=Myt - quest items
+SUBSECTION=Simbolos
+DESCRIPTION=Simbolo Divino
+WEIGHT=1.0
+VALUE=300000
+
+TDATA1=00
+TDATA2=00
+TDATA3=00
+TDATA4=0ffffffff9c000e5c
+ARMOR=0
+SPEED=0
+SKILL=
+REQSTR=0
+TWOHANDS=
+
+ON=@CREATE
+COLOR=0
+dispid 0e5d
+morep 0,0,8
+On=@Step
+if (<src.necromancy>=>30.0)
+    if (<src.karma><00.0)
+        if (<src.npc>==brain_undead) && (!<SRC.IsGM>) && (!<src.flags>&statf_dead)
+            src.damage 2
+            src.say SssSssSss
+            if (!<argn1>)
+                src.sysmessagered *Voce sente desconforto terrivel e vontade de deixar o lugar*
+                src.f_pega_fogo
+            endif
+        endif
+    endif
+    else
+        src.sysmessagegreen *Voce sente um acolhimento divino*
+endif
+Return 0
+
+//*****************************************************************************
+//Item: i_simbolo_maldito
+//*****************************************************************************
+//Rev: 15 Ts: 2017-10-18 20:38:12
+//quando pisado char com baixo ou nulo spweaving focus e não for undead fica envenenado
+[ITEMDEF i_simbolo_maldito]
+ID=3685
+NAME=Simbolo Maligno
+TYPE=t_light_lit
+CATEGORY=Myt - quest items
+SUBSECTION=Simbolos
+DESCRIPTION=Simbolo Maligno
+WEIGHT=1.0
+VALUE=300000
+
+TDATA1=00
+TDATA2=00
+TDATA3=00
+TDATA4=0ffffffff9c000e5c
+
+
+ON=@CREATE
+COLOR=0
+dispid 0e5d
+morep 0,0,8
+on=@step
+if (<src.focus><30.0)
+    if (<src.spellweaving><50.0)
+        if (!<src.npc>==brain_undead) && (!<SRC.IsGM>) && (!<src.flags>&statf_dead)
+            src.damage 2
+            if (!<argn1>)
+                src.sysmessagered Voce sente o corpo pesar e queimar de forma horrivel
+                src.veneno 2000
+            endif
+        endif
+    endif
+endif
+return 0
+
+//*****************************************************************************
+//Item: i_simbolo_protecao_divina
+//*****************************************************************************
+//Rev: 0 Ts: 2014-06-29 11:03:01
+[ITEMDEF i_simbolo_protecao_divina]
+ID=3685
+NAME=Simbolo Divino
+TYPE=t_light_lit
+CATEGORY=Myt - quest items
+SUBSECTION=Simbolos
+DESCRIPTION=Simbolo Divino
+WEIGHT=1.0
+VALUE=300000
+
+TDATA1=00
+TDATA2=00
+TDATA3=00
+TDATA4=0ffffffff9c000e5c
+
+
+ON=@CREATE
+COLOR=0
+dispid 0e5d
+morep 0,0,8
+On=@Step
+if (!<argn1>)
+if (<src.necromancy> > 10.0)
+src.sysmessagered *Voce sente desconforto e vontade de deixar o lugar*
+else
+src.sysmessagegreen *Voce sente um acolhimento divino*
+endif
+endif
+Return 0
+
+
+//*****************************************************************************
+//*****************************************************************************
+//Category: Myt - quest items -> Movers
+//*****************************************************************************
+//*****************************************************************************
+//Tiles que podem mover itens ou chars quando pisados. 
+//
+//  TAGs utilizadas:
+//   tag0.direcao    informa em qual direção o usuário é movido. Utilize N, NE, E, SE, S, SW, W ou NW
+//   tag0.distancia  informa em tiles uma distancia. Utilize junto com tag.direcao e numero inteiros
+//
+//
+/////////////////////////MOVERS/////////////////////////////////
+// - MOVEDORES
+//  Coloque movedores no caminho de chars ou mobs para criar
+//   puzzles interativos com portas e paredes em dungeons.
+//   use os empurradores para criar desorientações no caminho
+//   ou para criar mecanismos de conrrenteza que conduzirá chars
+//   forçozamente. Cuidado para não fazê-los passar pelas paredes.
+//
+
+//*****************************************************************************
+//Item: i_movedor
+//*****************************************************************************
+//direcao1 eh ajustada pelo gm, a direcao2 ajusta se o gm der 2 cliques depois de ajustar a direcao1
+//more1 = 1 faz com que o movedor se mova direcao3 quando for pisado e direcao4 quando pisado de novo
+//
+[ITEMDEF i_movedor]
+ID=1266
+NAME=Movedor
+CATEGORY=Myt - quest items
+SUBSECTION=Movers
+DESCRIPTION=Movedor
+WEIGHT=1.0
+VALUE=25
+TYPE=t_normal
+
+
+ON=@CREATE
+COLOR=33
+src.sysmessage O movedor precisa de um Link e precisa ajustar tags.
+src.sysmessageyellow Ajuste a tag0.direcao1 para a direcao onde o link move.
+src.sysmessageblue Ajuste a tag0.distancia1 para quantos tiles o link move.
+src.sysmessagered QUANDO TERMINAR de dois cliques no movedor!!!
+
+
+ON=@Dclick
+if (<tag0.direcao1>==n)
+tag0.direcao2=s
+elif (<tag0.direcao1>==nw)
+tag0.direcao2=se
+elif (<tag0.direcao1>==w)
+tag0.direcao2=e
+elif (<tag0.direcao1>==sw)
+tag0.direcao2=ne
+elif (<tag0.direcao1>==s)
+tag0.direcao2=n
+elif (<tag0.direcao1>==se)
+tag0.direcao2=nw
+elif (<tag0.direcao1>==e)
+tag0.direcao2=w
+elif (<tag0.direcao1>==ne)
+tag0.direcao2=sw
+else
+    src.sysmessarered DETERMINE UM TAG0.DIRECAO1
+endif
+return 0
+if (<tag0.distancia1>==0)
+    src.sysmessagered DETERMINE UM TAG0.DISTANCIA1
+    else
+        src.sysmessagegreen O link movera <tag0.distancia1> tiles! Ajuste com tag0.distancia2
+endif
+return 0
+if (<tag0.discancia2>==0)
+    src.sysmessageblue O movedor nao se move quando pisado.
+    else
+        src.sysmessageyellow O movedor SE move <tag0.distancia2> tiles quando pisado! Ajuste com tag0.distancia2
+endif
+return 0
+    
+on=@step
+if (!<argn1>)&&!(<src.flags>&statf_dead)
+    if (<morez>=2)||(<morez>=1)&&(!<src.npc>)
+        if (<more2>>2)
+            link.move <tag0.direcao1> <tag0.distancia1>
+            more2 -=2
+            if (<more1>=1)
+                move <tag0.direcao3> <tag0.distancia2>
+            endif
+            else
+                link.move <tag0.direcao2> <tag0.distancia1>
+                more2 +=2
+            if (<more1>=1)
+                move  <tag0.direcao4> <tag0.distancia2>
+            endif
+        endif
+    endif
+endif
+Return 0
+
+//*****************************************************************************
+//Item: i_empurrador
+//*****************************************************************************
+//
+[ITEMDEF i_empurrador]
+ID=1260
+NAME=Empurrador
+CATEGORY=Myt - quest items
+SUBSECTION=Movers
+DESCRIPTION=Empurra npcs e chars
+WEIGHT=1.0
+VALUE=25
+TYPE=t_normal
+
+ON=@CREATE
+COLOR=34
+attr=090
+tag0.direcao=e
+tag0.distancia=1
+src.sysmessage O char sera empurrado tag0.distancia na direcao tag0.direcao
+src.sysmessagered Lembre-se de ajustar essas tags!
+
+on=@Clienttooltip
+    src.f_sendTooltip <name>, Empurra para direcao <tag0.direcao>
+    return 1
+
+on=@step
+src.move <tag0.direcao> <tag0.distancia>
+return 1
+
+//*****************************************************************************
+//Item: i_correnteza
+//*****************************************************************************
+//Rev: 1 Ts: 2016-04-01 23:37:22
+//  Se more1=1 sai da correnteza. Se more1=0 cai na correnteza. O default é sair pra não dar merda.
+
+[ITEMDEF i_correnteza]
+ID=1260
+NAME=Correnteza
+CATEGORY=Myt - quest items
+SUBSECTION=Movers
+DESCRIPTION=Correnteza
+WEIGHT=1.0
+VALUE=25
+TYPE=t_normal
+
+ON=@CREATE
+COLOR=34
+attr=090
+more1=1
+src.sysmessage MORE1=0 para cair na correnteza. MORE1=1 para sair da correnteza.
+src.sysmessagered Use um i_empurrador 5z abaixo de onde se cai na correnteza para fazer funcionar.
+
+on=@Clienttooltip
+if (!<more1>==1)
+    src.f_sendTooltip <name>,  Voce colocou uma saida para essa correnteza?
+    return 1
+
+on=@step
+if (<more1>==1)
+    src.sysmessagegreen *Voce finalmente se livra da correnteza...*
+    src.nudgeup 5
+    else
+      if (!<argn1>)
+            src.sysmessagered VOCE ESCORREGA E EH TRAGADO PELA CORRENTEZA!!!
+            src.nudgedown 5
+            src.emoteblue SPLATCH!
+            return 1
+        endif
+    endif
+return 1
+
+//*****************************************************************************
+//Item: i_transportador
+//*****************************************************************************
+// arrasta o último a pisar nele por MORE2 tiles até voltar à posição inicial.
+// se houver uma fila, ele alterna quem será arrastado.
+//Rev: 16 Ts: 2017-10-18 20:50:07
+
+[ITEMDEF i_transporte_w]
+ID=1180
+NAME=Transportador
+CATEGORY=Myt - quest items
+SUBSECTION=Movers
+DESCRIPTION=Transportador
+WEIGHT=1.0
+VALUE=25
+TYPE=t_normal
+
+ON=@CREATE
+COLOR=34
+attr=090
+more2=1
+src.sysmessage move quem pisar nele por MORE2 tiles e volta para o tile inicial.
+
+on=@step
+If (<more1>==<more2>)
+move e <more2>
+more1 -=<more2>
+else
+more1 +=1
+move <tag0.direcao>
+src.move <tag0.direcao>
+link.move <tag0.direcao>
+endif
+return 1
+
+//aqui termina o extraido do itemforge. 388 linhas. 2017-10-22
+
 [EOF]
