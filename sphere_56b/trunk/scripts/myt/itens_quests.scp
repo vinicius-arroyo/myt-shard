@@ -1,0 +1,3460 @@
+//  ########################################################
+//  ########################################################
+//          Conjunto de sistemas
+//      Para decoração de dungeons dinâmicas
+//
+//          Galthar, o Errante
+//
+//  ########################################################
+//  ########################################################
+//
+//
+//  TAGs utilizadas:
+//  - tag.sound
+//  - tag.odisp
+//  - tag.trap_time
+//  - tag.trap_dif
+//  - tag.trap_force
+//  - tag.trap_type
+//  - tag.tesouro
+//  - tag0.direcao
+//  - tag0.distancia
+//
+//  ########################################################
+//
+//    COMO USAR mimimi
+//
+//
+/////////////////////////////ALAVANCAS///////////////////////////
+//  Todos os itens devem ser colcoados pelo Axis como LOCKED.
+//   Ponha a alavanca no chão num lugar conveniente.
+//
+// - PORTAS:
+//  Coloque as portas que deseja abrir e fechar pela alavanca.
+//   Então deixe os types das portas t_door_locked. Use o comando
+//   .link, clique na alavanca e depois na porta. Se houver mais
+//   de uma porta, link a primeira na segunda. MAXIMO DE 2 PORTAS!
+//
+// - CONTAINERS:
+//  Deixe os containers t_container_locked. Linke
+//   a alavanca no container. Se houver mais de um container link
+//   o primeiro no segundo. MAXIMO DE 2 CONTAINERS!
+//
+// - BARREIRAS:
+//  Coloque as barreiras (fogo, veneno e energia) nos devidos
+//   lugares e link a alavanca na primeira barreira. Depois a
+//   primeira barreira na segunda, a segunda a terceira e assim
+//   por diante. A ULTIMA NÃO LINK EM NADA! Pode dar freeze no
+//   shard! Tente não passar de 20 barreiras para não gerar lag.
+//  Não é possível linkar 2 tipos diferentes de barreiras.
+//
+//
+/////////////////////////////PESTE///////////////////////////
+// CUIDADO! ESSE SCRIPT É MUITO DESTRUTIVO POIS A PESTE É
+// CONTAGIOSA! E DURA MUITO! NÃO HÁ CURA!
+// SE ATIVADA NUM LOCAL MOVIMENTADO PODE DIZIMAR A POPULAÇÃO
+// DE PLAYERS NO SHARD! USE COM CAUTELA!
+// Ative a peste pelo comando ".nopeste 0" e desative por
+// ".NOPESTE 1".
+// Ponha algum objeto no chão, mude o type dele para t_peste
+// e espere o pobre coitato pisar.
+// MAS NÃO USE SEM O CONSENTIMENTO DE TODOS NA STAFF! É ABSURDO!
+
+   //////////////////////////////////////////////
+  //        ALAVANCAS PARA DUNGEONS       //
+ //////////////////////////////////////////////
+
+
+
+// ---------# TYPEDEFS #---------//
+
+
+
+[TYPEDEF t_alavanca]
+on=@create
+attr=010
+more2=30
+
+on=@click
+if (<src.isgm>)
+ message <name> (<eval <more2>> segundos)
+ return 1
+endif
+
+ON=@CLIENTTOOLTIP
+if (<src.isgm>)
+    f_sendTooltip <name>,Tempo: <eval <more2>> segundos<DEF.BR> Ajuste o tempo em segundos<DEF.BR> no MORE2 deste item.
+    return 1
+endif
+
+on=@dclick
+IF (<src.distance <UID>> > 1) && (!<SRC.IsGM>)
+ src.sysmessageyellow Muito longe...
+ return 1
+endif
+sfx 0f0
+f_alavancaDispchange
+if (!<morex>)
+ if (<link.type>==t_door_locked)
+  f_leverDoor
+ elif (<link.type>==t_container_locked)
+  f_leverCont
+ elif (<link.type>==t_fire_barrier)
+  f_turnFireBarrier
+ elif (<link.type>==t_poison_barrier)
+  f_turnPoisonBarrier
+ elif (<link.type>==t_energy_barrier)
+  f_turnEnergyBarrier
+ elif (<link.type>==t_portculis)
+  link.f_portculis
+  if (<link.link.type>==t_portculis)
+   link.link.f_portculis
+  endif
+  timer=<more2>
+ elif (<link.type>==t_pulley)
+  link.f_leaverPulley
+  timer=<more2>
+ endif
+ morex=1
+else
+ if (<link.type>==t_door_locked)
+  f_leverDoor
+ elif (<link.type>==t_container_locked)
+  f_leverCont
+ elif (<link.type>==t_fire_barrier)
+  f_turnFireBarrier
+ elif (<link.type>==t_poison_barrier)
+  f_turnPoisonBarrier
+ elif (<link.type>==t_energy_barrier)
+  f_turnEnergyBarrier
+ elif (<link.type>==t_portculis)
+  link.f_portculis
+  if (<link.link.type>==t_portculis)
+   link.link.f_portculis
+  endif
+ elif (<link.type>==t_pulley)
+  link.f_leaverPulley 1
+ endif
+ morex=0
+endif
+return 1
+
+on=@timer
+if (<morex>)
+ f_alavancaDispchange
+ sfx 0f0
+ if (<link.type>==t_door_locked)
+  f_leverDoor
+ elif (<link.type>==t_container)
+  f_leverCont
+ elif (<link.type>==t_fire_barrier)
+  f_turnFireBarrier
+ elif (<link.type>==t_poison_barrier)
+  f_turnPoisonBarrier
+ elif (<link.type>==t_energy_barrier)
+  f_turnEnergyBarrier
+ elif (<link.type>==t_portculis) && (<link.morex>) && (!<link.morey>)
+  link.f_portculis
+  if (<link.link.type>==t_portculis)
+   link.link.f_portculis
+  endif
+ elif (<link.type>==t_pulley)
+  link.f_leaverPulley 1
+ endif
+ timer=-1
+ morex=0
+endif
+return 1
+
+
+
+// ---------# FUNCTIONS #---------//
+
+
+
+[FUNCTION f_alavancaDispchange]
+if (<dispid>==01093)
+ dispid=01095
+elif (<dispid>==01095)
+ dispid=01093
+elif (<dispid>==i_lever)
+ dispid=0108e
+elif (<dispid>==0108e)
+ dispid=i_lever
+elif (<dispid>==i_switch)
+ dispid=01090
+elif (<dispid>==01090)
+ dispid=i_switch
+elif (<dispid>==01091)
+ dispid=01092
+elif (<dispid>==01092)
+ dispid=01091
+elif (<dispid>==i_sconce_lit)
+ dispid=09fc
+elif (<dispid>==09fc)
+ dispid=i_sconce_lit
+elif (<dispid>==i_sconce2_lit)
+ dispid=i_sconce2_empty
+elif (<dispid>==i_sconce2_empty)
+ dispid=i_sconce2_lit
+elif (<dispid>==i_torch_wall_lit)
+ dispid=i_torch_wall_empty
+elif (<dispid>==i_torch_wall_empty)
+ dispid=i_torch_wall_lit
+elif (<dispid>==i_torch_wall2_lit)
+ dispid=i_torch_wall2_empty
+elif (<dispid>==i_torch_wall2_empty)
+ dispid=i_torch_wall2_lit
+endif
+update
+
+[FUNCTION f_leverDoor]
+//Função que cuida do uso de portas via alavanca/botão/polia
+//morey=1 na porta é aberta.
+//morex=1 na alavanca quer dizer acionada.
+if (<morex>)
+ //alavanca está atualmente acionada
+ if (<link.tag0.open>)
+  //porta atualmente aberta
+  link.timerd 1
+  link.tag.open=0
+  link.say=@026 TRANK!
+  if (<link.link.type>==t_door_locked)
+   link.link.timerd=1
+   link.link.tag.open 0
+   link.link.say=@026 TRANK!
+  endif
+ endif
+else
+ //alavanca atualmente default
+ if (!<link.tag0.open>)
+  //porta atualmente aberta
+  link.timerd 1
+  link.timerf 1,timer,-1
+  link.tag0.open=1
+  link.say=@026 click...
+  if (<link.link.type>==t_door_locked)
+   link.link.timerd 1
+   link.link.timerf 1,timer,-1
+   link.link.tag0.open=1
+   link.link.say=@026 click...
+  endif
+ endif
+ timer=<more2>
+endif
+
+
+[FUNCTION f_leverCont]
+if (<morex>)
+ link.type=t_container
+ timer=<more2>
+ link.say=@026 click...
+else
+ link.type=t_container_locked
+ link.say=@026 TRANK!
+endif
+if (<link.link>!=04fffffff) && (<link.link>!=<UID>)
+ if (<morex>)
+  link.type=t_container
+  link.link.say=@026 click...
+ else
+  link.type=t_container_locked
+  link.link.say=@026 TRANK!
+ endif
+endif
+
+// ---------# ITEMDEFS #---------//
+
+
+
+
+[ITEMDEF i_alavanca_dungeon_0]
+id=i_lever
+name=alavanca
+type=t_alavanca
+CATEGORY=MyT - Quest Items
+SUBSECTION=Alavancas
+DESCRIPTION=Alavanca para dungeons
+
+on=@create
+ATTR=010
+MORE2=30
+
+[ITEMDEF i_alavanca_dungeon_1]
+id=01093
+name=alavanca
+type=t_alavanca
+CATEGORY=MyT - Quest Items
+SUBSECTION=Alavancas
+DESCRIPTION=Alavanca para dungeons
+
+on=@create
+ATTR=010
+MORE2=30
+
+[ITEMDEF i_alavanca_dungeon_2]
+id=i_switch
+name=alavanca
+type=t_alavanca
+CATEGORY=MyT - Quest Items
+SUBSECTION=Alavancas
+DESCRIPTION=Alavanca para dungeons
+
+on=@create
+ATTR=010
+MORE2=30
+
+[ITEMDEF i_alavanca_dungeon_3]
+id=01091
+name=alavanca
+type=t_alavanca
+CATEGORY=MyT - Quest Items
+SUBSECTION=Alavancas
+DESCRIPTION=Alavanca para dungeons
+
+on=@create
+ATTR=010
+MORE2=30
+
+[ITEMDEF i_alavanca_dungeon_4]
+id=i_sconce_lit
+name=vela
+type=t_alavanca
+CATEGORY=MyT - Quest Items
+SUBSECTION=Alavancas
+DESCRIPTION=Vela alavanca
+
+on=@create
+ATTR=010
+MORE2=30
+
+[ITEMDEF i_alavanca_dungeon_5]
+id=i_sconce2_lit
+name=vela
+type=t_alavanca
+CATEGORY=MyT - Quest Items
+SUBSECTION=Alavancas
+DESCRIPTION=Vela alavanca
+
+on=@create
+ATTR=010
+MORE2=30
+
+[ITEMDEF i_alavanca_dungeon_6]
+id=i_torch_wall_lit
+name=tocha
+type=t_alavanca
+CATEGORY=MyT - Quest Items
+SUBSECTION=Alavancas
+DESCRIPTION=Tocha alavanca
+
+on=@create
+ATTR=010
+MORE2=30
+
+[ITEMDEF i_alavanca_dungeon_7]
+id=i_torch_wall2_lit
+name=tocha
+type=t_alavanca
+CATEGORY=MyT - Quest Items
+SUBSECTION=Alavancas
+DESCRIPTION=Tocha alavanca
+
+on=@create
+ATTR=010
+MORE2=30
+
+
+   /////////////////////////////////////////////////
+  //  TILE C/ MULTIREGION QUE GERA MSG AO ENTRAR //
+ /////////////////////////////////////////////////
+
+[ITEMDEF i_tile_msg]
+ID=i_coral_3
+NAME=Tile gerador de mensagem
+TYPE=t_multi
+MULTIREGION=-2,-2,2,2
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=Mensagens ao entrar no multi
+
+ON=@CREATE
+color=00a24
+attr=080
+more2=10800          // a cada -3- horas da reset nos uids de quem ja entrou na multiregion
+TIMERF 1,region.events,r_msg
+
+ON=@CLIENTTOOLTIP
+f_sendTooltip O texto abaixo aparecera aos players quando andarem a 3 tiles de distancia deste Item:, *-*-*-* EDITE O TEXTO C/ 2 CLICK *-*-*-* <DEF.BR> TEXTO : <name> 
+return 1
+
+ON=@DCLICK
+src.ctag.tileuid=<uid>
+src.dialog d_digitar_msg
+return 1
+
+[REGIONTYPE r_msg]
+
+ON=@ENTER
+
+//NPCs nao precisam disparar mensagem
+if <src.npc>
+    return 0
+endif
+
+//passou mais de 3 horas da ultima mensagem? (ou lista muito grande)
+obj=<uid>
+LOCAL.l=<eval STRLEN(<obj.tag.entrou_hoje>)>
+if (<obj.timer>==-1) || ( <LOCAL.l> > 1000 )
+    //limpa lista
+    obj.tag.entrou_hoje=
+endif    
+
+//recarrega tempo para limpar lista
+obj.timer=<obj.more2>
+
+//se player ainda nao recebeu a msg, mostra
+if !(STRMATCH(*<src>*,<obj.tag.entrou_hoje>))
+    src.sysmessageyellow <obj.name>
+    obj.tag.entrou_hoje .= ;<src>
+endif
+
+[DIALOG d_digitar_msg]
+200, 300
+PAGE 0
+resizepic 0 0 3500 430 300
+text 26 31 995 0
+text 26 10 152 1
+gumppic 39 63 1143
+dtextentry 59 66 220 600 1152 0 <UID.<src.ctag.tileuid>.name>
+button 55 250 239 240 1 0 1
+button 234 250 243 241 1 0 2
+
+[DIALOG d_digitar_msg TEXT]
+Digite o Texto sem usar acento, virgula e caracteres especiais.
+RECEBERA O SEGUINTE TEXTO AO ENTRAR NA AREA 3X3 AO REDOR DO TILE:
+<var.blank>
+
+[DIALOG d_digitar_msg BUTTON]
+ON=1
+obj=<src.ctag.tileuid>
+obj.name = <ARGTXT[0]>
+src.sysmessagegreen O texto foi aleterado para: '<ARGTXT[0]>'.
+obj.update
+return 1
+ON=2
+src.sysmessageyellow Nada foi alterado !
+return 1
+
+   //////////////////////////////////////////////
+  //        BARREIRAS PARA DUNGEONS       //
+ //////////////////////////////////////////////
+
+
+
+// ---------# TYPEDEFS #---------//
+
+
+
+[TYPEDEF t_poison_barrier]
+on=@step
+if (!<morex>) && (!<src.npc>) && (!<src.gm>) && !(<src.flags>&statf_dead)
+ src.f_retreat
+ src.damage {32 42} 010 <uid>
+ src.veneno 66
+ src.stun
+ sfx 0117
+endif
+return 1
+
+[TYPEDEF t_fire_barrier]
+on=@step
+if (!<morex>) && (!<src.npc>) && (!<src.gm>) && !(<src.flags>&statf_dead)
+ src.f_retreat
+ src.damage {32 42} 010 <uid>
+ src.stun
+ sfx 015e
+endif
+return 1
+
+[TYPEDEF t_energy_barrier]
+on=@step
+if (!<morex>) && (!<src.npc>) && (!<src.gm>) && !(<src.flags>&statf_dead)
+ src.f_retreat
+ src.damage {22 32} 010 <uid>
+ src.stun <eval {20 55}>
+ sfx 0235
+endif
+return 1
+
+
+
+
+// ---------# FUNCTIONS #---------//
+
+
+
+
+
+[FUNCTION f_turnFireBarrier]
+timer = <more2>
+link._f_turnFireBarrier
+return 1
+
+[FUNCTION _f_turnFireBarrier]
+if (<type>!=t_fire_barrier)
+ return 1
+endif
+if (!<morex>)
+ morex=1
+ tag.odisp=<dispid>
+ dispid=i_fx_smoke_small
+else
+ morex=0
+ dispid=0<tag.odisp>
+endif
+update
+if (<link>!=04fffffff)  && (<link.morex>!=<morex>) && (<link.type>==<type>)
+ link._f_turnFireBarrier
+else
+ sfx 054
+endif
+
+[FUNCTION f_turnPoisonBarrier]
+timer = <more2>
+link._f_turnPoisonBarrier
+return 1
+
+[FUNCTION _f_turnPoisonBarrier]
+if (<type>!=t_poison_barrier)
+ return 1
+endif
+if (!<morex>)
+ morex=1
+ tag.odisp=<dispid>
+ dispid=i_fx_smoke_small
+ color=colors_green
+else
+ morex=0
+ dispid=0<tag.odisp>
+ color=0
+endif
+update
+if (<link>!=04fffffff)  && (<link.morex>!=<morex>) && (<link.type>==<type>)
+ link._f_turnPoisonBarrier
+else
+ sfx 011a
+endif
+
+
+
+
+[FUNCTION f_turnEnergyBarrier]
+timer = <more2>
+link._f_turnEnergyBarrier
+return 1
+
+[FUNCTION _f_turnEnergyBarrier]
+if (<type>!=t_energy_barrier)
+ return 1
+endif
+if (!<morex>)
+ morex=1
+ tag.odisp=<dispid>
+ dispid=i_fx_sparkle_2
+else
+ morex=0
+ dispid=0<tag.odisp>
+endif
+update
+if (<link>!=04fffffff)  && (<link.morex>!=<morex>) && (<link.type>==<type>)
+ link._f_turnEnergyBarrier
+else
+ sfx 0231
+endif
+
+
+
+
+
+[FUNCTION f_retreat]
+ if (<dir>==2)
+  p=<eval <p.x>-1>,<p.y>,<p.z>,<map>
+  update 
+ elif (<dir>==3)
+  p=<eval <p.x>-1>,<eval <p.y>-1>,<p.z>,<map>
+  update
+ elif (<dir>==7)
+  p=<eval <p.x>+1>,<eval <p.y>+1>,<p.z>,<map>
+  update
+ elif (<dir>==6)
+  p=<eval <p.x>+1>,<p.y>,<p.z>,<map>
+  update 
+ elif (<dir>==5)
+  p=<eval <p.x>+1>,<eval <p.y>-1>,<p.z>,<map>
+  update
+ elif (<dir>==1)
+  p=<eval <p.x>-1>,<eval <p.y>+1>,<p.z>,<map>
+  update
+ elif (<dir>==0)
+  p=<p.x>,<eval <p.y>+1>,<p.z>,<map>
+  update
+ elif (<dir>==4)
+  p=<p.x>,<eval <p.y>-1>,<p.z>,<map>
+  update
+ endif
+ return 0
+endif
+
+
+
+// ---------# ITEMDEFS #---------//
+
+
+
+[ITEMDEF i_fire_barrier_0]
+ID=i_fx_field_fire
+NAME=barreira de fogo
+TYPE=t_fire_barrier
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Barreiras
+DESCRIPTION=Barreira de fogo
+
+[ITEMDEF i_fire_barrier_1]
+ID=i_fx_field_fire_ns
+NAME=barreira de fogo
+TYPE=t_fire_barrier
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Barreiras
+DESCRIPTION=Barreira de fogo
+
+
+[ITEMDEF i_poison_barrier_0]
+ID=03921
+NAME=barreira de veneno
+TYPE=t_poison_barrier
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Barreiras
+DESCRIPTION=Barreira de veneno
+
+[ITEMDEF i_poison_barrier_1]
+ID=03915
+NAME=barreira de veneno
+TYPE=t_poison_barrier
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Barreiras
+DESCRIPTION=Barreira de veneno
+
+[ITEMDEF i_energy_barrier_0]
+ID=i_fx_field_paralyze
+NAME=barreira de energia
+TYPE=t_energy_barrier
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Barreiras
+DESCRIPTION=Barreira de energia
+
+[ITEMDEF i_energy_barrier_1]
+ID=03979
+NAME=barreira de energia
+TYPE=t_energy_barrier
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Barreiras
+DESCRIPTION=Barreira de energia
+
+//*****************************************************************************
+//Item: i_fogo_apagavel
+//*****************************************************************************
+//Rev: 6 Ts: 2014-12-23 19:56:02
+[ITEMDEF i_fogo_apagavel]
+ID=14732
+NAME=Fogo
+CATEGORY=Diversos
+SUBSECTION=Myt
+DESCRIPTION=Fogo
+TYPE=t_fire
+
+ON=@CREATE
+COLOR=0
+attr 012
+morep 0,0,29
+timerd -1
+on=@dropon_ground
+attr=012
+on=@timer
+emotered apaga
+return 0
+
+
+   //////////////////////////////////////////////
+  //              TESOUROS GUARDADOS          //
+ //////////////////////////////////////////////
+
+
+// -------# TYPEDEFS #-------- //
+
+[TYPEDEF t_guarded_container]
+on=@dclick
+obj=<more2>
+if (<obj.npc>)
+ src.sysmessagered <obj.name> esta guardando este objeto.
+else
+ if (0<src.tag.fRP> < -1)
+  src.sysmessage=@037 Seus pontos de RP estao baixos. Tesouro bloqueado.
+  return 1
+ endif
+ type=t_container
+ emoteyellow destrancou
+ src.sfx 01ff
+ src.dclick <uid>
+endif
+return 1
+
+// -------# ITEMDEFS #-------- //
+
+//Não pode usar link. Se usa, os dois objetos somem durante o save por BAD LINK.
+[ITEMDEF i_trig_guarded_cont]
+ID=i_rune_glowing_1
+NAME=gatilho de guarda de container
+TYPE=t_script
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=guarda de container
+
+on=@create
+attr=08080
+
+on=@dclick
+if (<src.isgm>)
+ TARGET Selecione o container a guardar:
+ return 1
+endif
+
+on=@Targon_Item
+if (<src.targ.type>==t_container)
+ link=<src.targ.UID>
+ link.type=t_guarded_container
+ src.sysmessagered linkado em <link.name>
+ src.sysmessagered Assegure-se que o guarda pise no gatilho.
+else
+ src.sysmessage Apenas containeres abertos.
+endif
+return 1
+
+on=@step
+if (<src.npc>)
+ obj=<link.more2>
+ if (!<obj.npc>)
+  link.more2=<src.uid>
+ endif
+endif
+return 1
+
+[ITEMDEF i_trig_guarded_door]
+ID=i_rune_glowing_2
+NAME=gatilho de guarda de porta
+TYPE=t_script
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=guarda de porta
+
+on=@create
+attr=08080
+
+on=@dclick
+if (<src.isgm>)
+ TARGET Selecione a porta a guardar:
+ return 1
+endif
+
+on=@Targon_Item
+if (<src.targ.type>==t_door) || (<src.targ.type>==t_door_locked)
+ link=<src.targ.UID>
+ link.type=t_door_locked
+ src.sysmessagered linkado em <link.name>
+ src.sysmessagered Assegure-se que o guarda pise no gatilho.
+else
+ src.sysmessage Apenas portas.
+endif
+return 1
+
+on=@step
+if (<src.npc>)
+ obj=<link.TAG0.GUARD>
+ if (!<obj.npc>)
+  link.TAG.GUARD=<src.uid>
+  link.type t_door_locked
+  serv.newitem i_key_quest
+  new.link=<link>
+  new.cont=<src.uid>
+ endif
+endif
+return 1
+
+[ITEMDEF i_key_quest]
+ID=01010
+NAME=chave
+TYPE=t_script
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=chave de quest
+
+on=@dclick
+TARGET Que porta você gostaria de destrancar?
+return 1
+
+on=@targon_item
+if (<link>==<src.targ.uid>) && (<src.targ.type>==t_door_locked)
+ if (<src.targ.distance> < 2)
+  src.targ.type t_door
+  src.targ.dclick
+  src.targ.type t_door_locked
+  src.targ.timer 30
+  remove
+ else
+  src.sysmessage Chegue mais perto...
+ endif
+else
+ src.sysmessage Voce nao pode destrancar <src.targ.name>.
+endif
+return 1
+
+[ITEMDEF i_respawn_loot]
+//Respawn de loot de containers em geral
+ID=01ea7
+NAME=respawn de loot
+TYPE=t_script
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=respawn de loot
+
+on=@Create
+ATTR=8080
+COLOR=0489
+tag.tesouro=i_chest_dungeon_1
+MORE2=259200
+
+on=@timer
+link.empty
+serv.newitem <tag.tesouro>
+new.cont=<link>
+if (<new.type>==t_container)
+ new.attr=010
+endif
+timer=<more2>
+return 1
+
+on=@dclick
+if (<link>!=04fffffff)
+ timerd 1
+ src.sysmessage Tesouro reposto.
+else
+ src.cTAG.respawn_loot=<uid>
+ src.menu m_spawn_loot_type
+endif
+return 1
+
+ON=@CLIENTTOOLTIP
+    f_sendTooltip <name>,Tempo: <eval <more2>/60> MINUTOS<DEF.BR> Ajuste o tempo em SEGUNDOS no MORE2 deste item.
+    return 1
+
+
+
+// -------# MENUS #-------- //
+
+[MENU m_spawn_loot_type]
+(MyT)Que loot aparecera no container?(MyT)
+
+on=0 Provisao - Bandagem,pocao, flecha,etc... randomicamente pouca chance de vir um item, porem sao varios itens em pequena quantidade.
+src.cTAG.respawn_loot_type=i_provisao
+src.menu m_spawn_loot_time
+
+on=0 Tesouro em Dinheiro e joias regular.
+src.cTAG.respawn_loot_type=i_dinheiro_1
+src.menu m_spawn_loot_time
+
+on=0 Tesouro em Dinheiro e joias rico.
+src.cTAG.respawn_loot_type=i_dinheiro_2
+src.menu m_spawn_loot_time
+
+on=0 Tesouro em Dinheiro joias milionario.
+src.cTAG.respawn_loot_type=i_dinheiro_3
+src.menu m_spawn_loot_time
+
+on=0 Loot especial Fraco - Scrolls qlquer escola e qlq circulo e varios itens magicos, POUCA chance de aparecer qualquer um deles.
+src.cTAG.respawn_loot_type=i_loot_especial_1
+src.menu m_spawn_loot_time
+
+on=0 Loot especial Regular - Scrolls qlquer escola e qlq circulo e varios itens magicos, chance REGULAR de aparecer qualquer um deles.
+src.cTAG.respawn_loot_type=i_loot_especial_2
+src.menu m_spawn_loot_time
+
+on=0 Loot especial Forte - Scrolls qlquer escola e qlq circulo e varios itens magicos, MUITA chance de aparecer qualquer um deles.
+src.cTAG.respawn_loot_type=i_loot_especial_3
+src.menu m_spawn_loot_time
+
+
+[MENU m_spawn_loot_time]
+(MyT)Quanto tempo para respawn?(MyT)
+on=0 1 hora
+src.cTAG.respawn_loot_time=3600
+sysmessage Selecione o container
+targetf f_spawn_loot_target
+
+on=0 3 horas
+src.cTAG.respawn_loot_time=<eval 3600*3>
+sysmessage Selecione o container
+targetf f_spawn_loot_target
+
+on=0 1 dia e 6 horas
+src.cTAG.respawn_loot_time=111600
+sysmessage Selecione o container
+targetf f_spawn_loot_target
+
+on=0 2 dias e 6 horas
+src.cTAG.respawn_loot_time=201600
+sysmessage Selecione o container
+targetf f_spawn_loot_target
+
+on=0 3 dias e 6 horas
+src.cTAG.respawn_loot_time=291600
+sysmessage Selecione o container
+targetf f_spawn_loot_target
+
+on=0 5 dias e 6 horas
+src.cTAG.respawn_loot_time=471600
+sysmessage Selecione o container
+targetf f_spawn_loot_target
+
+on=0 7 dias e 6 horas
+src.cTAG.respawn_loot_time=651600
+sysmessage Selecione o container
+targetf f_spawn_loot_target
+
+on=0 10 dias e 6 horas
+src.cTAG.respawn_loot_time=921600
+sysmessage Selecione o container
+targetf f_spawn_loot_target
+
+on=0 Setar tempo em MINUTOS manualmente
+sysmessageyellow Digite o tempo em MINUTOS
+promptconsole time_respawn_de_loot
+
+[FUNCTION time_respawn_de_loot]
+//Tempo custom para o respawn de loots
+src.cTAG.respawn_loot_time=<eval <argn>*60>
+targetf f_spawn_loot_target
+
+
+// -------# FUNCTIONS #-------- //
+
+[FUNCTION f_spawn_loot_target]
+if (<argo.type>!=t_container)&&(<argo.type>!=t_container_locked)&&(<argo.type>!=t_guarded_container)&&(<argo.type>!=t_corpse)
+ sysmessage Alvo invalido. Selecione o alvo.
+ targetf f_spawn_loot_target
+ return 1
+endif
+OBJ=<src.cTAG.respawn_loot>
+OBJ.link=<argo.uid>
+OBJ.tag.tesouro=<src.cTAG.respawn_loot_type>
+OBJ.more2=<src.cTAG.respawn_loot_time>
+OBJ.timerd=1
+OBJ.update
+Sysmessage Tesouro configurado com sucesso!
+return 1
+
+   //////////////////////////////////////////////
+  //           PESTE PARA REGIÕES ERMAS       //
+ //////////////////////////////////////////////
+
+[ITEMDEF i_mry_peste]
+ID=0ED2
+NAME=contraiu a peste
+type=T_EQ_SCRIPT
+LAYER=30
+
+on=@create
+attr=010
+more2=31
+timer 1
+
+on=@timer
+if (0<var.no_peste>==1)
+ cont.flags=<cont.flags>&~080
+ cont.update
+ remove
+ return 1
+endif
+if (<cont.restest 2 i_mry_peste>)
+ remove
+ return 1
+endif
+if (<cont.flags>&statf_dead)
+ timer = 30
+ return 1
+endif
+if !(<cont.flags>&080)
+ cont.flags=<cont.flags>|080
+ cont.update
+endif
+more2=<more2>-1
+if (<more2> <= 0) || (<more2> >= 40)
+ cont.flags=<cont.flags>&~080
+ cont.update
+ cont.events -e_peste
+ remove
+ return 1
+endif
+if (<more2> <=5)
+ dorand 4
+  cont.f_vomita
+  cont.emotegreen suando
+  cont.f_dores
+  cont.emotegreen palido
+ enddo
+ cont.f_moscas
+ cont.sysmessagegreen A peste esta mais fraca.
+ cont.f_stam_peste
+ timer {120 180}
+elif (<more2> <=10)
+ dorand 4
+  cont.f_vomita
+  cont.emotegreen fedendo
+  cont.f_dores
+  cont.emotegreen palido
+ enddo
+ cont.f_stam_peste
+ timer {60 120}
+elif (<more2> <=20)
+ dorand 4
+  cont.f_vomita
+  cont.emotegreen fedendo
+  cont.emotegreen passando mal
+  cont.f_moscas
+ enddo
+ cont.f_dores
+ timer {30 60}
+elif (<more2> <= 29)
+ dorand 4
+  cont.f_vomita
+  cont.emotegreen fedendo
+  cont.f_dores
+  cont.emotegreen muito mal
+ enddo
+ timer {12 30}
+elif (<more2> == 30)
+ cont.emotegreen muito mal
+ cont.sysmessagegreen A Peste esta te assolando.
+ timer {12 30}
+endif
+cont.f_dano_peste <more2>
+cont.f_alastra_peste
+return 1
+
+[FUNCTION f_peste]
+newitem i_mry_peste
+new.equip
+events +e_peste
+
+[function f_dores]
+say=@021 Ohhh!
+cry
+sysmessagegreen Voce esta sentindo fortes dores!
+
+[FUNCTION f_dano_peste]
+if (<hits> > (<str>/2)) && (<argn> < <hits>)
+ local.dano=(<R1,<argn>>)
+ damage <LOCAL.dano> dam_poison <UID>
+endif
+
+[FUNCTION f_stam_peste]
+if (<stam> > (<dex>/2))
+ stam = (<dex>/2)
+endif
+
+[TYPEDEF t_peste]
+on=@step
+if !(<src.restest 1 i_mry_peste>) && (!<src.isgm>)
+ src.f_peste
+endif
+remove
+
+[FUNCTION f_alastra_peste]
+newitem i_gold
+new.p=<p>
+new.color=01
+new.name=alastrar a peste
+new.attr=092
+new.timer={60 120}
+new.update
+new.type t_peste
+anim 32
+
+[FUNCTION nopeste]
+if (<argn>) && (0<argn>!=0)
+ var.no_peste=0
+ sysmessage=@024 Peste ativada.
+ return 1
+endif
+if (<argn>) && (0<argn>==0)
+ var.no_peste=1
+ sysmessage=@024 Peste desativada.
+ return 1
+endif
+if (0<argn>==0) && (0<var.no_peste>==0)
+ var.no_peste=1
+ sysmessage=@024 Peste desativada.
+ return 1
+else
+ var.no_peste=0
+ sysmessage=@024 Peste ativada.
+ return 1
+endif
+
+[FUNCTION f_moscas]
+sysmessagegreen Voce esta juntando moscas!
+newitem i_moscas
+new.p=<p>
+new.timer 2
+
+[ITEMDEF i_moscas]
+id=i_bee_swarm
+type=t_peste
+name=moscas
+
+on=@create
+attr=010
+color=03de
+more1=300
+timer 2
+
+on=@timer
+if (0<var.no_peste>==1) || (<instances> > 100)
+ remove
+ return 1
+endif
+if (<more1>)
+ movenear <uid> 3
+ more1=<more1>-1
+ timer={1 2}
+else
+ remove
+endif
+if ({1 280}==1)
+ serv.newitem i_moscas
+ new.p=<p>
+ new.timerd 3
+endif
+return 1
+
+on=@step
+return 0
+
+[EVENTS e_peste]
+on=@login
+if (0<var.no_peste>==1)
+ flags=<flags>&~080
+ update
+ events -e_peste
+ return 1
+endif
+f_moscas
+return 0
+
+on=@logout
+f_moscas
+return 0
+
+
+
+   //////////////////////////////////////////////
+  //        TILE DE SPAWN DE MONSTRO      //
+ //////////////////////////////////////////////
+
+[ITEMDEF i_trig_spawn]
+ID=i_rune_glowing_3
+NAME=gatilho de guarda
+TYPE=t_script
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=gatilho guarda
+
+on=@create
+attr=08080
+more2=60*60*2
+tag.monster=c_zombie
+
+on=@dclick
+if (<src.isgm>)
+ src.cTAG.trig=<UID>
+ src.sysmessagegreen Selecione aonde vai aparecer o monstro:
+ src.TARGETFG f_trig_spawn
+endif
+return 1
+
+on=@step
+if (!<src.npc>) && (!<src.IsGM>) && (!<more1>)
+ serv.newnpc <tag.monster>
+ new.p=<morep>
+ new.timerf <more2>,remove
+ new.update
+ new.effect 1 0 0 16
+ new.timerf 1,effect,1,0,0,16
+ new.sfx 05ce
+ new.anim 17
+ new.bark 1
+ timer=<more2>
+ more1=1
+endif
+return 1
+
+on=@timer
+more1=0
+return 1
+
+[FUNCTION f_trig_spawn]
+obj=<src.cTAG0.trig>
+obj.morep=<targp>
+sysmessageblue Configurado para (<obj.morep>)
+message Nao esqueca de setar TAG.MONSTER para o DEFNAME do monstro!
+
+   
+   //////////////////////////////////////////////
+  //               CHAVES-ESTATUA         //
+ //////////////////////////////////////////////
+
+
+[ITEMDEF i_gerador_estatua]
+ID=i_pedestal
+TYPE=t_script
+NAME=pedestal
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Chaves-estatua
+DESCRIPTION=Pedestal (gerador)
+
+on=@create
+more2=60*60 //1 hora
+
+on=@dclick
+if (!<more1>)
+ obj=<uid>
+ src.menu m_chave_estatua
+ attr=010
+ return 1
+endif
+f_gerador_estatua_reset
+return 1
+
+on=@timer
+f_gerador_estatua_reset
+return 1
+
+[ITEMDEF i_chave_estatua]
+ID=i_statue_stone_sm_3
+TYPE=t_script
+NAME=estatua
+FLIP=0
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Chaves-estatua
+DESCRIPTION=Chave
+
+ON=@DROPON_CHAR
+//Se nunca foi pego
+if (<link.baseid>!=i_gerador_estatua)
+ //Remove efeito de sparkle
+ link.remove
+ link=<more2>
+ //Aciona timer do pedestal
+ link.timer=<link.more2>
+ src.sfx 05c9
+endif
+
+ON=@DROPON_ITEM
+trigger=@DROPON_CHAR
+
+ON=@DCLICK
+src.sysmessageyellow Aonde deseja usar isso?
+target
+return 1
+
+ON=@TARGON_ITEM
+IF (<src.targ.baseid>==i_pedestal_fechadura) && (<src.targ.color>==<color>)
+ p=<src.targ.p>     //posicionar
+ nudgeup 8
+ attr=010
+ tag.porta=<src.targ.link>  //Salvar porta
+ src.targ.link.timerd 1     //abrir porta
+ src.targ.link.timerf 1 timer,-1    //permanecer aberta 4eva
+ update             //efeitinho
+ EFFECT 2 i_fx_sparkle_2 0 16 0
+ sfx 05C0
+ELSE
+ src.sysmessagered Nada acontece...
+ENDIF
+return 1
+
+ON=@TARGON_CHAR
+src.sysmessagered Nada acontece...
+return 1
+
+
+[ITEMDEF i_pedestal_fechadura]
+ID=i_pedestal
+TYPE=t_script
+NAME=pedestal
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Chaves-estatua
+DESCRIPTION=Pedestal (fechadura)
+
+on=@dclick
+if (!<more1>) && (<src.IsGM>)
+ target Selecione a porta:
+ELSE
+ src.SYSMESSAGEYELLOW Voce pensa em uma forma de acionar o dispositivo.
+ENDIF
+return 1
+
+on=@targon_item
+if (<src.targ.type>==t_door)
+ src.targ.type=t_door_locked
+endif
+if (<src.targ.type>!=t_door_locked)
+ src.sysmessagered Selecione uma PORTA! SUA PORTA!
+ return 1
+endif
+obj=<uid>
+src.targ.link=<UID>
+link=<src.targ.UID>
+attr=010
+src.menu m_chave_estatua
+return 1
+
+[MENU m_chave_estatua]
+Escolha uma estatua
+ON=i_statue_stone_sm_3, @014
+obj.more1=014
+obj.f_gerador_estatua_reset
+
+ON=i_statue_stone_sm_3, @036
+obj.more1=036
+obj.f_gerador_estatua_reset
+
+ON=i_statue_stone_sm_3, @016A
+obj.more1=016A
+obj.f_gerador_estatua_reset
+
+ON=i_statue_stone_sm_3, @0C8
+obj.more1=0C8
+obj.f_gerador_estatua_reset
+
+ON=i_statue_stone_sm_3, @026
+obj.more1=026
+obj.f_gerador_estatua_reset
+
+
+[FUNCTION f_gerador_estatua_reset]
+IF (<baseid>==i_gerador_estatua)
+ IF (<link.instances>)      //Se há estátua
+  if (<link.tag0.porta>)    //Se a estátua foi usada
+   obj=<link.tag.porta>
+   obj.timerd 1         //Fechar a porta
+   obj.timerf 1,timer,-1    //Manter fechada
+  endif
+  link.remove           //Remover estátua velha
+ ENDIF
+ serv.newitem i_chave_estatua   //Criar estátua nova
+ new.color=<more1>      //Colorir de acordo com o código
+ new.p=<p>          //Posicionar
+ new.nudgeup 8
+ new.attr=028
+ new.timer=-1
+ new.more2 <UID>        //Salvar quem gerou a estátua
+ link=<new.uid>
+ serv.newitem i_fx_sparkle_2    //efeitinho
+ link.link=<new.uid>
+ new.timerf 1,p,<p>
+ new.timerf 2,update
+ELIF (<baseid>==i_pedestal_fechadura)
+ color=<more1>
+ attr=028
+ timer=-1
+ENDIF
+
+[TYPEDEF t_quebrado]
+on=@dclick
+src.sysmessagered Nao esta funcionando. Provavelmente esta quebrado.
+return 1
+
+
+
+   //////////////////////////////////////////////
+  //            CAMPO MÁGICO          //
+ //////////////////////////////////////////////
+
+[ITEMDEF i_campo_magico_fogo]
+ID=0167
+NAME=campo magico
+TYPE=t_multi
+MULTIREGION=-3,-3,3,3
+COMPONENT=I_FX_EXPLODE_BALL 0 0 10 0
+COMPONENT=0DB -3 -3 0 0
+COMPONENT=0DB -3 3 0 0
+COMPONENT=0DB 3 -3 0 0
+COMPONENT=0DB 3 3 0 0
+COMPONENT=0DB 4 0 0 0
+COMPONENT=0DB 0 4 0 0
+COMPONENT=0DB -4 0 0 0
+COMPONENT=0DB 0 -4 0 0
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Campos mágicos
+DESCRIPTION=de Fogo
+
+ON=@CREATE
+TIMERF 1,region.events,r_campo_magico_fogo
+TIMERF 1,region.tag.active,1
+
+ON=@DCLICK
+IF (!<tag0.try>) && (<region.tag0.active>)
+ IF ({0 <src.magery>} > 75.0) || (<src.IsGM>)
+  region.tag.active=0
+  timerf 30,region.tag.active,1
+  timerf 30,sfx,SND_SPELL_FIREBALL
+  src.anim 17
+  src.sfx 0201
+  src.sysmessageblue Voce deabilitou o dispositivo com sucesso!
+ ELSE
+  SERV.NEWITEM i_fire_column
+  new.attr=012
+  new.p=<p>
+  new.nudgeup 10
+  new.update
+  new.timerd 1.6
+  new.sfx SND_SPELL_FIREBALL
+  src.DAMAGESPELL s_fireball, dam_fire, 120.0, <uid>
+  timerf 30,tag.try 0
+  tag.try 1
+  src.sysmessagered Voce falhou ao desabilitar
+ ENDIF
+ELIF (<tag0.try>)
+ src.sysmessageyellow Tente novamente mais tarde.
+ELSE
+ src.sysmessageblue O dispositivo ja esta desativado
+ENDIF
+RETURN 1
+
+[REGIONTYPE r_campo_magico_fogo]
+on=@exit
+on=@enter
+if !(<src.flags>&statf_nomagic) && (!<src.isgm>) && (<tag0.active>)
+ SERV.NEWITEM i_fire_column
+ new.attr=012
+ new.p=<p>
+ new.nudgeup 10
+ new.update
+ new.timerd 1.6
+ new.sfx SND_SPELL_FIREBALL
+ src.DAMAGESPELL s_fireball, dam_fire, 120.0, <uid>
+ src.music <hval {38 40}>
+endif
+
+on=@CLIPERIODIC
+if !(<src.flags>&statf_nomagic) && (!<src.isgm>) && (<src.region.tag0.active>)
+ SERV.NEWITEM i_fire_column
+ new.attr=012
+ new.p=<p>
+ new.nudgeup 10
+ new.update
+ new.timerd 1.6
+ new.sfx SND_SPELL_FIREBALL
+ src.DAMAGESPELL s_fireball, dam_fire, 200.0, <uid>
+endif
+
+   //////////////////////////////////////////////
+  //           PORTAS MÁGICAS         //
+ //////////////////////////////////////////////
+
+[ITEMDEF i_trig_door_magic]
+//Porta ocm palavra mágica
+ID=01ea7
+NAME=cagilho de porta magica
+TYPE=t_comm_crystal
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=gatilho de porta magica
+
+on=@Create
+SPEECH=spk_door_magic
+ATTR=8080
+COLOR=065
+tag.word=abra cadabra
+MORE2=600
+
+on=@dclick
+src.f_dialog_magic_door <UID>
+return 1
+
+on=@CLIENTTOOLTIP
+if (<src.isgm>)
+    f_sendTooltip <name>,Tempo: <EVAL <more2>>s<DEF.BR>Senha: <tag.word>
+    return 1
+endif
+
+[FUNCTION f_dialog_magic_door]
+obj=<argn1>
+cTAG.trigger=<obj>
+LOCAL.timer=<obj.more2>
+cTAG.horas=<eval <obj.more2>/3600>
+LOCAL.timer -= <eval <cTAG0.horas>*3600>
+cTAG.minutos=<eval <LOCAL.timer>/60>
+LOCAL.timer -= <eval <cTAG0.minutos>*60>
+cTAG.segundos=<LOCAL.timer>
+IF (!<obj.more1>)
+ obj.more1=01eec
+ENDIF
+cTAG.face=<obj.more1>
+cTAG.word=<obj.tag.word>
+DIALOG d_magic_door
+
+[SPEECH spk_door_magic]
+on=*
+//checar distância mínima
+IF (<src.distance <p>> < 3)
+
+ //Checar se a palavra corresponde
+ IF (STRMATCH(<tag.word>,<args>))
+  //abrir, temporizar e dar o efeito
+  obj=<uid>
+  foritems 1
+   if (<type>==t_door_locked)
+    if (!<tag0.open>)
+     tag.open=1
+     timerd 5
+     timerf 1,timer,<obj.more2>
+     timerf <obj.more2>,tag.open,0
+     sfx 01FF
+     effect 2 i_fx_heal_effect 0 16 0
+    endif
+   endif
+  endfor
+
+ //palavra errada. Efeito.
+ else
+  serv.newitem <more1>
+  new.attr=012
+  new.p=<p>
+  new.nudgeup 10
+  new.update
+  new.timer 3
+  DORAND 4
+   new.say=@06 Diga-me a palavra poderosa...
+   new.say=@06 Conta-me o que me diz respeito...
+   new.say=@06 E por qual meio deseja entrar?
+   new.say=@06 Diga o que me deve e entre...
+  ENDDO
+  new.sfx 05bc
+ endif
+endif
+
+// Created 30/8/2007 19:24:49, with Gump Studio.
+// Exported with with SphereExporter ver 1.2.
+// Script for 0.55R*/0.56/0.57
+
+[DIALOG d_magic_door]
+0,0
+page 0
+resizepic 0 0 9250 366 320
+dtext 130 15 152 Porta magica
+gumppic 44 136 1143
+dtext 54 118 0 Palavra magica
+dtextentry 55 138 247 20 32 2 <cTAG.word>
+gumppic 48 80 2443
+gumppic 144 80 2443
+gumppic 248 80 2443
+dtextentry 55 81 48 20 0 3 <eval <cTAG0.horas>>
+dtextentry 150 81 48 20 0 4 <eval <cTAG0.minutos>>
+dtextentry 256 81 48 20 0 5 <eval <cTAG0.segundos>>
+dtext 56 64 0 horas
+dtext 152 64 0 minutos
+dtext 252 64 0 segundos
+if (<ctag.face>==01eec)
+ tilepic 152 192 7920
+else
+ tilepic 152 192 7913
+endif
+button 144 272 247 248 1 0 2
+button 144 240 2444 2443 1 0 1
+dtext 160 240 0 mudar
+dtext 138 178 0 Face mágica
+
+[DIALOG d_magic_door text]
+Porta magica
+Palavra magica
+<cTAG.word>
+<eval <cTAG0.horas>>
+<eval <cTAG0.minutos>>
+<eval <cTAG0.segundos>>
+horas
+minutos
+segundos
+mudar
+Face mágica
+
+[DIALOG d_magic_door button]
+ON=0
+//CANCEL
+src.sysmessageyellow Nenhuma alteracao na porta magica.
+
+ON=1
+// Button 2
+if (<ctag.face>==01eec)
+ ctag.face=i_door_magical
+else
+ ctag.face=01eec
+endif
+DIALOG d_magic_door
+
+ON=2
+// OKAY
+obj=<ctag0.trigger>
+obj.tag.word=<ARGTXT[2]>
+obj.more2=<eval (<ARGTXT[3]>*3600)+(<ARGTXT[4]>*60)+<ARGTXT[5]>>
+obj.more1=<cTAG.face>
+src.sysmessagegreen Porta magica configurada com sucesso!
+foritems 1
+ if (<type>==t_door_locked)
+  if (<tag0.open>)
+   tag.open=0
+   timerf CLEAR
+   LOCAL.i += 1
+  endif
+ endif
+endfor
+IF (<local.i>)
+ sysmessageyellow <dLOCAL.i> porta(s) resetada(s)
+ENDIF
+
+
+   //////////////////////////////////////////////
+  //           PORTAIS MÁGICOS        //
+ //////////////////////////////////////////////
+
+[ITEMDEF i_trig_gate_magic]
+//Gate com palavra mágica
+ID=01ea7
+NAME=cagilho de portal magico
+TYPE=t_comm_crystal
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=gatilho de portal magico
+
+on=@Create
+SPEECH=spk_gate_magic
+ATTR=8080
+COLOR=065
+tag.word=ocus pocus
+MORE2=600
+morex=797
+morey=1827
+morez=10
+morem=0
+
+on=@dclick
+src.f_dialog_magic_gate <UID>
+return 1
+
+on=@CLIENTTOOLTIP
+if (<src.isgm>)
+    f_sendTooltip <name>,Tempo: <EVAL <more2>>s<DEF.BR>Senha: <tag.word><DEF.BR>P: <morex>;<morey>;<morez>;<morem>
+    return 1
+endif
+
+[FUNCTION f_dialog_magic_gate]
+obj=<argn1>
+cTAG.trigger=<obj>
+cTAG.timer=<obj.more2>
+cTAG.word=<obj.tag.word>
+cTAG.px=<obj.morex>
+cTAG.py=<obj.morey>
+cTAG.pz=<obj.morez>
+cTAG.pm=<obj.morem>
+DIALOG d_gate_magic
+
+[SPEECH spk_gate_magic]
+on=*
+//checar distância mínima
+IF (<src.distance <p>> < 3)
+
+ //Checar se a palavra corresponde
+ IF (STRMATCH(<tag.word>,<args>))
+  //criar, temporizar e dar o efeito
+  serv.newitem i_gold
+  new.name Portal Magico
+  new.type t_tp
+  new.color=0
+  new.morep=<morep>
+  new.p=<p>
+  new.attr=012 //inivs|decay|never movable
+  new.timer=<more2>
+  new.update
+  new.effect 2 i_moongate_blue_fx 0 34 0
+  new.dispid=i_moongate_blue
+  new.timerf 1,update
+  new.sfx 020E
+
+ //palavra errada. Efeito.
+ else
+  serv.newitem i_fire_column
+  new.attr=012
+  new.p=<p>
+  new.nudgeup 10
+  new.update
+  new.timer 3
+  DORAND 4
+   new.say=@06 Diga-me a palavra poderosa...
+   new.say=@06 Conta-me o que me diz respeito...
+   new.say=@06 E por qual meio deseja passar?
+   new.say=@06 Diga o que me deve e te levo...
+  ENDDO
+  new.sfx 0227
+ endif
+endif
+
+
+// Created 4/9/2007 19:41:52, with Gump Studio.
+// Exported with with SphereExporter ver 1.2.
+// Script for 0.55R*/0.56/0.57
+
+[DIALOG d_gate_magic]
+100,100
+page 0
+resizepic 0 0 9250 366 320
+dtext 130 14 152 Portal magico
+gumppic 44 136 1143
+dtext 54 118 0 Palavra magica
+dtextentry 55 138 247 20 32 2 <ctag.word>
+gumppic 24 80 2443
+gumppic 104 80 2443
+gumppic 184 80 2443
+dtextentry 32 81 48 20 1071 3 <eval <ctag.px>>
+dtextentry 112 81 48 20 1071 4 <eval <ctag.py>>
+dtextentry 192 81 48 20 1071 5 <eval <ctag.pz>>
+dtext 48 64 0 X
+dtext 128 64 0 Y
+dtext 208 64 0 Z
+button 144 272 247 248 1 0 1
+gumppic 272 80 2443
+dtextentry 280 81 48 20 1071 9 <eval <ctag.pm>>
+dtext 288 64 0 Map
+gumppic 144 208 2443
+dtextentry 152 209 48 20 1071 11 <eval <ctag.timer>>
+dtext 104 184 0 Tempo para sumir (segs)
+
+[DIALOG d_gate_magic text]
+Portal magico
+Palavra magica
+<ctag.word>
+0
+1
+2
+X
+Y
+Z
+03
+Map
+4
+Tempo para sumir (segs)
+
+[DIALOG d_gate_magic button]
+ON=0
+//Cancel
+sysmessagered Nada foi alterado no portal magico.
+
+ON=1
+//Okay
+obj=<ctag0.trigger>
+obj.tag.word=<ARGTXT[2]>
+obj.more2=<ARGTXT[11]>
+obj.morex=<ARGTXT[3]>
+obj.morey=<ARGTXT[4]>
+obj.morez=<ARGTXT[5]>
+obj.morem=<ARGTXT[9]>
+sysmessagegreen Portal magico alterado com sucesso!
+
+
+
+   //////////////////////////////////////////////
+  //    OBJETOS INVISÍVEIS DETECTAVEIS        //
+ //////////////////////////////////////////////
+
+[ITEMDEF i_invis_generator]
+//Gerador de invisibilidade para itens ficarem invis e permitir Dettecting Hidden
+ID=01ea7
+NAME=gerador de invis
+TYPE=t_script
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=Gerador de inivibilidade
+
+on=@Create
+ATTR=8080
+COLOR=0b89
+MORE2=900
+tag.create=<serv.time>
+
+on=@timer
+IF (<link> == 04fffffff)
+ remove
+ return 1
+elif !(<link.attr>&attr_invis)
+ if ((<more1>/10)+<more2>) < (<serv.time>/10))
+  link.tag.name=<link.name>
+  link.name=<link.name> (invis)
+  link.attr |= attr_invis
+  link.tag.color=<link.color>
+  link.color=0b89
+  link.tag.gen=<uid>
+  link.updatex
+ endif
+else
+ more1=<serv.time>
+endif
+timer 10
+return 1
+
+on=@dclick
+src.cTAG.invis_gen=<uid>
+src.menu m_invisible_object
+return 1
+
+ON=@CLIENTTOOLTIP
+if (<src.isgm>)
+    if (<tag0.create>)
+      local.date=<f_timestring <eval (<serv.time>-<tag.create>)/10>>
+      local.s=Tempo ativo: <local.date>
+      if (<morex>)
+        local.s .= " Descobertas: <morex>"
+        local.days = <eval (<serv.time>-<tag.create>)/(10*60*60*24)>
+        local.s .= "<DEF.BR>Uma a cada <eval <local.days>/<morex>> dias"
+      else
+        local.s .= " Nunca usado"
+      endif
+    else
+      local.s = Sem registro de criacao
+    endif
+    f_sendTooltip <name>,Tempo: <f_timestring <more2>><DEF.BR>Item: <QVAL <link> != 04fffffff ? <link.name> (<link.p.x>.<link.p.y>.<link.p.z>.<link.p.m>) : Nenhum><DEF.BR>Skill para detectar: <eval <link.tag0.Detecting_Hidden>/10>.0<DEF.BR><local.s><DEF.BR>DCLick para editar.
+    return 1
+endif
+
+[FUNCTION objinvis]
+if (!<argv>)
+    if (<attr>&attr_invis)
+        local.in=0
+    else
+        local.in=1
+    endif
+elif (!0<argn>)
+    if (<attr>&attr_invis)
+        local.in=0
+    else
+        return 0
+    endif
+elif (<argn>)
+    if (<attr>&attr_invis)
+        return 0
+    else
+        local.in=1
+    endif
+else
+    return 0
+endif
+
+IF (<local.in>)
+    tag.name=<name>
+    name=<name> (invis)
+    attr |= attr_invis
+    tag.color=<color>
+    color=0b89
+    updatex
+ELSE
+    name=<tag.name>
+    tag.name=
+    attr &= ~attr_invis
+    color=<tag.color>
+    tag.color=
+    updatex
+ENDIF
+return 1
+
+[MENU m_invisible_object]
+Gerador de invisibilidade
+ON=0 Link: <QVAL (<uid.<cTAG.invis_gen>.link>) != 04fffffff ? <uid.<cTAG0.invis_gen>.link.name> (<uid.<cTAG.invis_gen>.link.p>) : Nenhum>
+sysmessageyellow Selecione o objeto a deixar invisivel...
+targetf _invis_gen_link
+return 1
+
+on=0 Detecting Hidden necessaria: <eval <uid.<cTAG0.invis_gen>.link.dtag0.Detecting_Hidden>/10>.0
+uid.<cTAG.invis_gen>.link.tag0.Detecting_Hidden += 100
+if (<uid.<cTAG.invis_gen>.link.tag0.Detecting_Hidden> > 1000)
+ uid.<cTAG0.invis_gen>.link.tag0.Detecting_Hidden = 00
+endif
+menu m_invisible_object
+return 1
+
+on=0 Tempo para voltar a ficar inivivel: <f_timestring <uid.<cTAG0.invis_gen>.more2>>
+menu m_invisible_object_timer
+return 1
+
+on=0 Resetar contadores
+ref1=<cTAG.invis_gen>
+ref1.morex=0
+ref1.tag.create=<serv.time>
+menu m_invisible_object
+return 1
+
+
+on=@cancel
+uid.<cTAG.invis_gen>.update
+uid.<cTAG.invis_gen>.timer=10
+uid.<cTAG.invis_gen>.more1=0
+
+
+[MENU m_invisible_object_timer]
+Tempo para voltar a ficar inivivel: <f_timestring <uid.<cTAG0.invis_gen>.more2>>
+ON=0 +dia
+uid.<cTAG.invis_gen>.more2 += 86400
+MENU m_invisible_object_timer
+
+ON=0 -dia
+IF (<uid.<cTAG.invis_gen>.more2> >= 86400)
+ uid.<cTAG.invis_gen>.more2 -= 86400
+endif
+MENU m_invisible_object_timer
+
+ON=0 +hora
+uid.<cTAG.invis_gen>.more2 += 3600
+MENU m_invisible_object_timer
+
+on=0 -hora
+IF (<uid.<cTAG.invis_gen>.more2> >= 3600)
+ uid.<cTAG.invis_gen>.more2 -= 3600
+ENDIF
+MENU m_invisible_object_timer
+
+ON=0 +minuto
+uid.<cTAG.invis_gen>.more2 += 60
+MENU m_invisible_object_timer
+
+ON=0 -minuto
+IF (<uid.<cTAG.invis_gen>.more2> >= 60)
+ uid.<cTAG.invis_gen>.more2 -= 60
+ENDIF
+MENU m_invisible_object_timer
+
+ON=0 +segundo
+uid.<cTAG.invis_gen>.more2 += 1
+MENU m_invisible_object_timer
+
+ON=0 -segundo
+IF (<uid.<cTAG.invis_gen>.more2> >= 1)
+ uid.<cTAG.invis_gen>.more2 -= 1
+ENDIF
+MENU m_invisible_object_timer
+
+on=@cancel
+menu m_invisible_object
+
+[FUNCTION _invis_gen_link]
+if (!<argo.isitem>)
+ sysmessagered Somente itens.
+else
+ uid.<cTAG.invis_gen>.link=<argo.uid>
+ argo.tag.Detecting_Hidden = 00
+endif
+MENU m_invisible_object
+return 1
+
+
+
+   //////////////////////////////////////////////
+  //         GERADOR DE CARTAS EM NPCS        //
+ //////////////////////////////////////////////
+
+
+[ITEMDEF i_trig_msg_gen]
+ID=i_rune_glowing_2
+NAME=gerador de cartas
+TYPE=t_script
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=gerador de mensagens em loot de NPCs
+
+on=@create
+attr=08080
+
+on=@dclick
+if (<src.isgm>)
+ src.ctag.conf=<UID>
+ DIALOG d_config_scroll
+ return 1
+endif
+
+on=@step
+if (!<argn1>) && (<src.npc>)    //Um NPC acabou de pisar
+ obj=<tag0.NPC>
+ if (!<obj.instances>)
+  serv.newitem i_carta
+  if (<more1>)
+   new.tag.nomove=1
+  endif
+  new.link=<UID>
+  new.more1 0
+  new.more2 0
+  src.bounce <new.uid>
+  tag.NPC=<src.UID>
+ endif
+endif
+return 1
+
+ON=@CLIENTTOOLTIP
+if (<src.isgm>)
+    f_sendTooltip <name>,Adiciona uma carta no loot do NPC que pisar<DEF.BR>So podendo haver uma por vez<DEF.br>DClick para editar.
+    return 1
+endif
+
+[DIALOG d_config_scroll]
+225,150
+page 0
+obj=<src.cTAG.conf>
+resizepic 0 0 9380 307 316
+if (!<src.ctag0.conf.edit>)
+ dhtmlgump 32 95 253 185 1 1 <QVAL !<ISEMPTY <obj.tag.text>> ? <obj.tag.text>:>
+ button 27 292 2445 2445 1 0 2
+ dtext 61 293 59 Editar
+ button 36 74 1209 1209 1 0 1
+ dtext 56 71 2057 <QVAL <obj.more1> ? Some em 24h se pego : Players podem ficar com a carta>
+else
+ dtextentry 32 97 234 182 0 1 <QVAL !<ISEMPTY <obj.tag.text>> ? <obj.tag.text>:>
+endif
+dtext 49 4 4 Configurar gerador de mensagens
+dtext 77 25 0 Assim que um NPC pisar aqui, ele
+dtext 26 38 0 ganhara em seu loot uma carta com os
+dtext 26 51 0 seguintes dizeres:
+
+
+[DIALOG d_config_scroll button]
+ON=0
+IF (<src.ctag0.conf.edit>)
+ obj=<src.cTAG.conf>
+ obj.tag.text=<argtxt[1]>
+ src.ctag.conf.edit
+ src.DIALOG d_config_scroll
+endif
+
+ON=1
+obj=<src.cTAG.conf>
+IF (!<obj.more1>)
+ obj.more1=1
+else
+ obj.more1=0
+endif
+src.DIALOG d_config_scroll
+
+ON=2
+src.ctag.conf.edit=1
+src.DIALOG d_config_scroll
+
+
+
+
+
+   //////////////////////////////////////////////
+  //        Buracos de descer         //
+ //////////////////////////////////////////////
+
+
+[ITEMDEF i_pa]
+ID=3897
+NAME=pa
+CATEGORY=Myt - items by professions
+SUBSECTION=Tinker
+DESCRIPTION=pa
+WEIGHT=5.0
+VALUE=8
+TYPE=t_weapon_mace_pick
+RESOURCES=2 i_cabo_madeira,1 i_placa_ferro
+SKILLMAKE=20.0 Tinkering, 1 t_tinker_tools
+SKILL=Macefighting
+
+ON=@CREATE
+MAXHITS={36 48}
+HITPOINTS=<MAXHITS>
+
+[ITEMDEF i_corda]
+ID=5368
+NAME=corda
+CATEGORY=Myt - items by professions
+SUBSECTION=Tinker
+DESCRIPTION=corda
+WEIGHT=10.0
+VALUE=500
+TYPE=t_buy_misc
+RESOURCES=25 i_fibras_vegetais, 5 i_thread, 1 i_beeswax
+SKILLMAKE=TINKERING 720
+
+ON=@CREATE
+COLOR=0
+ 
+[ITEMDEF i_buraco_escavar]
+//Buraco para escavar e virar um buraco de descer
+ID=i_floor_crumbling
+TYPE=t_script
+NAME=chao fragil
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Teleporters
+DESCRIPTION=Chao que vira buraco
+
+on=@dclick
+IF (<more1>)
+    src.sysmessagered Voce ja esta escavando...
+    return 1
+endif
+IF (<dispid> != 011C5)
+ //escavar
+ IF (!<src.restest 1 i_pa>)
+  src.sysmessagered Voce precisa de uma pa para escavar
+ else
+  sfx 018d
+  more1=1
+  dispid += 2
+  timer 2
+  update
+ endif
+else
+ if (!<link.instances>)
+  return 1
+ endif
+ //descer
+ if (<src.restest 1 i_corda>)
+  src.f_climb <uid>,<link>,1
+ else
+  src.sysmessagered Voce precisa de uma corda para descer
+ endif  
+endif
+return 1
+
+on=@timer
+if (<more1>)
+ if (<dispid> != 011C5)
+  sfx 018d
+  dispid += 1
+  update
+  timer 1
+ else
+  timer=5*60
+  more1=0
+  name=buraco
+  update
+ endif
+else
+ dispid=011C0
+ name=chao fragil
+ update
+endif
+return 1
+
+[ITEMDEF i_corda_subir]
+//Corda para subir ate <link>
+ID=i_rope_bundle
+TYPE=t_script
+NAME=corda
+
+CATEGORY=MyT - Quest Items
+SUBSECTION=Teleporters
+DESCRIPTION=Corda para subir ao buraco
+
+on=@create
+more1=0 //0=up 1=down
+
+on=@dclick
+src.f_climb <uid>,<link>,<more1>
+return 1
+
+[FUNCTION f_climb]
+//vai de <argv0> para <argv1> (<argv2> indica se sobe ou desce)
+//argv2: 0=sobe 1=desce
+cTAG.climb.from=<argv0>
+cTAG.climb.to=<argv1>
+cTAG.climb.timer=10
+cTAG.climb.anim=0
+cTAG.climb.type=<argv2>
+flags |= statf_invisible
+update
+nomove 10
+_f_climb
+
+
+[FUNCTION _f_climb]
+if (<cTAG.climb.timer>)
+    cTAG.climb.timer -= 1
+    if <cTAG.climb.type>
+        doswitch <ctag0.climb.anim> 
+            UID.<ctag0.climb.from>.emotered descendo
+            UID.<ctag0.climb.to>.emotered descendo
+            UID.<ctag0.climb.from>.sfx 048
+            sysmessageyellow Voce desce!
+            UID.<ctag0.climb.to>.sfx 03e3
+        enddo            
+    else
+        doswitch <ctag0.climb.anim>
+            UID.<ctag0.climb.from>.emotered subindo
+            UID.<ctag0.climb.to>.emotered subindo
+            UID.<ctag0.climb.from>.sfx 048
+            sysmessageyellow Voce sobe!
+            UID.<ctag0.climb.to>.sfx 03e3
+        enddo
+    endif
+    
+    if (<cTAG0.climb.anim> == 5)
+        cTAG.climb.anim = 0
+    else
+        cTAG0.climb.anim += 1
+    endif
+    timerf 1,_f_climb
+else
+    p=<UID.<cTAG0.climb.to>.p>
+    flags &= ~statf_invisible
+    if (<UID.<ctag0.climb.to>.attr> & attr_invis)
+        UID.<ctag0.climb.to>.name=<ctag.climb.to.tag.name>
+        UID.<ctag0.climb.to>.color=<ctag.climb.to.tag.color>
+        UID.<ctag0.climb.to>.attr &= ~attr_invis
+    endif
+    update
+    if <cTAG.climb.type>
+        emotered desceu 
+    else
+        emotered subiu
+    endif 
+endif
+
+
+[TYPEDEF e_just_once]
+on=@dclick
+if (STRMATCH(*<src.account.name>*,<tag.users>))
+ src.sysmessageyellow Voce ja usou este item.
+ if (<src.IsGM>)
+  src.sysmessagegreen Mas GM pode.
+  return 0
+ endif
+ return 1
+endif
+src.sysmessageyellow Atencao: Voce so podera usar este item UMA vez!
+tag.users .= ;<src.account.name>
+return 0
+
+
+
+   //////////////////////////////////////////////
+  //                 PORTCULIS            //
+ //////////////////////////////////////////////
+
+[TYPEDEF t_portculis]
+//moreZ=z dela fechada
+//morex=1 aberta
+//morey=1 em uso
+on=@dclick
+IF (<src.IsGM>)
+ f_portculis
+else
+ src.sysmessageyellow Procure o dispositivo que abre isso.
+endif
+return 1
+
+on=@timer
+if (<morex>) && (!<morey>)
+ f_portculis
+endif
+return 1
+
+[FUNCTION f_portculis]
+if (<morey>)
+ //ja esta em uso
+ return 1
+endif
+if (!<morex>)
+ //está fechada
+ morez=<p.z>
+ timerf 1,f_portculis_up
+else
+ //está aberta
+ timerf 1,f_portculis_down
+endif
+morey=1
+sfx 0477
+return 1
+
+[FUNCTION f_portculis_up]
+IF (<p.z> != <morez>+20)
+ nudgeup 5
+ timerf 1,f_portculis_up
+else
+ morey=
+ morex=1
+ sfx 0EE
+ timer 60
+endif
+return 1
+
+[FUNCTION f_portculis_down]
+IF (<p.z> != <morez>)
+ nudgedown 5
+ timerf 1,f_portculis_down
+else
+ morey=
+ morex=
+ sfx 0475
+ timer -1
+endif
+return 1
+
+
+
+   //////////////////////////////////////////////
+  //                 POLIA            //
+ //////////////////////////////////////////////
+
+[DEFNAME DEFEITO_POLIA]
+polia_corda     01
+polia_barra     02
+polia_engrenagem    04
+polia_mola      08
+
+polia_corda_id      i_corda
+polia_barra_id      i_barra_metal
+polia_engrenagem_id i_gears
+polia_mola_id       i_springs
+
+//more2 Tempo ate o novo defeito
+//more1 defeitos atuais (máscara)
+//morex defeitos possiveis (máscara)
+//morey número de defeitos possíveis
+
+[TYPEDEF t_pulley]
+on=@dclick
+iF (<src.isgm>)
+ src.sysmessageorange MODO GM! Para interagir com o objeto tire o status de GM.
+ src.cTAG.polia=<UID>
+ src.cTAG.pmore2=<more2>
+ src.cTAG.pmorex=<morex>
+ src.cTAG.pmorey=<morey>
+ src.ctag.plink=<link>
+ src.DIALOG d_polia
+ return 1
+endif
+ 
+if (!<more1>)
+ src.sysmessagegreen A polia parece estar em boas condicoes.
+else
+ src.sysmessagered A polia anao funciona por que:
+ IF (<more1>&<DEF.POLIA_CORDA>)
+  src.sysmessageyellow="- A corda esta arrebentada. Provideincie uma corda."
+ ENDIF
+ IF (<more1>&<DEF.POLIA_BARRA>)
+  src.sysmessageyellow="- O eixo se partiu. Procidencia um cabo de metal."
+ ENDIF
+ IF (<more1>&<DEF.POLIA_ENGRENAGEM>)
+  src.sysmessageyellow="- As engrenagens estao desdentadas. Providencie engenagens."
+ ENDIF
+ IF (<more1>&<DEF.POLIA_MOLA>)
+  src.sysmessageyellow="- A mola se partiu.Providencie uma mola."
+ ENDIF
+ TARGET
+endif
+return 1
+
+on=@TARGON_SELF
+src.sysmessageyellow Providencie os reparos.
+return 1
+
+on=@TARGON_GROUND
+src.sysmessageyellow Providencie os reparos.
+return 1
+
+on=@TARGON_CHAR
+src.sysmessageyellow Providencie os reparos.
+return 1
+
+on=@TARGON_ITEM
+LOCAL.item=<src.targ.baseid>
+IF (<LOCAL.item> == <DEF.polia_corda_id>) && (<more1>&<DEF.polia_corda>)
+ MORE1 ^= <DEF.POLIA_CORDA>
+ELIF (<LOCAL.item> == <DEF.polia_barra_id>) && (<more1>&<DEF.polia_barra>)
+ MORE1 ^= <DEF.POLIA_BARRA>
+ELIF (<LOCAL.item> == <DEF.polia_engrenagem_id>) && (<more1>&<DEF.polia_engrenagem>)
+ MORE1 ^= <DEF.POLIA_ENGRENAGEM>
+ELIF (<LOCAL.item> == <DEF.polia_mola_id>) && (<more1>&<DEF.polia_mola>)
+ MORE1 ^= <DEF.POLIA_MOLA>
+ELSE
+ src.sysmessagered A polia nao precisa de <src.targ.name>
+ LOCAL.NOFIX=1
+ENDIF
+IF (!<LOCAL.NOFIX>)
+ //Arrumando
+ src.emotered instalando <src.targ.name>
+ src.bow
+ sfx 0387
+ src.targ.decrement
+ timer=<more2>
+endif
+return 1
+
+on=@timer
+more1=
+if (!<morey>) || (!<morex>)
+ more1=
+else
+ //Ficou comprido, podia por FOR, mas este é o melhor jeito de manter um bom senso.
+ LOCAL.fix=<morey>
+ IF (<morex>&<DEF.polia_corda>) && !<R2>
+  more1 |= <DEF.polia_corda>
+  LOCAL.fix -= 1
+ ENDIF
+ IF (<morex>&<DEF.polia_barra>) && (<LOCAL.fix>) && !<R2>
+  more1 |= <DEF.polia_barra>
+  LOCAL.fix -= 1
+ ENDIF
+ IF (<morex>&<DEF.polia_engrenagem>) && (<LOCAL.fix>) && !<R2>
+  more1 |= <DEF.polia_engrenagem>
+  LOCAL.fix -= 1
+ ENDIF
+ IF (<morex>&<DEF.polia_mola>) && (<LOCAL.fix>) && !<R2>
+  more1 |= <DEF.polia_mola>
+ ENDIF
+ IF (!<more1>)
+  more1=<morex>
+ ENDIF
+endif
+return 1
+
+[FUNCTION f_leaverPulley]
+//argn1 = obedecendo timer ou obrigando fechar
+IF (<more1>)
+ src.sysmessagegreen Nao esta funcionando. Voce pode tentar checar os mecanismos.
+ src.act.timer=1
+ return 1
+endif
+IF (<link.type>==t_portculis) && (<link.morex>==<argn>)
+ link.f_portculis
+ if (<link.link.type>==t_portculis)
+  link.link.f_portculis
+ endif
+ELIF (<link.type>==t_door_locked)
+ f_pulleyDoor <argn>
+endif
+
+[FUNCTION f_pulleyDoor]
+//Função que cuida do uso de portas via polia
+//argn1 = obedecendo timer ou obrigando fechar
+//tag.open=1 na porta é aberta.
+if (<argn>)
+ //alavanca está atualmente acionada
+ if (<link.tag0.open>)
+  //porta atualmente aberta
+  link.timerd 1
+  link.tag.open=0
+  link.say=@026 TRANK!
+  if (<link.link.type>==t_door_locked)
+   link.link.timerd=1
+   link.link.tag.open 0
+   link.link.say=@026 TRANK!
+  endif
+ endif
+else
+ //alavanca atualmente default
+ if (!<link.tag0.open>)
+  //porta atualmente aberta
+  link.timerd 1
+  link.timerf 1,timer,-1
+  link.tag0.open=1
+  link.say=@026 click...
+  if (<link.link.type>==t_door_locked)
+   link.link.timerd 1
+   link.link.timerf 1,timer,-1
+   link.link.tag0.open=1
+   link.link.say=@026 click...
+  endif
+ endif
+endif
+
+[FUNCTION f_polia_link]
+if (!<argo.isitem>)
+ src.sysmessagered Alvo invalido.
+else
+ src.cTAG.plink=<argo.uid>
+endif
+DIALOG d_polia
+return 1
+
+[FUNCTION f_info_polia]
+obj=<cTAG.polia>
+IF !(<cTAG0.pmorex>&<DEF.polia_corda>)
+ LOCAL.corda="2151 2153"
+ELSE
+ LOCAL.corda="2153 2151" 
+ENDIF
+IF !(<cTAG0.pmorex>&<DEF.polia_barra>)
+ LOCAL.barra="2151 2153"
+ELSE
+ LOCAL.barra="2153 2151" 
+ENDIF
+IF !(<cTAG0.pmorex>&<DEF.polia_engrenagem>)
+ LOCAL.engrenagem="2151 2153"
+ELSE
+ LOCAL.engrenagem="2153 2151" 
+ENDIF
+IF !(<cTAG0.pmorex>&<DEF.polia_mola>)
+ LOCAL.mola="2151 2153"
+ELSE
+ LOCAL.mola="2153 2151" 
+ENDIF
+call f_timestring <cTAG0.pmore2>
+
+
+[DIALOG d_polia]
+250,150
+page 0
+call f_info_polia
+resizepic 0 0 2620 360 325
+checkertrans 5 6 348 311
+dtext 104 6 37 Configurar Polia
+tilepic 12 13 7848
+dtext 31 73 2100 No. de defeitos
+dtext 32 89 2100 concomitantes
+gumppic 43 112 2443
+dtext 69 113 4 <dcTAG0.pmorey>
+button 94 111 254 254 1 0 6
+dtext 31 134 2100 0=sem defeitos
+button 43 192 2443 2444 1 0 7
+dtext 59 192 32 linkar
+dtext 215 70 2100 Defeitos possiveis
+button 200 96 <LOCAL.corda> 1 0 2
+dtext 240 100 3 Corda
+button 200 128 <LOCAL.barra> 1 0 3
+dtext 240 132 3 Barra de metal
+button 200 160 <LOCAL.engrenagem> 1 0 4
+dtext 240 164 3 Engrenagem
+button 200 192 <LOCAL.mola> 1 0 5
+dtext 240 196 3 Mola
+dtext 104 222 2100 Tempo ate novo defeito
+gumppic 43 249 2443
+dtextentry 57 251 34 20 0 12 <dLOCAL.h>
+dtext 112 249 2100 horas
+gumppic 184 249 2443
+dtextentry 197 251 34 20 0 14 <dLOCAL.m>
+dtext 253 249 2100 minutos
+button 12 286 241 242 1 0 0
+button 280 286 247 248 1 0 1
+
+[DIALOG d_polia text]
+Configurar Polia
+No. de defeitos
+concomitantes
+4
+0=sem defeitos
+linkar
+Defeitos possiveis
+Corda
+Barra de metal
+Engrenagem
+Mola
+Tempo ate novo defeito
+.
+horas
+.
+minutos
+
+[DIALOG d_polia button]
+
+ON=0
+// Cancel
+sysmessagered Nada foi alterado.
+
+ON=1
+// OK
+obj=<cTAG.polia>
+obj.more2=<eval (<ARGTXT[12]>*3600)+(<ARGTXT[14]>*60)>
+obj.morex=<cTAG0.pmorex>
+obj.morey=<cTAG0.pmorey>
+obj.link=<cTAG0.plink>
+sysmessagegreen Configuracao completa.
+
+
+ON=2
+// defito corda
+IF (<cTAG0.pmorex>&<DEF.polia_corda>)
+ cTAG.pmorex ^= <def.polia_corda>
+ELSE
+ cTAG.pmorex |= <def.polia_corda>
+ENDIF
+DIALOG d_polia
+
+ON=3
+// Defeito barra
+IF (<cTAG0.pmorex>&<DEF.polia_barra>)
+ cTAG.pmorex ^= <def.polia_barra>
+ELSE
+ cTAG.pmorex |= <def.polia_barra>
+ENDIF
+DIALOG d_polia
+
+ON=4
+// Defeito engrenagem
+IF (<cTAG0.pmorex>&<DEF.polia_engrenagem>)
+ cTAG.pmorex ^= <def.polia_engrenagem>
+ELSE
+ cTAG.pmorex |= <def.polia_engrenagem>
+ENDIF
+DIALOG d_polia
+
+ON=5
+// Defeito mola
+IF (<cTAG0.pmorex>&<DEF.polia_mola>)
+ cTAG.pmorex ^= <def.polia_mola>
+ELSE
+ cTAG.pmorex |= <def.polia_mola>
+ENDIF
+DIALOG d_polia
+
+ON=6
+// Change defeitos
+cTAG.pmorey += 1
+if (<cTAG.pmorey> == 5)
+ cTAG.pmorey = 0
+endif
+DIALOG d_polia
+
+ON=7
+// linkar
+sysmessageyellow Selecione o objeto que a polia vai acionar.
+targetf f_polia_link
+
+
+
+
+
+
+
+
+[ITEMDEF i_gen_gargoyle]
+ID=0FAA
+NAME=Gerador de gargulas
+TYPE=t_script
+CATEGORY=MyT - Quest Items
+SUBSECTION=Gatilhos
+DESCRIPTION=Gerador de gargulas
+//tag.id=id do NPC
+//tag.char=UID do ultimo NPC
+//link=item que vai trigar
+//more1=Tempo em segundos para rearme
+//more2=Face
+//morex=Quantos NPCs já foram criados
+//morey=Quantos PC já foram mortos
+//morez=Quantos NPCs já foram mortos
+
+on=@create
+tag.id=c_mongbat
+tag.npc=0
+more1=3600*3
+attr=090
+color=0b89
+timer=3600*3
+
+ON=@DClick
+if (<src.IsGM>)
+ src.ctag.garg_uid=<uid>
+ src.ctag.garg_page=1
+ src.DIALOG d_gen_gargoyle 1
+endif
+return 1
+
+ON=@Timer
+if (<UID.<tag0.npc>.IsChar>)
+ UID.<tag0.npc>.remove
+endif
+serv.newnpc <tag.id>
+new.events e_gargoyle
+new.flags=040000
+new.p=<p>
+new.dir=<more2>
+new.tag.gen=<uid>
+new.home=<p>
+new.HOMEDIST=<DISTANCE <link>>
+tag.npc=<new>
+new.update
+morex += 1
+timer=-1
+return 1
+
+ON=@Destroy
+if (<UID.<tag0.npc>.IsChar>)
+ UID.<tag0.npc>.remove
+ link.garg_remGargoyle <uid>
+endif
+
+ON=@RELEASE
+//Solta o gargula no char <ARGO>
+if (<UID.<tag0.npc>.IsChar>)
+ if (<UID.<tag0.npc>.flags>&<def.statf_stone>)
+  obj=<tag0.npc>
+  obj.flags=010000000
+  obj.update
+  obj.attack <argo>
+  obj.timerf <more1> remove
+  timer=<more1>
+ endif
+endif
+
+[EVENTS e_gargoyle]
+ON=@Click
+if (<flags>&040000)
+ return 1
+endif
+
+ON=@DClick
+if (<flags>&040000)
+ return 1
+endif
+
+ON=@ContextMenuRequest
+if (<flags>&040000)
+ return 1
+endif
+
+ON=@ClientTooltip
+if (<flags>&040000)
+ src.f_sendTooltip Gargula,Um <name> esculpido em pedra.<DEF.BR> Esta frio e imovel.
+ return 1
+endif
+
+ON=@AfterClick
+if (<flags>&040000)
+ return 1
+endif
+
+ON=@KILL
+obj=<tag0.gen>
+obj.morey += 1
+
+ON=@DEATH
+obj=<tag0.gen>
+obj.morez += 1
+
+[FUNCTION garg_promptNPC]
+if (<IsEmpty <args>>)
+ prompt_new Digite o DEFNAME do NPC ou 't' para target:
+ prompt_setAction garg_promptNPC
+ prompt_setActionBack DIALOG d_gen_gargoyle
+ prompt_show
+elif (STRMATCH(t,<args>))
+ sysmessageyellow Selecione o NPC:
+ targetf garg_targNPC
+else
+ if (<serv.chardef.<args>>)
+  garg_setNPC <args>
+ else
+  sysmessageyellow DEFNAME de NPC invalido.
+  DIALOG d_gen_gargoyle  
+ endif
+endif
+
+[FUNCTION garg_targNPC]
+if (!<argo>)
+ sysmessageyewllow DEFNAME de NPC invalido.
+ DIALOG d_gen_gargoyle
+elif (!<argo.ischar>)
+ sysmessageyewllow DEFNAME de NPC invalido.
+ DIALOG d_gen_gargoyle
+else
+ garg_setNPC <argo.id>
+endif
+
+[FUNCTION garg_setNPC]
+OBJ=<ctag.garg_uid>
+obj.tag.id=<args>
+DIALOG d_gen_gargoyle
+
+[FUNCTION garg_promptTime]
+if (<IsEmpty <args>>)
+ prompt_new Digite tempo em minutos para respawn do gargula <DEF.BR>(180 para 3 horas, 300 para 5 horas)
+ prompt_setAction garg_promptTime
+ prompt_setActionBack DIALOG d_gen_gargoyle
+ prompt_show
+else
+ if (<argn>)
+  garg_setTime <args>
+ else
+  sysmessageyellow Tempo invalido.
+  DIALOG d_gen_gargoyle  
+ endif
+endif
+
+[TYPEDEF e_garg_trigger]
+on=@DClick
+if (!<src.IsGM>)
+ garg_release <src.uid>
+else
+ src.sysmessagered Voce trigou gargulas. Tire GM para testar.
+endif
+
+on=@Step
+if (!<argn1>)
+ if (!<src.IsGM>) && (!<src.IsEvent.e_gargoyle>)
+  garg_release <src.uid>
+ else
+  src.sysmessagered Voce trigou gargulas. Tire GM para testar.
+ endif
+endif
+
+
+[FUNCTION garg_release]
+//Solta todos os gargulas trigador por esse item e manda atacar <argn>
+local.g=0
+WHILE (!<IsEmpty <tag.garg_<dlocal.g>>>)
+ uid.<tag.garg_<dlocal.g>>.trigger=@RELEASE,<DEF.TAT_AS_ARGO>,<argn>
+ local.g += 1
+END
+
+
+[FUNCTION garg_addGargoyle]
+//Adiciona o gerador de UID=<argn> à lista de gargulas
+local.g=0
+WHILE (!<IsEmpty <tag.garg_<dlocal.g>>>)
+ local.g += 1
+END
+try tag.garg_<dlocal.g>=<argn>
+
+[FUNCTION garg_remGargoyle]
+//Exclui o gerador de UID=<argn> da lista de gargulas
+local.g=0
+local.cache=0
+WHILE (!<IsEmpty <tag.garg_<dlocal.g>>>)
+ if (<tag.garg_<dlocal.g>>!=<argn>) && (<tag0.garg_<dlocal.g>>)
+  try local.garg_<dlocal.cache>=<tag.garg_<dlocal.g>>
+  local.cache += 1
+ endif
+ tag.garg_<dlocal.g>=
+ local.g += 1
+END
+if (<local.cache>)
+ FOR g 0 <local.cache>
+  try tag.garg_<dlocal.g>=<local.garg_<dlocal.g>>
+ END
+else
+ try tag.garg_0=
+ events -e_garg_trigger
+endif
+
+[FUNCTION garg_setTime]
+//Seta o tempo em minutos para respawn do gargula
+OBJ=<ctag.garg_uid>
+obj.more1=<eval <argn>*60>
+DIALOG d_gen_gargoyle
+
+[FUNCTION garg_setLink]
+if (!<argo>)
+ sysmessageyellow Gatilho invalido
+elif (!<argo.IsItem>)
+ sysmessageyellow Gatilho invalido
+else
+ OBJ=<ctag.garg_uid> 
+ if (<obj.link>!=04fffffff)
+  obj.link.garg_remGargoyle <obj>
+  if (<IsEmpty <obj.link.tag.garg_0>>)
+   obj.link.events -e_garg_trigger
+  endif
+ endif
+ argo.events +e_garg_trigger
+ argo.garg_addGargoyle=<obj>
+ obj.link=<argo>
+ DIALOG d_gen_gargoyle
+endif
+
+[DIALOG d_gen_gargoyle]
+100,75
+page 0
+OBJ=<ctag.garg_uid>
+resizepic 0 0 9200 510 387
+dhtmlgump 6 7 496 53 0 0 <DEF.CENTER>NPC: <obj.tag.id> - Tempo <f_timestring <obj.more1>> - Trigger: <obj.link.name> (<obj.link.p>)<DEF.BR>Gargulas gerados: <obj.morex>  - Gargulas assassinados: <obj.morez>  - Jogadores assassinados: <obj.morey><DEF.DIIV_E>
+resizepic 8 66 2620 490 277
+button 431 352 247 248 1 0 10
+button 18 352 241 242 1 0 0
+if (<ctag.garg_page>==1)
+ button 200 352 2445 2445 1 0 3
+ dtext 229 353 57 Direcao
+ button 21 82 1209 1210 1 0 4
+ dtext 42 78 2100 NPC: <serv.chardef.<obj.tag.id>.name> (<obj.tag.id>)
+ button 21 106 1209 1210 1 0 5
+ dtext 42 102 2100 Tempo para rearmar: <f_timestring <obj.more1>>
+ button 21 131 1209 1210 1 0 6
+ dtext 42 128 2100 Gatilho: <obj.link.name> (<obj.link.p>)
+ button 21 156 1209 1210 1 0 7
+ dtext 42 153 2100 Resetar contadores
+ dhtmlgump 25 224 453 100 1 1 Voce pode setar o gatilho em qualquer item que possa ser pisado ou sofrer duplo click.<DEF.BR>Nao altera o funcionamento do item.<DEF.BR>Use o bota 'Direcao' para selecionar que direcao o gargula estara olhando quando aparecer. Quando o gatilho for pisado/usado, o gargula ira despertar e ira ataca-lo.<DEF.BR>Voce pode usar multiplos gargulas no mesmo gatilho. Se caso voce usar o comando '.dupe', selecione novamente o gatilho do novo gerador de gargulas.
+else
+ button 200 352 2445 2445 1 0 2
+ dtext 230 353 57 Trigger
+ button 278 125 4501 4501 1 0 100
+ button 295 165 4502 4502 1 0 101
+ button 278 205 4503 4503 1 0 102
+ button 236 220 4504 4504 1 0 103
+ button 193 205 4505 4505 1 0 104
+ button 175 165 4506 4506 1 0 105
+ button 187 125 4507 4507 1 0 106
+ button 236 108 4500 4500 1 0 107
+ dtext 204 83 66 Direcao:
+ DOSWITCH <obj.more2>
+  dtext 260 83 3 N
+  dtext 260 83 3 NE
+  dtext 260 83 3 E
+  dtext 260 83 3 SE
+  dtext 260 83 3 S
+  dtext 260 83 3 SW
+  dtext 260 83 3 W
+  dtext 260 83 3 NW
+ END
+endif
+
+
+[DIALOG d_gen_gargoyle text]
+
+
+[DIALOG d_gen_gargoyle button]
+
+ON=0
+ctag.garg_page=
+ctag.garg_uid=
+sysmessageyellow Suas alteracoes foram guardadas.
+
+ON=2
+// Trigger
+ctag.garg_page=1
+DIALOG d_gen_gargoyle
+
+ON=3
+// Direcao
+ctag.garg_page=2
+DIALOG d_gen_gargoyle
+
+ON=4
+// Mudar NPC
+garg_promptNPC
+
+ON=5
+// Mudar tempo
+garg_promptTime
+
+ON=6
+// Mudar trigger
+sysmessageyellow Selecione o gatilho:
+targetf garg_setLink
+
+ON=7
+//Resetar contadores
+OBJ=<ctag.garg_uid>
+obj.morep=0,0,0,0
+DIALOG d_gen_gargoyle
+
+ON=10
+// Okay
+OBJ=<ctag.garg_uid>
+obj.timerd 1
+sysmessagegreen Gargula resetado.
+ctag.garg_page=
+ctag.garg_uid=
+
+ON=100 107
+// mudar direção
+local.face=<argn>-100
+OBJ=<ctag.garg_uid>
+obj.more2=<local.face>
+DIALOG d_gen_gargoyle
+
+
+
+
+[FUNCTION necrodoor]
+//Abre target para fazer com que uma porta se torne necromante, dando passagem
+//apenas para quem está sob efeito da magia Máscara da Morte.
+if !(<argo>)
+    sysmessageyellow Selecione a porta:
+    targetf necrodoor
+    return 1
+elif (<argo.type>!=t_door) && (<argo.type>!=t_door_locked)
+    sysmessagered Porta kd/
+    return 1
+elif (<argo.IsEvent.t_door_necro>)
+    prompt_new Deseja tirar a funcao necromante desta porta e seu link?
+else
+    prompt_new Deseja habilitar funcao necromante desta porta e seu link?
+endif
+prompt_setAction necrodor_toggle <argo>
+prompt_setActionBack
+ynprompt_show
+
+[FUNCTION necrodor_toggle]
+//Habilita ou desabilita a função de necromantica de uma porta, fazendo
+//com que ela possa ser acessada por alguém que esteja sob efeito
+//da magia Máscara da Morte.
+obj=<argn>
+if (<obj.IsEvent.t_door_necro>)
+    obj.events -t_door_necro
+    sysmessageyellow A porta deixou de ser necromantica.
+    if (<obj.link>!=04fffffff)
+        obj.link.events -t_door_necro
+        sysmessageyellow O objeto link da porta deixou de ser necromantica.
+    endif
+else
+    obj.events +t_door_necro
+    sysmessageyellow A porta se tornou necromantica.
+    if (<obj.link>!=04fffffff)
+        if (<obj.link.type>!=t_door) && (<obj.link.type>!=t_door_locked)
+            obj.link.events +t_door_necro
+            sysmessageyellow O objeto link da porta se tornou necromantica.
+        endif
+    endif
+endif
+
+[TYPEDEF t_door_necro]
+//Função necromantica de uma porta, fazendo
+//com que ela possa ser acessada por alguém que esteja sob efeito
+//da magia Máscara da Morte.
+ON=@DClick
+IF (<src.restest 1 i_spl_death_mask>)
+    if (!<src.ctag0.door_necro>)
+        src.ctag.door_necro=1
+        src.timerf 10 ctag.door_necro=
+        src.sysmessagegreen Voce sente a presensa de Min'Gorad.
+        src.psfx 0246
+        src.effect 3 i_fx_sparkle 0 32 0 0174
+    endif        
+    if (<link>!=04fffffff)
+        if (<link.type>==t_door_locked)
+            if (<link.timerd> < 1)
+                link.timerf 1 timer=5
+            endif
+            link.timerd=1
+        endif
+    endif
+    if (<timerd> < 1)
+        timerf 1 timer=5
+    endif
+    timerd=1
+    return 1
+ENDIF
+
+/////////////////////////////////////////////////////////////////////////////////
+//aqui começa o extraido do itemforge. 388 linhas. 2017-10-22
+
+//*****************************************************************************
+//Item: i_trava_portas
+//*****************************************************************************
+//Rev: 6 Ts: 2014-01-01 20:58:07
+//Quando é pisado, link baixa 20z
+[ITEMDEF i_trava_portas]
+ID=6920
+NAME=mecanismo discreto
+TYPE=t_normal
+CATEGORY=Myt - quest items
+SUBSECTION=Gatilhos
+DESCRIPTION=mecanismo discreto
+
+ON=@CREATE
+COLOR=0
+//Criacao automatica
+ON=@step
+link.say=@026 TRANK!
+link.nudgedown 20
+remove
+return 1
+
+//*****************************************************************************
+//Item: i_dismount
+//*****************************************************************************
+//Rev: 5 Ts: 2016-04-21 13:51:23
+//Quando pisado, se montado, char cai e montaria morre
+[ITEMDEF i_dismount]
+ID=1305
+NAME=Desmontador
+TYPE=t_normal
+CATEGORY=Myt - quest items
+SUBSECTION=Gatilhos
+DESCRIPTION=Desmontador
+
+ON=@CREATE
+COLOR=38
+attr=090
+ON=@step
+if (<src.flags>&statf_onhorse)
+    src.sysmessagered Sua montaria patina e cai!!!
+    src.emotered cai
+    src.dismount
+    src.damage=<R5,50>
+endif
+
+if (<src.npc>=brain_animal)
+    src.emotered quebra perna e cai
+    src.hits 00
+endif
+return 0
+
+
+   /////////////////////////////////////
+  ///        SIMBOLOS DIVINOS       ///
+ /////////////////////////////////////
+//Marcas no chão visíveis que devem ser usadas em entradas de areas ou ao
+// redor de idolos, totens e simbolos de poder.
+//
+//*****************************************************************************
+//Item: i_simbolo_abencoado
+//*****************************************************************************
+//Quando pisado undeads, char necromante ou com karma negativo pega fogo
+[ITEMDEF i_simbolo_abencoado]
+ID=3685
+NAME=Simbolo Divino
+TYPE=t_light_lit
+CATEGORY=Myt - quest items
+SUBSECTION=Simbolos
+DESCRIPTION=Simbolo Divino
+WEIGHT=1.0
+VALUE=300000
+
+TDATA1=00
+TDATA2=00
+TDATA3=00
+TDATA4=0ffffffff9c000e5c
+ARMOR=0
+SPEED=0
+SKILL=
+REQSTR=0
+TWOHANDS=
+
+ON=@CREATE
+COLOR=0
+dispid 0e5d
+morep 0,0,8
+On=@Step
+if (<src.necromancy>=>30.0)
+    if (<src.karma><00.0)
+        if (<src.npc>==brain_undead) && (!<SRC.IsGM>) && (!<src.flags>&statf_dead)
+            src.damage 2
+            src.say SssSssSss
+            if (!<argn1>)
+                src.sysmessagered *Voce sente desconforto terrivel e vontade de deixar o lugar*
+                src.f_pega_fogo
+            endif
+        endif
+    endif
+    else
+        src.sysmessagegreen *Voce sente um acolhimento divino*
+endif
+Return 0
+
+//*****************************************************************************
+//Item: i_simbolo_maldito
+//*****************************************************************************
+//Rev: 15 Ts: 2017-10-18 20:38:12
+//quando pisado char com baixo ou nulo spweaving focus e não for undead fica envenenado
+[ITEMDEF i_simbolo_maldito]
+ID=3685
+NAME=Simbolo Maligno
+TYPE=t_light_lit
+CATEGORY=Myt - quest items
+SUBSECTION=Simbolos
+DESCRIPTION=Simbolo Maligno
+WEIGHT=1.0
+VALUE=300000
+
+TDATA1=00
+TDATA2=00
+TDATA3=00
+TDATA4=0ffffffff9c000e5c
+
+
+ON=@CREATE
+COLOR=0
+dispid 0e5d
+morep 0,0,8
+on=@step
+if (<src.focus><30.0)
+    if (<src.spellweaving><50.0)
+        if (!<src.npc>==brain_undead) && (!<SRC.IsGM>) && (!<src.flags>&statf_dead)
+            src.damage 2
+            if (!<argn1>)
+                src.sysmessagered Voce sente o corpo pesar e queimar de forma horrivel
+                src.veneno 2000
+            endif
+        endif
+    endif
+endif
+return 0
+
+//*****************************************************************************
+//Item: i_simbolo_protecao_divina
+//*****************************************************************************
+//Rev: 0 Ts: 2014-06-29 11:03:01
+[ITEMDEF i_simbolo_protecao_divina]
+ID=3685
+NAME=Simbolo Divino
+TYPE=t_light_lit
+CATEGORY=Myt - quest items
+SUBSECTION=Simbolos
+DESCRIPTION=Simbolo Divino
+WEIGHT=1.0
+VALUE=300000
+
+TDATA1=00
+TDATA2=00
+TDATA3=00
+TDATA4=0ffffffff9c000e5c
+
+
+ON=@CREATE
+COLOR=0
+dispid 0e5d
+morep 0,0,8
+On=@Step
+if (!<argn1>)
+if (<src.necromancy> > 10.0)
+src.sysmessagered *Voce sente desconforto e vontade de deixar o lugar*
+else
+src.sysmessagegreen *Voce sente um acolhimento divino*
+endif
+endif
+Return 0
+
+
+//*****************************************************************************
+//*****************************************************************************
+//Category: Myt - quest items -> Movers
+//*****************************************************************************
+//*****************************************************************************
+//Tiles que podem mover itens ou chars quando pisados. 
+//
+//  TAGs utilizadas:
+//   tag0.direcao    informa em qual direção o usuário é movido. Utilize N, NE, E, SE, S, SW, W ou NW
+//   tag0.distancia  informa em tiles uma distancia. Utilize junto com tag.direcao e numero inteiros
+//
+//
+/////////////////////////MOVERS/////////////////////////////////
+// - MOVEDORES
+//  Coloque movedores no caminho de chars ou mobs para criar
+//   puzzles interativos com portas e paredes em dungeons.
+//   use os empurradores para criar desorientações no caminho
+//   ou para criar mecanismos de conrrenteza que conduzirá chars
+//   forçozamente. Cuidado para não fazê-los passar pelas paredes.
+//
+
+//*****************************************************************************
+//Item: i_movedor
+//*****************************************************************************
+//direcao1 eh ajustada pelo gm, a direcao2 ajusta se o gm der 2 cliques depois de ajustar a direcao1
+//more1 = 1 faz com que o movedor se mova direcao3 quando for pisado e direcao4 quando pisado de novo
+//
+[ITEMDEF i_movedor]
+ID=1266
+NAME=Movedor
+CATEGORY=Myt - quest items
+SUBSECTION=Movers
+DESCRIPTION=Movedor
+WEIGHT=1.0
+VALUE=25
+TYPE=t_normal
+
+
+ON=@CREATE
+COLOR=33
+src.sysmessage O movedor precisa de um Link e precisa ajustar tags.
+src.sysmessageyellow Ajuste a tag0.direcao1 para a direcao onde o link move.
+src.sysmessageblue Ajuste a tag0.distancia1 para quantos tiles o link move.
+src.sysmessagered QUANDO TERMINAR de dois cliques no movedor!!!
+
+
+ON=@Dclick
+if (<tag0.direcao1>==n)
+tag0.direcao2=s
+elif (<tag0.direcao1>==nw)
+tag0.direcao2=se
+elif (<tag0.direcao1>==w)
+tag0.direcao2=e
+elif (<tag0.direcao1>==sw)
+tag0.direcao2=ne
+elif (<tag0.direcao1>==s)
+tag0.direcao2=n
+elif (<tag0.direcao1>==se)
+tag0.direcao2=nw
+elif (<tag0.direcao1>==e)
+tag0.direcao2=w
+elif (<tag0.direcao1>==ne)
+tag0.direcao2=sw
+else
+    src.sysmessarered DETERMINE UM TAG0.DIRECAO1
+endif
+return 0
+if (<tag0.distancia1>==0)
+    src.sysmessagered DETERMINE UM TAG0.DISTANCIA1
+    else
+        src.sysmessagegreen O link movera <tag0.distancia1> tiles! Ajuste com tag0.distancia2
+endif
+return 0
+if (<tag0.discancia2>==0)
+    src.sysmessageblue O movedor nao se move quando pisado.
+    else
+        src.sysmessageyellow O movedor SE move <tag0.distancia2> tiles quando pisado! Ajuste com tag0.distancia2
+endif
+return 0
+    
+on=@step
+if (!<argn1>)&&!(<src.flags>&statf_dead)
+    if (<morez>=2)||(<morez>=1)&&(!<src.npc>)
+        if (<more2>>2)
+            link.move <tag0.direcao1> <tag0.distancia1>
+            more2 -=2
+            if (<more1>=1)
+                move <tag0.direcao3> <tag0.distancia2>
+            endif
+            else
+                link.move <tag0.direcao2> <tag0.distancia1>
+                more2 +=2
+            if (<more1>=1)
+                move  <tag0.direcao4> <tag0.distancia2>
+            endif
+        endif
+    endif
+endif
+Return 0
+
+//*****************************************************************************
+//Item: i_empurrador
+//*****************************************************************************
+//
+[ITEMDEF i_empurrador]
+ID=1260
+NAME=Empurrador
+CATEGORY=Myt - quest items
+SUBSECTION=Movers
+DESCRIPTION=Empurra npcs e chars
+WEIGHT=1.0
+VALUE=25
+TYPE=t_normal
+
+ON=@CREATE
+COLOR=34
+attr=090
+tag0.direcao=e
+tag0.distancia=1
+src.sysmessage O char sera empurrado tag0.distancia na direcao tag0.direcao
+src.sysmessagered Lembre-se de ajustar essas tags!
+
+on=@Clienttooltip
+    src.f_sendTooltip <name>, Empurra para direcao <tag0.direcao>
+    return 1
+
+on=@step
+src.move <tag0.direcao> <tag0.distancia>
+return 1
+
+//*****************************************************************************
+//Item: i_correnteza
+//*****************************************************************************
+//Rev: 1 Ts: 2016-04-01 23:37:22
+//  Se more1=1 sai da correnteza. Se more1=0 cai na correnteza. O default é sair pra não dar merda.
+
+[ITEMDEF i_correnteza]
+ID=1260
+NAME=Correnteza
+CATEGORY=Myt - quest items
+SUBSECTION=Movers
+DESCRIPTION=Correnteza
+WEIGHT=1.0
+VALUE=25
+TYPE=t_normal
+
+ON=@CREATE
+COLOR=34
+attr=090
+more1=1
+src.sysmessage MORE1=0 para cair na correnteza. MORE1=1 para sair da correnteza.
+src.sysmessagered Use um i_empurrador 5z abaixo de onde se cai na correnteza para fazer funcionar.
+
+on=@Clienttooltip
+if (!<more1>==1)
+    src.f_sendTooltip <name>,  Voce colocou uma saida para essa correnteza?
+    return 1
+
+on=@step
+if (<more1>==1)
+    src.sysmessagegreen *Voce finalmente se livra da correnteza...*
+    src.nudgeup 5
+    else
+      if (!<argn1>)
+            src.sysmessagered VOCE ESCORREGA E EH TRAGADO PELA CORRENTEZA!!!
+            src.nudgedown 5
+            src.emoteblue SPLATCH!
+            return 1
+        endif
+    endif
+return 1
+
+//*****************************************************************************
+//Item: i_transportador
+//*****************************************************************************
+// arrasta o último a pisar nele por MORE2 tiles até voltar à posição inicial.
+// se houver uma fila, ele alterna quem será arrastado.
+//Rev: 16 Ts: 2017-10-18 20:50:07
+
+[ITEMDEF i_transporte_w]
+ID=1180
+NAME=Transportador
+CATEGORY=Myt - quest items
+SUBSECTION=Movers
+DESCRIPTION=Transportador
+WEIGHT=1.0
+VALUE=25
+TYPE=t_normal
+
+ON=@CREATE
+COLOR=34
+attr=090
+more2=1
+src.sysmessage move quem pisar nele por MORE2 tiles e volta para o tile inicial.
+
+on=@step
+If (<more1>==<more2>)
+move e <more2>
+more1 -=<more2>
+else
+more1 +=1
+move <tag0.direcao>
+src.move <tag0.direcao>
+link.move <tag0.direcao>
+endif
+return 1
+
+//aqui termina o extraido do itemforge. 388 linhas. 2017-10-22
+
+[EOF]
