@@ -1,3 +1,6 @@
+
+// a MYT NAO USA esse script, esta desativado para evitar conflitos. No lugar desse, usamos sistema_de_combate.scp
+
 //****************************************************************************
 // SPHERE by : Menasoft ©1997-2015
 // www.sphereserver.net
@@ -9,290 +12,290 @@
 //****************************************************************************
 // FILE LAST UPDATED: Friday, Jan 16, 2015
 //
-VERSION=0.56c
-
-[EVENTS e_combat_system]
-ON=@HitCheck
-call f_combat_hit <src>
-src.f_combat_gethit=<local.dam>,<argn2>
-
-
-[function f_combat_hit]			// We get the hit state.
-if (<src.IsItem>)						// This should not happen, but I cannot hit items.
-	return -1
-endif
-if !(<src> || <src>==<uid> )			// I cannot hit the 'air' or myself.
-	return -1
-endif
-// I cannot damage if I'm dead, stoned, freezed or sleeping, same if the target is dead, invul o stoned or has less than 1 hit point (this last should not happen ... just a safecheck).
-serv.log combat_hit <name>
-if ( (<flags>&statf_dead) || (<flags>&statf_stone) || (<flags>&statf_freeze) || (<flags>&statf_sleeping) || (<src.flags>&statf_dead) || (<src.flags>&statf_invul) || (<src.flags>&statf_stone ) || <src.hits> < 1  ) ) 
-	return -1
-endif
-if (<region.safe> || <src.region.safe>)								// I cannot hit if my region is safe or the target is on a safe region...
-	return -1 
-endif
-if (<region.nopvp> || <src.region.nopvp>)							// ... same for nopvp regions.
-	if ((<memoryfindtype.memory_ipet.link.isplayer> || <isplayer>) && (<src.memoryfindtype.memory_ipet.link.isplayer> || <src.isplayer>) )
-		return -1
-	endif
-endif
-local.dist=<src.distance>											// Storing the distance between me and my target.
-if (<local.dist>> 31)												// if Distance > Radar view distance.
-	if (<serv.CombatFlags>&0200 || <Swing>!=SWING_SWINGING)			// 0200 = COMBAT_STAYINRANGE.
-		return -1													// If Combat_StayInRange is not set and our swing state != preparing. Stop.
-	endif
-endif
-if (!<serv.CombatFlags>&040 && <region.flags>&region_flag_ship)		// 040 = AllowHitFromShip. If not Combat_AllowHitFromShip and my region is a ship.
-	if (<region.uid>!=<src.region.uid>)								// and target's region is not mine ( hence i'm hitting outside the ship)...
-		sysmessage <defmsg.COMBAT_OUTSIDESHIP>						// Stop.
-		return -1
-	endif
-endif
-if (<CanSee <src>>)													// If I can see my target.
-																	// And my target is being ridden (should not happen) or ! CanSeeLos (Ignoring windows if i'm shooting).
-	if ( (<src.brain> && <src.flags>&statf_ridden) || !<CanSeeLosFlag <src>,<qval ( <Action>==archery || <action>==throwing )? LOS_NB_WINDOWS : 0>>)
-		if ( !<serv.CombatFlags>&200 || <Swing>!=SWING_SWINGING)	// I'm going to stop (unless i'm preparing to hit and Combat_StayInRange is not set).
-			argn1 SWING_READY
-			return 1
-		endif
-		argn1 SWING_EQUIPPING
-		return 1
-	endif
-else
-	if ( !<serv.CombatFlags>&200 || <Swing>!=SWING_SWINGING)		// same here but without LOS check.
-		argn1 SWING_READY
-		return 1
-	endif
-	argn1 SWING_EQUIPPING
-	return 1
-endif
-if ( (<brain>==brain_guard) && (<src.flags>&statf_conjured) )				// I'm a Guard, don't waste my time with stupid summons!!!
-	src.remove
-	argn1 SWING_EQUIPPING
-	return 1
-endif
-if ( (<serv.CombatFlags>&02) && <isplayer>)							// 02 = COMBAT_FACECOMBAT. If I must face in combat and I'm a player (so NPCS doesn't have to face).
-	local.dir=<dir <src>>
-	if ( <local.dir> != <dir> && <local.dir> != (<dir>-1) && <local.dir> !=(<dir>+1) )	// Check if I'm looking to the target or dir = dir +1 || dir -1 ( Vision angle ).
-		argn1 SWING_READY
-		return 1
-	endif
-endif
-argn2=dam_physical													// Creating argn2: dam_flags
-if (<weapon>)
-	if (<weapon.tag0.override.damagetype>)							// IF my weapon has special dmg flags ...
-		argn2 = <weapon.tag.override.damagetype>					// I use them.
-	elseif ( <weapon.type>==t_weapon_sword || <weapon.type>==t_weapon_axe || <weapon.type>==t_weapon_throwing )
-		argn2 |=dam_slash											// Setting flag for these weapons
-	elseif ( <weapon.type>==t_weapon_fence || <weapon.type>==t_weapon_bow || <weapon.type>==t_weapon_xbow )
-		argn2 |=dam_pierce											// Same here
-	endif
-	
-	if (<IsSkillRanged <action>>)									// If my action is a ranged one ( Archery or Throwing ).
-		local.mindist=<qval <weapon.rangel> ? <weapon.rangel> : -1 >	// Storing the min possible distance.
-		local.maxdist=<qval <weapon.rangeh> ? <weapon.rangeh> : -1 >	// Storing the max possible distance.
-		if (<local.mindist> < 0)										// If stored distance doesn't meet a min required we use the default's standard.
-			local.mindist = <serv.ArcheryMinDist>
-		endif
-		if (<local.maxdist> < 1 )										// Same for max distance.
-			local.maxdist = <serv.ArcheryMaxDist>
-		endif
-		
-		if ( <local.dist> > <local.maxdist )							// If my target is far than my weapon's max distance...
-					
-			if ( !<serv.CombatFlags>&200 || <Swing>!=SWING_SWINGING)	// and I'm not preparing to hit or not Combat_StayInRange
-				argn1 SWING_READY
-				return 1
-			endif
-			argn1 SWING_EQUIPPING
-			return 1
-		endif
-		
-		if (<flags>&statf_hasshield)									// This should never happen, just a safecheck.
-			sysmessage=<defmsg.ITEMUSE_BOW_SHIELD>
-			action=0
-			argn1 -1
-			return 1
-		endif
-		
-		if ( <local.dist> < <local.mindist> )				
-			sysmessage=<defmsg.COMBAT_ARCH_TOOCLOSE>					// I am so close to shoot a hit, stop.
-			anim=9
-			argn1 SWING_EQUIPPING
-			return 1
-		endif
-		if !(<isgm>)
-			reveal -1													// I reveal myself if i'm not GM.
-		endif
-		if !(<serv.CombatFlags>&01)										// COMBAT_NODIRCHANGE
-			face <src>													// If no COMBAT_NoDirChange I face the enemy.
-		endif
-		local.ammotype = <qval <weapon.ammotype> ? <weapon.ammotype> : <fixedid <tdata3>>	// Setting the ammo id we are going to use, if the weapon doesn't have one specified with AmmoType we use TDATA3
-		if (<def0.<local.ammotype>>)											// If arrow exist then we perform checks, if not ... weapon doesn't require ammo.
-			local.cont=<qval <weapon.ammocont> ? <weapon.ammocont> : <uid> >	// AmmoCont is used here to set the container for the ammo.
-			ref200=<findcont.<local.cont>.findid.<local.ammotype>>				// Store the ammo UID if any.
-			if (!<ref200>)														// Check if there's ammo
-				if (<isplayer>)													// If I'm a player and I don't have ammo: stop
-					sysmessage=<defmsg.COMBAT_ARCH_NOAMMO>
-					action=0
-					return -1
-				// else															// Uncommenting these 2 lines will make npcs stop using ranged skills if they don't have ammo.
-					// return -1
-				endif			
-			endif
-		endif
-		if ( <argn1> == SWING_READY )
-			if ( <local.dist> > <local.maxdist> )
-				argn1 SWING_READY
-				return 1
-			endif
-			if !(<IsGM>)
-				reveal
-			endif
-			if !(<serv.CombatFlags>&01)	//COMBAT_NoDirChange
-				face <src>
-			endif
-			local.time = <GetWeaponSwingTimer>
-			argn1=<local.time>
-			FullTrigger @HitTry	// I force the trigger and using call will make sure that code is stopped if there's a return  in the trigger.
-			if (<local.return> == 1)
-				return -1
-			endif
-			local.time = <argn1>
-			
-			argn1 = SWING_SWINGING
-			tag.fight_moved=0
-			if (<serv.CombatFlags>&04)	//Combat_PreHit
-				tag.lasthit = <local.time> + <serv.time>
-				anim 9
-				timerd = 1
-			else
-				timerd = <local.time> / 2
-				anim 9	// ,<local.time>/10
-			endif
-			return 1
-		endif
-		
-		//BEGIN HIT
-		local.color=<qval <weapon.ammoanimhue> ? <weapon.ammoanimhue> : <ref200.color> >	// I use color stored in weapon, if any, or the ammo one.
-		local.anim=<qval <weapon.ammoanim> ? <weapon.ammoanim> : <weapon.tdata4> >			// I use the animation of weapon.AmmoAnim or the default in TDATA4.
-		local.render=<qval <weapon.ammoanimrender> ? <weapon.ammoanimrender> ? 0 >			// If my weapon have some special AmmoAnimRender I use it.
-		if (<local.ammotype>)																// If I had ammo to use...
-			serv.newdupe <ref200>
-			new.attr |= attr_invis
-			new.timerf 20,remove
-			new.cont=<findlayer.21>
-			local.arrow=<new>
-			consume 1 <ref200.baseid>														// I consume it.
-		endif
-		src.effect 0,<local.anim>,5,16,0,<local.color>,<local.render>						// I shoot the 'arrow'
-		argn1 SWING_EQUIPPING
-		return 0
-	else	// Not ranged skill
-		if ( <serv.CombatFlags>&04 && <Swing>==SWING_READY )
-			local.diff = <tag0.lasthit> - <serv.time>
-			if (<local.diff> > 0)
-				local.diff = <qval <local.diff> > 50 ? 50 : <local.diff> >
-				timerd = <local.diff>
-				argn1 SWING_READY
-				return 1
-			endif
-		endif
-		local.mindist = <weapon.rangel>
-		local.maxdist = <max <range>,<weapon.rangeh>>
-		if ( <local.dist> < <local.mindist> || <local.dist> > <local.maxdist> )
-			if ( !<serv.CombatFlags>&0200 || <swing>!=SWING_SWINGING )
-				argn1 SWING_READY
-				return 1
-			endif
-			argn1 SWING_EQUIPPING
-			return 1
-		endif
-		if ( <swing> == SWING_READY )
-			if ( <local.dist> > <local.maxdist> )
-				argn1 SWING_READY
-				return 1
-			endif
-			if !(<IsGM>)
-				reveal
-			endif
-			if !(<serv.CombatFlags>&01)	//COMBAT_NoDirChange
-				face <src>
-			endif
-			local.time = <GetWeaponSwingTimer>
-			argn1=<local.time>
-			FullTrigger @HitTry	// I force the trigger and using call will make sure that code is stopped if there's a return  in the trigger.
-			if (<local.return>==1)
-				return -1
-			endif
-			local.time = <argn1>
-			
-			swing = SWING_SWINGING
-			tag.fight_moved=0
-			if (<serv.CombatFlags>&04)	//Combat_PreHit
-				tag.lasthit = <local.time> + <serv.time>
-				anim 9
-				timerd = 1
-			else
-				timerd = <local.time> / 2
-				anim 9	// ,<local.time>/10
-			endif
-			return 1
-		endif
-		if !(<serv.CombatFlags>&01)										// COMBAT_NODIRCHANGE
-			face <src>													// If no COMBAT_NoDirChange I face the enemy.
-		endif
-		if !(<IsGM>)
-			reveal
-		endif
-	endif
-	swing = SWING_SWINGING
-	tag.fight_moved = 0
-	local.time = <getswingtimer>
-	timerd = <local.time> / 2
-	local.weight = <min <qval <weapon> ? <weapon.weight> : 1 >, 10 >
-	stam -=<local.weight>
-	if ( <ActDiff> < 0 )
-		local.sound_miss = <qval <weapon.tag0.override.sound_miss> ? <weapon.tag.override.sound_miss> : 0 >
-		argo = <weapon>
-		FullTrigger @HitMiss
-		if (<local.return>==1)
-			return -1
-		endif
-	endif
-	if ( <ActDiff> < 0 )	// Calling it again in case the trigger had change it.
-		if ( <IsSkillRanged <action> > )
-			local.sound = <qval <local.sound> ? <local.sound> : <qval <r0,1>==1 ? 0233 : 0238 > >
-			sound = <local.sound>
-			if ( <local.arrow> )
-				ref10=<local.arrow>
-				if ( <r5> )
-					ref10.attr &=~attr_invis
-					ref10.p=<src.p>
-				else
-					ref10.remove
-				endif
-			endif
-			argn1 SWING_EQUIPPING
-			return 1
-		endif
-		local.sound = <qval <local.sound> ? <local.sound> : <eval { 0238 1, 0239 1, 023a 1} > >
-		sound = <local.sound>
-		if (<detail>)
-			sysmessagef="<defmsg.COMBAT_MISSS>",<src.name>
-		endif
-		if (<src.detail>)
-			src.sysmessagef="<defmsg.COMBAT_MISSO>",<name>
-		endif
-		argn1 SWING_EQUIPPING
-		return 1
-	endif
-	if ( <src.action> == healing )
-		src.action -1
-		src.sysmessage=<defmsg.HEALING_INTERRUPT>
-	endif
-	
+//VERSION=0.56c
+//
+//[EVENTS e_combat_system]
+//ON=@HitCheck
+//call f_combat_hit <src>
+//src.f_combat_gethit=<local.dam>,<argn2>
+//
+//
+//[function f_combat_hit]			// We get the hit state.
+//if (<src.IsItem>)						// This should not happen, but I cannot hit items.
+//	return -1
+//endif
+//if !(<src> || <src>==<uid> )			// I cannot hit the 'air' or myself.
+//	return -1
+//endif
+//// I cannot damage if I'm dead, stoned, freezed or sleeping, same if the target is dead, invul o stoned or has less than 1 hit point (this last should not happen ... just a safecheck).
+////serv.log combat_hit <name>
+//if ( (<flags>&statf_dead) || (<flags>&statf_stone) || (<flags>&statf_freeze) || (<flags>&statf_sleeping) || (<src.flags>&statf_dead) || (<src.flags>&statf_invul) || (<src.flags>&statf_stone ) || <src.hits> < 1  ) ) 
+//	return -1
+//endif
+//if (<region.safe> || <src.region.safe>)								// I cannot hit if my region is safe or the target is on a safe region...
+//	return -1 
+//endif
+//if (<region.nopvp> || <src.region.nopvp>)							// ... same for nopvp regions.
+//	if ((<memoryfindtype.memory_ipet.link.isplayer> || <isplayer>) && (<src.memoryfindtype.memory_ipet.link.isplayer> || <src.isplayer>) )
+//		return -1
+//	endif
+//endif
+//local.dist=<src.distance>											// Storing the distance between me and my target.
+//if (<local.dist>> 31)												// if Distance > Radar view distance.
+//	if (<serv.CombatFlags>&0200 || <Swing>!=SWING_SWINGING)			// 0200 = COMBAT_STAYINRANGE.
+//		return -1													// If Combat_StayInRange is not set and our swing state != preparing. Stop.
+//	endif
+//endif
+//if (!<serv.CombatFlags>&040 && <region.flags>&region_flag_ship)		// 040 = AllowHitFromShip. If not Combat_AllowHitFromShip and my region is a ship.
+//	if (<region.uid>!=<src.region.uid>)								// and target's region is not mine ( hence i'm hitting outside the ship)...
+//		sysmessage <defmsg.COMBAT_OUTSIDESHIP>						// Stop.
+//		return -1
+//	endif
+//endif
+//if (<CanSee <src>>)													// If I can see my target.
+//																	// And my target is being ridden (should not happen) or ! CanSeeLos (Ignoring windows if i'm shooting).
+//	if ( (<src.brain> && <src.flags>&statf_ridden) || !<CanSeeLosFlag <src>,<qval ( <Action>==archery || <action>==throwing )? LOS_NB_WINDOWS : 0>>)
+//		if ( !<serv.CombatFlags>&200 || <Swing>!=SWING_SWINGING)	// I'm going to stop (unless i'm preparing to hit and Combat_StayInRange is not set).
+//			argn1 SWING_READY
+//			return 1
+//		endif
+//		argn1 SWING_EQUIPPING
+//		return 1
+//	endif
+//else
+//	if ( !<serv.CombatFlags>&200 || <Swing>!=SWING_SWINGING)		// same here but without LOS check.
+//		argn1 SWING_READY
+//		return 1
+//	endif
+//	argn1 SWING_EQUIPPING
+//	return 1
+//endif
+//if ( (<brain>==brain_guard) && (<src.flags>&statf_conjured) )				// I'm a Guard, don't waste my time with stupid summons!!!
+//	src.remove
+//	argn1 SWING_EQUIPPING
+//	return 1
+//endif
+//if ( (<serv.CombatFlags>&02) && <isplayer>)							// 02 = COMBAT_FACECOMBAT. If I must face in combat and I'm a player (so NPCS doesn't have to face).
+//	local.dir=<dir <src>>
+//	if ( <local.dir> != <dir> && <local.dir> != (<dir>-1) && <local.dir> !=(<dir>+1) )	// Check if I'm looking to the target or dir = dir +1 || dir -1 ( Vision angle ).
+//		argn1 SWING_READY
+//		return 1
+//	endif
+//endif
+//argn2=dam_physical													// Creating argn2: dam_flags
+//if (<weapon>)
+//	if (<weapon.tag0.override.damagetype>)							// IF my weapon has special dmg flags ...
+//		argn2 = <weapon.tag.override.damagetype>					// I use them.
+//	elseif ( <weapon.type>==t_weapon_sword || <weapon.type>==t_weapon_axe || <weapon.type>==t_weapon_throwing )
+//		argn2 |=dam_slash											// Setting flag for these weapons
+//	elseif ( <weapon.type>==t_weapon_fence || <weapon.type>==t_weapon_bow || <weapon.type>==t_weapon_xbow )
+//		argn2 |=dam_pierce											// Same here
+//	endif
+//	
+//	if (<IsSkillRanged <action>>)									// If my action is a ranged one ( Archery or Throwing ).
+//		local.mindist=<qval <weapon.rangel> ? <weapon.rangel> : -1 >	// Storing the min possible distance.
+//		local.maxdist=<qval <weapon.rangeh> ? <weapon.rangeh> : -1 >	// Storing the max possible distance.
+//		if (<local.mindist> < 0)										// If stored distance doesn't meet a min required we use the default's standard.
+//			local.mindist = <serv.ArcheryMinDist>
+//		endif
+//		if (<local.maxdist> < 1 )										// Same for max distance.
+//			local.maxdist = <serv.ArcheryMaxDist>
+//		endif
+//		
+//		if ( <local.dist> > <local.maxdist )							// If my target is far than my weapon's max distance...
+//					
+//			if ( !<serv.CombatFlags>&200 || <Swing>!=SWING_SWINGING)	// and I'm not preparing to hit or not Combat_StayInRange
+//				argn1 SWING_READY
+//				return 1
+//			endif
+//			argn1 SWING_EQUIPPING
+//			return 1
+//		endif
+//		
+//		if (<flags>&statf_hasshield)									// This should never happen, just a safecheck.
+//			sysmessage=<defmsg.ITEMUSE_BOW_SHIELD>
+//			action=0
+//			argn1 -1
+//			return 1
+//		endif
+//		
+//		if ( <local.dist> < <local.mindist> )				
+//			sysmessage=<defmsg.COMBAT_ARCH_TOOCLOSE>					// I am so close to shoot a hit, stop.
+//			anim=9
+//			argn1 SWING_EQUIPPING
+//			return 1
+//		endif
+//		if !(<isgm>)
+//			reveal -1													// I reveal myself if i'm not GM.
+//		endif
+//		if !(<serv.CombatFlags>&01)										// COMBAT_NODIRCHANGE
+//			face <src>													// If no COMBAT_NoDirChange I face the enemy.
+//		endif
+//		local.ammotype = <qval <weapon.ammotype> ? <weapon.ammotype> : <fixedid <tdata3>>	// Setting the ammo id we are going to use, if the weapon doesn't have one specified with AmmoType we use TDATA3
+//		if (<def0.<local.ammotype>>)											// If arrow exist then we perform checks, if not ... weapon doesn't require ammo.
+//			local.cont=<qval <weapon.ammocont> ? <weapon.ammocont> : <uid> >	// AmmoCont is used here to set the container for the ammo.
+//			ref200=<findcont.<local.cont>.findid.<local.ammotype>>				// Store the ammo UID if any.
+//			if (!<ref200>)														// Check if there's ammo
+//				if (<isplayer>)													// If I'm a player and I don't have ammo: stop
+//					sysmessage=<defmsg.COMBAT_ARCH_NOAMMO>
+//					action=0
+//					return -1
+//				// else															// Uncommenting these 2 lines will make npcs stop using ranged skills if they don't have ammo.
+//					// return -1
+//				endif			
+//			endif
+//		endif
+//		if ( <argn1> == SWING_READY )
+//			if ( <local.dist> > <local.maxdist> )
+//				argn1 SWING_READY
+//				return 1
+//			endif
+//			if !(<IsGM>)
+//				reveal
+//			endif
+//			if !(<serv.CombatFlags>&01)	//COMBAT_NoDirChange
+//				face <src>
+//			endif
+//			local.time = <GetWeaponSwingTimer>
+//			argn1=<local.time>
+//			FullTrigger @HitTry	// I force the trigger and using call will make sure that code is stopped if there's a return  in the trigger.
+//			if (<local.return> == 1)
+//				return -1
+//			endif
+//			local.time = <argn1>
+//			
+//			argn1 = SWING_SWINGING
+//			tag.fight_moved=0
+//			if (<serv.CombatFlags>&04)	//Combat_PreHit
+//				tag.lasthit = <local.time> + <serv.time>
+//				anim 9
+//				timerd = 1
+//			else
+//				timerd = <local.time> / 2
+//				anim 9	// ,<local.time>/10
+//			endif
+//			return 1
+//		endif
+//		
+//		//BEGIN HIT
+//		local.color=<qval <weapon.ammoanimhue> ? <weapon.ammoanimhue> : <ref200.color> >	// I use color stored in weapon, if any, or the ammo one.
+//		local.anim=<qval <weapon.ammoanim> ? <weapon.ammoanim> : <weapon.tdata4> >			// I use the animation of weapon.AmmoAnim or the default in TDATA4.
+//		local.render=<qval <weapon.ammoanimrender> ? <weapon.ammoanimrender> ? 0 >			// If my weapon have some special AmmoAnimRender I use it.
+//		if (<local.ammotype>)																// If I had ammo to use...
+//			serv.newdupe <ref200>
+//			new.attr |= attr_invis
+//			new.timerf 20,remove
+//			new.cont=<findlayer.21>
+//			local.arrow=<new>
+//			consume 1 <ref200.baseid>														// I consume it.
+//		endif
+//		src.effect 0,<local.anim>,5,16,0,<local.color>,<local.render>						// I shoot the 'arrow'
+//		argn1 SWING_EQUIPPING
+//		return 0
+//	else	// Not ranged skill
+//		if ( <serv.CombatFlags>&04 && <Swing>==SWING_READY )
+//			local.diff = <tag0.lasthit> - <serv.time>
+//			if (<local.diff> > 0)
+//				local.diff = <qval <local.diff> > 50 ? 50 : <local.diff> >
+//				timerd = <local.diff>
+//				argn1 SWING_READY
+//				return 1
+//			endif
+//		endif
+//		local.mindist = <weapon.rangel>
+//		local.maxdist = <max <range>,<weapon.rangeh>>
+//		if ( <local.dist> < <local.mindist> || <local.dist> > <local.maxdist> )
+//			if ( !<serv.CombatFlags>&0200 || <swing>!=SWING_SWINGING )
+//				argn1 SWING_READY
+//				return 1
+//			endif
+//			argn1 SWING_EQUIPPING
+//			return 1
+//		endif
+//		if ( <swing> == SWING_READY )
+//			if ( <local.dist> > <local.maxdist> )
+//				argn1 SWING_READY
+//				return 1
+//			endif
+//			if !(<IsGM>)
+//				reveal
+//			endif
+//			if !(<serv.CombatFlags>&01)	//COMBAT_NoDirChange
+//				face <src>
+//			endif
+//			local.time = <GetWeaponSwingTimer>
+//			argn1=<local.time>
+//			FullTrigger @HitTry	// I force the trigger and using call will make sure that code is stopped if there's a return  in the trigger.
+//			if (<local.return>==1)
+//				return -1
+//			endif
+//			local.time = <argn1>
+//			
+//			swing = SWING_SWINGING
+//			tag.fight_moved=0
+//			if (<serv.CombatFlags>&04)	//Combat_PreHit
+//				tag.lasthit = <local.time> + <serv.time>
+//				anim 9
+//				timerd = 1
+//			else
+//				timerd = <local.time> / 2
+//				anim 9	// ,<local.time>/10
+//			endif
+//			return 1
+//		endif
+//		if !(<serv.CombatFlags>&01)										// COMBAT_NODIRCHANGE
+//			face <src>													// If no COMBAT_NoDirChange I face the enemy.
+//		endif
+//		if !(<IsGM>)
+//			reveal
+//		endif
+//	endif
+//	swing = SWING_SWINGING
+//	tag.fight_moved = 0
+//	local.time = <getswingtimer>
+//	timerd = <local.time> / 2
+//	local.weight = <min <qval <weapon> ? <weapon.weight> : 1 >, 10 >
+//	stam -=<local.weight>
+//	if ( <ActDiff> < 0 )
+//		local.sound_miss = <qval <weapon.tag0.override.sound_miss> ? <weapon.tag.override.sound_miss> : 0 >
+//		argo = <weapon>
+//		FullTrigger @HitMiss
+//		if (<local.return>==1)
+//			return -1
+//		endif
+//	endif
+//	if ( <ActDiff> < 0 )	// Calling it again in case the trigger had change it.
+//		if ( <IsSkillRanged <action> > )
+//			local.sound = <qval <local.sound> ? <local.sound> : <qval <r0,1>==1 ? 0233 : 0238 > >
+//			sound = <local.sound>
+//			if ( <local.arrow> )
+//				ref10=<local.arrow>
+//				if ( <r5> )
+//					ref10.attr &=~attr_invis
+//					ref10.p=<src.p>
+//				else
+//					ref10.remove
+//				endif
+//			endif
+//			argn1 SWING_EQUIPPING
+//			return 1
+//		endif
+//		local.sound = <qval <local.sound> ? <local.sound> : <eval { 0238 1, 0239 1, 023a 1} > >
+//		sound = <local.sound>
+//		if (<detail>)
+//			sysmessagef="<defmsg.COMBAT_MISSS>",<src.name>
+//		endif
+//		if (<src.detail>)
+//			src.sysmessagef="<defmsg.COMBAT_MISSO>",<name>
+//		endif
+//		argn1 SWING_EQUIPPING
+//		return 1
+//	endif
+//	if ( <src.action> == healing )
+//		src.action -1
+//		src.sysmessage=<defmsg.HEALING_INTERRUPT>
+//	endif
+//	
 	local.dam=<CalcDamage 0>
 	local.swing=<argn1>
 	argn1=<action>
