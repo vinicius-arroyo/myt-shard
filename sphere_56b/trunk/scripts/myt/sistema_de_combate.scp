@@ -147,7 +147,7 @@ if (<WEAPON.type>==t_weapon_bow) || (<WEAPON.type>==t_weapon_xbow)
 		local.ArrowInPack = <qval <ref1.topobj> == <UID> ? 1 : 0>
 	endif
 	if (!<local.HasArrow>) || (!<local.ArrowInPack>) //Não tenho mais flechas ou elas não estão comigo
-		if (!<WEAPON.f_find_new_arrows>)			 //Tenta achar mais flechas iguais na bag. Se não achar...
+		if (!<WEAPON.f_find_new_arrows>) && (<brain>==0) //Tenta achar mais flechas iguais na bag. Se não achar...
 			sysmessagered Voce esta sem flechas.
 			action=0
 			return -1
@@ -190,7 +190,7 @@ actdiff=1000
 TRIGGER @TownHit,<DEF.TAT_AS_ARGN><src>
 
 //Gastar flechas
-if (<WEAPON.type>==t_weapon_bow) || (<WEAPON.type>==t_weapon_xbow)
+if (<WEAPON.type>==t_weapon_bow) || (<WEAPON.type>==t_weapon_xbow) && (<brain>==0)
 	ref1=<weapon.tag0.arrow>
 	ref1.decrement
 endif
@@ -447,20 +447,26 @@ if <argn1> > 0
     ENDFOR
 
     //// anima
-if (<npc> != brain_undead) 
-	if (<argn1> > 17 ) 
+if (<npc> != brain_undead) && (<argn2>&(dam_pierce|dam_slash|dam_physical)  
+	if (<argn1> > 15) 
 		local.blood=<r4650,4655>
 	elseif (<r<argn1>> > 5)
 		local.blood=5701
 	endif
 endif
-	serv.newitem=<local.blood>
-	new.attr=attr_decay|attr_move_never
-	new.timer=7
-	new.p=<p>
-	new.color=<BLOODCOLOR>
-	new.movenear <uid>,<R2>
-	anim 20
+	cmb_blood <local.blood>
+		if (<argn1> > 30)
+			local.blood=<r4650,4655>
+			cmb_blood <local.blood>
+				if (<argn1> > 45)
+					local.blood=<r4650,4655>
+					cmb_blood <local.blood>
+						if (<argn1> > 60)
+							local.blood=<r4650,4655>
+							cmb_blood <local.blood>
+						endif
+				endif
+		endif
 endif
 
 ////decrementa pontos
@@ -1214,6 +1220,19 @@ if (<poisoning> >= 300) && <NPC> && !<src.ispoisoned>
         emotered aplica veneno
     endif
 endif
+
+//*****************************************************************************
+// cmb_blood
+//*****************************************************************************
+[FUNCTION cmb_blood]
+serv.newitem=<argn1>
+new.attr=attr_decay|attr_move_never
+new.timer=7
+new.p=<p>
+new.color=<BLOODCOLOR> 
+new.movenear <uid>,<R2>
+anim 20
+  
 
 //*****************************************************************************
 //*****************************************************************************
