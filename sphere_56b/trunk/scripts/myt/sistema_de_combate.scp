@@ -190,7 +190,7 @@ actdiff=1000
 TRIGGER @TownHit,<DEF.TAT_AS_ARGN><src>
 
 //Gastar flechas
-if (<WEAPON.type>==t_weapon_bow) || (<WEAPON.type>==t_weapon_xbow) && (<brain>==0)
+if ((<WEAPON.type>==t_weapon_bow) || (<WEAPON.type>==t_weapon_xbow)) && (<brain>==0)
 	ref1=<weapon.tag0.arrow>
 	ref1.decrement
 endif
@@ -313,8 +313,10 @@ if (<Eval <Var.CombatSystem>>) || (<Eval <src.tag0.combatenovo>>) //============
   LOCAL.bonus += <cmb_bonusAnatomy>   //0 a 50%
   LOCAL.bonus += <cmb_bonusTactics>   //0 a 50%
   LOCAL.bonus += <tag0.moddam>        //?
+	if (!<argo>) && (<brain>==0) //testa se o atacante esta sem arma
+		local.bonus += <between 1,650,<wrestling>,1250>
+	endif
   LOCAL.bonus += <TRIGGER @Hitting,<DEF.TAT_AS_ARGN>,<ARGN1>,<ARGN2>>
-
   LOCAL.penal = 0
   //LOCAL.penal += <cmb_penalPoison>    //REVER
   LOCAL.penal += <cmb_penalStam>      //0 a 50%
@@ -329,6 +331,7 @@ if (<Eval <Var.CombatSystem>>) || (<Eval <src.tag0.combatenovo>>) //============
 
   ///// APLICA Modificadores de dano em %
   LOCAL.bonus -= <LOCAL.penal>
+  serv.log NOVO3 LOCAL.bonus <eval <LOCAL.bonus>>
 
   //serv.log [COMBAT] BonusTotal%:<dLOCAL.bonus>
 
@@ -343,7 +346,7 @@ if (<Eval <Var.CombatSystemPVP>>)        //se o dano pela metade estiver ligado
       endif
   else
      argn1 += <eval (<argn1>*<LOCAL.bonus>)/100> //calculando o dano //dando o dano normal
-  endif
+	 endif
 
 
 endif //===================================[terminando de verificar se é o combate novo ou antigo
@@ -386,6 +389,22 @@ ON=@GETHIT
 /////Se estiver invulnerável, deixa queto.
 if (<flags>&statf_invul)
     return 1
+///// Diminui o dano
+elif (<argn2>&<tag0.resist>)
+	LOCAL.res=<R50,70>         //Diminui o dano em 30 a 50%
+    argn1 = <eval (<argn1>*<LOCAL.res>)/100>
+    DORAND 3
+        src.sysmessageorange <name> parece ser resistente a este tipo de ataque.
+    ENDDO
+///// Dificil de acertar
+elif (<argn2>&<tag0.dodger>)
+	LOCAL.dodger=<R100>         //Diminui a chance de acertar o alvo em 50%
+    if (<local.dodger> <= 50)
+    DORAND 2
+        src.sysmessageorange <name> é extremamente difícil de acertar com este tipo de ataque.
+    ENDDO
+    return 1
+	endif
 ///// Bloquear dano se imune
 elif (<argn2>&<tag0.immune>)
     DORAND 2
