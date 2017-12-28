@@ -518,32 +518,32 @@ if (<flags>&statf_freeze|statf_stone)
 endif
 
 
-//[COMMENT comentario]
-//SRC=char sendo visto
-//default=NPC vendo
-on=@NPCLookAtChar
-
-//NPC vendo NPC?
-if <src.npc>
-    //nao esta usando nenhuma skill?  if (<action> < 0) || (<action> > 54)
-    //nao esta em warmode?
-    if !(<flags>&statf_war)
-        //nao antagonicos?
-        if ( <karma> >= 0 ) && ( <src.karma> >= -1000 )
-        
-        elif ( <karma> <= 0 ) && ( <src.karma> <= 1000 )
-        
-        else    //antagonicos
-            LOCAL.dkarma=<eval <ABSVAL <karma>>-<ABSVAL <src.karma>>>
-            if <LOCAL.dkarma> > 1000    //precisa ter um karma 1000 maior para atacar
-                if (<CanSeeLos <src>>)
-                    attack <src>
-                endif
-            endif
-        endif
-    endif
-endif
-
+////[COMMENT comentario]
+////SRC=char sendo visto
+////default=NPC vendo
+//on=@NPCLookAtChar
+//
+////NPC vendo NPC?
+//if <src.npc>
+//    //nao esta usando nenhuma skill?  if (<action> < 0) || (<action> > 54)
+//    //nao esta em warmode?
+//    if !(<flags>&statf_war)
+//        //nao antagonicos?
+//        if ( <karma> >= 0 ) && ( <src.karma> >= -1000 )
+//        
+//        elif ( <karma> <= 0 ) && ( <src.karma> <= 1000 )
+//        
+//        else    //antagonicos
+//            LOCAL.dkarma=<eval <ABSVAL <karma>>-<ABSVAL <src.karma>>>
+//            if <LOCAL.dkarma> > 1000    //precisa ter um karma 1000 maior para atacar
+//                if (<CanSeeLos <src>>)
+//                    attack <src>
+//                endif
+//            endif
+//        endif
+//    endif
+//endif
+//
 //*****************************************************************************
 // e_manadrain_far
 //*****************************************************************************
@@ -1575,6 +1575,101 @@ endif
 //*****************************************************************************
 //*****************************************************************************
 
+//*****************************************************************************
+// e_lobo
+//*****************************************************************************
+[EVENTS e_lobo]
+on=@gethit
+	if (<hitpoints>) < 60) && (<hitpoints>) > 40)
+	src.sysmessageorange O lobo começa a se preparar para uivar.
+		if !(<IsEvent.e_foge>) && (<hitpoints>) < 50) && IF !(<R6>)
+		emotered Uiva
+		sfx 0569
+		serv.newnpc <defname>
+		new.events +e_foge
+		new.movenear <src> 5
+			if (!<R4>)
+			serv.newnpc <defname>
+			new.events +e_foge
+			new.movenear <src> 5
+			endif
+		endif
+	endif
+
+//*****************************************************************************
+// e_morde
+//*****************************************************************************	
+[EVENTS e_morde]	
+on=@hit
+IF !(<R8>)
+emotered Morde e puxa
+f_sm_bleed
+ENDIF
+
+//*****************************************************************************
+// e_batef
+//*****************************************************************************	
+[EVENTS e_batef]	
+on=@hit
+IF !(<R8>)
+emotered bate forte
+	sfx 051C
+	argn1 += <eval <argn1>*2>
+	src.damage <argn1>
+	return 1
+ENDIF
+
+//*****************************************************************************
+// e_gduplo
+//*****************************************************************************
+[EVENTS e_gduplo]	
+on=@hit
+IF !(<R9>)
+emotered ataque duplo
+	src.damage <argn1>
+	timerf 1,bark,2
+	src.damage <argn1>
+	return 1
+ENDIF
+
+//*****************************************************************************
+// e_foge
+//*****************************************************************************
+[EVENTS e_foge]
+on=@CombatDelete
+	emotered Foge
+	timerf 5, remove
+on=@CombatEnd
+	emotered Foge
+	timerf 5, remove
+	
+//*****************************************************************************
+// e_herding
+//*****************************************************************************
+[EVENTS e_herding]
+on=@NPCLookAtChar
+serv.log OLHOU
+if (<CanseeLos <src>>) && (<src.brain> == 0)
+	if (<belltest <src.herding>,<taming>,15>) || (<belltest <src.spellweaving>,<taming>,15>)
+		//src.sysmessageblue <Name> te olha com certo respeito.
+		//return 0
+	else 
+		attack <src>
+	endif
+endif
+	
+//*****************************************************************************
+// e_fuga
+//*****************************************************************************	
+[EVENTS e_fuga]
+ON=@NPCLOOKATCHAR
+FLEE 10
+
+ON=@GETHIT
+FLEE 10
+
+ON=@HITTRY
+FLEE 10
 //*****************************************************************************
 // e_reaper
 //*****************************************************************************
