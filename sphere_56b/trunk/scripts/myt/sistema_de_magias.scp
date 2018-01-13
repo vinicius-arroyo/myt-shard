@@ -436,7 +436,15 @@ endif
 //***********************************************************
 //Limpa todas as magias do player <default> da DB
 [FUNCTION mage_wipeSpells]
-return 1
+DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<dUID>;"
+for w 0 <eval <DB.ROW.NUMROWS>>
+ if (!<IsEmpty <DB.ROW.<dlocal.w>.spellid>>)
+	local.spelldel=<DB.ROW.<dlocal.w>.spellid>
+	DB.EXECUTE="DELETE FROM spellbooks WHERE player=<dUID> AND spellid=<dlocal.spelldel>;"
+	//serv.log <DB.ROW.<dlocal.w>.spellid> 
+ endif
+end
+return 0
 //DB.QUERY="DELETE FROM spellbooks WHERE player=<eval <UID>>';"
 
 //***********************************************************
@@ -503,7 +511,8 @@ DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<dUID> ORDER BY diff ASC;"
 tag.spells=;<serv.spell.<DB.ROW.0.spellid>.defname>;
 for r 1 <eval <DB.ROW.NUMROWS>-1>
  if (!<IsEmpty <DB.ROW.<dlocal.r>.spellid>>)
-  tag.spells .=<serv.spell.<DB.ROW.0.spellid>.defname>;
+	tag.spells .=<serv.spell.<DB.ROW.<dlocal.r>.spellid>.defname>;
+	//serv.log <serv.spell.<DB.ROW.<dlocal.r>.spellid>.defname>
  endif
 end
 
@@ -514,15 +523,13 @@ end
 [FUNCTION mage_forgetSpell]
 local.spellid=<mage_GetSpellNumber <argv0>>
 
-DB.EXECUTE="DELETE FROM spellbooks WHERE player=<dUID> AND spellid=<dlocal.spell>";
+DB.EXECUTE="DELETE FROM spellbooks WHERE player=<dUID> AND spellid=<dlocal.spellid>"
 mage_loadSpells
   
 [FUNCTION mage_KnowSpell]
 //Checa na DB local se o jogador conhece a dada spell
 DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<dUID> AND spellid=<eval <mage_GetSpellNumber <argv0>>>;"
 RETURN <DB.ROW.NUMROWS>
-
-
 
 //*******************************************************************************
 //
@@ -1684,10 +1691,15 @@ argn -= 1
 src.<argn> -= 125
 
 [FUNCTION test_allspells]
-for s 100 349
+for s 100 300
  if (<serv.spell.<dlocal.s>>)
-//  serv.log mage_addspell <serv.spell.<dlocal.s>.defname>
-  src.mage_addspell <serv.spell.<dlocal.s>.defname>
+	if (!<IsEmpty <serv.spell.<dlocal.s>.defname>>)
+		//serv.log mage_addspell <serv.spell.<dlocal.s>.defname>
+		src.mage_addspell <dlocal.s>
+		//serv.log mage_addspell <dlocal.s>
+	else
+	return 0
+	endif
  endif
  local.c += 1
 end
