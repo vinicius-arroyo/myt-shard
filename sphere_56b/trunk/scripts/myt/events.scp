@@ -383,16 +383,33 @@ return 1
 [EVENTS e_orc]
 
 ON=@LOGIN
-//src.findlayer(layer_hair).remove
-//src.findlayer(layer_beard).remove
-//src.findlayer(layer_helm).hitpoints 999
-//src.update
+	src.findlayer(layer_hair).remove
+	src.findlayer(layer_beard).remove
+	src.findlayer(layer_helm).hitpoints 9999
+
+if (!<src.restest 1 i_head_orc>)
+	serv.newitem i_head_orc
+	src.new.equip
+	src.update
+endif
+
+if (!<src.restest 1 i_orc_check>)				// cria o item que vai verificar se o orc está com a cabeça no lugar
+	serv.newitem i_orc_check
+	src.new.equip
+	new.link = <src.uid>
+	src.update
+	new.timer 5
+else
+	return 0
+endif
 
 on=@hit
 if (<hits> < 20)
   emotered em furia
   src.damage {5 10}
 endif
+
+//////////////////////////////////////////////////////
 
 [ITEMDEF i_head_orc]
 id=0141b
@@ -405,7 +422,37 @@ ARMOR=50
 ON=@Create
 COLOR=0597
 HITPOINTS=9999
-attr=attr_static|attr_move_never
+attr= attr_static|attr_move_never
+
+on=@UnEquip
+src.findid.i_orc_check.timer = 3	//chama o i_orc_check pra ficar checando maneiras de corrigir o problema enquanto o orc estiver sem cabeça
+
+//////////////////////////////////////////////////////
+
+[ITEMDEF i_orc_check]	
+id=020a2
+type=t_eq_script
+weight=0
+value=0
+
+On=@timer
+if (<link.findlayer.layer_helm.id> != 0141b)								// o layer_helm ta sem o i_head_orc?
+	if (!<link.findlayer.layer_helm.id> == 0)									// o layer_helm ta ocupado por um elmo/chapeu qualquer?
+		link.unequip <link.findlayer.layer_helm>									// se sim, desequipa o elmo que está na cabeça do orc
+	elif (<link.findlayer.layer_helm.id> == 0)									//o layer_helm ta vazio?
+		if (!<link.restest 1 i_head_orc>) && (!<link.flags>&statf_dead)				// o orc ta sem nenhum i_head_orc na bag, e não está morto?
+			serv.newitem i_head_orc														//cria o item
+			new.cont = <link.findlayer.layer_pack>										// joga na pack
+		endif
+		link.equip <link.findid.i_head_orc>											// equipa
+	endif	
+	timer = 3																	// ele vai continuar testando enquanto não colocar a cabeça de volta no lugar
+else
+	timer = -1																	// para quando conseguir
+endif
+
+return 1
+
 
 //*****************************************************************************
 // ANOES
@@ -462,7 +509,7 @@ ON=@LOGIN
 
     src.f_correctLight <src.region.flags>
 	
-	var.manutencao = 1 // coloque 1 aqui para ativar a manutencao
+	var.manutencao = 0 // coloque 1 aqui para ativar a manutencao
 	
     if <var.manutencao> && (<src.account.plevel> <= 1)
         prompt_new Servidor em manutencao. Voce sera desconectado em 30 segundos.
