@@ -1314,43 +1314,30 @@ NAME=Teia de Aranha
 CATEGORY=Myt - quest items
 SUBSECTION=Traps
 DESCRIPTION=Teia de Aranha
-TYPE=t_web
-tag.timer = 0
+TYPE=t_normal
 
 ON=@Step
-if  (!<src.npc>) && (!<argn1>) && (!<src.isgm>) && !(<src.flags>&statf_dead) // se não é npc, não está pisando em cima da teia, não é gm e não está morto
-    tag0.timer = <timer>                                                     // guarda o timer inicial da teia quando o player caiu nela
-    link = <src.uid>
-    timer 1
+If <src.findlayer.layer_hand1.isLight> || <src.findlayer.layer_hand2.isLight> 
+	effect 2,i_fx_smoke,0,15,0
+	sfx 054
+	destroy
+elif (<src.isplayer>) && (!<argn1>) && (!<src.isgm>) && !(<src.flags>&statf_dead)// se não é npc, não está pisando em cima da teia, não é gm e não está morto
+	src.ctag0.teiapresa <between2 1,6,<src.str>,120>
+	src.stun <src.ctag0.teiapresa>
 	src.sysmessagered A teia gruda no seu corpo
+	timerf <src.ctag0.teiapresa>, remove
+	src.ctag0.teiapresa=
 endif
-return 0
-
-ON=@Timer
-if  (<tag.timer> > 0)                                                        
-    link = <link.findtype.t_eq_stuck>                                        // substitui o link da teia no UID, para o item memory que fica no UID, que deixa o char paralyzed
-    timer = <tag.timer>                                                      // retorna o timer inicial da teia quando o player caiu nela
-    link.timer = <tag.timer>                                                 // seta o timer do memory pra igualar com o timer da teia
-    tag.timer =            
-    return 1                                                                 // impede que a teia e o memory sumam assim que termina o primeiro timer (1 seg)
-endif
-return 0
 
 ON=@DClick
 if (((<distance> > 1 ) && (<src.findlayer.layer_hand2.range> < 2)) || ((<src.findlayer.layer_hand2.range> > 1) && (<distance> > 2)))
     src.sysmessageyellow Muito longe
     return 1
 else
-    if (<more1> < 60)                                                        // permite que caia reagente apenas quando a teia for manualmente destruída
-        morex = 1
-    endif
-endif
-
-ON=@Destroy
-link.timer 1                                                                 // 1 seg após a teia sumir, o memory de paralyze some. (por algum motivo quando tento link.remove 
-if (<morex> == 1)                                                            //ou link.consume o sphere caiu num loop e trava)
-    newitem i_reag_spider_silk
+	src.anim 33
+	src.sysmessageyellow Voce solta a teia
+	newitem i_reag_spider_silk
     new.p=<p>
-endif
+	destroy
 
 [EOF]
