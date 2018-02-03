@@ -3338,8 +3338,9 @@ Return 0
 //*****************************************************************************
 //Item: i_movedor
 //*****************************************************************************
-//direcao1 eh ajustada pelo gm, a direcao2 ajusta se o gm der 2 cliques depois de ajustar a direcao1
-//more1 = 1 faz com que o movedor se mova direcao3 quando for pisado e direcao4 quando pisado de novo
+//GM deve ajustar a tag0.direcao e a tag0.antidirecao caso queira alterar o automático que é oeste/leste
+//more2 = 1 faz com que O PRÓPRIO Movedor se mova tag0.minhadirecao e volte na tag0.minhaantidirecao
+//morez = 1 faz com que só players possam acionar o movedor. morez = 2 tudo que anda aciona
 //
 [ITEMDEF i_movedor]
 ID=1266
@@ -3351,69 +3352,45 @@ WEIGHT=1.0
 VALUE=25
 TYPE=t_normal
 
-
 ON=@CREATE
 attr=090
-COLOR=33
-src.sysmessage O movedor precisa de um Link e precisa ajustar tags.
-src.sysmessageyellow Ajuste a tag0.direcao1 para a direcao onde o link move.
-src.sysmessageblue Ajuste a tag0.distancia1 para quantos tiles o link move.
-src.sysmessagered QUANDO TERMINAR de dois cliques no movedor!!!
+COLOR=0a24
+more1=2
+more2=0
+morez=2
+tag0.direcao=w 1
+tag0.antidirecao=e 1
+tag0.minhadirecao=e 1
+tag0.minhaantidirecao=w 1
 
+src.sysmessageyellow O movedor precisa de um Link e precisa ajustar tags.
+src.sysmessageyellow Ajuste a tag0.direcao para a direcao onde o link vai.
+src.sysmessageyellow E a tag0.antidirecao para a direcao onde o link volta.
 
-ON=@Dclick
-if (<tag0.direcao1>==n)
-tag0.direcao2=s
-elif (<tag0.direcao1>==nw)
-tag0.direcao2=se
-elif (<tag0.direcao1>==w)
-tag0.direcao2=e
-elif (<tag0.direcao1>==sw)
-tag0.direcao2=ne
-elif (<tag0.direcao1>==s)
-tag0.direcao2=n
-elif (<tag0.direcao1>==se)
-tag0.direcao2=nw
-elif (<tag0.direcao1>==e)
-tag0.direcao2=w
-elif (<tag0.direcao1>==ne)
-tag0.direcao2=sw
-else
-    src.sysmessarered DETERMINE UM TAG0.DIRECAO1
+ON=@CLIENTTOOLTIP
+if (<src.isgm>)
+    f_sendTooltip <name>, Move o link <link.name> nas tag0.direcao <tag0.direcao> na ida e tag0.antidirecao <tag0.antidirecao> na volta.
+    return 1
 endif
-return 0
-if (<tag0.distancia1>==0)
-    src.sysmessagered DETERMINE UM TAG0.DISTANCIA1
-    else
-        src.sysmessagegreen O link movera <tag0.distancia1> tiles! Ajuste com tag0.distancia2
-endif
-return 0
-if (<tag0.discancia2>==0)
-    src.sysmessageblue O movedor nao se move quando pisado.
-    else
-        src.sysmessageyellow O movedor SE move <tag0.distancia2> tiles quando pisado! Ajuste com tag0.distancia2
-endif
-return 0
-    
+
 on=@step
-if (!<argn1>)&&(!<src.flags>&statf_dead)
+if (!<argn1>)&&!(<src.flags>&statf_dead)
     if (<morez>=2)||(<morez>=1)&&(!<src.npc>)
-        if (<more2>>2)
-            link.move <tag0.direcao1> <tag0.distancia1>
-            more2 -=2
-            if (<more1>=1)
-                move <tag0.direcao3> <tag0.distancia2>
-            endif
-            else
-                link.move <tag0.direcao2> <tag0.distancia1>
-                more2 +=2
-            if (<more1>=1)
-                move  <tag0.direcao4> <tag0.distancia2>
-            endif
+    if (<more1>==2)
+        if (<more2>==1)
+            move <tag0.minhadirecao>
         endif
+        link.move <tag0.direcao>
+        more1 (<more1>+1)
+    else
+        if (<more2>==1)
+            move <tag0.minhaantidirecao>
+        endif
+        link.move <tag0.antidirecao>
+        more1 (<more1>+(-1))
+    endif
     endif
 endif
-Return 0
 
 //*****************************************************************************
 //Item: i_empurrador
