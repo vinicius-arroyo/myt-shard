@@ -1,5 +1,5 @@
-//****************************************************************************
-// SPHERE by : Menasoft �1997-2007
+﻿//****************************************************************************
+// SPHERE by : Menasoft ©1997-2017
 // www.sphereserver.net
 // All SPHERE script files and formats are copyright Menasoft & Partners.
 // This file may be freely edited for personal use, but may not be distributed
@@ -7,9 +7,9 @@
 // Menasoft & Partners.  All donations and contributions
 // become the property of Menasoft & Partners.
 //****************************************************************************
-// FILE LAST UPDATED: Thursday, October 24, 2013
+// FILE LAST UPDATED: Thursday, Jun 8, 2017
 //
-VERSION=0.56c
+VERSION=0.56d
 
 
 ///////////////////////////
@@ -19,39 +19,34 @@ VERSION=0.56c
 [FUNCTION f_isHuman]
 IF ( (<OBODY>==c_man) || (<OBODY>==c_woman) )
    RETURN 1
-ELSE
-   RETURN 0
 ENDIF
+RETURN 0
 
 [FUNCTION f_isElf]
 IF ( (<OBODY>==c_elf_male) || (<OBODY>==c_elf_female) )
    RETURN 1
-ELSE
-   RETURN 0
 ENDIF
+RETURN 0
 
 [FUNCTION f_isGarg]
 IF ( (<OBODY>==c_gargoyle_male) || (<OBODY>==c_gargoyle_female) )
    RETURN 1
-ELSE
-   RETURN 0
 ENDIF
+RETURN 0
 
 [FUNCTION f_isFemale]
-IF ( (<OBODY>==c_woman) || (<OBODY>==c_elf_female) || (<OBODY>==c_gargoyle_female) )
-   RETURN 1
-ELSE
-   RETURN 0
-ENDIF
+if (<serv.chardef.<obody>.can>&mt_female)	//Checking on chardef directly here because if you change your body your Can flags won't be updated since they are now stored in the char itself when it creates.
+	return 1
+endif
+return 0
 
 [FUNCTION f_isCursed]
-LOCAL.CurseResult=0
 FORCHARLAYER 32
    IF (<BASEID>==i_rune_curse)
-      LOCAL.CurseResult=1
+      RETURN 1
    ENDIF
 ENDFOR
-RETURN <LOCAL.CurseResult>
+RETURN 0
 
 
 [FUNCTION MODMAXHITS]
@@ -128,7 +123,7 @@ ON=@EnvironChange
    if (<tag0.lightstr>)
       return 0
    endif
-   if ( <flags>&statf_conjured   ) 
+   if ( <flags>&statf_conjured   )
       remove
       return 1
    endif
@@ -141,6 +136,54 @@ ON=@EnvironChange
    tag.lightfame=<fame>
    fame=10
    return 0
+
+[EVENTS e_polymorphed_lich]
+ON=@SPELLEFFECT
+// Dispell spells will return a polymorphed lich into lich.
+IF ((<SERV.SPELL.<ARGN1>.DEFNAME> == s_dispel) || (<SERV.SPELL.<ARGN1>.DEFNAME> == s_mass_dispel))
+   TRYSRC <I.UID> SRC.EFFECT 2,i_fx_smoke_small,16,10,0
+   I.BODY = c_lich
+   I.EVENTS -e_polymorphed_lich
+   TIMERF <I.TAG.BEHAVIOURDELAY>,I.f_lich_polymorph
+ENDIF
+RETURN 0
+
+[EVENTS e_lich_death]
+// Check for summoned skeletons to remove him.
+ON=@DEATH
+FOR 0 <EVAL <TAGCOUNT> - 1>
+    // Loop hover tags. If the value is the UID of a c_skeleton, dispel it.
+    LOCAL.UID = <TAGAT.<LOCAL._FOR>.VALUE>
+    IF (<UID.<LOCAL.UID>>)
+        IF (<UID.<LOCAL.UID>.DEFNAME> == c_skeleton)
+            UID.<LOCAL.UID>.HITS = 0
+        ENDIF
+    ENDIF
+ENDFOR
+RETURN 0
+
+[EVENTS e_skeleton_summoned_by_lich]
+ON=@SPELLEFFECT
+// Dispell spells will remove summoned skeletons.
+IF ((<SERV.SPELL.<ARGN1>.DEFNAME> == s_dispel) || (<SERV.SPELL.<ARGN1>.DEFNAME> == s_mass_dispel))
+   I.HITS = 0
+ENDIF
+RETURN 0
+
+ON=@DEATH
+REF1 = <TAG.MASTER>
+// First check if c_lich exists.
+IF (!<REF1>)
+    RETURN 0
+ENDIF
+// We must check if the f_lich_summon_skeletons needs to be invoked.
+LOCAL.LIMIT = <REF1.CURFOLLOWER> + <I.FOLLOWERSLOTS>
+IF (<LOCAL.LIMIT> > <REF1.MAXFOLLOWER>)
+    REF1.TIMERF <REF1.TAG.BEHAVIOURDELAY>,f_lich_summon_skeletons
+ENDIF
+REF1.TAG.SLOT_<I.UID> =
+REF1.CURFOLLOWER = <EVAL <REF1.CURFOLLOWER> - <I.FOLLOWERSLOTS>>
+RETURN 0
 
 [EVENTS e_Carnivores]
 // weak carnivores.
@@ -253,31 +296,31 @@ ON=@Timer
       ENDIF
       DOSWITCH <MORE1>
          BEGIN // MORE1=0
-            CONT.SYSMESSAGELOC color_text,1060167//"The bleeding wounds have healed, you are no longer bleeding!"
+            sysmessagered O Sangramento passou
             REMOVE
          END
          BEGIN // MORE1=1
-            CONT.EMOTE bleed slowly
+            CONT.EMOTE sangra bem lentamente
             CONT.DAMAGE {1 2} <DEF.dam_god> <QVAL <LINK>?<LINK>:0>
             TIMER=2
          END
          BEGIN // MORE1=2
-            CONT.EMOTE bleed slowly
+            CONT.EMOTE sangra lentamente
             CONT.DAMAGE {2 4} <DEF.dam_god> <QVAL <LINK>?<LINK>:0>
             TIMER=2
          END
          BEGIN // MORE1=3
-            CONT.EMOTE bleed moderately
+            CONT.EMOTE sangrando
             CONT.DAMAGE {3 6} <DEF.dam_god> <QVAL <LINK>?<LINK>:0>
             TIMER=2
          END
          BEGIN // MORE1=4
-            CONT.EMOTE bleed heavily
+            CONT.EMOTE sangrando muito
             CONT.DAMAGE {4 9} <DEF.dam_god> <QVAL <LINK>?<LINK>:0>
             TIMER=2
          END
          BEGIN // MORE1=5
-            CONT.EMOTE bleed profusely
+            CONT.EMOTE sangrando demasiadamente
             CONT.DAMAGE {5 12} <DEF.dam_god> <QVAL <LINK>?<LINK>:0>
             TIMER=2
          END
@@ -312,26 +355,22 @@ ON=@Timer
 
 [EVENTS e_trainer]
 ON=@ContextMenuRequest
-   IF (<NPC> < 2) || (<NPC> == 4) || (<NPC> > 9)
-      // Not all brain types can train
-      SERV.LOG ERROR: <NAME> (<UID>) has the e_trainer event, but their brain type is not supported
-   ELSE
-      FOR x 0 57
-         LOCAL.PlayerSkill=<SRC.<SERV.SKILL.<dLOCAL.x>.KEY>>
-         LOCAL.NpcSkill=<<SERV.SKILL.<dLOCAL.x>.KEY>>
-         IF (<LOCAL.NpcSkill> > 30.0)
-            IF (<LOCAL.x>!=54) //Spellweaving cannot be trained
-               SRC.ADDCONTEXTENTRY <EVAL 200+<LOCAL.x>>,<EVAL 6000+<LOCAL.x>>,<EVAL <QVAL <LOCAL.PlayerSkill> < <LOCAL.NpcSkill> ? 0 : 1>>,1
-            ENDIF
-         ENDIF
-      ENDFOR
+   IF (<NPC> < brain_human) || (<NPC> > brain_animal_trainer) || (<NPC> == brain_guard)
+      return 0
    ENDIF
+   FOR 0 57
+      IF (<SERV.SKILL.<LOCAL._FOR>>)
+         LOCAL.NpcSkill = <<SERV.SKILL.<LOCAL._FOR>.KEY>>
+         IF (<LOCAL.NpcSkill>)
+            LOCAL.PlayerSkill = <SRC.<SERV.SKILL.<LOCAL._FOR>.KEY>>
+            LOCAL.Enabled = <QVAL ((<LOCAL.PlayerSkill> < <SERV.NPCTrainMax>) && (<eval (<LOCAL.NpcSkill> * <SERV.NPCTrainPercent>) / 100> > <LOCAL.PlayerSkill>)) ? 0 : 1>
+            SRC.ADDCONTEXTENTRY <eval 200 + <LOCAL._FOR>>,<eval 6000 + <LOCAL._FOR>>,<LOCAL.Enabled>
+         ENDIF
+      ENDIF
+   ENDFOR
 ON=@ContextMenuSelect
-   IF (<ARGN> >= 200)
-      LOCAL.Skill=<EVAL <ARGN>-200>
-      LOCAL.PlayerSkill=<SRC.<SERV.SKILL.<dLOCAL.Skill>.KEY>>
-      LOCAL.NpcSkill=<<SERV.SKILL.<dLOCAL.Skill>.KEY>>
-      TRAIN <SERV.SKILL.<dLOCAL.Skill>.KEY>
+   IF (<ARGN> >= 200) && (<ARGN> <= 257)
+      TRAIN <SERV.SKILL.<eval <ARGN>-200>.KEY>
    ENDIF
 
 [ITEMDEF i_mem_vicious_bite]
@@ -347,7 +386,7 @@ ON=@Timer
    IF (<MORE1> > 0)
       MORE1 -= 1
       CONT.DAMAGE 5 <DEF.dam_poison> <QVAL <LINK>?<LINK>:0>
-      CONT.SYSMESSAGELOC color_text,1112473//"Your vicious wound is festering!"
+	  sysmessagered Sua ferida esta putrefazendo
       TIMER=20
       RETURN 1
    ENDIF
@@ -394,7 +433,7 @@ ON=@Equip
    ELSE
       MORE1=3
    ENDIF
-   CONT.SYSMESSAGELOC color_text,1072221//"You have been hit by a paralyzing blow."
+   sysmessagered Voce se sente paralizado
    TIMER=1
 ON=@Timer
    IF (<MORE1>) && !(<CONT.FLAGS> & statf_dead)

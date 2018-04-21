@@ -103,7 +103,7 @@ If (!strlen(<local.message>))
   return 0
 endif
 
-ref1.allmembers -1,sysmessage @68,0,3 <f_stonesys_gettypename <ref1.uid>> Message: <local.message>
+ref1.allmembers -1,sysmessage @68,0,0 <f_stonesys_gettypename <ref1.uid>> Message: <local.message>
 
 // ------------------------------------------------------
 [FUNCTION f_stonesys_speech_sendsmsg]
@@ -118,7 +118,7 @@ If (!strlen(<local.message>))
   return 0
 endif
 
-ref1.allmembers -1,sysmessage @68,0,3 <f_stonesys_gettypename <ref1.uid>> Message[<name>]: <local.message>
+ref1.allmembers -1,sysmessage @68,0,0 <f_stonesys_gettypename <ref1.uid>> Message[<name>]: <local.message>
 
 // ------------------------------------------------------
 [FUNCTION f_stonesys_determine_timeleft]
@@ -143,10 +143,27 @@ if ( !<ref1.isitem> )
 elif ( <ref1.type> == t_stone_guild )
 	local.typename = <DEF.STONECONFIG_TYPENAME_GUILD>
 elif ( <ref1.type> == t_stone_town )
-	local.typename = <DEF.STONECONFIG_TYPENAME_GUILD>
+	local.typename = <DEF.STONECONFIG_TYPENAME_TOWN>
 endif
 
 return <local.typename>
+
+// ------------------------------------------------------
+
+[function f_stonesys_updatenoto]
+ref1 = <argv[0]> // The stone
+if (<ref1.IsChar>)
+	return 0
+endif
+If ((<ref1.type>!=t_stone_guild) && (<ref1.type>!=t_stone_town))
+  return 0
+endif
+for member 0 <eval <ref1.member.count> - 1>
+	ref10 = <ref1.member.<dlocal.member>>
+	if (<ref10.IsOnline>)
+		ref10.NotoUpdate
+	endif
+endfor
 
 // ------------------------------------------------------
 // -------   Hardcoded functions called by Sphere  -------
@@ -188,8 +205,8 @@ return 2
 //           2: use sphere internal check
 [COMMENT FUNCTION f_stonesys_internal_isalliedwith]
 If ((<type> == t_stone_guild) && (<argo.type> == t_stone_guild))
-	If (<align> && <argo.align>)
-	  return (<align>==<argo.align>)
+	If (<guildfromuid.<argo.uid>.isally> && <argo.guildfromuid.<uid>.isally>)
+	  return 1
 	endif
 
 	return 0

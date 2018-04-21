@@ -122,7 +122,7 @@ else
     new.more2=<local.timer>
     equip <new>
     new.timer=1
-    new.timerf 3 f_memory_WatchDog
+    //new.timerf 3 f_memory_WatchDog
 endif
 
 effect 3 i_fx_curse 0 16 0 017d
@@ -364,13 +364,13 @@ f_nightsight 1
 
 ON=@ITEMEQUIP
 //remove visao elfica se carregar fonte de luz
-if <act.layer>==layer_light
+if <act.layer>==layer_face
     f_noElfSight
 endif
 
 //mantem o layer light com visao noturna
 ON=@ITEMUNEQUIP
-if <act.layer>==layer_light
+if <act.layer>==layer_face
     f_elfSight
 endif
 
@@ -804,91 +804,131 @@ return 1
 
 [FUNCTION Buff_Armor]
 //Buff_Armor <qtd> <tempo>
-IF (0<argv0>==0) || (!0<argv1>)
- return 1
-endif
+IF (<argn1>==0)
+	return 0
+ENDIF
 newitem i_mry_buffres
 new.link=<UID>
 new.tag.modar=<argv0>
 new.equip
-new.timer=<argv1>
+if (<argn2> > 1)
+	new.timer=<argn2>
+else
+	new.timer=10
+endif
+return 1
 
 [FUNCTION Buff_Resfire]
 //Buff_Resfire <qtd> <tempo>
-IF (0<argv0>==0) || (!0<argv1>)
- return 1
-endif
+IF (<argn1>==0)
+	return 0
+ENDIF
 newitem i_mry_buffres
 new.link=<UID>
 new.tag.resfire=<argv0>
 new.equip
-new.timer=<argv1>
+if (<argn2> > 1)
+	new.timer=<argn2>
+else
+	new.timer=10
+endif
+return 1
 
 [FUNCTION Buff_Rescold]
 //Buff_Rescold <qtd> <tempo>
-IF (0<argv0>==0) || (!0<argv1>)
- return 1
-endif
+IF (<argn1>==0)
+	return 0
+ENDIF
 newitem i_mry_buffres
 new.link=<UID>
 new.tag.rescold=<argv0>
 new.equip
-new.timer=<argv1>
+if (<argn2> > 1)
+	new.timer=<argn2>
+else
+	new.timer=10
+endif
+return 1
 
 [FUNCTION Buff_Respoison]
 //Buff_Respoison <qtd> <tempo>
-IF (0<argv0>==0) || (!0<argv1>)
- return 1
-endif
+IF (<argn1>==0)
+	return 0
+ENDIF
 newitem i_mry_buffres
 new.link=<UID>
 new.tag.respoison=<argv0>
 new.equip
-new.timer=<argv1>
+if (<argn2> > 1)
+	new.timer=<argn2>
+else
+	new.timer=10
+endif
+return 1
 
 [FUNCTION Buff_Resenergy]
 //Buff_Resenergy <qtd> <tempo>
-IF (0<argv0>==0) || (!0<argv1>)
- return 1
-endif
+IF (<argn1>==0)
+	return 0
+ENDIF
 newitem i_mry_buffres
 new.link=<UID>
 new.tag.resenergy=<argv0>
 new.equip
-new.timer=<argv1>
+if (<argn2> > 1)
+	new.timer=<argn2>
+else
+	new.timer=10
+endif
+return 1
 
 [FUNCTION Buff_STR]
 //Buff_STR <qtd> <tempo>
-IF (0<argv0>==0) || (!0<argv1>)
- return 1
-endif
+IF (<argn1>==0)
+	return 0
+ENDIF
 newitem i_mry_buffstats
 new.link=<UID>
 new.tag.modstr=<argv0>
 new.equip
-new.timer=<argv1>
+if (<argn2> > 1)
+	new.timer=<argn2>
+else
+	new.timer=10
+endif
+return 1
 
 [FUNCTION Buff_DEX]
 //Buff_DEX <qtd> <tempo>
-IF (0<argv0>==0) || (!0<argv1>)
- return 1
-endif
+IF (<argn1>==0)
+	return 0
+ENDIF
 newitem i_mry_buffstats
 new.link=<UID>
 new.tag.moddex=<argv0>
 new.equip
-new.timer=<argv1>
+if (<argn2> > 1)
+	new.timer=<argn2>
+else
+	new.timer=10
+endif
+return 1
 
 [FUNCTION Buff_INT]
 //Buff_INT <qtd> <tempo>
-IF (0<argv0>==0) || (!0<argv1>)
- return 1
-endif
+IF (<argn1>==0)
+	return 0
+ENDIF
 newitem i_mry_buffstats
 new.link=<UID>
 new.tag.modint=<argv0>
 new.equip
-new.timer=<argv1>
+if (<argn2> > 1)
+	new.timer=<argn2>
+else
+	new.timer=10
+endif
+return 1
 
 [TYPEDEF e_BuffRes]
 on=@equip
@@ -958,7 +998,7 @@ TEVENTS=e_BuffStats
 
 on=@equip
 name=<name> (STR: <dtag0.modstr> DEX:<dtag0.modint> INT:<dtag0.modint>)
-ATTR=attr_cursed2
+ATTR=attr_blessed2
 
 on=@timer
 remove
@@ -1224,10 +1264,10 @@ END
 [FUNCTION f_CleanBuffs]
 //Limpa todos os Buffs do char
 FORCHARLAYER layer_special
-    IF (<ATTR>&0800)//blessed2
+    if (<ATTR>&0800)//blessed2
         serv.log Removendo buff: <name>
         REMOVE
-    ENDIF
+    endif
 END
 
 [FUNCTION blind]
@@ -1265,6 +1305,52 @@ link.update
 on=@timer
 remove
 RETURN 1
+
+//*****************************************************************************
+// Voltar da Polymorph
+//*****************************************************************************
+[PLEVEL 0]
+voltar
+
+[FUNCTION voltar]
+if (<src.body> == c_snake) || (<src.color> == 0b53)
+	sysmessagered Você faz muita forçar para voltar a sua forma natural, mas não consegue.
+	peidar
+	return 1
+endif
+	
+if <restest i_spl_polymorph>
+	consume i_spl_polymorph
+	if <src.restest i_mry_buffskill>
+		while (<findid.i_mry_buffskill.uid>)
+			findid.i_mry_buffskill.remove
+		endwhile
+	endif
+	if <src.restest i_mry_buffstats>
+		while (<findid.i_mry_buffstats>)
+			findid.i_mry_buffstats.remove
+		endwhile
+	endif
+	if <src.restest i_mry_buffres>
+		while (<findid.i_mry_buffres>)
+			findid.i_mry_buffres.remove
+		endwhile
+	endif
+	if <src.restest i_mry_buffmaxstats>
+		while (<findid.i_mry_buffmaxstats>)
+			findid.i_mry_buffmaxstats.remove
+		endwhile
+	endif
+	if <src.restest i_mry_haste>
+		while (<findid.i_mry_haste>)
+			findid.i_mry_haste.remove
+		endwhile
+	endif
+	update
+	anim 20
+else 
+	sysmessagered Nada acontece feijoada
+endif
 
 
 [EOF]

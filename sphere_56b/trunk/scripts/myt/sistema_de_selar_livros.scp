@@ -1,3 +1,14 @@
+//  ########################################################
+//  ########################################################
+//                   Conjunto de sistemas
+//               Para livros, cartas e papéis
+//
+//                   
+//  ########################################################
+// ########################################################
+
+
+
 //////////////////////////////////////////////////////////////////
 //                                                              //
 //                          TYPEDEFS                            //
@@ -7,7 +18,7 @@
 [TYPEDEF t_book]
 on=@ClientToolTip
 if (<more2>)
- return 0
+    return 0
 endif
 call f_book_start
 src.addcliloc 1042971,<LOCAL.name> <QVAL <morex>?(copia):>
@@ -16,13 +27,103 @@ return 1
 
 on=@dclick
 if (<more2>)
- return 0
+     return 0
+ endif
+
+//**************************************************************************************** testes para Sistema de Idiomas - Início
+// Sistema de Idiomas aglutinado no final deste scp.
+if (!<src.IsGm>) && (STRMATCH(<tag.idioma>,orc))
+//somente orcs e GMs compreendem o Idioma Orc.
+     src.sysmessagered Desenhos e rabiscos toscos. Coisa de Orc!
+     src.confuso
+     return 1
+ 
+elif (STRMATCH(<tag.idioma>,)) || (STRMATCH(<tag.idioma>,comum)) || (<src.IsGm>) || (<src.int>>=100) || (STRMATCH(<src.tag.raca>,<tag.idioma>)) || (<src.musicianship>>=600)
+//Todos abrem Comum e o idioma da sua própria raça. Generalistas que abrem tudo: GM, Int maior que 100 e Bardos com mais de 60% em musicianship (menos idioma orc).
+     f_book_open
+     return 1
+
+//************************************************************************* idiomas raciais - início
+//aqui entram os idiomas raciais e suas dificuldades, sempre em ordem alfabética de raças.
+//Ainda que sejam a mesma dificuldade, está separado para facilitar futuras alterações
+elif (STRMATCH(<tag.idioma>,anao))
+// difícil para drow e elfos, fácil para humano e média para orcs
+     if ((STRMATCH(<src.tag.raca>,drow))&&(<src.int><=84)) || ((STRMATCH(<src.tag.raca>,elfo))&&(<src.int><=84)) || ((STRMATCH(<src.tag.raca>,humano))&&(<src.int><=54)) || ((STRMATCH(<src.tag.raca>,orc))&&(<src.int><=69))
+         src.sysmessagered Esses papeis possuem rabiscos quadraticos e retos que voce nao compreende!
+         src.sysmessageyellow voce fecha o livro.
+         src.confuso
+         return 1
+      else
+         f_book_open
+         return 1
+     endif
+
+elif (STRMATCH(<tag.idioma>,drow))
+// somente inteligível para Drow e Generalistas (vide acima)
+     src.sysmessagered Esses papeis possuem rabiscos ondulados e farpados que voce nao compreende!
+     src.sysmessageyellow voce fecha o livro que tem teias de aranha.
+     src.confuso
+     return 1
+ 
+elif (STRMATCH(<tag.idioma>,elfo))
+// difícil para anões, drow e orcs; fácil para humano.
+     if ((STRMATCH(<src.tag.raca>,anao))&&(<src.int><=84)) || ((STRMATCH(<src.tag.raca>,drow))&&(<src.int><=84)) || ((STRMATCH(<src.tag.raca>,humano))&&(<src.int><=54)) || ((STRMATCH(<src.tag.raca>,orc))&&(<src.int><=84))
+         src.sysmessagered Esses papeis possuem rabiscos ondulados e emendados que voce nao compreende!
+         src.sysmessageyellow voce fecha o livro.
+         src.confuso
+         return 1
+      else
+         f_book_open
+         return 1
+     endif
+
+elif (STRMATCH(<tag.idioma>,humano))
+//médio para anões, difícil para drow, fácil para elfos e difícil para orcs
+     if ((STRMATCH(<src.tag.raca>,elfo))&&(<src.int><=54)) || ((STRMATCH(<src.tag.raca>,anao))&&(<src.int><=69)) || ((STRMATCH(<src.tag.raca>,orc))&&(<src.int><=84)) || ((STRMATCH(<src.tag.raca>,drow))&&(<src.int><=84))
+         src.sysmessagered Esses papeis possuem palavras que lembram palavras comuns mas que nao fazem sentido!
+         src.sysmessageyellow voce fecha o livro.
+         src.confuso
+         return 1
+      else
+         f_book_open
+         return 1
+     endif
+ //************************************************************************* idiomas raciais - fim
+ 
+elif (STRMATCH(<tag.idioma>,druida))&&(<src.spellweaving><=549)
+//entendem somente druidas com spellweaving 55+ e Generalistas (vide acima)
+     src.sysmessagered Esses papeis possuem rabiscos runicos que voce nao compreende!
+     src.sysmessageyellow voce fecha o livro.
+     src.confuso
+     return 1
+
+elif (STRMATCH(<tag.idioma>,runico))&&(<src.evaluatingintel><=549)
+//entendem somente magos com evaluating inteligence 55+ e Generalistas (vide acima)
+     src.sysmessagered Esses papeis possuem rabiscos runicos que voce nao compreende!
+     src.sysmessageyellow voce fecha o livro.
+     src.confuso
+     return 1
+
+elif (STRMATCH(<tag.idioma>,umbral))&&(<src.spiritspeak><=549)
+//entendem somente espiritualistas com Spirit Speak 55+ e Generalistas (vide acima)
+     src.sysmessagered Esses papeis possuem rabiscos runicos que voce nao compreende!
+     src.sysmessageyellow voce fecha o livro.
+     src.confuso
+     return 1
+
+elif (STRMATCH(<tag.idioma>,dasypus))&&(<src.int><=89)
+//entendem somente Generalistas (vide acima)
+     src.sysmessagered Esses papeis possuem rabiscos runicos uniformes com marcas de maquina que voce nao compreende!
+     src.sysmessageyellow voce fecha o livro que tem cheiro de oleo.
+     src.confuso
+     return 1
+//**************************************************************************************** testes para Sistema de Idiomas - Início
+
+else
+     f_book_open
+     return 1
+
 endif
-dialogclose d_book
-src.cTAG.book=<UID>
-src.ctag.book.page=1
-src.DIALOG d_book
-return 1
 
 [TYPEDEF t_book_scroll]
 on=@dclick
@@ -52,7 +153,6 @@ endif
 
 
 
-
 //////////////////////////////////////////////////////////////////
 //                                                              //
 //                          ITEMDEFS                            //
@@ -64,7 +164,8 @@ endif
 NAME=tinta
 DEFNAME=i_pen_and_ink
 TYPE=t_buy_misc
-RESOURCES=1 i_FEATHER, 1 i_INK_POT
+RESOURCES=1 i_bottle_empty, 1 i_pena, 5 i_r_perola_negra
+SKILLMAKE=20.0 Alchemy
 WEIGHT=0.1
 CATEGORY=MyT - Sistemas
 SUBSECTION=Livros
@@ -72,7 +173,7 @@ DESCRIPTION=Tinta
 DUPELIST=0fc0
 
 on=@create
-more1=64
+more1=65
 
 ON=@DCLICK
 src.sysmessageyellow O que deseja fazer com a tinta?
@@ -126,16 +227,13 @@ SUBSECTION=Artists
 DESCRIPTION=Pen & Ink (N)
 
 
-
-
-
 [ITEMDEF i_bobina_papel]
 id=0f9c
 type=t_preitem_carpentry
 WEIGHT=4
 name=bobina%s de papel
-RESOURCES=5 i_log, 10 i_dose_water
-SKILLMAKE=35.0 Carpentry
+RESOURCES=3 i_log, 10 i_dose_water
+SKILLMAKE=30.0 Carpentry
 CATEGORY=MyT - Sistemas
 SUBSECTION=Papeis
 DESCRIPTION=Bobina de papel
@@ -159,10 +257,6 @@ DESCRIPTION=Carta
 on=@create
 more1=<R30000>  //Não empilhavel
 more2=1         //Editável
-
-
-
-
 
 
 [ITEMDEF 0fbd]
@@ -233,7 +327,7 @@ DESCRIPTION=Livro (roxo)
 //small open book facing SE
 NAME=Livro
 DEFNAME=i_book_sm_open
-RESOURCES=1 I_CANVAS, 10 I_PAPER, 1 I_THREAD, 1 I_HIDE
+RESOURCES=1 i_bobina_papel, 1 i_thread, 1 i_couro_curtido
 WEIGHT=2
 TYPE=T_BOOK
 CATEGORY=MyT - Sistemas
@@ -244,7 +338,7 @@ DESCRIPTION=Livro aberto (marrom)
 //large open book facing SE
 NAME=Livro
 DEFNAME=i_book_lg_open
-RESOURCES=1 I_CANVAS, 10 I_PAPER, 1 I_THREAD, 1 I_HIDE
+RESOURCES=1 i_bobina_papel, 4 i_thread, 1 i_couro_curtido
 WEIGHT=2
 TYPE=T_BOOK
 CATEGORY=MyT - Sistemas
@@ -252,11 +346,27 @@ SUBSECTION=Livros
 DESCRIPTION=Livro aberto (grande)
 
 
+
 //////////////////////////////////////////////////////////////////
 //                                                              //
 //                         FUNCTIONS                            //
 //                                                              //
 //////////////////////////////////////////////////////////////////
+  
+//*****************************************************************************
+[FUNCTION f_book_open]
+//*****************************************************************************
+//trecho do script antigo transformado em função para adaptação do sistema de idiomas
+  dialogclose d_book
+  src.cTAG.book=<UID>
+  src.ctag.book.page=1
+  src.DIALOG d_book
+  if (STRMATCH(<tag.idioma>,))
+      src.sysmessageblue voce abre o livro.
+      else
+          src.sysmessageblue voce abre o livro escrito em idioma <tag.idioma>.
+  endif
+  return 1
 
 //*****************************************************************************
 [FUNCTION craft_i_bobina_papel]
@@ -336,12 +446,12 @@ elif (<argo.topobj>!=<UID>)
  sysmessagered O livro em branco precisa estar em seu poder
 elif (<book_getPages <argo.uid>>)
  sysmessagered Este livro nao esta em branco
-//elif (!<ISNEARTYPE t_escrivaninha 1>) && (!<ISNEARTYPE t_table 1>)
+//elif (!<ISNEARTYPE t_escrivaninha 1>) 
  //sysmessagered Posicione-se adequadamente numa mesa ou escrivaninha
 else
  cTAG.bookn=<argo.uid>
- cTAG.timer=<eval <book_getPages <cTAG0.obook>>*3>
- cTAG.timer=<BETWEEN2 <cTAG0.timer>,1,<inscription>,1500>
+ //cTAG.timer=<eval <book_getPages <cTAG0.obook>>*2>
+ cTAG.timer=<BETWEEN2 60,180,<inscription>,1250>
  cTAG.cP.x=<p.x>
  cTAG.cP.y=<p.y>
  EVENTS +e_no_attack
@@ -392,7 +502,6 @@ else
  EVENTS -e_no_dclick
  cTAG.disturb
 endif
-
 
 [FUNCTION gm_book_copy]
 if (<argo.type>==t_book)
@@ -464,7 +573,6 @@ if (<ISEMPTY <tag.author>>)
 else
  LOCAL.author=<tag.author>
 endif
-
 
 
 
@@ -636,4 +744,262 @@ else
  src.ctag.scroll.edit=1
  src.DIALOG d_scroll
 endif
+
+
+
+
+//////////////////////////////////////////////////////////////////
+//                                                              //
+//                SISTEMA DE IDIOMAS EM LIVROS                  //
+//                   by Miss                                    //
+//////////////////////////////////////////////////////////////////
+//
+//Geral: Todos são capazes de ler Livros no Idioma Comum
+//
+//Raciais: Raça correspondente sempre é capaz de ler/escrever seu próprio idioma.
+//  Humanos: Com Int 55 compreende e escreve os idiomas élfico e anão.
+//  Elfos: Int 55 para ler/escrever Humano, Int 85 para ler/escrever Anão.
+//  Anões: Int 70 para ler Humano, Int 85 para ler Élfico.
+//  Orc: Int 85 para ler/escrever Élfico e Humano, 70 para ler/escrever Anão.
+//  Drow: Int 85 para ler/escrever Élfico, Anão ou Humano.
+//
+// Idioma Orc: os desenhos são incompreensíveis para todas as raças, salvo Orcs.
+// Idioma Drow: incompreensível para todas as raças, salvo Drow.
+//
+//Runas: habilidados por perícias.
+//  Idioma Druídico: Spellweaving 55% para ler/escrever.
+//  Idioma Rúnico: EvaluatingIntel 55% para ler/escrever.
+//  Idioma Umbroico: SpiritSpeak 55% para ler/escrever.
+//
+//Especial: línguas obscuras.
+//  Idioma de Dasypus: Apenas Int 100+ e Bardos musicianship 60% podem ler/escrever.
+//
+//Total: GM, Int 100+ e Bardo com musicianship 60%+ são capazes de ler e escrever em todos os idiomas independente da raça.
+//
+//Critério para balanço
+//Fácil: 1/4 dos pontos em Int.
+//Média: 2/4 dos pontos em Int.
+//Hard: 3/4 dos pontos em Int.
+// Mínimo+Fração da margem = Dificuldade.
+//
+//O que isso significa?
+//Humanos, Elfos e Anões começam com Int 40 e podem ir até 100 (60 pontos de margem). Então as dificuldades são Fácil é Int 55 (40+15), Média Int 70 (40+30), Hard Int 85 (40+45).
+//Orcs não têm linguagem escrita, apenas registros pictóricos. Por si só já é criptografada.
+//Drows estão isolados das civilizações a muito tempo sem dar notícia. Mas mantém um mínimo de informação sobre as demais raças,
+//      por isso é impossível compreender seu idioma, mas eles podem compreender os demais idiomas.
+//
+//observação importante: Buffs temporários em Int podem permitir que se compreenda alguns idiomas extras temporariamente.
+//
+//como eu, GM, uso?
+//1) Basta .xtag.idioma <nome do idioma> em qualquer t_book. Os idiomas atuais são: Humano Elfo Anao Orc Drow Druida Runico Umbral Dasypus
+//2) Não funciona em cartas, murais de recado e etc.
+//
+//Para Ler
+//Só dar dois cliques no livro que ele faz os testes. Se você puder ler, ao abrir o livro, rola um aviso de qual é o idioma do livro.
+//
+//Para escrever
+//Rola um comando .idioma, que aí você seleciona um livro e abre um menu de opções. As dificuldades são as mesmas. Se você domina aquele idioma, ele dá ok. Se não, avisa.
+//Um livro só pode ter seu idioma convertido uma única vez por seu dono. Se morey = 1, não pode mais ser convertido com o comando .idioma.
+//
+//
+//ToDo:
+//     - Verificar necessidade de ser aplicado a cartas e mural de recados.
+//     - Quando forem copiar um livro, dar a opção de traduzir o livro em um determinado idioma diferente.
+//
+//TAGs utilizadas:
+//   - tag.idioma <nome do idioma>        determina em que idioma o livro está
+//                                        os idiomas são Humano Elfo Anao Orc Drow Druida Runico Umbral Dasypus
+//                                        mas você pode colocar qualquer idioma, que será entendido somente
+//                                        pelos generalistas
+//
+
+
+//////////////////////////////////////////////////////////////////
+//                                                              //
+//                          COMANDOS                            //
+//                                                              //
+//////////////////////////////////////////////////////////////////
+//habilitando para o player poder usar .idioma e poder alterar o idioma de algo.
+[PLEVEL 0]
+idioma
+
+//////////////////////////////////////////////////////////////////
+//                                                              //
+//                         FUNCTIONS                            //
+//                                                              //
+//////////////////////////////////////////////////////////////////
+
+//*****************************************************************************
+// idioma
+//*****************************************************************************
+
+[FUNCTION idioma]
+
+sysmessageyellow Selecione um livro...
+targetf encriptar
+
+[FUNCTION encriptar]
+
+  if !(<argo.type>==t_book)
+      src.sysmessagered Isto nao e um livro!!!
+      return 1
+    else
+      if (<argo.topobj> != <src>) //se está fora da mochila
+           if (<src.int> >= 100)
+                src.sysmessageyellow Voce percebe que o livro esta em idioma <argo.tag.idioma>.
+                return 1
+                else
+                    src.sysmessageyellow Olhando de longe assim voce nem pode dizer se contem algo escrito.
+                return 1
+           endif
+           return 1
+      elif (<argo.tag0.owner>!=<src.uid>) //se está dentro da mochila, mas você não é o dono
+           if (STRMATCH(<argo.tag.idioma>,)) || (STRMATCH(<argo.tag.idioma>,comum))//você identifica se for idioma comum
+               src.sysmessageblue O livro esta em idioma Comum.
+               return 1
+            elif (STRMATCH(<argo.tag.idioma>,<src.tag.raca>)) || (<src.int>>=70))//você consegue saber o idioma for da sua raça ou se sua int for maior que 70, ainda que não conheça
+               src.sysmessageblue Voce sabe que o livro esta em idioma <argo.tag.idioma>.
+               return 1
+            else //se não for idioma comum e sua int for menor que 70, voce não faz ideia do que seja.
+               src.sysmessagered Olhando assim, voce nem imagina em que idioma o livro esta escrito. Talvez abrindo...
+              return 1
+           endif
+      else //se está dentro da mochila e você é o dono
+            if (<argo.morey>==1) //se morey é 1, esse livro já foi traduzido uma vez, então não pode mais ser convertido em outro idioma.
+               src.sysmessagered Voce ja traduziu este livro uma vez para o idioma <argo.tag.idioma>. Nao pode alterar seu idioma novamente.
+               return 1
+             else
+               src.sysmessagegreen Lembre-se que o idioma so pode ser alterado uma UNICA vez!!!
+               src.cTAG.livro_selecionado=<argo.uid>
+               src.menu m_criptografia
+               return 1
+            endif
+      endif
+  endif
+
+//////////////////////////////////////////////////////////////////
+//                                                              //
+//                           MENUS                              //
+//                                                              //
+//////////////////////////////////////////////////////////////////
+
+//*****************************************************************************
+//Criptografia
+//*****************************************************************************
+//Os critérios para criptografar são os mesmos para ser capaz de ler (vide em typedef t_book)
+//O critério mestre é o tradutor ser dono do livro a ser traduzido.
+[MENU m_criptografia]
+
+Selecione o idioma para criptografar o livro.
+
+on=0 Comum
+    uid.<cTAG.livro_selecionado>.tag.idioma=comum
+    uid.<cTAG.livro_selecionado>.morey=1
+    src.sysmessagegreen Agora o livro esta no idioma Comum
+    return 1
+
+on=0 Anao
+  if (<src.IsGm>) || (<src.int>>=100) || (<src.musicianship>>=600) || (STRMATCH(<src.tag.raca>,anao)) || ((STRMATCH(<src.tag.raca>,Humano))&&(<src.int>>54)) || ((STRMATCH(<src.tag.raca>,elfo))&&(<src.int>>84)) || ((STRMATCH(<src.tag.raca>,orc))&&(<src.int>>69)) || ((STRMATCH(<src.tag.raca>,drow))&&(<src.int>>84))
+     uid.<cTAG.livro_selecionado>.tag.idioma=anao
+     uid.<cTAG.livro_selecionado>.morey=1
+     src.sysmessagegreen Agora o livro esta no idioma Anao
+     return 1
+   else
+     src.sysmessagered Voce nao domina este idioma. Selecione outro que voce domine.
+     return 1
+  endif
+
+on=0 Drow
+  if (<src.IsGm>) || (<src.int>>=100) || (<src.musicianship>>=600) || (STRMATCH(<src.tag.raca>,drow))
+     uid.<cTAG.livro_selecionado>.tag.idioma=drow
+     uid.<cTAG.livro_selecionado>.morey=1
+     src.sysmessagegreen Agora o livro esta no idioma Drow
+     return 1
+   else
+     src.sysmessagered Voce nao domina este idioma. Selecione outro que voce domine.
+     return 1
+  endif
+
+on=0 Elfico
+  if (<src.IsGm>) || (<src.int>>=100) || (<src.musicianship>>=600) || (STRMATCH(<src.tag.raca>,elfo)) || ((STRMATCH(<src.tag.raca>,Humano))&&(<src.int>>54)) || ((STRMATCH(<src.tag.raca>,anao))&&(<src.int>>84)) || ((STRMATCH(<src.tag.raca>,orc))&&(<src.int>>84)) || ((STRMATCH(<src.tag.raca>,drow))&&(<src.int>>84))
+     uid.<cTAG.livro_selecionado>.tag.idioma=elfo
+     uid.<cTAG.livro_selecionado>.morey=1
+     src.sysmessagegreen Agora o livro esta no idioma Elfico
+     return 1
+   else
+     src.sysmessagered Voce nao domina este idioma. Selecione outro que voce domine.
+     return 1
+  endif
+
+on=0 Humano
+  if (<src.IsGm>) || (<src.int>>=100) || (<src.musicianship>>=600) || (STRMATCH(<src.tag.raca>,Humano)) || ((STRMATCH(<src.tag.raca>,elfo))&&(<src.int>>54)) || ((STRMATCH(<src.tag.raca>,anao))&&(<src.int>>69)) || ((STRMATCH(<src.tag.raca>,orc))&&(<src.int>>84)) || ((STRMATCH(<src.tag.raca>,drow))&&(<src.int>>84))
+     uid.<cTAG.livro_selecionado>.tag.idioma=Humano
+     uid.<cTAG.livro_selecionado>.morey=1
+     src.sysmessagegreen Agora o livro esta no idioma Humano
+     return 1
+   else
+     src.sysmessagered Voce nao domina este idioma. Selecione outro que voce domine.
+     return 1
+  endif
+
+on=0 Orcquico
+  if (<src.IsGm>) || (STRMATCH(<src.tag.raca>,orc))
+     uid.<cTAG.livro_selecionado>.tag.idioma=orc
+     uid.<cTAG.livro_selecionado>.morey=1
+     src.sysmessagegreen Agora o livro esta no idioma Orcquico
+     return 1
+   else
+     src.sysmessagered Voce nao domina este idioma. Selecione outro que voce domine.
+     return 1
+  endif
+
+on=0 Druidico
+  if (<src.IsGm>) || (<src.int>>=100) || (<src.musicianship>>=600) || (<src.spellweaving>>=550)
+     uid.<cTAG.livro_selecionado>.tag.idioma=druida
+     uid.<cTAG.livro_selecionado>.morey=1
+     src.sysmessagegreen Agora o livro esta no idioma Druidico
+     return 1
+   else
+     src.sysmessagered Voce nao domina este idioma. Selecione outro que voce domine.
+     return 1
+  endif
+
+on=0 Runico
+  if (<src.IsGm>) || (<src.int>>=100) || (<src.musicianship>>=600) || (<src.evaluatingintel>>=550)
+     uid.<cTAG.livro_selecionado>.tag.idioma=runico
+     uid.<cTAG.livro_selecionado>.morey=1
+     src.sysmessagegreen Agora o livro esta no idioma Runico
+     return 1
+   else
+     src.sysmessagered Voce nao domina este idioma. Selecione outro que voce domine.
+     return 1
+  endif
+
+on=0 Umbroico
+  if (<src.IsGm>) || (<src.int>>=100) || (<src.musicianship>>=600) || (<src.spiritspeak>>=550)
+     uid.<cTAG.livro_selecionado>.tag.idioma=umbral
+     uid.<cTAG.livro_selecionado>.morey=1
+     src.sysmessagegreen Agora o livro esta no idioma Umbroico
+     return 1
+   else
+     src.sysmessagered Voce nao domina este idioma. Selecione outro que voce domine.
+     return 1
+  endif
+
+on=0 Dasypus
+  if (<src.IsGm>) || (<src.int>>=100) || (<src.musicianship>>=600)
+     uid.<cTAG.livro_selecionado>.tag.idioma=dasypus
+     uid.<cTAG.livro_selecionado>.morey=1
+     src.sysmessagegreen Agora o livro esta no idioma ancestral de Dasypus
+     return 1
+   else
+     src.sysmessagered Voce nao domina este idioma. Selecione outro que voce domine.
+     return 1
+  endif
+
+on=@cancel
+     src.sysmessageyellow O idioma do livro NAO foi alterado!
+
+//SISTEMA DE IDIOMAS FIM
+
 [EOF]

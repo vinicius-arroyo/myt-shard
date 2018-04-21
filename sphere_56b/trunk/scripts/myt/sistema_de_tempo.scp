@@ -22,6 +22,8 @@
 //SRC.TAG.no_clima  //habilita ou desabilita checagem de clima
 //
 //VARS usadas:
+//VAR.emotetempo (liga e desliga os emotes ligados ao sistema de tempo)
+//VAR.logtempo (liga e desliga os logs no console)
 //VAR.tMin
 //VAR.tHour
 //VAR.tDay
@@ -65,7 +67,7 @@ REGION_TROPICAL=4
 tBodyMax2=50
 tBodyMax1=35
 tBodyMin1=18
-tBodyMin2=10
+tBodyMin2=15
 
 statf_noweather=03  //statf_invul|statf_dead
 
@@ -149,14 +151,15 @@ temp01_21=25
 temp01_22=23
 temp01_23=21
 
-temp_verao=7
-temp_outono=-2
-temp_inverno=-11
-temp_primavera=0
+temp_verao=7	//MODTEMP verão
+temp_outono=-2	//MODTEMP outorno
+temp_inverno=-09 //MODTEMP inverno
+temp_primavera=0	//MODTEMP primavera
 
 dungeon_light=30
 
 snow_temp_max=7
+
 
 //*****************************************************************************
 //*****************************************************************************
@@ -177,6 +180,9 @@ ON=@ENTER
 if !<src.npc>
     src.f_correctLight <flags>
 endif
+
+ON=@CliPeriodic
+	src.f_correctLight <src.region.flags>
 
 ON=@REGPERIODIC
 
@@ -199,8 +205,10 @@ elif (<flags>&region_flag_underground)
 //se clima jah ativo, verifica se esta na hora de desabilitar    
 elif <tag0.weather_active>
     if <serv.time> > <tag0.weather_active>
-        serv.log [CLIMA] <name> - SECO
-//OFF        dry
+		if <var.logtempo> 
+			serv.log [CLIMA] <name> - SECO
+		endif
+        dry
         tag.weather=<def.weather_dry>
         tag.weather_active=0
     endif
@@ -225,10 +233,10 @@ LOCAL.toff=0
 //20% chance of raining / snowing
 if !<R5> && (<TAG0.type>!=<DEF.REGION_DESERT>) && !(<FLAGS>&region_flag_underground)
     if (<LOCAL.temp> <= snow_temp_max)
-//OFF        snow
+        snow
         tag.weather=<def.weather_snow>
     else
-//OFF        rain
+       rain
         tag.weather=<def.weather_rain>
     endif
     
@@ -237,10 +245,11 @@ if !<R5> && (<TAG0.type>!=<DEF.REGION_DESERT>) && !(<FLAGS>&region_flag_undergro
     tag.weather_next=<eval <tag.weather_active>+<LOCAL.toff>>
 endif
 
-//OFF season <DEF.SEASON_<var.tSeason>>
+season <DEF.SEASON_<var.tSeason>>
 
+if <var.logtempo> 
 serv.log [CLIMA] <name> - <tag0.weather> - <eval <LOCAL.ton>/600>m/<eval <LOCAL.toff>/600>m
-
+endif
 
 
 //*****************************************************************************
@@ -421,10 +430,10 @@ VAR.tMin=<eval <VAR.tMin>+<DEF.minutos_por_tick>>
 if (<VAR.tMin> >= minutos_por_hora) //minuto
  VAR.tMin=0
  VAR.tHour=<VAR.tHour>+1
+ serv.area.a_world.light=<DEF.luz_<eval <var.tHour>>>
 
  f_connectDB
  event_serverTick
-// serv.log [TEMPO] - <eval <var.tHour>>:<eval <var.tMin>> -- <eval <var.tDay>>/<eval <var.tMonth>>/<eval <var.tYear>>
 
  if (<VAR.tHour> >= horas_por_dia)  //hora
   VAR.tHour=0
@@ -468,7 +477,9 @@ return 1
 //*****************************************************************************
 [FUNCTION fix_world]
 //mantem todo o world escuro e sem chuva/neve (hardcoded)
+if <var.logtempo> 
 serv.log [FIX LIGHT-WEATHER]
+endif
 serv.area.a_world.light 30
 serv.area.a_world.rainchance 0
 serv.area.a_world.coldchance 0
@@ -478,7 +489,9 @@ serv.area.a_world.coldchance 0
 //*****************************************************************************
 [FUNCTION fix_weather]
 //mantem todo o world escuro e sem chuva/neve (hardcoded)
-serv.log [FIX REGION WEATHER]
+if <var.logtempo>  
+	serv.log [FIX REGION WEATHER]
+endif
 region.tag.weather=0
 region.tag.weather_active=0
 region.tag.weather_next=0
@@ -613,9 +626,11 @@ if (0<argn>==1) && (<region.tag0.weather>!=1)
  if (<stam> >= 5)
   stam=<stam>-{0 2}
  endif
- DORAND 5
-  sysmessagegreen Voce esta se sentindo cancado devido ao calor.
-  emotered sua
+ DORAND 20
+  sysmessagegreen Voce esta se sentindo cansado devido ao calor.
+	if <var.emotetempo>
+		emotered suando
+	endif
  ENDDO
 elif (0<argn>==2)
  if <stam> > 15
@@ -625,7 +640,9 @@ elif (0<argn>==2)
  endif
  DORAND 5
   sysmessagegreen Voce esta sentindo frio. Abrigue-se.
-  emotered treme
+  if <var.emotetempo>
+	emotered treme
+  endif
  ENDDO
 elif (0<argn>==3)
  if (<stam> > 15)
@@ -637,7 +654,9 @@ elif (0<argn>==3)
  DORAND 5
   sysmessagered Seus membros estao congelando de frio! Voce vai morrer!
   sysmessagegreen Voce esta sentindo MUITO frio. Abrigue-se.
-  emotered treme muito
+  if <var.emotetempo> 
+	emotered treme muito
+  endif
  ENDDO
 endif
 if (<stam> < 0) || (<stam> > 900)
@@ -696,6 +715,23 @@ else
 endif
 
 return 1
+
+[FUNCTION tempo]
+//Acessa as funções de tempo para os GMs
+LOCAL.temp=<temp_get>
+IF (<LOCAL.temp> < 0)
+ LOCAL.color=0480
+ELIF (<LOCAL.temp> < 9 )
+ LOCAL.color=0122
+ELIF (<LOCAL.temp> < 20 )
+ LOCAL.color=09C
+ELIF (<LOCAL.temp> < 26 )
+ LOCAL.color=0146
+ELSE
+ LOCAL.color=026
+ENDIF
+sysmessage=@<local.color> t=<dLOCAL.temp>oC
+DIALOG d_tempo
 //*****************************************************************************
 //*****************************************************************************
 // GUMPs
@@ -870,5 +906,31 @@ ON=0
 // Cancel
 src.sysmessagered Nada foi alterado.
 
+[PLEVEL 0]
+ceu
+
+[FUNCTION CEU]
+if (<src.flags>&statf_indoors) || (<region.flags>&region_flag_underground)
+ src.sysmessageyellow Como pretende observar os ceus em um lugar coberto?
+ return 1
+endif
+src.emoteyellow Observando o céu
+
+if (<region.tag0.weather> = 1)
+	src.sysmessageyellow Nuvens escondem o céu
+	src.anim 5
+	return 1
+else
+	DOSWITCH <eval <var.tHour>/3>
+		src.sysmessageorange As Luas comecam a se afastar.
+		src.sysmessageorange A lua de Mond esta se pondo ao sul e a Luna ao norte.
+		src.sysmessageorange O sol vem surgindo da direcao leste.
+		src.sysmessageorange O sol esta quase chegando a pino.
+		src.sysmessageorange O sol esta a pino.
+		src.sysmessageorange O sol esta indo em direcao oeste.
+		src.sysmessageorange A Lua de Mond vem despontando sozinha ao norte e a de Luna ao sul.
+		src.sysmessageorange A Lua de Luna quase toca a Lua de Mond.
+	ENDDO
+endif
 
 [EOF]

@@ -13,7 +13,7 @@
 //O 'rate' ou dificuldade de subir um skill é calculado da seguinte forma:
 //
 //Cada ação gera um ganho mínimo (bonusIncrease) mais um valor
-//randômico entre zero e um valor X predeterminado que depende da somatórioa 
+//randômico entre zero e um valor X pre determinado que depende da somatória 
 //dos skills. Para somatória zero X vale 100 e para o máximo vale 0. Dessa
 //forma tem-se uma dificuldade exponencial que é dividida entre todas as skills
 //conforme o total da soma for aumentando.
@@ -24,6 +24,13 @@
 //de uma skill muito rapidamente. Inicialmente ele consegue chegar até 55% 
 //em qualquer skill, mas para passar disso ele deve jogar 1 hora para cada % 
 //adicional. Após 45h o limite é removido.
+
+//O sistema leva em conta a nota do personagem para facilitar o ganho da skill
+//ficando THRESHOLD * NOTA_RP * var.skillgainrate  (quanto maior a nota rp, menor é o NOTA_RP)
+
+//VARs usadas:
+//var.logon = habilita os logs no console
+//var.skillgainrate = MULTIPLICA a dificuldade de ganhar qualquer skill
 
 //TODO:
 
@@ -58,7 +65,7 @@ scRpBonus=25    //(2.5% por ponto entre 0 e 10)
 scRate=19440    //(324 minutos * 60 segundos por .1% de skill)
 
 //skillsumcap
-sscMin=5000     //skillsumcap minimo
+sscMin=3800     //skillsumcap minimo
 sscMax=8000     //skillsumcap maximo
 sscInc=150      //(sscMax-sscMin)/(rpMax-rpMin)=15 incrementos por ponto de RP
 
@@ -167,7 +174,14 @@ if (<region.flags>&region_flag_safe)
 endif
 
 //serv.log [SKILL] Skill: <argv[0]>::<eval <LOCAL.amnt>>
+
+
 if (!<npc>)
+    //evita erros com skills que estão sendo chamadas mesmo com o player offline. (ex: meditation)
+    if !<isonline>
+      return 1
+    endif
+
     //verifica se ha spam de skill em andamento (max 1 skill por segundo)
     if (<TAG0.skill_ts>><SERV.time>)
         TAG.skill_ts=<eval <SERV.time>+10>
@@ -185,11 +199,11 @@ if (!<npc>)
 
     //se a skill nao pode subir mais devido ao limite por tempo
     if !(<isgm>) && ( <LOCAL.amnt> >= <TAG0.skill_maxSkillValue> )
-    //  sysmessage [SKILL] Habilidade bloqueada
+      sysmessage [SKILL] Habilidade bloqueada (skillcap?)
         TAG.skill_blocked=1
         if ( <LOCAL.amnt> > <TAG0.skill_maxSkillValue> )
 //            TRY <DEF.<argv[0]>> <TAG0.skill_maxSkillValue>
-            serv.log <account>/<uid>: <argv[0]> passou dos limites: <LOCAL.amnt>
+            //serv.log <account>/<uid>: <argv[0]> passou dos limites: <LOCAL.amnt>
         endif
 //        serv.log <account>: <argv[0]> bloqueada
         return 1
@@ -199,70 +213,121 @@ endif
 //define valor limiar para incremento de skill
 //aumente o valor para skills usadas muito rapidamente, como sword
 doswitch <DEF.<argv[0]>>
-LOCAL.threshold=160     // SKILL_ALCHEMY
-LOCAL.threshold=250     // SKILL_ANATOMY
-LOCAL.threshold=160     // SKILL_ANIMAL_LORE
-LOCAL.threshold=1000    // SKILL_APPRAISE
-LOCAL.threshold=200     // SKILL_ARMSLORE
-LOCAL.threshold=1000    // SKILL_Parrying
-LOCAL.threshold=100     // SKILL_Begging
-LOCAL.threshold=500     // SKILL_Blacksmith
-LOCAL.threshold=1000    // Skill_Bowcraft
-LOCAL.threshold=1000    // SKILL_PEACEMAKING
-LOCAL.threshold=600     // Skill_Camping
-LOCAL.threshold=200     // Skill_Carpentry
-LOCAL.threshold=100     // SKILL_CARTOGRAPHY
-LOCAL.threshold=250     // Skill_Cooking
-LOCAL.threshold=100     // Skill_DetectHidden
-LOCAL.threshold=100     // Skill_Enticement
-LOCAL.threshold=500     // Skill_EvalInt
-LOCAL.threshold=1500    // Skill_Healing
-LOCAL.threshold=100     // Skill_Fishing
-LOCAL.threshold=100     // Skill_Forensics
-LOCAL.threshold=300     // Skill_Herding
-LOCAL.threshold=500     // Skill_Hiding
-LOCAL.threshold=1000    // SKILL_PROVOCATION
-LOCAL.threshold=20      // Skill_Inscription
-LOCAL.threshold=100     // Skill_LockPick
-LOCAL.threshold=1500    // Skill_Magery
-LOCAL.threshold=300     // Skill_MagicResist
-LOCAL.threshold=1000    // Skill_Tactics
-LOCAL.threshold=100     // Skill_Snooping
-LOCAL.threshold=900     // Skill_Musicianship
-LOCAL.threshold=100     // SKILL_POISONING
-LOCAL.threshold=722     // Skill_Archery
-LOCAL.threshold=500     // SKILL_SPIRITSPEAK
-LOCAL.threshold=100     // Skill_Stealing
-LOCAL.threshold=250     // Skill_Tailoring
-LOCAL.threshold=160     // Skill_Taming
-LOCAL.threshold=100     // skill_tasteid
-LOCAL.threshold=100     // Skill_Tinkering
-LOCAL.threshold=100     // Skill_Tracking
-LOCAL.threshold=1000    // Skill_Vet
-LOCAL.threshold=1000    // Skill_Swordsmanship
-LOCAL.threshold=1000    // Skill_Macefighting
-LOCAL.threshold=1000    // Skill_Fencing
-LOCAL.threshold=425     // Skill_Wrestling
-LOCAL.threshold=350     // SKILL_LUMBERJACK
-LOCAL.threshold=1000    // SKILL_MINING
-LOCAL.threshold=3500    // SKILL_MEDITATION
-LOCAL.threshold=500     // SKILL_STEALTH
-LOCAL.threshold=100     // SKILL_REMOVE_TRAP
-LOCAL.threshold=1500    // SKILL_Necromancy
-LOCAL.threshold=1500    // SKILL_Focus
-LOCAL.threshold=100     // SKILL_CHIVALRY
-LOCAL.threshold=100     // SKILL_BUSHIDO
-LOCAL.threshold=100     // SKILL_NINJITSU
-LOCAL.threshold=1500    // SKILL_SPELLWEAVING
+LOCAL.threshold=20     // SKILL_ALCHEMY
+LOCAL.threshold=25     // SKILL_ANATOMY
+LOCAL.threshold=16     // SKILL_ANIMAL_LORE
+LOCAL.threshold=80    // SKILL_APPRAISE
+LOCAL.threshold=20     // SKILL_ARMSLORE
+LOCAL.threshold=70    // SKILL_Parrying
+LOCAL.threshold=10     // SKILL_Begging
+LOCAL.threshold=40     // SKILL_Blacksmith
+LOCAL.threshold=60    // Skill_Bowcraft
+LOCAL.threshold=70    // SKILL_PEACEMAKING
+LOCAL.threshold=50     // Skill_Camping
+LOCAL.threshold=17     // Skill_Carpentry
+LOCAL.threshold=10     // SKILL_CARTOGRAPHY
+LOCAL.threshold=20     // Skill_Cooking
+LOCAL.threshold=13     // Skill_DetectHidden
+LOCAL.threshold=10     // Skill_Enticement
+LOCAL.threshold=60     // Skill_EvalInt
+LOCAL.threshold=150    // Skill_Healing
+LOCAL.threshold=35    // Skill_Fishing
+LOCAL.threshold=10     // Skill_Forensics
+LOCAL.threshold=25     // Skill_Herding
+LOCAL.threshold=50     // Skill_Hiding
+LOCAL.threshold=80    // SKILL_PROVOCATION
+LOCAL.threshold=5      // Skill_Inscription
+LOCAL.threshold=20     // Skill_LockPick
+LOCAL.threshold=70     // Skill_Magery
+LOCAL.threshold=15     // Skill_MagicResist
+LOCAL.threshold=100    // Skill_Tactics
+LOCAL.threshold=10     // Skill_Snooping
+LOCAL.threshold=60     // Skill_Musicianship
+LOCAL.threshold=10     // SKILL_POISONING
+LOCAL.threshold=60     // Skill_Archery
+LOCAL.threshold=45     // SKILL_SPIRITSPEAK
+LOCAL.threshold=10     // Skill_Stealing
+LOCAL.threshold=20     // Skill_Tailoring
+LOCAL.threshold=16     // Skill_Taming
+LOCAL.threshold=10     // skill_tasteid
+LOCAL.threshold=30     // Skill_Tinkering
+LOCAL.threshold=10     // Skill_Tracking
+LOCAL.threshold=100    // Skill_Vet
+LOCAL.threshold=105    // Skill_Swordsmanship
+LOCAL.threshold=105    // Skill_Macefighting
+LOCAL.threshold=105    // Skill_Fencing
+LOCAL.threshold=110     // Skill_Wrestling
+LOCAL.threshold=30     // SKILL_LUMBERJACK
+LOCAL.threshold=80    // SKILL_MINING
+LOCAL.threshold=350   // SKILL_MEDITATION
+LOCAL.threshold=50     // SKILL_STEALTH
+LOCAL.threshold=30     // SKILL_REMOVE_TRAP
+LOCAL.threshold=70    // SKILL_Necromancy
+LOCAL.threshold=70    // SKILL_Focus
+LOCAL.threshold=10    // SKILL_CHIVALRY
+LOCAL.threshold=10     // SKILL_BUSHIDO
+LOCAL.threshold=10     // SKILL_NINJITSU
+LOCAL.threshold=70    // SKILL_SPELLWEAVING
 enddo
+
+//descobre a nota RP e atribui um bonus a isso
+
+if (<brain> == 0) //para criaturas que nao tem NOTA RP, como animais de tammer
+	doswitch <eval (<CTAG0.rp_grade>+10)/2>
+			LOCAL.notaRP=200    // NOTA 0
+			LOCAL.notaRP=150    // NOTA 1
+			LOCAL.notaRP=120    // NOTA 2
+			LOCAL.notaRP=90     // NOTA 3
+			LOCAL.notaRP=65     // NOTA 4
+			LOCAL.notaRP=50     // NOTA 5
+			LOCAL.notaRP=41     // NOTA 6
+			LOCAL.notaRP=32     // NOTA 7
+			LOCAL.notaRP=22     // NOTA 8
+			LOCAL.notaRP=18     // NOTA 9
+			LOCAL.notaRP=10     // NOTA 10
+	enddo
+else
+	LOCAL.notaRP=20
+endif
+
+if (<var.skillgainrate> < 1) //verifica se a var foi setada errada pra evitar exploit
+	var.skillgainrate=1
+	serv.log CUIDADO! var.skillgainrate estava a baixo do minimo permitido. Modificado para var.skillgainrate=1.
+endif
+
+LOCAL.threshold = <eval <LOCAL.threshold> * <var.skillgainrate> * <LOCAL.notaRP>>
+
+if <var.logon>
+serv.log  <account>/<tag.name> :: threshold(FINAL) = <eval <LOCAL.threshold>> :: VAR.skillgainrate <eval <var.skillgainrate>> :: notaRP <eval <LOCAL.notaRP>> 
+endif
+
 
 //calcula incremento aleatorio de acordo com maximo permitido 
 //(depende do skillsum)
-LOCAL.inc=<eval {0 <TAG.skill_maxIncrease> }>
+	if <var.logon>
+		serv.log Max increase formula: (<eval <TAG.skill_maxIncrease>> + (((<eval <TAG0.skill_maxSkillValue>> - <eval <LOCAL.amnt>>)*100)/<eval <TAG0.skill_maxSkillValue>>))/2
+	endif
+		
+	if (<brain> == 0) && !(<isgm>) //garante que criaturas sem as tags ou que gms com tags setadas erradas nao gerem bugs
+        LOCAL.limite = ((<TAG0.skill_maxIncrease> + (((<eval <TAG0.skill_maxSkillValue>>-<LOCAL.amnt>)*100)/<TAG0.skill_maxSkillValue>))/2)
+    else 
+        LOCAL.limite = 100
+    endif
+			
+	if <var.logon>
+		serv.log max increase limit: <eval <LOCAL.limite>>
+	endif
+LOCAL.inc=<eval {1 <LOCAL.limite>}>
+	if <var.logon>
+		serv.log increasing: <eval <LOCAL.inc>>
+	endif
+
 //soma com o minimo de incremento e os incrementos anteriores
 LOCAL.inc=<eval <DEF.bonusIncrease>+<LOCAL.inc>+<TAG0.<argv[0]>>>
 
-//serv.log [SKILL] Acumulado: <LOCAL.inc>/<LOCAL.threshold>
+if <var.logon>
+	serv.log [SKILL] <argv[0]> Acumulado: <eval <LOCAL.inc>>/<eval <LOCAL.threshold>>	
+endif
 
 //se passou do limiar, sobe skill
 if ( <LOCAL.inc> > <LOCAL.threshold> )
@@ -270,13 +335,17 @@ if ( <LOCAL.inc> > <LOCAL.threshold> )
   LOCAL.s=<skilllock.<eval <def.<argv[0]>>>>
   if ( <LOCAL.s> == 0 ) //subir
     if ( <skilltotal> > <skillclass.skillsum> )
+	if <var.logon>
         serv.log [SKILL] <account> SKILLCLASS LIMIT
+	endif
     else
         TRY <DEF.<argv[0]>> <EVAL <LOCAL.amnt> + 0.1>
     endif
   endif
-  skill_decreaseNextSkill  
-  serv.log [SKILL] <account> <argv[0]>(<DEF.<argv[0]>>) <LOCAL.amnt> <LOCAL.s>
+  skill_decreaseNextSkill 
+	if <var.logon>  
+	  serv.log [SKILL] <account> <argv[0]>(<DEF.<argv[0]>>) <LOCAL.amnt> <LOCAL.s>
+	endif
 endif
 
 //salva incrementos
@@ -413,6 +482,7 @@ TAG0.skill_maxSkillSumValue = <DEF.sscMin>
 TAG0.skill_maxSkillSumValue += <eval (<CTAG0.rp_grade>-<DEF.rpMin>)* <DEF.sscInc>> 
 
 TAG.skill_maxIncrease=<eval ((<TAG0.skill_maxSkillSumValue>-<skilltotal>)*100)/<TAG0.skill_maxSkillSumValue>>
+
 if ( <TAG.skill_maxIncrease> < 0 )
   TAG.skill_maxIncrease=0
 endif
