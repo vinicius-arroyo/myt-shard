@@ -48,7 +48,7 @@ arrow_i_arco                001
 arrow_i_arco_long           002
 arrow_i_arco_longo          002
 arrow_i_arco_composto       004
-arrow_i_arco_nobre         008
+arrow_i_arco_elfico         008
 arrow_i_besta               010
 arrow_i_besta_pesada        020
 arrow_i_besta_repeticao     020
@@ -160,72 +160,45 @@ ON=@EQUIP
 //*****************************************************************************
 //Corrige o arco de acordo com a munição
 [FUNCTION correctammo] 
-if (<src.weapon.f_set_ammo <uid>>)
-	src.sysmessageblue Agora usando <name>!
+
+LOCAL.wtype=<src.weapon.type>
+
+//garante que esta com arco/dardo e flecha correspondente
+if <topobj>!=<src>
+    return 1
+elif (<LOCAL.wtype>!=t_weapon_bow) && (<LOCAL.wtype>!=t_weapon_xbow)
+    return 1
+elif  (<LOCAL.wtype>==t_weapon_bow) && (<type>!=T_WEAPON_ARROW)
+    return 1
+elif  (<LOCAL.wtype>==t_weapon_xbow) && (<type>!=T_WEAPON_BOLT)
+    return 1
 endif
 
-//*****************************************************************************
-// f_set_ammo
-//*****************************************************************************
-// DEFAULT: arma t_weapon_bow ou t_weapon_xbow
-// <argo>: Pilha de flechas ou dardos
-// retorna 0 se não selecionou corretamente
-// retorna 1 se selecionou corretamente
-// ex: src.weapon.f_set_ammo <finditemid.i_arrow>
-[FUNCTION f_set_ammo]
-argo=<argn1>
+src.weapon.AMMOTYPE=<baseid>
+src.weapon.AMMOANIMHUE=<color>
 
-if (<type>!=t_weapon_bow) && (<type>!=t_weapon_xbow)
-    return 0
-elif  (<type>==t_weapon_bow) && (<argo.type>!=T_WEAPON_ARROW)
-    return 0
-elif  (<type>==t_weapon_xbow) && (<argo.type>!=T_WEAPON_BOLT)
-    return 0
-endif
-
-AMMOTYPE=<argo.baseid>
-AMMOANIMHUE=<argo.color>
-
-more2=<argo.more1>
-if (!<argo.TAG0.effect>)
-    morex=500
+src.weapon.more2=<more1>
+if (!<TAG0.effect>)
+    src.weapon.morex=500
 else
-    morex=<argo.TAG0.effect>
+    src.weapon.morex=<TAG0.effect>
 endif
 
-if (<argo.tag0.anim>)
-    AMMOANIM=<tag0.anim>
+if (<tag0.anim>)
+    src.weapon.AMMOANIM=<tag0.anim>
 else
-    AMMOANIM=
+    src.weapon.AMMOANIM=
 endif
 
-tag.sfx=<argo.tag0.sfx>
-tag.colect=<argo.tag0.colect>
-morez=<argo.morez>
-modAR=<argo.more2>
-damfire=<argo.morex>
-damcold=<argo.morey>
-dampoison=<argo.morez>
-damenergy=<argo.morem>
-tag.arrow=<argo.UID> //Não é uma boa ideia usar LINK. Flechas vão, vem, se perdem, sofrem decay... Se durante um save o Link não for válido, o arco sofre Garbage Collection.
-return 1
-
-//*****************************************************************************
-// f_find_new_arrows
-//*****************************************************************************
-// <arco/xbow>.f_find_new_arrows
-// Obriga o arco a procurar uma nova pilha de flechas com o defname = AMMOTYPE
-// Retorna 0 se falahar ou 1 se novas flechas achadas com sucesso.
-[FUNCTION f_find_new_arrows]
-ref1=<topobj>
-if (!<ref1.IsPlayer>)
-	return 0
-endif
-ref2=<ref1.findid.<AMMOTYPE>>
-if (!<ref2.IsItem>)
-	return 0
-endif
-return <f_set_ammo <ref2>> //Retorna 1 se equipou okay ou 0 se falhou em equipar
+src.weapon.tag.sfx=<tag0.sfx>
+src.weapon.tag.colect=<tag0.colect>
+src.weapon.morez=<morez>
+src.weapon.modAR=<more2>
+src.weapon.dmgfire=<morex>
+src.weapon.dmgcold=<morey>
+src.weapon.dmgpoison=<morez>
+src.weapon.dmgenergy=<morem>
+src.sysmessageblue Agora usando <name>!
 
 //*****************************************************************************
 // f_use_string
@@ -263,7 +236,7 @@ endif
 ARGO.morey=<f_rangeValue <obj.tdata1>,<obj.tdata2>,<LOCAL.skill>>
 LOCAL.hits=<eval <argo.maxhits>-<argo.hits>>
 LOCAL.hits=<f_rangeValue 0,<LOCAL.hits>,<bowcraft>>
-//argo.hits=<eval <argo.hits>+{1 <LOCAL.hits>}> barbante recuperando pontos de HP do arco 
+argo.hits=<eval <argo.hits>+{1 <LOCAL.hits>}>
 
 //Bônus para barbante abençoado
 if (<obj.attr>&0401) //attr_blessed|attr_identified
@@ -306,7 +279,7 @@ DEFNAME=i_xbolt
 TYPE=T_WEAPON_BOLT
 FLIP=1
 REPLICATE=1
-RESOURCES=1 i_vareta, 1 i_pena
+RESOURCES=1 i_vareta, 2 i_pena
 SKILLMAKE=15.0 BOWCRAFT
 WEIGHT=0.1
 CATEGORY=MyT - Provisions - Weapons
@@ -323,7 +296,7 @@ NAME=dardo%s% com ponta de cobre
 TYPE=T_WEAPON_BOLT
 FLIP=1
 REPLICATE=1
-RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_cobre
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_cobre
 SKILLMAKE=25.0 BOWCRAFT
 WEIGHT=0.1
 CATEGORY=MyT - Provisions - Weapons
@@ -344,7 +317,7 @@ NAME=dardo%s% com ponta de prata
 TYPE=T_WEAPON_BOLT
 FLIP=1
 REPLICATE=1
-RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_prata
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_prata
 SKILLMAKE=40.0 BOWCRAFT
 WEIGHT=0.1
 CATEGORY=MyT - Provisions - Weapons
@@ -367,7 +340,7 @@ NAME=dardo%s% com ponta de bronze
 TYPE=T_WEAPON_BOLT
 FLIP=1
 REPLICATE=1
-RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_bronze
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_bronze
 SKILLMAKE=40.0 BOWCRAFT
 WEIGHT=0.1
 CATEGORY=MyT - Provisions - Weapons
@@ -389,7 +362,7 @@ NAME=dardo%s% com ponta de obsidiana
 TYPE=T_WEAPON_BOLT
 FLIP=1
 REPLICATE=1
-RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_obsidiana
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_obsidiana
 SKILLMAKE=60.0 BOWCRAFT
 WEIGHT=0.1
 CATEGORY=MyT - Provisions - Weapons
@@ -411,8 +384,8 @@ NAME=dardo%s% com ponta de ferro
 TYPE=T_WEAPON_BOLT
 FLIP=1
 REPLICATE=1
-RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_ferro
-SKILLMAKE=50.0 BOWCRAFT
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_ferro
+SKILLMAKE=65.0 BOWCRAFT
 WEIGHT=0.1
 CATEGORY=MyT - Provisions - Weapons
 SUBSECTION=Bows
@@ -433,7 +406,7 @@ NAME=dardo%s% com ponta de ouro
 TYPE=T_WEAPON_BOLT
 FLIP=1
 REPLICATE=1
-RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_ouro
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_ouro
 SKILLMAKE=65.0 BOWCRAFT
 WEIGHT=0.1
 CATEGORY=MyT - Provisions - Weapons
@@ -456,7 +429,7 @@ NAME=dardo%s% com ponta de ebano
 TYPE=T_WEAPON_BOLT
 FLIP=1
 REPLICATE=1
-RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_ebano
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_ebano
 SKILLMAKE=85.0 BOWCRAFT
 WEIGHT=0.1
 CATEGORY=MyT - Provisions - Weapons
@@ -478,7 +451,7 @@ NAME=dardo%s% com ponta de rubridium
 TYPE=T_WEAPON_BOLT
 FLIP=1
 REPLICATE=1
-RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_rubridium
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_rubridium
 SKILLMAKE=75.0 BOWCRAFT
 WEIGHT=0.1
 CATEGORY=MyT - Provisions - Weapons
@@ -500,7 +473,7 @@ NAME=dardo%s% com ponta de mythril
 TYPE=T_WEAPON_BOLT
 FLIP=1
 REPLICATE=1
-RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_mythril
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_mythril
 SKILLMAKE=95.0 BOWCRAFT
 WEIGHT=0.1
 CATEGORY=MyT - Provisions - Weapons
@@ -522,7 +495,7 @@ NAME=dardo%s% com ponta de eldasthar
 TYPE=T_WEAPON_BOLT
 FLIP=1
 REPLICATE=1
-RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_eldasthar
+RESOURCES=1 i_vareta, 2 i_pena, 1 i_ponta_eldasthar
 SKILLMAKE=105.0 BOWCRAFT
 WEIGHT=0.1
 CATEGORY=MyT - Provisions - Weapons
@@ -665,7 +638,7 @@ ID=0f3f
 NAME=flecha%s% com ponta de ferro
 TYPE=T_WEAPON_ARROW
 RESOURCES=1 i_vareta, 1 i_pena, 1 i_ponta_ferro
-SKILLMAKE=50.0 BOWCRAFT
+SKILLMAKE=65.0 BOWCRAFT
 WEIGHT=0.1
 CATEGORY=MyT - Provisions - Weapons
 SUBSECTION=Bows
@@ -802,7 +775,7 @@ ON=@CREATE
 more1=20//Poison
 morez=2
 color=0455
-TAG.effect=25.0
+TAG.effect=31.3
 
 //*****************************************************************************
 // i_arrow_poison
@@ -816,7 +789,7 @@ ON=@CREATE
 more1=20//Poison
 morez=3
 color=0455
-TAG.effect=50.0
+TAG.effect=62.6
 
 //*****************************************************************************
 // i_arrow_poison_hi
@@ -830,7 +803,7 @@ ON=@CREATE
 more1=20//Poison
 morez=5
 color=0455
-TAG.effect=75.0
+TAG.effect=93.9
 
 //*****************************************************************************
 // i_arrow_poison_xhi
@@ -844,7 +817,7 @@ ON=@CREATE
 more1=20//Poison
 morez=7
 color=0455
-TAG.effect=100.0
+TAG.effect=125.0
 
 //*****************************************************************************
 // i_arrow_ice
@@ -863,15 +836,15 @@ attr=04020          //attr_can_decay|attr_magic
 //*****************************************************************************
 // i_arrow_stun
 //*****************************************************************************
-[ITEMDEF i_arrow_stun]
-ID=i_arrow
-NAME=flecha%s% de paralizia
-TYPE=T_WEAPON_ARROW
+//[ITEMDEF i_arrow_stun]
+//ID=i_arrow
+//NAME=flecha%s% de paralizia
+//TYPE=T_WEAPON_ARROW
 
-ON=@CREATE
-more1=200			//cançar músculos
-color=01a
-attr=04020          //attr_can_decay|attr_magic
+//ON=@CREATE
+//more1=026           //Paralyze
+//color=01a
+//attr=04020          //attr_can_decay|attr_magic
 
 //*****************************************************************************
 // i_arrow_energy
@@ -1188,7 +1161,7 @@ ID=01053
 TYPE=t_string
 NAME=Engrenagens de ferro
 WEIGHT=1
-SKILLMAKE=tinkering 50.0
+SKILLMAKE=tinkering 65.0
 tdata1=280
 tdata2=430
 RESOURCES=1 i_ingot_iron

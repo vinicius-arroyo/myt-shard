@@ -34,10 +34,8 @@ i_osso                          i_r_osso
 
 spellflag_eval_boosts 0400000           //Spellflag. Eval int é 50% do EFFECT
 
-[PLEVEL 4]
-f_connectDB
-
 [PLEVEL 6]
+f_connectDB
 worldrespawn
 
 //*****************************************************************************
@@ -290,12 +288,12 @@ endif
         return 1
     elif ( <LOCAL.type>==t_carpentry )
         return 1
-    elif ( <LOCAL.type>==t_normal )
+    elif ( <LOCAL.type>==t_chair )
         return 1
     elif ( <LOCAL.type>==t_sextant )
         return 1
-  //  elif ( <LOCAL.type>==t_table )
-    //    return 1
+    elif ( <LOCAL.type>==t_table )
+        return 1
     elif ( <LOCAL.type>==t_fish_pole )
         return 1
     elif ( <LOCAL.type>==t_shaft )
@@ -350,8 +348,6 @@ endif
         return 1
     elif ( <LOCAL.type>==t_cachimbo ) // permite vender cachimbo
         return 1
-	elif ( <LOCAL.type>==t_game_board ) // permite vender jogos
-		return 1
     else
         return 0
     endif
@@ -880,7 +876,7 @@ src.addcliloc 1070722,<argv0>
 if (!0<argv0>)
     return <f_checkVersion <explode .,<CLIENTVERSION>>>
 endif
-if (<argv0> > 7) || ( (<argv0>==7) && (<argv2> >= 60) )
+if (<argv0> > 5) || ( (<argv0>==5) && (<argv2> >= 8) )
     return 1
 endif
 return 0
@@ -893,7 +889,7 @@ if (!0<argv0>)
     serv.log Clientversion invalido: <CLIENTVERSION> -- <argv0>::<argv1>::<argv2>
     return 0
 endif
-if (<argv0> > 7) || ( (<argv0>==7) && (<argv2> >= 60) )
+if (<argv0> > 5) || ( (<argv0>==5) && (<argv2> >= 8) )
     return 1
 endif
 return 0
@@ -1060,69 +1056,6 @@ ctaglist log
 serv.log *********************** END DUMP **************************
 
 //*****************************************************************************
-// taglist <stringFiltro>
-//*****************************************************************************
-//Mime da função taglist com opção de filtrar tags iniciadas por <args>
-[FUNCTION taglist]
-//Para entender essa aqui, olhe a página de CHARS do wiki. Para ver o que é TAGAT.<indice>.KEY / .VAL
-local.total=<eval <tagcount>-1>
-if (<local.total>==-1)
-	//Não tem tag para mostrar. Nem roda pra não mostrar erro na console.
-	return 0
-endif
-if (<argv>)
-	if (STRMATCH(<args>,log))
-		serv.log <tag.name> (<account>) commands taglist fo self.
-	endif
-	//Caso estejamos procurando uma TAG cujo nome (KEY) começa com <args>*
-	for i <local.total>
-		if (STRMATCH(<args>*,<tagat.<local.i>.key>))
-			//STRLEN e STRMATCH são duas coisas muito úteis. Estude elas.
-			sysmessage <tagat.<local.i>.key>=<tagat.<local.i>.val>
-		elif (STRMATCH(<args>,log))
-			serv.log tag.<tagat.<local.i>.key>=<tagat.<local.i>.val>
-		endif
-	endfor
-else
-	//Caso queremos ver todas as TAGs, sem filtro
-	for i <local.total>
-		sysmessage <tagat.<local.i>.key>=<tagat.<local.i>.val>
-	endfor
-endif
-
-[FUNCTION xtaglist]
-//Sim! Podemos colocar esse nome na função. Aí a gente muda o comportamento da função para quando tem target.
-if !(<argo>)
-	//Ainda não deram um target. Chama a função de novo atravez de um target passando o <args> também e depois para a função
-	targetf xtaglist <args>
-	return 0
-endif
-local.total=<eval <argo.tagcount>-1>
-if (<local.total>==-1)
-	//Não tem tag para mostrar. Nem roda pra não mostrar erro na console.
-	return 0
-endif
-if (<argv>)
-	if (STRMATCH(<args>,log))
-		serv.log <tag.name> (<account>) commands taglist for <argo.uid> (<argo.name>)
-	endif
-	//Caso estejamos procurando uma TAG cujo nome (KEY) começa com <args>*
-	for i <local.total>
-		if (STRMATCH(<args>*,<argo.tagat.<local.i>.key>))
-			//STRLEN e STRMATCH são duas coisas muito úteis. Estude elas.
-			sysmessage <argo.tagat.<local.i>.key>=<argo.tagat.<local.i>.val>
-		elif (STRMATCH(<args>,log))
-			serv.log tag.<argo.tagat.<local.i>.key>=<argo.tagat.<local.i>.val>
-		endif
-	endfor
-else
-	//Caso queremos ver todas as TAGs, sem filtro
-	for i <local.total>
-		sysmessage <argo.tagat.<local.i>.key>=<argo.tagat.<local.i>.val>
-	endfor
-endif
-
-//*****************************************************************************
 // movedir <dir>
 //*****************************************************************************
 //Faz <UID> andar 1 tile na direção <dir>
@@ -1227,19 +1160,16 @@ return 0
 //*****************************************************************************
 //Revive, revitaliza e cura um char. Usar .set aid ou .xaid em outros chars
 [FUNCTION aid]
-if (!<IsItem>)
-	if <restest 1 i_mry_desmaio>
-		f_returnToLife
-		morte_decrementaDesmaios 1
-	endif
-	if <IsPoisoned>
-		spelleffect s_cure,200.0 <UID>
-	endif
-	mana = <maxmana>
-	stam = <maxstam>
+if <restest 1 i_mry_desmaio>
+    f_returnToLife
+    morte_decrementaDesmaios 1
 endif
 hits = <maxhits>
-
+mana = <maxmana>
+stam = <maxstam>
+if <IsPoisoned>
+    spelleffect s_cure,200.0 <UID>
+endif
 
 //*****************************************************************************
 // f_personalLight <0 a 30>
@@ -1271,11 +1201,22 @@ endif
 //*****************************************************************************
 //Retorna se <argn1> é meu inimigo ou não
 [FUNCTION ISMYENEMY]
+//Função principal
 ref1=<argn>
-if (<src.attacker.id <uid>> >= 0)  || (<attacker.id <ref1>> >= 0)
+if (<f_enemyCheck <ref1.uid>>) || (<ref1.f_enemyCheck <UID>>)
  return 1
 endif
 return 0
+
+[FUNCTION f_enemyCheck]
+//Função coadjuvante
+ref1=<argn1>
+FORCHARLAYER 30
+ IF (<LINK>==<ref1.UID>) && (<COLOR>&(memory_fight|memory_iaggressor|memory_harmedby|memory_aggreived|memory_war_targ))
+  LOCAL.ret=1
+ ENDIF
+ENDFOR
+RETURN <LOCAL.ret>
 
 //*****************************************************************************
 // ISMYMASTER <UID>
@@ -1396,8 +1337,8 @@ return <local.t>
 //Força correão de resdisp de todas as contas.
 [FUNCTION correct_disp]
 FOR acc 0 <eval <serv.accounts>-1>
- if (<serv.account.<local.acc>.resdisp> =! 9) || (<ISEMPTY <serv.account.<local.acc>.resdisp>>)
-  serv.account.<local.acc>.resdisp = 9
+ if (<serv.account.<local.acc>.resdisp> =! 5) || (<ISEMPTY <serv.account.<local.acc>.resdisp>>)
+  serv.account.<local.acc>.resdisp = 5
   LOCAL.c += 1
  endif
  local.i += 1
@@ -1427,9 +1368,9 @@ disturb
 
 [FUNCTION disturb]
 if <NPC>
-    TAG0.disturb 1
+    TAG.disturb 1
 else
-    cTAG0.disturb 1
+    cTAG.disturb 1
 endif
 
 [FUNCTION wasDisturbed]
@@ -1500,7 +1441,7 @@ DOSWITCH <local.layer>
  local.factor=20       //layer_half_apron
  local.factor=40       //layer_chest
  local.factor=0        //layer_wrist
- local.factor=0        //layer_face
+ local.factor=0        //layer_light
  local.factor=0        //layer_beard
  local.factor=40       //layer_tunic
  local.factor=0        //layer_ears
@@ -2142,7 +2083,7 @@ for x 0 24
             local.x=0    //layer_half_apron
             local.x=0    //layer_chest
             local.x=0    //layer_wrist
-            local.x=0    //layer_face
+            local.x=0    //layer_light
             local.x=0    //layer_beard
             local.x=0    //layer_tunic
             equip <ref1>    //layer_ears
@@ -2198,7 +2139,7 @@ if (<serv.account.<src.account>.plevel>) //jogador regular
 else                                    //jogador novo. Sem formulario.
  dtext 104 128 166 Voce ja tentou responder o formulario de admissao <eval <serv.account.<src.account>.tag.form.try>> vezes.
  dtext 104 144 166 Voce pode modificar suas questoes quando quiser
- dtext 104 160 166 atraves desta janela. Use os guias para maiores detalhes.
+ dtext 104 160 166 atravez desta janela. Use os guias para maiores detalhes.
 endif
 //dtext 104 176 166 Existe um total de <serv.accounts> contas cadastradas no servidor.
 dtext 104 176 166 Versão: <VAR.repo_commit>

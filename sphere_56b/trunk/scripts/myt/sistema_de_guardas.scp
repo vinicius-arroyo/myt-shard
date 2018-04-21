@@ -1,4 +1,4 @@
-﻿[COMMENT sistema_de_guardas]
+[COMMENT sistema_de_guardas]
 A AI dos guardas é grande de mais pra ficar no arquivo do sistema de towns
 
 
@@ -90,17 +90,17 @@ endif
 //**************************************
 on=@TownHit
 
-if (!<IsPlayer>) || (!<src>) || (<src>==<uid>)
+if (!<IsPlayer>) || (!<act>) || (<src>==<uid>)
     return 0
 endif
 
 //testar brain_animal para RESOURCES
 //se RESOURCES animais
-if (<src.NPC>==brain_animal)
+if <act.NPC>==brain_animal
     //e nao tiver permissao
     if !<towncache_can <DEF.TOWN_CAN_RESOURCES>>
         //e nao for pet
-        if !(<src.memoryfindtype.memory_ipet>)
+        if !(<act.memoryfindtype.memory_ipet>)
 //            sysmessageyellow Eh bom voce saber que nao eh permitido cacar aqui.
             TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_RESOURCES>
         endif
@@ -112,20 +112,20 @@ elif !<towncache_can <DEF.TOWN_CAN_HARM>> //&& !(<ctag0.town_<region.defname>_fl
 //    cTAG.town_warn_guards = 1
     
     //Testar se o alvo é guarda
-    if <src.IsTEvent.e_town_guard>
+    if <act.IsTEvent.e_town_guard>
         //se ainda nao foi marcado como criminoso
         if !(<ctag0.town_<region.defname>_flags>&<DEF.TOWN_FLAG_CRIMINAL>)
             DORAND 3
-                src.SAY Como ousa?
-                src.SAY Agora foi de mais!
-                src.SAY Tome isto!
+                ACT.SAY Como ousa?
+                ACT.SAY Agora foi de mais!
+                ACT.SAY Tome isto!
             END
-            town_setAsCriminal <src.tag.town>
-            src.attack <uid>
+            town_setAsCriminal <act.tag.town>
+            act.attack <uid>
         endif
     endif
     //testar vendor/player/guard para HARM || Testar se o alvo é player free ||
-//    elif (<src.IsTownNPC>) || (<src.IsPlayer>)
+//    elif (<act.IsTownNPC>) || (<act.IsPlayer>)
     TRIGGER @CallGuards,<DEF.TAT_AS_ARGN>,<UID>,<DEF.TOWN_CAN_HARM>   
     
 endif
@@ -226,7 +226,7 @@ endif
 
 //**************************************
 ON=@CallGuards
-if (<karma> < 0) || (<NPC>==brain_animal) || (<NPC>==brain_monster) || (<NPC>==brain_dragon) || (<NPC>==brain_berserk)
+if (<karma> < 0) || (<NPC>==brain_animal) || (<NPC>==brain_thief) || (<NPC>==brain_monster) || (<NPC>==brain_dragon) || (<NPC>==brain_berserk) || (<NPC>==brain_undead)
     return 0
 endif
 
@@ -242,7 +242,8 @@ return 1
 // e_town_guard
 //*****************************************************************************
 [EVENTS e_town_guard]
-ON=@kill
+
+ON=@Kill
 if (<tag0.task>==<DEF.GUARD_TASK_PATROL>)
     guard_StartPatrol
 endif
@@ -253,8 +254,9 @@ if (<tag0.kills> > <eval (<tag0.guard_level>+2)@2>) && (<tag0.guard_level> < 5)
     //serv.log [NIUVO] <name> eh agora nivel <dtag0.guard_level>
 endif
 
-//serv.log I:<NAME> SRC:<SRC.NAME> ACT:<ACT.NAME> ARGO:<argo.name> <SRC.ACT.uid>
-if (<argo.IsPlayer>)
+//serv.log I:<NAME> SRC:<SRC.NAME> ACT:<ACT.NAME> ARGO:<argo.name>
+
+if (<act.IsPlayer>)
     //Efetuar prisão?
     if (<serv.area.<tag.town_region>.tag0.prisionTime>)
         DORAND 3
@@ -262,7 +264,7 @@ if (<argo.IsPlayer>)
             say Voce tem o direito de desmaiar antes de chegar na sua cela.
             say Produza um pouco de mofo para as formigas da sua cela.
         ENDDO
-        argo.town_GoJailed <uid>
+        act.town_GoJailed <uid>
     endif
 endif
 
@@ -1053,7 +1055,7 @@ endif
 //Retorna 1 se esse NPC é da town, mas não é guarda.
 IF !<IsPlayer>
     if <karma> >= 0
-        if (<NPC>==<DEF.BRAIN_VENDOR>) || (<NPC>==<DEF.BRAIN_BANKER>) || (<NPC>==<DEF.BRAIN_HUMAN>)
+        if (<NPC>==<DEF.BRAIN_VENDOR>) || (<NPC>==<DEF.BRAIN_BANKER>) || (<NPC>==<DEF.BRAIN_HUMAN>)  || (<NPC>==<DEF.BRAIN_VENDOR_OFFDUTY>)
             return 1
         endif            
     endif
@@ -1175,7 +1177,7 @@ ID=c_man
 NAME=#NAMES_HUMANMALE
 ICON=i_pet_man
 CAN=mt_equip|mt_walk|mt_usehands|mt_run
-AVERSIONS=t_trap
+AVERSIONS=t_trap,t_eerie_stuff
 DESIRES=i_gold, i_coin_copper, i_coin_silver, e_InTown t_weapon_sword, t_weapon_bow, t_weapon_xbow, t_weapon_fence, t_weapon_mace_pick, t_weapon_mace_sharp, t_weapon_mace_staff, t_weapon_arrow, t_weapon_bolt, t_weapon_axe, t_armor, t_armor_leather, t_shield, t_potion, t_scroll
 FOODTYPE=100 t_food, t_fruit
 BLOODCOLOR=0
@@ -1239,7 +1241,7 @@ ID=c_man
 NAME=#NAMES_HUMANMALE
 ICON=i_pet_man
 CAN=mt_equip|mt_walk|mt_usehands|mt_run
-AVERSIONS=t_trap
+AVERSIONS=t_trap,t_eerie_stuff
 DESIRES=i_gold, i_coin_copper, i_coin_silver, e_InTown t_weapon_sword, t_weapon_bow, t_weapon_xbow, t_weapon_fence, t_weapon_mace_pick, t_weapon_mace_sharp, t_weapon_mace_staff, t_weapon_arrow, t_weapon_bolt, t_weapon_axe, t_armor, t_armor_leather, t_shield, t_potion, t_scroll
 FOODTYPE=100 t_food, t_fruit
 BLOODCOLOR=0
@@ -1303,7 +1305,7 @@ ID=c_elf_male
 NAME=#NAMES_HUMANMALE
 ICON=i_pet_man
 CAN=mt_equip|mt_walk|mt_usehands|mt_run
-AVERSIONS=t_trap
+AVERSIONS=t_trap,t_eerie_stuff
 DESIRES=i_gold, i_coin_copper, i_coin_silver, e_InTown, t_weapon_sword, t_weapon_bow, t_weapon_xbow, t_weapon_fence, t_weapon_mace_pick, t_weapon_mace_sharp, t_weapon_mace_staff, t_weapon_arrow, t_weapon_bolt, t_weapon_axe, t_armor, t_armor_leather, t_shield, t_potion, t_scroll
 FOODTYPE=100 t_food, t_fruit
 BLOODCOLOR=0

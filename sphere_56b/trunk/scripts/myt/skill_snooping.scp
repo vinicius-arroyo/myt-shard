@@ -21,17 +21,17 @@
 //*****************************************************************************
 //*****************************************************************************
 [TYPEDEF t_i_phantom] //Item fantasma que fica depois que o item original for roubado
+on=@Click
+ I.consume
+ return 1
 on=@DClick
- remove
- src.sysmessagered Parece que seu item sumiu. Roubo sera?
+ I.consume
  return 1
 on=@Equip
- remove
- src.sysmessagered Parece que seu item sumiu. Roubo sera?
+ I.consume
  return 1
 on=@Pickup_Pack
- remove
- sysmessagered Parece que seu item sumiu. Roubo sera?
+ I.consume
  return 1
 
 
@@ -84,8 +84,6 @@ endif
 return 1
 
 
-
-
 //*****************************************************************************
 // sk_stealing
 //*****************************************************************************
@@ -113,9 +111,6 @@ elif (<argo.cont.ischar>)
     return 1
 elif (<argo.topobj.distance> > 1)
     sysmessagered Muito longe!
-    return 1
-elif <argo.type> == t_i_phantom
-    sysmessagered Como vai furtar algo que nao existe? Isso ja foi roubado,
     return 1
 elif <argo.topobj>==<argo>
     sysmessagered Nao precisa furtar isto!
@@ -157,24 +152,18 @@ tag0.snoop_time= <eval <serv.time>+30> //3 por seg
 
 if <belltest <stealing>,<SNOOP_CALC_DIF <argo.topobj>>>
     sysmessagegreen Voce furtou <argo.name>!
- 
-
- 
-serv.newdupe <argo> 
-	if <LOCAL.ia> >= <argo.amount> 
-		if (<argo.dispid>==i_gold) || (<argo.dispid>==i_coin_copper) || (<argo.dispid>==i_coin_silver) 
-			argo.id=i_areia
-			argo.weight=0.1
-			argo.dispid=<new.dispid>
-		endif
-		new.amount=<argo.amount>
-		argo.type = t_i_phantom
-	else 
-		new.amount=<LOCAL.ia> 
-		argo.decrement <LOCAL.ia>
-	endif
-
-	new.bounce
+    
+    if <LOCAL.ia> >= <argo.amount>
+        serv.newdupe <argo>
+        new.amount=<LOCAL.ia>
+        new.bounce
+        argo.type = t_i_phantom
+    else
+        serv.newdupe <argo>
+        new.amount=<LOCAL.ia>
+        new.bounce
+        argo.decrement <LOCAL.ia>
+    endif
 else
     sysmessagered Voce falhou ao tentar furtar!
     argo.topobj.sysmessageyellow Voce nota alguem mexendo em sua mochila!
@@ -188,7 +177,6 @@ else
     endif        
 endif
 
-tag.snooping_cnt = 0
 if <tag.snoop_cnt> < 20
     tag.snoop_cnt += 1
 endif

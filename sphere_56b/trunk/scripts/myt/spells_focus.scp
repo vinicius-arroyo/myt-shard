@@ -80,7 +80,7 @@ Zu Dormir
 
 [ITEMDEF i_scroll_luz]
 ID=0E38
-NAME=Pergaminho de Criar Luz
+NAME=Pergaminho criar luz
 RESOURCES=i_carta,i_r_ginseng,i_r_cinza_sulfurosa
 SKILLMAKE=INSCRIPTION 20.0, Focus 10.0
 TYPE=T_SCROLL
@@ -96,7 +96,6 @@ MOREX=150
 
 [ITEMDEF i_rune_luz]
 ID=i_light_source
-LAYER=layer_face
 NAME=Luz
 
 on=@create
@@ -107,9 +106,10 @@ on=@timer
 remove
 return 1
 
+
 [SPELL 150]
 DEFNAME=s_luz
-NAME=Criar Luz
+NAME=Luz
 SOUND=snd_SPELL_LIGHT
 RUNES=IL
 CAST_TIME=20
@@ -118,7 +118,7 @@ RUNE_ITEM=2245
 SCROLL_ITEM=i_scroll_luz
 FLAGS=spellflag_targ_char | spellflag_scripted
 MANAUSE=10
-DURATION=3*60,30*60
+DURATION=3*60,15*60
 SKILLREQ=FOCUS 10.0
 INTERRUPT=15.0,100.0
 
@@ -132,6 +132,10 @@ newitem i_rune_luz
 new.link=<UID>
 trysrc <uid> new.equip
 new.timer=<DURATIONSPELL 150,<argn2>,<src.uid>>
+serv.log <eval <new.timer>>,<eval <argn2>>
+
+
+
 
 skill_gain skill_spiritspeak
 return 1
@@ -139,11 +143,10 @@ return 1
 //***********************************************************
 // SPELL RESTORATION Amplificar voz
 //***********************************************************
-//essa skill nao esta funcionando bem, problemas com sendpacket
 
 [ITEMDEF i_scroll_ampli_voz]
 ID=0E38
-NAME=Pergaminho de Amplificar Voz
+NAME=Pergaminho amplificar voz
 RESOURCES=i_carta,i_r_ginseng
 SKILLMAKE=INSCRIPTION 20.0, Focus 10.0
 TYPE=T_SCROLL
@@ -159,7 +162,7 @@ MOREX=151
 
 [ITEMDEF i_rune_ampli_voz]
 ID=01ed2
-name=Amplificar Voz
+name=Amplificar voz
 type=t_eq_script
 layer=layer_special
 
@@ -182,6 +185,8 @@ forplayers <findid.i_rune_ampli_voz.more1>
 blindItemMsg <obj>, 026, <args>
 end
 
+
+
 skill_gain skill_spiritspeak
 return 1
 
@@ -197,7 +202,7 @@ SCROLL_ITEM=i_scroll_ampli_voz
 FLAGS=spellflag_scripted
 MANAUSE=12
 EFFECT=10,25
-DURATION=5,50
+DURATION=5,22
 SKILLREQ=FOCUS 10.0
 INTERRUPT=15.0,100.0
 
@@ -213,13 +218,16 @@ new.timer=<DURATIONSPELL 151,<argn2>,<src.uid>>
 new.more1=<EFFECTSPELL 151,<argn2>,<src.uid>>
 return 1
 
+
+
+
 //***********************************************************
 // SPELL RESTORATION Exorcizar
 //***********************************************************
 
 [ITEMDEF i_scroll_exorcizar]
 ID=0E38
-NAME=Pergaminho do Exorcizar
+NAME=Pergaminho exorcizar
 RESOURCES=i_carta,i_r_ginseng,i_r_alho
 SKILLMAKE=INSCRIPTION 30.0, Focus 20.0
 TYPE=T_SCROLL
@@ -235,7 +243,7 @@ MOREX=152
 
 [ITEMDEF i_rune_exorcizar]
 ID=0227B
-name=Exorcizar
+name=Exorcismo
 type=t_eq_script
 layer=layer_special
 tevents=e_BuffStats,e_BuffSkill
@@ -255,22 +263,21 @@ RUNE_ITEM=20496
 SCROLL_ITEM=i_scroll_exorcizar
 FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_resist
 MANAUSE=15
-EFFECT=0,250
+EFFECT=0,5000
 DURATION=20,60
 SKILLREQ=FOCUS 20.0
 INTERRUPT=25.0,100.0
 
 on=@Effect
 //Só contra undead?
-if (<isTevent.e_undead>)
+if (<npc>==brain_undead)
 
 //Determinar chance de sucesso
 local.karma=-<karma>
-local.effect=<EFFECTSPELL 152,((<src.focus>*3) + <src.spiritspeak>)/4 ,<src.uid>>
+local.effect=<EFFECTSPELL 152,<src.focus>,<src.uid>>
 
-serv.log <eval <local.effect>>
 //Sucesso?
-if (<local.effect> > <hits>) && !<R1>
+if (<local.effect> > <local.karma>)
 newitem i_fx_smoke_small
 new.attr=04012
 new.p=<p>
@@ -281,6 +288,7 @@ src.sfx 29
 remove
 
 //falha
+
 elif (!<restest 3 i_rune_exorcizar>)
 local.effect = <eval <local.effect>/166>//Tranforma effect em 30% abs
 local.duration = <DURATIONSPELL 152,<src.focus>,<src.uid>>
@@ -305,8 +313,12 @@ else
 src.sysmessagered <name> nao eh um morto-vivo!
 endif
 
+
+
 skill_gain skill_spiritspeak
 return 1
+
+
 
 //***********************************************************
 // SPELL RESTORATION Forma Eterea
@@ -314,7 +326,7 @@ return 1
 
 [ITEMDEF i_scroll_forma_eterea]
 ID=0E38
-NAME=Pergaminho da Forma Eterea
+NAME=Pergaminho forma eterea
 RESOURCES=i_carta,i_r_ginseng,i_r_perola_negra
 SKILLMAKE=INSCRIPTION 30.0, Focus 20.0
 TYPE=T_SCROLL
@@ -339,7 +351,7 @@ RUNE_ITEM=2283
 SCROLL_ITEM=i_scroll_forma_eterea
 FLAGS=spellflag_scripted
 MANAUSE=20
-DURATION=5,15
+DURATION=15,45
 SKILLREQ=FOCUS 20.0
 INTERRUPT=25.0,100.0
 
@@ -349,16 +361,21 @@ new.attr = attr_static|attr_decay
 new.timer = 1
 new.p = <act.p>
 
+
 on=@Effect
 newitem i_mry_invis
-new.more2=<DURATIONSPELL 153,<argn2>,<src.uid>>
+new.more2=<DURATIONSPELL 153,<src.focus>,<src.uid>>
 new.equip
 new.timer 1
 invis_enter
-update
+
+
 
 skill_gain skill_spiritspeak
 return 1
+
+//verificar se da pra castar invisivel
+
 
 //***********************************************************
 // SPELL RESTORATION Remover doença
@@ -366,7 +383,7 @@ return 1
 
 [ITEMDEF i_scroll_remover_doenca]
 ID=0E38
-NAME=Pergaminho da Cura Menor
+NAME=Pergaminho Bencao de Melian
 RESOURCES=i_carta,i_r_ginseng,i_r_alho
 SKILLMAKE=INSCRIPTION 40.0, Focus 30.0
 TYPE=T_SCROLL
@@ -382,7 +399,7 @@ MOREX=154
 
 [SPELL 154]
 DEFNAME=s_remover_doenca
-NAME=Cura Menor
+NAME=Bencao de Melian
 SOUND=snd_SPELL_CURE
 RUNES=AN
 CAST_TIME=16
@@ -401,6 +418,8 @@ findid.i_veneno.more2 -= <EFFECTSPELL 154,<src.focus>,<src.uid>>
 endif
 effect 3 i_fx_heal_effect 0 16 0
 
+
+
 skill_gain skill_spiritspeak
 return 1
 
@@ -410,7 +429,7 @@ return 1
 
 [ITEMDEF i_scroll_trovao]
 ID=0E38
-NAME=Pergaminho do Trovao
+NAME=Pergaminho trovao
 RESOURCES=i_carta,i_r_ginseng,i_r_cinza_sulfurosa
 SKILLMAKE=INSCRIPTION 40.0, Focus 30.0
 TYPE=T_SCROLL
@@ -468,7 +487,7 @@ timerf <local.time> events,-e_scared
 
 [ITEMDEF i_scroll_cura_leve]
 ID=0E38
-NAME=Pergaminho da Restauracao
+NAME=Pergaminho Cura
 RESOURCES=i_carta,i_r_ginseng
 SKILLMAKE=INSCRIPTION 50.0, Focus 40.0
 TYPE=T_SCROLL
@@ -484,7 +503,7 @@ MOREX=156
 
 [SPELL 156]
 DEFNAME=s_cura_leve
-NAME=Restauracao
+NAME=Cura
 SOUND=snd_SPELL_HEAL
 RUNES=IM
 CAST_TIME=25
@@ -493,14 +512,14 @@ RUNE_ITEM=2256
 SCROLL_ITEM=i_scroll_cura_leve
 FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good | spellflag_dir_anim
 MANAUSE=12
-EFFECT=7,55
+EFFECT=7,42
 SKILLREQ=FOCUS 40.0
 INTERRUPT=45.0,100.0
 
 on=@Effect
 local.effect =<EFFECTSPELL 156,<argn2>,<src.uid>>
 local.effect += <eval <spiritspeak>/100>
-if (<isTevent.e_undead>)
+if (<NPC>==brain_undead)
 local.effect=<minimumN <local.effect>,<eval <hits>-6>>
 damage <eval <local.effect>/3>,<DEF.dam_energy>,<src>
 else
@@ -521,7 +540,7 @@ return 1
 
 [ITEMDEF i_scroll_forca_divina]
 ID=0E38
-NAME=Pergaminho da Forca Divina
+NAME=Pergaminho forca divina
 RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake
 SKILLMAKE=INSCRIPTION 50.0, Focus 40.0
 TYPE=T_SCROLL
@@ -547,9 +566,16 @@ SCROLL_ITEM=i_scroll_forca_divina
 FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good | spellflag_dir_anim
 MANAUSE=20
 EFFECT=
-DURATION=5*60,30*60
+DURATION=5*60,15*60
 SKILLREQ=FOCUS 40.0
 INTERRUPT=45.0,100.0
+
+//on=@Effect
+//local.effect=<minimumN <EFFECTSPELL 157,<argn2>,<src.uid>>,<eval 120-<str>>>
+//local.time=<durationspell 157,<argn2>,<src.uid>>
+//Buff_STR <local.effect>,<local.time>
+//effect 3 i_fx_sparkle_2 0 16 0
+//return 1
 
 on=@START
 if <act.restest i_rune_forca_divina>
@@ -576,6 +602,8 @@ new.link <uid>
 trysrc <uid> src.new.equip
 new.timer=<local.duration>
 
+
+
 skill_gain skill_spiritspeak
 return 0
 
@@ -601,13 +629,16 @@ on=@timer
 remove
 return 1
 
+
+
+
 //***********************************************************
 // SPELL RESTORATION Raio divino
 //***********************************************************
 
 [ITEMDEF i_scroll_raio_divino]
 ID=0E38
-NAME=Pergaminho do Raio Divino
+NAME=Pergaminho raio divino
 RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake,i_r_cinza_sulfurosa
 SKILLMAKE=INSCRIPTION 60.0, Focus 50.0
 TYPE=T_SCROLL
@@ -632,18 +663,21 @@ RUNE_ITEM=2281
 SCROLL_ITEM=i_scroll_raio_divino
 FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_harm | spellflag_dir_anim
 MANAUSE=7
-EFFECT=6,14
+EFFECT=8,12
 SKILLREQ=FOCUS 50.0
 INTERRUPT=55.0,100.0
 
 on=@Effect
 EFFECT 0 i_fx_energy_ray 6 16 0
 local.dam=<EFFECTSPELL s_raio_divino,<argn2>,<src.uid>>
-local.dam += <eval <src.spiritspeak>/80>
+local.dam += <eval <src.spiritspeak>/200>
 DAMAGE <local.dam>,DAM_ENERGY,<src.uid>
+
+
 
 skill_gain skill_spiritspeak
 return 1
+
 
 //***********************************************************
 //              SPELL RESTORATION Conj Servo Etereo
@@ -651,7 +685,7 @@ return 1
 
 [ITEMDEF i_scroll_servo_etereo]
 ID=0E38
-NAME=Pergaminho do Invocar Servo Etereo
+NAME=Pergaminho Invocar Guardiao
 RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake,i_r_perola_negra
 SKILLMAKE=INSCRIPTION 60.0, Focus 50.0
 TYPE=T_SCROLL
@@ -667,7 +701,7 @@ ON=@Create
 
 [SPELL 159]
 DEFNAME=s_conj_serv_etereo
-NAME=Invocar Servo Etereo
+NAME=Invocar Guardiao
 SOUND=01A9
 RUNES=COX
 CAST_TIME=22
@@ -676,22 +710,21 @@ RUNE_ITEM=2280
 SCROLL_ITEM=i_scroll_servo_etereo
 FLAGS=spellflag_scripted | spellflag_good | spellflag_summon
 MANAUSE=25
-EFFECT=30,100
+EFFECT=30,75
 DURATION=90,3*60
 SKILLREQ=FOCUS 50.0
 INTERRUPT=55.0,100.0
  
 on=@Success  //on=@Effect
 LOCAL.timer=<DURATIONSPELL 159,<argn2>,<UID>>
-if (<BELLTEST <src.spiritspeak>,1200>) || !<R100>
-	obj=<src.f_summon_creature c_ethereal_servant2_sum,<LOCAL.timer>>
-else
-	obj=<src.f_summon_creature c_ethereal_servant_sum,<LOCAL.timer>>
-endif
+obj=<src.f_summon_creature c_ethereal_servant_sum,<LOCAL.timer>>
 obj.str=<EFFECTSPELL 159,<argn2>,<uid>>
 obj.dex=<EFFECTSPELL 159,<argn2>,<uid>>
 obj.int=<EFFECTSPELL 159,<argn2>,<uid>>
 obj.aid
+
+
+
 
 skill_gain skill_spiritspeak
 return 0
@@ -703,7 +736,7 @@ return 0
 
 [ITEMDEF i_scroll_armadura_sagrada]
 ID=0E38
-NAME=Pergaminho da Armadura Sagrada
+NAME=Pergaminho armadura sagrada
 RESOURCES=i_carta,i_r_ginseng,i_r_alho
 SKILLMAKE=INSCRIPTION 70.0, Focus 60.0
 TYPE=T_SCROLL
@@ -719,7 +752,7 @@ MOREX=160
 
 [ITEMDEF i_rune_arm_sagrada]
 ID=0227B
-name=Armadura Sagrada
+name=Armadura sagrada
 type=t_eq_script
 layer=layer_special
 tevents=e_BuffRes
@@ -733,7 +766,7 @@ return 1
 
 [SPELL 160]
 DEFNAME=s_armadura_sagrada
-NAME=Armadura Sagrada
+NAME=Armadura sagrada
 SOUND=01ED
 RUNES=UOS
 CAST_TIME=40
@@ -742,8 +775,8 @@ RUNE_ITEM=23003
 SCROLL_ITEM=i_scroll_armadura_sagrada
 FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good
 MANAUSE=20
-EFFECT=1,60
-DURATION=5*60,30*60
+EFFECT=10,60
+DURATION=5*60,15*60
 SKILLREQ=FOCUS 60.0
 INTERRUPT=65.0,100.0
 
@@ -760,19 +793,31 @@ new.p = <act.p>
 
 on=@Effect
 local.time=<DURATIONSPELL s_armadura_sagrada,<argn2>,<src.uid>>
-local.prot=<between 2,35,((<src.spiritspeak> +(<src.focus> * 2))/3),1250>
+
+local.prot= <EFFECTSPELL s_armadura_sagrada,<argn2>,<src.uid>>
+local.prot=<minimumN <eval 60-<RESENERGY>>,<local.prot>>
+IF (<argn2> > 500)
 local.protpoison = <eval(<local.prot>/2)>
 Buff_respoison <local.protpoison>,<local.time>
-Buff_Armor <local.prot>,<local.time>
-Buff_resenergy <local.protpoison>,<local.time>
+IF (<argn2> > 750)
+local.buffar=<eval(<local.prot>/3)>
+local.buffar=<minimumN <eval 30-<AR>>,<local.buffar>>
+Buff_Armor <local.buffar>,<local.time>
+ENDIF
+ENDIF
+Buff_resenergy <local.prot>,<local.time>
+
+
 
 newitem i_mry_RESBUFF
 new.equip
 new.timer <local.time>
 new.link=<uid>
 
+
 skill_gain skill_spiritspeak
 return 1
+
 
 [ITEMDEF i_mry_RESBUFF]
 ID=i_rune_poison
@@ -799,7 +844,7 @@ return 1
 
 [ITEMDEF i_scroll_julgamento]
 ID=0E38
-NAME=Pergaminho do Julgamento
+NAME=Pergaminho julgamento
 RESOURCES=i_carta,i_r_ginseng,i_r_musgo_sangue,i_r_olho_morto_vivo
 SKILLMAKE=INSCRIPTION 70.0, Focus 60.0
 TYPE=T_SCROLL
@@ -830,9 +875,9 @@ INTERRUPT=65.0,100.0
 on=@Effect
 effect 3 i_fx_heal_effect 0 16 0
 if (<IsPlayer> && (<src.act.necromancy> > 100) && ((<src.act.necromancy> - 100) < <src.focus>))
-timerf 1 damage,<eval (<src.act.necromancy>/15)>,dam_energy,<src.uid>
+timerf 1 damage,<eval (<src.act.necromancy>/20)>,dam_energy,<src.uid>
 timerf 1 EFFECT 1 0
- elif (<isTevent.e_undead>)
+ elif ((<npc>=brain_undead) && (<karma> < 0))
 timerf 1 damage,<R25,<eval (-<karma>/40)>>,dam_energy,<src.uid>
 timerf 1 EFFECT 1 0
 else
@@ -894,7 +939,7 @@ SCROLL_ITEM=i_scroll_bencao
 FLAGS=spellflag_scripted | spellflag_targ_char | spellflag_good
 MANAUSE=25
 EFFECT=
-DURATION=2*60,30*60
+DURATION=2*60,5*60
 SKILLREQ=FOCUS 70.0
 INTERRUPT=75.0,100.0
 
@@ -955,7 +1000,7 @@ return 1
 
 [ITEMDEF i_scroll_poly_nefelibata]
 ID=0E38
-NAME=Pergaminho da Forma de Celestial
+NAME=Pergaminho Avatar da Luz
 RESOURCES=i_carta,i_r_ginseng,i_r_teia_de_aranha,i_r_raiz_de_mandrake
 SKILLMAKE=INSCRIPTION 80.0, Focus 70.0
 TYPE=T_SCROLL
@@ -971,7 +1016,7 @@ ON=@Create
         
 [Spell 163]
 DEFNAME=s_forma_nefelibata
-NAME=Forma de Celestial
+NAME=Avatar da Luz
 SOUND=0
 RUNES=RVOX
 CAST_TIME=50
@@ -980,8 +1025,8 @@ RUNE_ITEM=20740
 SCROLL_ITEM=i_scroll_poly_nefelibata
 FLAGS=spellflag_scripted | spellflag_good | spellflag_summon
 MANAUSE=30
-DURATION=3*60,15*60
-EFFECT=15,30
+DURATION=3*60,10*60
+EFFECT=25,50
 SKILLREQ=FOCUS 70.0
 INTERRUPT=75.0,100.0
 
@@ -995,16 +1040,20 @@ endif
 //Determina corpo
 local.body=c_celestial_poly
 
+
 //Determina o tempo de duração e bonus de int e skills
 local.time=<DURATIONSPELL s_forma_nefelibata,<argn2>,<src.uid>>
+
 local.int=<EFFECTSPELL s_forma_nefelibata,<argn2>,<src.uid>>
 local.int=<minimumN 150-<int>,<local.int>>
+
 Buff_INT <local.int>,<local.time>
-BuffSkill Meditation,<local.int>*3,<local.time>
-BuffSkill Spiritspeak,<local.int>*3,<local.time>
+
+BuffSkill Meditation,<local.int>*5,<local.time>
+BuffSkill Spiritspeak,<local.int>*5,<local.time>
 
 mana += <local.int>
-//src.haste <local.time>
+src.haste <local.time>
 
 newitem i_mry_spkmage
 new.equip
@@ -1014,8 +1063,11 @@ new.link=<uid>
 //Polimorpha
 src.f_polymorph <local.body>,0,<local.time>
 
+
 skill_gain skill_spiritspeak
 return 0
+
+
 
 //***********************************************************
 // SPELL RESTORATION Purificação
@@ -1023,7 +1075,7 @@ return 0
 
 [ITEMDEF i_scroll_purificacao]
 ID=0E38
-NAME=Pergaminho da Purificacao
+NAME=Pergaminho Purificacao
 RESOURCES=i_carta,i_r_ginseng,i_r_alho,i_r_perola_negra
 SKILLMAKE=INSCRIPTION 90.0, Focus 80.0
 TYPE=T_SCROLL
@@ -1042,19 +1094,19 @@ DEFNAME=s_purificacao
 NAME=Purificacao
 SOUND=snd_SPELL_CURE
 RUNES=ANG
-CAST_TIME=15
+CAST_TIME=24
 RESOURCES=i_r_ginseng,i_r_alho,i_r_perola_negra
 RUNE_ITEM=2264
 SCROLL_ITEM=i_scroll_purificacao
 FLAGS=spellflag_scripted | spellflag_good
 MANAUSE=14
-EFFECT=1,70
+EFFECT=1,50
 SKILLREQ=FOCUS 80.0
 INTERRUPT=85.0,100.0
 
 on=@Effect
 obj=<uid>
-forchars 15
+forchars 5
 if !(<IsMyEnemy <obj.uid>>)
 spelleffect s_remover_doenca,<argn2>,<obj.uid>
 endif
@@ -1072,7 +1124,7 @@ return 1
 
 [ITEMDEF i_scroll_conj_nefelibata]
 ID=0E38
-NAME=Pergaminho do Invocar Celestial
+NAME=Pergaminho Invocar Mensageiro
 RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake,i_r_perola_negra,i_r_teia_de_aranha
 SKILLMAKE=INSCRIPTION 90.0, Focus 80.0
 TYPE=T_SCROLL
@@ -1088,7 +1140,7 @@ ON=@Create
 
 [SPELL 165]
 DEFNAME=s_conj_nefelibata
-NAME=Invocar Celestial
+NAME=Invocar Mensageiro
 SOUND=01A9
 RUNES=KOX
 CAST_TIME=60
@@ -1098,7 +1150,7 @@ SCROLL_ITEM=i_scroll_conj_nefelibata
 FLAGS=spellflag_scripted | spellflag_good | spellflag_summon
 MANAUSE=35
 EFFECT=10,40
-DURATION=2*60,4*60
+DURATION=2*60,3*60
 SKILLREQ=FOCUS 80.0
 INTERRUPT=85.0,100.0
  
@@ -1120,7 +1172,7 @@ return 0
 
 [ITEMDEF i_scroll_tempestade_divina]
 ID=0E38
-NAME=Pergaminho da Tempestade Divina
+NAME=Pergaminho Furia de Mond
 RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake,i_r_cinza_sulfurosa,i_r_perola_negra
 SKILLMAKE=INSCRIPTION 100.0, Focus 90.0
 TYPE=T_SCROLL
@@ -1160,7 +1212,7 @@ return 1
 
 [SPELL 166]
 DEFNAME=s_tempestade_divina
-NAME=Tempestade Divina
+NAME=Furia de Mond
 SOUND=05CE
 RUNES=KOJ
 CAST_TIME=30
@@ -1182,7 +1234,6 @@ newitem i_rune_tempestade_divina
 new.attr 092
 new.p=<src.actp>
 new.more2=<EFFECTSPELL 166,<argn2>,<src>>
-new.more2 += <eval <src.spiritspeak>/75>
 new.tag.caster=<src.uid>
 new.timerd 1
 
@@ -1195,7 +1246,7 @@ new.timerd 1
 
 [ITEMDEF i_scroll_conj_mensageiro]
 ID=0E38
-NAME=Pergaminho do Celestial Superior
+NAME=Pergaminho Invocar Celestial
 RESOURCES=i_carta,i_r_ginseng,i_r_raiz_de_mandrake,i_r_perola_negra,i_r_teia_de_aranha,i_r_asa_morcego
 SKILLMAKE=INSCRIPTION 100.0, Focus 90.0
 TYPE=T_SCROLL
@@ -1211,7 +1262,7 @@ ON=@Create
 
 [SPELL 167]
 DEFNAME=s_conj_mensageiro
-NAME=Invocar Celestial Superior
+NAME=Invocar Celestial Maior
 SOUND=01A9
 RUNES=KVOX
 CAST_TIME=80
@@ -1221,7 +1272,7 @@ SCROLL_ITEM=i_scroll_conj_mensageiro
 FLAGS=spellflag_scripted | spellflag_good
 MANAUSE=50
 EFFECT=10,40
-DURATION=60,5*60
+DURATION=60,3*60
 SKILLREQ=FOCUS 90.0
 INTERRUPT=95.0,100.0
  
@@ -1247,7 +1298,7 @@ return 1
 
 [ITEMDEF i_scroll_luz_divina]
 ID=0E38
-NAME=Pergaminho Luz Divina
+NAME=Pergaminho Colera Divina
 RESOURCES=i_carta,i_r_ginseng,i_r_alho,i_r_perola_negra,i_r_teia_de_aranha
 SKILLMAKE=INSCRIPTION 100.0, Focus 100.0
 TYPE=T_SCROLL
@@ -1324,29 +1375,29 @@ INTERRUPT=100.0,100.0
 
 on=@Effect
 if <IsItem>
-	if <type>==t_corpse
-		if <link.IsPlayer>
-		//se morto, recupera spiritspeak/50
-			if !<link.restest 1 i_mry_desmaio>
-			link.morte_decrementaDesmaios <eval <src.spiritspeak>/500>
-			endif
-		link.f_returnToLife
-		link.timerf 1 EFFECT,3,i_fx_heal_effect,0,16,0
-		else
-		src.sysmessagered Esta alma ja atravessou...
-		endif
-		else
-		src.sysmessagered Isso nao eh um corpo!
-	endif
-	return 1
+if <type>==t_corpse
+if <link.IsPlayer>
+//se morto, recupera spiritspeak/50
+if !<link.restest 1 i_mry_desmaio>
+link.morte_decrementaDesmaios <eval <src.spiritspeak>/500>
+endif
+link.f_returnToLife
+link.timerf 1 EFFECT,3,i_fx_heal_effect,0,16,0
+else
+src.sysmessagered Esta alma ja atravessou...
+endif
+else
+src.sysmessagered Isso nao eh um corpo!
+endif
+return 1
 endif
 
 if <flags>&statf_dead
-	if !<restest 1 i_mry_desmaio>
-	morte_decrementaDesmaios <eval <src.spiritspeak>/500>
-	endif
+if !<restest 1 i_mry_desmaio>
+morte_decrementaDesmaios <eval <src.spiritspeak>/500>
+endif
 f_returnToLife
-elif (<isTevent.e_undead>) //Undead
+elif <brain>==12 //Undead
 spelleffect s_julgamento,<eval <argn2>+10.0>,<src>
 elif <IsChar>
 stam=<maxstam>

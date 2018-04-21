@@ -28,7 +28,7 @@
 //  ANATOMY
 //    + (ANATOMY / 2)%  - 0 a 50%
 //  TACTICS
-//    + (TACTICS / 2)%  - 0 a 50%hit
+//    + (TACTICS / 2)%  - 0 a 50%
 //  ATACANTE ENVENENADO
 //   !!!! - (more2 / 15)
 //  STAMINA
@@ -81,9 +81,6 @@
 //tag.agr       nível de agressividade do combate (0 a 10)
 //tag.moddam    modificado fixo de dano
 
-//VARs usadas
-//Var.CombatSystemPVP	Se ativa, divide o dano do PVP pelo seu valor, ex: Se Var.CombatSystemPVP=02 todo o dano do PvP sera dividido por 2
-
 //item.tag.name nome original do item antes de ser envenenado
 //*****************************************************************************
 
@@ -96,13 +93,180 @@ WPE_20    1 //poison
 WPE_30    1 //lightning
 WPE_38    1 //paralyse
 WPE_51    1 //flamestrike
-WPE_200   1 //cansar músculos
 WPE_350   1 //chill
 
 SPE_11    1 //cure
 SPE_18    1 //fireball
 SPE_20    1 //poison
+//*****************************************************************************
+//*****************************************************************************
+// EVENTs
+//*****************************************************************************
+//*****************************************************************************
 
+//*****************************************************************************
+// e_silver_weapon
+//*****************************************************************************
+[EVENTS e_silver_weapon]
+
+//SRC:      esta apanhando
+//DEFAULT:  arma
+ON=@CDAMAGE
+if (<src.npc>==brain_undead) || (<src.npc>==BRAIN_DRAGON)
+    src.damage <eval <R<dam>>/2>,<def.dam_magic>,<uid>
+    src.EFFECT 3,i_fx_curse,6,15,1
+    SOUND snd_spell_harm
+endif
+
+[TYPEDEF e_fragile]
+ON=@STEP
+src.emotered quebrou
+sfx 040
+remove
+return 1
+
+[EVENTS T_WEAPON_FIRE]
+ON=@CDAMAGE
+if !(<attr>&01) //se não tá identificado
+    return 0
+endif
+
+if (<tag0.flame_timer> < <serv.time>)
+    src.damage <R4,10>,dam_fire,<topobj>
+    src.EFFECT 2 i_fire_column 6 30 0
+    sfx 05CF
+    IF !<R19>
+        src.f_pega_fogo <R5,7>
+    endif        
+    tag.flame_timer=<eval <serv.time>+<R15.0,65.0>>
+endif
+
+[EVENTS T_WEAPON_COLD]
+ON=@CDAMAGE
+if !(<attr>&01) //se não tá identificado
+    return 0
+endif
+
+if (<tag0.cold_timer> < <serv.time>)
+    src.damage <R4,10>,dam_cold,<topobj>
+    src.EFFECT 3 i_fx_smoke 0 24 0 99 2
+    sfx 05C7
+    IF !<R19>
+        src.stonned <R5,8>
+    endif        
+    tag.cold_timer=<eval <serv.time>+<R15.0,65.0>>
+endif
+
+[EVENTS T_WEAPON_PESTILENCE]
+ON=@CDAMAGE
+if !(<attr>&01) //se não tá identificado
+    return 0
+endif
+
+if (<tag0.plage_timer> < <serv.time>)
+    src.timerf 2 damage <R4,10>,dam_poison,<topobj>
+    src.timerf 2 EFFECT 3 i_fx_explode 0 26 0 177 2
+    sfx 0474
+    IF !<R19>
+        src.poison <R35.0,45.0>
+    endif        
+    tag.plage_timer=<eval <serv.time>+<R15.0,65.0>>
+endif
+
+[EVENTS T_WEAPON_TEMPEST]
+ON=@CDAMAGE
+if !(<attr>&01) //se não tá identificado
+    return 0
+endif
+
+if (<tag0.lighting_timer> < <serv.time>)
+    IF <R19>
+        src.damage <R4,10>,dam_lightning,<topobj>
+        src.EFFECT 2 i_fx_field_paralyze 6 16 0
+        sfx 05C3
+    ELSE
+        src.damage <R10,17>,dam_lightning,<topobj>
+        src.effect 1 0 0 0 0
+        sfx SND_THUNDER
+    ENDIF
+    tag.lighting_timer=<eval <serv.time>+<R15.0,65.0>>
+endif
+
+[EVENTS e_machado_luna]
+ON=@CDAMAGE
+//Recarregar a cada 3 horas
+if !(<attr>&01) //se não tá identificado
+    return 0
+endif
+
+//Recarregar a cada 3 horas
+if (!<morex>) && (!<tag0.loading>)
+    tag.loading 1
+    cont.sysmessageorange O Machado de Luna esta exaurido de suas forcas... Mas Luna ha de recarrega-lo em seu tempo!
+    timerf 3600,wp_machado_luna_reload
+endif
+
+[FUNCTION wp_machado_luna_reload]
+tag.loading=0
+morex=2
+more2=30
+
+[EVENTS e_crescente_mond]
+ON=@CDAMAGE
+//Recarregar a cada 3 horas
+if !(<attr>&01) //se não tá identificado
+    return 0
+endif
+
+//Recarregar a cada 3 horas
+if (!<morex>) && (!<tag0.loading>)
+    tag.loading 1
+    cont.sysmessageorange O Crescente de Mond esta exaurido de suas forcas... Mas Mond ha de recarrega-lo em seu tempo!
+    timerf 3600,wp_crescente_mond_reload
+endif
+
+[FUNCTION wp_crescente_mond_reload]
+tag.loading=0
+morex=5
+more2=350
+
+[EVENTS e_pique_atila]
+ON=@CDAMAGE
+//Recarregar a cada 3 horas
+if !(<attr>&01) //se não tá identificado
+    return 0
+endif
+
+//Recarregar a cada 3 horas
+if (!<morex>) && (!<tag0.loading>)
+    tag.loading 1
+    cont.sysmessageorange O Pique de Atila esta exaurido de suas forcas... Mas Atila ha de recarrega-lo em seu tempo!
+    timerf 3600,wp_pique_atila_reload
+endif
+
+[FUNCTION wp_pique_atila_reload]
+tag.loading=0
+morex=2000
+more2=20
+
+[FUNCTION wp_spell]
+ATTR=attr_magic
+MORE2=<argn1> //spell
+MOREX=<argn2> //charges
+
+[TYPEDEF e_NoUntilID]
+on=@equiptest
+if !(<attr>&01) && (!<SRC.IsGM>)
+ src.sysmessageorange <name> parece ter vontade propria.
+ src.unequip
+ return 1
+endif
+
+on=@DCLick
+if !(<attr>&01) && (!<SRC.IsGM>)
+ src.sysmessageorange Voce nao pode usar isto antes de saber o que realmente eh.
+ return 1
+endif
 
 [FUNCTION ITEM_DEGRADATE]
 IF (!<hits>)
@@ -126,48 +290,6 @@ ON=@KILL
 event_kill
 
 //*************************************
-// @HITCHECK
-//*************************************
-//	- Args
-//		Argn1 = SWING_TYPE. Swing will be set to this value after the trigger so you can 'jump' between swings with or without default checks.
-//		Argn2 = DAM_FLAGS
-//	- Returns
-//		return -1 SWING_INVALID
-//		return 0 default checks
-//		return 1 will make Sphere return the SWING_TYPE applied in argn1, so if you are in SWING_SWINGING and you set argn1 to SWING_EQUIPPING you'll have to start the hit proccess again.
-//				(Note, argn1 there will NOT set SWING to it's value).
-//	- Special returns will be fired when SWING_TYPE = SWING_SWINGING & FLAGS & DAM_FIXED
-//		return 0 will generate the default damage formula and flags (if not set via argn2) and then call the gethit function without DAM_FIXED applied.
-//		return 2 will finish the hit function AS IT IS and will NOT call the gethit function (this asume you are creating the damage, formulas and calling .damage function).
-//Note: Using new DAM_FIXED or return 1, -1 will obviously NOT call any skillgain, memory change, exp, attacker update, notoriety, actions, etc. Using this will (almost) make you to rewrite the whole system as shown in the given script.
-ON=@HITCHECK
-//Acerta que flecha usar. Cancela se não houve flecha.
-if (<WEAPON.type>==t_weapon_bow) || (<WEAPON.type>==t_weapon_xbow)
-	ref1 = <WEAPON.tag0.arrow> 	//tag.arrow do arco é a pilha de flechas sendo usada
-	local.HasArrow=<ref1.IsItem>
-	local.ArrowInPack=0
-	if (<local.HasArrow>)
-		local.ArrowInPack = <qval <ref1.topobj> == <UID> ? 1 : 0>
-	endif
-	if (!<local.HasArrow>) || (!<local.ArrowInPack>) //Não tenho mais flechas ou elas não estão comigo
-		if (!<WEAPON.f_find_new_arrows>) && (<brain>==0) //Tenta achar mais flechas iguais na bag. Se não achar...
-			sysmessagered Voce esta sem flechas.
-			action=0
-			return -1
-		endif
-	endif
-	if <WEAPON.type>==t_weapon_bow
-		if !<WEAPON.AMMOANIM>
-			WEAPON.AMMOANIM=i_arrow_x
-		endif
-	elif <WEAPON.type>==t_weapon_xbow
-		if !<WEAPON.AMMOANIM>
-			WEAPON.AMMOANIM=i_xbolt_x
-		endif
-	endif    
-endif
-
-//*************************************
 // @HITTRY
 //*************************************
 //SRC:      esta apanhando
@@ -180,7 +302,7 @@ ON=@HITTRY
 //serv.log [HITTRY] <serv.time> <name> contra <src.name> <eval <actdiff>> <eval <argn1>>
 //sai do modo batalha se alvo invul, morto, desmaiado, escondido, etc
 if ( <src.flags>&(statf_invul|statf_dead|statf_invisible|statf_insubstantial|statf_stone|statf_hidden))
- //serv.log [HITTRY] <src.account> - <account>
+ serv.log [HITTRY] <src.account> - <account>
  flags &= ~statf_war
  update
  return 1
@@ -192,11 +314,16 @@ actdiff=1000
 //event de Town
 TRIGGER @TownHit,<DEF.TAT_AS_ARGN><src>
 
-//Gastar flechas
-if ((<WEAPON.type>==t_weapon_bow) || (<WEAPON.type>==t_weapon_xbow)) && (<brain>==0)
-	ref1=<weapon.tag0.arrow>
-	ref1.decrement
-endif
+//fix do bug causado pelo uso do TDATA4 como hitpoints
+if <WEAPON.type>==t_weapon_bow
+    if !<WEAPON.AMMOANIM>
+        WEAPON.AMMOANIM=i_arrow_x
+    endif
+elif <WEAPON.type>==t_weapon_xbow
+    if !<WEAPON.AMMOANIM>
+        WEAPON.AMMOANIM=i_xbolt_x
+    endif
+endif    
 
 //*************************************
 // @HITMISS - somente evita mensagem de miss
@@ -237,7 +364,7 @@ endif
 
 //Se a arma na HAND1 estiver com algum efeito
 if <DEF.WPE_<eval <argo.more2>>>
-    //serv.log [WPE] <eval <argo.more2>>
+    serv.log [WPE] <eval <argo.more2>>
     TRY cmb_wpe_<eval <argo.more2>>
 endif
 
@@ -309,17 +436,16 @@ if (<Eval <Var.CombatSystem>>) || (<Eval <src.tag0.combatenovo>>) //============
      ARGN1 = 1
   ENDIF
 
- else //===================================================================================[se for o antigo
+
+else //===================================================================================[se for o antigo
 
   LOCAL.bonus = 0
   LOCAL.bonus += <cmb_bonusStr>       //0 a 33%
   LOCAL.bonus += <cmb_bonusAnatomy>   //0 a 50%
   LOCAL.bonus += <cmb_bonusTactics>   //0 a 50%
   LOCAL.bonus += <tag0.moddam>        //?
-	if (!<argo>) && (<brain>==0) //testa se o atacante esta sem arma
-		local.bonus += <between 1,100,<wrestling>,1250>
-	endif
   LOCAL.bonus += <TRIGGER @Hitting,<DEF.TAT_AS_ARGN>,<ARGN1>,<ARGN2>>
+
   LOCAL.penal = 0
   //LOCAL.penal += <cmb_penalPoison>    //REVER
   LOCAL.penal += <cmb_penalStam>      //0 a 50%
@@ -337,12 +463,22 @@ if (<Eval <Var.CombatSystem>>) || (<Eval <src.tag0.combatenovo>>) //============
 
   //serv.log [COMBAT] BonusTotal%:<dLOCAL.bonus>
 
-  if <Var.CombatSystemPVP> && (<isplayer> && <src.isplayer>)  //se o dano pela metade estiver ligado E se é PvP
-	argn1 = <eval (<argn1>+((<argn1>*<LOCAL.bonus>)/100))/<Var.CombatSystemPVP>> //calculando o dano e dividindo pelo numero dentro da VAR
+  
+
+
+if (<Eval <Var.CombatSystemPVP>>)        //se o dano pela metade estiver ligado
+     if (<I.isplayer>)       //se atacante for jogador
+        if (<src.isplayer>)  //se defensor for jogador
+          argn1 += <eval (<argn1>*<LOCAL.bonus>)/150> //calculando o dano //quebrando o dano pela metade
+        endif
+      endif
   else
-    argn1 += <eval (<argn1>*<LOCAL.bonus>)/100> //calculando o dano //dando o dano normal
-	endif
+     argn1 += <eval (<argn1>*<LOCAL.bonus>)/100> //calculando o dano //dando o dano normal
+  endif
+
+
 endif //===================================[terminando de verificar se é o combate novo ou antigo
+
 
 cmb_doDamage <argn1>,<cmb_damType>
 
@@ -382,22 +518,6 @@ ON=@GETHIT
 /////Se estiver invulnerável, deixa queto.
 if (<flags>&statf_invul)
     return 1
-///// Diminui o dano
-elif (<argn2>&<tag0.resist>)
-	LOCAL.res=<R50,70>         //Diminui o dano em 30 a 50%
-    argn1 = <eval (<argn1>*<LOCAL.res>)/100>
-    DORAND 3
-        src.sysmessageorange <name> parece ser resistente a este tipo de ataque.
-    ENDDO
-///// Dificil de acertar
-elif (<argn2>&<tag0.dodger>)
-	LOCAL.dodger=<R100>         //Diminui a chance de acertar o alvo em 50%
-    if (<local.dodger> <= 50)
-    DORAND 2
-        src.sysmessageorange <name> é extremamente difícil de acertar com este tipo de ataque.
-    ENDDO
-    return 1
-	endif
 ///// Bloquear dano se imune
 elif (<argn2>&<tag0.immune>)
     DORAND 2
@@ -423,13 +543,7 @@ elif (<tag0.regendam>&<argn2>)
     return 1
 endif
 
-if <NPC>
-	disturb
-else
-	if (!<R4>)
-		disturb
-	endif
-endif
+disturb
 
 ///// Amenizar dano se resistente (compativel com OSI e Sphere original)
 LOCAL.res=0
@@ -465,26 +579,7 @@ if <argn1> > 0
     ENDFOR
 
     //// anima
-if (!<isTevent.e_undead>) && (<argn2>&(dam_pierce|dam_slash|dam_physical)  
-	if (<argn1> > 15) 
-		local.blood=<r4650,4655>
-	elseif (<r<argn1>> > 5)
-		local.blood=5701
-	endif
-endif
-	cmb_blood <local.blood>
-		if (<argn1> > 30)
-			local.blood=<r4650,4655>
-			cmb_blood <local.blood>
-				if (<argn1> > 45)
-					local.blood=<r4650,4655>
-					cmb_blood <local.blood>
-						if (<argn1> > 60)
-							local.blood=<r4650,4655>
-							cmb_blood <local.blood>
-						endif
-				endif
-		endif
+    cry
 endif
 
 ////decrementa pontos
@@ -498,9 +593,12 @@ else
     //players abortam no @DEATH, fazendo com que o @KILL nao seja chamado (no atacante) na sequencia
     //corrige esse comportamento
     if !<npc>
-        src.trigger @KILL,<def.TAT_AS_ARGO>,<uid>
+        src.trigger @KILL
     endif
 endif
+
+//src.TRIGGER @TownHit,<DEF.TAT_AS_ARGN><uid>
+
 return 1
 
 //*************************************
@@ -516,7 +614,7 @@ sk_magic_resist <argn1>,<argn2>
 
 //se tiver script custom para a spell
 if <DEF.SPE_<argn1>>
-    //serv.log [SPE] <argn1>
+    serv.log [SPE] <argn1>
     return <cmb_spe_<argn1> <argn2>>
 endif
 
@@ -695,21 +793,6 @@ else
 
 endif //verificação se o sistema de combate novo está ligado
 
-//Para coletar flecha do chão, ela tem que ser coletável e quem tem 100.0 de archery tem 20% de chance
-if (<WEAPON.type>==t_weapon_bow) || (<WEAPON.type>==t_weapon_xbow)
-	ref1=<WEAPON.tag0.arrow>
-	if (<ref1.IsItem>)
-		if (<ref1.tag0.colect>)
-			if (<R5> <= <archery>)	//20% de chance com 100.0 de archery
-				newitem <WEAPON.AMMOTYPE>
-				new.amount=1
-				new.p=<src.p>
-				new.update
-				new.decay
-			endif
-		endif
-	endif
-endif
 
 if !<npc>
     sysmessageyellow <src.name> esquiva-se de seu golpe!
@@ -822,11 +905,7 @@ endif
 [FUNCTION cmb_wpe_20]
 if (<action>==skill_archery)
 //Arcos
-    //depende da flecha e do Special Move
-    if ( (!<R33>) || (<BELLTEST <TACTICS>,<eval <weapon.morex>+15.0>,10.0>) ) && (!<src.IsPoisoned>)
-        src.veneno <weapon.morex>
-    endif
-    //serv.log [<weapon.name>] :: <weapon.morex> :: <eval <weapon.morex>/178> :: <src.name>
+    return 0    //depende da flecha e do Special Move
 elif ((<weapon.morex> <= 150) || (<weapon.morex> > 2000))
 //Armas melee perdendo a carga
     weapon.more2=0
@@ -843,8 +922,8 @@ else
     if ( (!<R20>) || (<BELLTEST <TACTICS>,<weapon.morex>,10.0>) ) && (!<src.IsPoisoned>)
         src.veneno <weapon.morex>
     endif
-    //serv.log [<weapon.name>] :: <weapon.morex> :: <eval <weapon.morex>/100>>
-    src.damage <eval <weapon.morex>/100> dam_poison <uid>
+    serv.log [<weapon.name>] :: <weapon.morex> :: <eval <weapon.morex>/100>>
+    src.damage <eval <weapon.morex>/100>> dam_poison <uid>
     weapon.morex=<eval (<weapon.morex>*50)/51>
 endif
 
@@ -883,25 +962,6 @@ src.damage <R5,10> dam_fire <uid>
 weapon.morex -= 1
 if !<weapon.morex>
     weapon.more2=0
-endif
-
-//*****************************************************************************
-// cmb_wpe_200 -- cansar músculos
-//*****************************************************************************
-[FUNCTION cmb_wpe_200]
-if (<src.stam> > 10)
-	local.penalty=<eval (<archery>/250)+1>	//Perde de 1 a 5 stam, de 0 a 125.0 archery
-	src.stam -= <local.penalty>
-endif
-if (!<R99>)									//1% de chance de acontecer
-	if (<BELLTEST <archery>,90.0,10.0>)		//Se passar num teste de 90.0 de archery
-		src.stun 3
-		src.emotered paralizado
-	else
-		local.penalty=-<eval <src.dex>/4>	//Reduz a dex por 1/4 por 15 segundos
-		src.Buff_DEX <local.penalty> 15
-		src.emotered cansado (<src.dex>)		
-	endif
 endif
 
 //*****************************************************************************
@@ -1108,7 +1168,7 @@ if !<NPC> && <weapon>
         weapon.remove
     else
         if <weapon.hits> > <weapon.maxhits>
-            //serv.log [COMBATE] arma <weapon> com hits <weapon.hits> > <weapon.maxhits>
+            serv.log [COMBATE] arma <weapon> com hits <weapon.hits> > <weapon.maxhits>
             weapon.hits=<weapon.maxhits>
         endif
         weapon.update
@@ -1238,19 +1298,6 @@ if (<poisoning> >= 300) && <NPC> && !<src.ispoisoned>
         emotered aplica veneno
     endif
 endif
-
-//*****************************************************************************
-// cmb_blood
-//*****************************************************************************
-[FUNCTION cmb_blood]
-serv.newitem=<argn1>
-new.attr=attr_decay|attr_move_never
-new.timer=7
-new.p=<p>
-new.color=<BLOODCOLOR> 
-new.movenear <uid>,<R2>
-anim 20
-  
 
 //*****************************************************************************
 //*****************************************************************************

@@ -15,13 +15,12 @@
 //src.tag.resisteaoclima
 //src.tag.raca
 //src.tag.bank.weight
-//tag.vip  // permite plevel 1 permanecer on em um shard em manutenção
 //*****************************************************************************
 
 
 //*****************************************************************************
 //*****************************************************************************
-// DEFNAMEs 
+// DEFNAMEs
 //*****************************************************************************
 //*****************************************************************************
 
@@ -34,242 +33,6 @@ ev_drow_check_timer=5
 // EVENTs
 //*****************************************************************************
 //*****************************************************************************
-
-//*****************************************************************************
-// Eventos ligados a armas
-//*****************************************************************************
-[EVENTS e_silver_weapon]
-ON=@CDAMAGE
-if (<src.isTevent.e_undead> 
-    src.damage <eval <R<dam>>/2>,<def.dam_magic>,<uid>
-    src.EFFECT 3,i_fx_curse,6,15,1
-    SOUND snd_spell_harm
-endif
-
-[EVENTS T_WEAPON_FIRE]
-ON=@CDAMAGE
-if !(<attr>&01) //se não tá identificado
-    return 0
-endif
-
-if (<tag0.flame_timer> < <serv.time>)
-    src.damage <R4,10>,dam_fire,<topobj>
-    src.EFFECT 2 i_fire_column 6 30 0
-    sfx 05CF
-    IF !<R19>
-        src.f_pega_fogo <R5,7>
-    endif        
-    tag.flame_timer=<eval <serv.time>+<R15.0,65.0>>
-endif
-
-[EVENTS T_WEAPON_COLD]
-ON=@CDAMAGE
-if !(<attr>&01) //se não tá identificado
-    return 0
-endif
-
-if (<tag0.cold_timer> < <serv.time>)
-    src.damage <R4,10>,dam_cold,<topobj>
-    src.EFFECT 3 i_fx_smoke 0 24 0 99 2
-    sfx 05C7
-    IF !<R19>
-        src.stonned <R5,8>
-    endif        
-    tag.cold_timer=<eval <serv.time>+<R15.0,65.0>>
-endif
-
-[EVENTS T_WEAPON_PESTILENCE]
-ON=@CDAMAGE
-if !(<attr>&01) //se não tá identificado
-    return 0
-endif
-
-if (<tag0.plage_timer> < <serv.time>)
-    src.timerf 2 damage <R4,10>,dam_poison,<topobj>
-    src.timerf 2 EFFECT 3 i_fx_explode 0 26 0 177 2
-    sfx 0474
-    IF !<R19>
-        src.poison <R35.0,45.0>
-    endif        
-    tag.plage_timer=<eval <serv.time>+<R15.0,65.0>>
-endif
-
-[EVENTS T_WEAPON_TEMPEST]
-ON=@CDAMAGE
-if !(<attr>&01) //se não tá identificado
-    return 0
-endif
-
-if (<tag0.lighting_timer> < <serv.time>)
-    IF <R19>
-        src.damage <R4,10>,dam_lightning,<topobj>
-        src.EFFECT 2 i_fx_field_paralyze 6 16 0
-        sfx 05C3
-    ELSE
-        src.damage <R10,17>,dam_lightning,<topobj>
-        src.effect 1 0 0 0 0
-        sfx SND_THUNDER
-    ENDIF
-    tag.lighting_timer=<eval <serv.time>+<R15.0,65.0>>
-endif
-
-[EVENTS e_machado_luna]
-ON=@CDAMAGE
-//Recarregar a cada 3 horas
-if !(<attr>&01) //se não tá identificado
-    return 0
-endif
-
-//Recarregar a cada 3 horas
-if (!<morex>) && (!<tag0.loading>)
-    tag.loading 1
-    cont.sysmessageorange O Machado de Luna esta exaurido de suas forcas... Mas Luna ha de recarrega-lo em seu tempo!
-    timerf 3600,wp_machado_luna_reload
-endif
-
-[FUNCTION wp_machado_luna_reload]
-tag.loading=0
-morex=2
-more2=30
-
-[EVENTS e_crescente_mond]
-ON=@CDAMAGE
-//Recarregar a cada 3 horas
-if !(<attr>&01) //se não tá identificado
-    return 0
-endif
-
-//Recarregar a cada 3 horas
-if (!<morex>) && (!<tag0.loading>)
-    tag.loading 1
-    cont.sysmessageorange O Crescente de Mond esta exaurido de suas forcas... Mas Mond ha de recarrega-lo em seu tempo!
-    timerf 3600,wp_crescente_mond_reload
-endif
-
-[FUNCTION wp_crescente_mond_reload]
-tag.loading=0
-morex=5
-more2=350
-
-[EVENTS e_pique_atila]
-ON=@CDAMAGE
-//Recarregar a cada 3 horas
-if !(<attr>&01) //se não tá identificado
-    return 0
-endif
-
-//Recarregar a cada 3 horas
-if (!<morex>) && (!<tag0.loading>)
-    tag.loading 1
-    cont.sysmessageorange O Pique de Atila esta exaurido de suas forcas... Mas Atila ha de recarrega-lo em seu tempo!
-    timerf 3600,wp_pique_atila_reload
-endif
-
-[FUNCTION wp_pique_atila_reload]
-tag.loading=0
-morex=2000
-more2=20
-
-[FUNCTION wp_spell]
-ATTR=attr_magic
-MORE2=<argn1> //spell
-MOREX=<argn2> //charges
-
-[TYPEDEF e_NoUntilID]
-on=@equiptest
-if !(<attr>&01) && (!<SRC.IsGM>)
- src.sysmessageorange <name> parece ter vontade propria.
- src.unequip
- return 1
-endif
-
-on=@DCLick
-if !(<attr>&01) && (!<SRC.IsGM>)
- src.sysmessageorange Voce nao pode usar isto antes de saber o que realmente eh.
- return 1
-endif
-
-//*****************************************************************************
-// Item quebra ao ser pisado
-//*****************************************************************************
-[TYPEDEF e_fragile]
-ON=@STEP
-src.emotered quebrou
-sfx 040
-remove
-return 1
-
-//*****************************************************************************
-// Vira Merda
-//*****************************************************************************
-//a ideia é ser uma praga de yarret
-[FUNCTION f_viraMerda]
-src.emote Fedendo merda
-newitem i_horse_dung
-new.amount = 1
-DORAND 4
-	begin
-		sfx 0431
-		sysmessagered Acha mesmo que isso te percente?
-	end
-	begin
-		sfx 0431
-		sysmessagered Como eh Tolo 
-	end
-	begin
-		sfx 0431
-		sysmessagered Voce eh soh mais um no tabuleiro dos meus jogos 
-	end
-	begin
-		sfx 0431
-		sysmessagered Eh tao facil te enganar 
-	end
-ENDDO
-effect 2 i_fx_sparkle_2 2 20 0 0Af4 
-if (<cont>)
-	new.p = <src.p>
-else
-	new.p = <p>
-endif
-	new.decay
-remove 
-
-[EVENTS e_viraMerda]
-ON=@Equip
-timerf 30,f_viraMerda
-ON=@DropOn_Char
-timerf 30,f_viraMerda
-ON=@DropOn_Ground
-timerf 30,f_viraMerda
-ON=@DropOn_Item
-timerf 30,f_viraMerda
-
-
-//*****************************************************************************
-// Vira Areia
-//*****************************************************************************
-[FUNCTION f_viraAreia]
-src.emote ao tocar, ve <name> se desfazendo em areia
-newitem i_areia
-new.amount = 2
-effect 2 i_fx_sparkle_2 2 20 0 031
-if (<cont>)
-    new.p = <src.p>
-else
-    new.p = <p>
-endif
-	new.decay
-remove 
-
-[TYPEDEF e_viraAreia]
-ON=@Equip
-f_viraAreia
-ON=@DropOn_Char
-f_viraAreia
-ON=@DropOn_Ground
-f_viraAreia
-ON=@DropOn_Item
-f_viraAreia
 
 //*****************************************************************************
 // ALJAVAS
@@ -293,19 +56,19 @@ f_elfSight
 
 ON=@ITEMEQUIP
 //remove visao elfica se carregar fonte de luz
-if <act.layer>==layer_face
+if <act.layer>==layer_light
     f_noElfSight
 endif
 
 //mantem o layer light com visao noturna
 ON=@ITEMUNEQUIP
-if <act.layer>==layer_face
+if <act.layer>==layer_light
     f_elfSight
 endif
 
 //carrega um light source no layer light em q soh o player (src) veja
 [FUNCTION f_elfSight]
-SENDPACKET 02e D040000001 W<serv.itemdef.i_light_source.id> B0 B<def.layer_face> D<uid> W00
+SENDPACKET 02e D040000001 W<serv.itemdef.i_light_source.id> B0 B<def.layer_light> D<uid> W00
 
 //f_noElfSight <force>
 [FUNCTION f_noElfSight]
@@ -329,7 +92,7 @@ new.cont <src>
 
 //mantem o layer light livre para visao noturna
 ON=@ITEMUNEQUIP
-if ( <act.layer> != layer_face ) //&& ( <act.layer> != layer_hand2 )
+if ( <act.layer> != layer_light ) //&& ( <act.layer> != layer_hand2 )
     return 0
 endif
 f_elfSight
@@ -384,25 +147,10 @@ return 1
 [EVENTS e_orc]
 
 ON=@LOGIN
-	src.findlayer(layer_hair).remove
-	src.findlayer(layer_beard).remove
-	src.findlayer(layer_helm).hitpoints 9999
-
-if (!<src.restest 1 i_head_orc>)
-	serv.newitem i_head_orc
-	src.new.equip
-	src.update
-endif
-
-if (!<src.restest 1 i_orc_check>)				// cria o item que vai verificar se o orc está com a cabeça no lugar
-	serv.newitem i_orc_check
-	src.new.equip
-	new.link = <src.uid>
-	src.update
-	new.timer 5
-else
-	return 0
-endif
+//src.findlayer(layer_hair).remove
+//src.findlayer(layer_beard).remove
+//src.findlayer(layer_helm).hitpoints 999
+//src.update
 
 on=@hit
 if (<hits> < 20)
@@ -410,58 +158,18 @@ if (<hits> < 20)
   src.damage {5 10}
 endif
 
-//////////////////////////////////////////////////////
-
 [ITEMDEF i_head_orc]
 id=0141b
 name=Orc
 TYPE=t_armor
 VALUE=0
 WEIGHT=0
+ARMOR=50
 
 ON=@Create
 COLOR=0597
 HITPOINTS=9999
-attr= attr_static|attr_move_never
-
-on=@UnEquip
-attr = 090
-src.findid.i_orc_check.timer = 3	//chama o i_orc_check pra ficar checando maneiras de corrigir o problema enquanto o orc estiver sem cabeça
-
-on=@Equip
-attr = 08010
-
-//////////////////////////////////////////////////////
-
-[ITEMDEF i_orc_check]	
-id=020a2
-type=t_eq_script
-weight=0
-value=0
-
-On=@timer
-if (<link.findlayer.layer_helm.id> != 0141b)								// o layer_helm ta sem o i_head_orc?
-	if (!<link.findlayer.layer_helm.id> == 0)									// o layer_helm ta ocupado por um elmo/chapeu qualquer?
-		link.unequip <link.findlayer.layer_helm>									// se sim, desequipa o elmo que está na cabeça do orc
-	elif (<link.findlayer.layer_helm.id> == 0)									//o layer_helm ta vazio?
-		if (!<link.restest 1 i_head_orc>) && (!<link.flags>&statf_dead)				// o orc ta sem nenhum i_head_orc na bag, e não está morto?
-			serv.newitem i_head_orc														//cria o item
-			new.cont = <link.findlayer.layer_pack>										// joga na pack
-		endif
-		link.equip <link.findid.i_head_orc>											// equipa
-	endif	
-	timer = 3																	// ele vai continuar testando enquanto não colocar a cabeça de volta no lugar
-else
-	if (<link.findlayer.layer_pack.restest 1 i_head_orc>)						// se houve i_head_orc extra na bag
-		while (<link.findlayer.layer_pack.findid.i_head_orc>)						// enquanto houverem...
-			link.findlayer.layer_pack.findid.i_head_orc.remove							//remove
-		endwhile
-	endif
-	timer = -1																	// para quando conseguir
-endif
-
-return 1
-
+attr=attr_static|attr_move_never
 
 //*****************************************************************************
 // ANOES
@@ -517,10 +225,8 @@ ON=@LOGIN
     f_deliverPendingMessages
 
     src.f_correctLight <src.region.flags>
-	
-	//var.manutencao = 1 // coloque 1 aqui para ativar a manutencao
-	
-    if <var.manutencao> && (<src.account.plevel> <= 1) && (!<src.tag0.vip>)
+
+    if <var.manutencao> && (<src.account.plevel> <= 1)
         prompt_new Servidor em manutencao. Voce sera desconectado em 30 segundos.
         ynprompt_show
         src.warnAndDisconnect
@@ -529,7 +235,7 @@ ON=@LOGIN
     
     if (!<checkVersion>) && (<src.account.plevel> <= 1)
         serv.log [EVENTS] Cliente desconectado por versao invalida: <CLIENTVERSION>
-        prompt_new Versao de client deve ser 7.0.60.47 ou maior. Voce sera desconectado em 30 segundos.
+        prompt_new Versao de client deve ser 5.0.8 ou maior. Voce sera desconectado em 30 segundos.
         ynprompt_show
         src.warnAndDisconnect
     endif
@@ -1009,20 +715,6 @@ return 0
 //serv.log [SKILLUSEQUICK] <src.account>/<argn1>
 
 //*************************************
-ON=@PartyInvite
-//*************************************
-if (!<src.isGm>)
-src.sysmessage Resolva seus problemas pelo RP ou use Page.
-return 1
-
-//*************************************
-ON=@UserChatButton
-//*************************************
-if (!<src.isGm>)
-src.sysmessage Resolva seus problemas pelo RP ou use Page.
-return 1
-
-//*************************************
 ON=@USERVIRTUE
 //*************************************
 //estatisticas do char
@@ -1065,11 +757,7 @@ return 1
 //*************************************
 ON=@MOUNT
 //*************************************
-//verifica se o PC esta sobre efeito do SM dismount
-if <serv.time> < <ctag0.nomount>
-	sysmessageyellow O animal esta muito agitado
-	return 1
-endif
+
 //mounts sem exlusividade
 if (<argo.id>==c_llama) || (<argo.id>!=c_bear_polar)
     return 0
@@ -1108,11 +796,9 @@ IF (!<IsGM>)
  IF (<tag0.mage_spellid>) && (<argn3>==3)//Foi cancelada e começada outra magia posteriormente?
 //  serv.log SPELLSELECT 3. Aborta. <account>
   mage_cleartags
-  sysmessage Voce perdeu a concentracao.
   argn3=2        //Começar a castar de novo
   return 6
  elif (<argn1> < 99 ) && (<account.plevel> < 2)
-  sysmessage Voce se desconcentrou.
 //  serv.log SPELLSELECT Aborta cast por macro. <account>
   return 1
  endif
@@ -1129,12 +815,12 @@ IF (!<IsGM>)
   if (<argo>==<uid>)      //Mago castando sozinho
    tag.mage_source=<DEF.MAGE_SELF>
    if !(<tag0.mage_know>)
-    argn2=(<argn2>*250)/100       //consimir 150% mais de mana
+    argn2=(<argn2>*125)/100       //consimir 25% mais de mana
    endif
   else
    tag.mage_uid=<argo>            //Salva item
    argn2=0                        //Castando por item. Não usar mana.
-   if (<argo.type>==t_wand) //Mago castando por varinha ou gema
+   if (<argo.type>==t_wand)//Mago castando por varinha ou gema
     tag.mage_source=<DEF.MAGE_WAND>
    else
     if (<argo.type>==t_SCROLL)//Mago castando por pergaminho
@@ -1249,7 +935,7 @@ return 1
 [TYPEDEF e_weapon_silver]
 ON=@CDAMAGE
 //SRC é quem toma o dano.
-if (<src.isTevent.e_undead>
+if (<src.npc>==brain_undead)
 //    serv.log [<name>] -> <src.name> (<R2,<BETWEEN 2,15,-<src.karma>,5000>>)
     src.damage <R2,<BETWEEN 2,15,-<src.karma>,5000>>
     src.effect 3 i_fx_bless_effect 0 32 0 53
@@ -1265,7 +951,7 @@ endif
 // f_onaccount_login
 //*****************************************************************************
 [FUNCTION f_onaccount_login]
-
+//apos senha (argn1=3) 
 if (<argn1>==3)
 
     LOCAL.chars=<SERV.ACCOUNT.<args>.CHARS>

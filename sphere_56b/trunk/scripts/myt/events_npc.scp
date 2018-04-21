@@ -1,4 +1,4 @@
-//////////////////////////////////////////////////////////////////
+﻿//////////////////////////////////////////////////////////////////
 //          Mystical tales Shard            //
 //          Events de NPCs ligados a AI         //
 //          Galthar 07/2007             //
@@ -74,7 +74,6 @@ for layer 1 24
  local.mor2=<obj.findlayer.<local.layer>.more2>
  serv.newitem=<local.item>
  new.attr=010
- new.events +e_viraAreia
  new.color=<local.color>
  new.more1=<local.mor>
  new.more2=<local.mor2>
@@ -95,18 +94,6 @@ if (<magery> > 500)
  EVENTS +e_mage_phaser
 endif
 attack <src.uid>
-
-//*****************************************************************************
-// NPC_DODGER // Evasivo, dificil de acertar
-//*****************************************************************************
-[FUNCTION NPC_DODGER]
-tag0.dodger <eval <argv0>>
-
-//*****************************************************************************
-// NPC_RESIST // Resistente a determinado tipo de ataque
-//*****************************************************************************
-[FUNCTION NPC_RESIST]
-tag0.resist <eval <argv0>>
 
 //*****************************************************************************
 // NPC_IMMUNE
@@ -233,20 +220,20 @@ more1=1
 ON=@TIMER
 if (<more1>==1)
  cont.tag.override.moverate = (<cont.moverate>+20)
- cont.tag0.moddam += 50
+ cont.tag0.moddam += 100
  cont.emoteyellow corre
  cont.tag.npcai_charge=1
  more1=2
- timer=<R5,10>
+ timer=<R5,15>
 elif (<more1>==2)
- cont.tag.override.moverate = (<cont.moverate>-100)
+ cont.tag.override.moverate = (<cont.moverate>-40)
  cont.moddex -= 20
  cont.stam = <cont.dex>
  cont.tag0.moddam -= 100
  cont.emoteyellow ofegante
  cont.tag.npcai_charge=2
  more1=3
- timer=<R10,20>
+ timer=<R10,25>
 elif (<more1>==3)
  cont.moddex += 20
  cont.tag.override.moverate = (<cont.moverate>)
@@ -386,12 +373,11 @@ endif
 [TYPEDEF t_spawn_char]
 ON=@TIMER
 //se for adicionar o NPC
-//por algum motivo desconhecido, se nao usar o I pra se referir ao default, o default se torna o src 
-if <I.count> < <I.amount>
+if <more2> < <amount>
     //se tiver tag de NPC NOTURNO e estiver de dia, nao cria
     if (<var.tHour> > 5) && (<var.tHour> < 20) && !(<region.flags>&region_flag_underground)
-        if <I.tag0.spawn_night> || strmatch(*e_undead*,<serv.chardef.<more1>.tevents>)
-			//tenta novamente depois
+        if <tag0.spawn_night> || strmatch(*e_undead*,<serv.chardef.<more1>.tevents>)
+            //tenta novamente depois
             timer=600
             return 1
         endif
@@ -430,18 +416,10 @@ if !<canseelos> && !<isgm>
 endif
 resendtooltip
 
-
-
 //*****************************************************************************
 // e_PvM
 //*****************************************************************************
 [EVENTS e_PvM]
-
-ON=@Create
-//adiciona uma magia OSI aos npcs casters, a magia nunca sera executada, porém se o NPC nao tiver uma magia na mente os triggers relacionados a Spells nunca serao ativados
-if (<magery> > 0) ||(<focus> > 0) || (<necromancy> > 0) || (<spellweaving> > 0)  
-	spelladd 5
-endif
 
 ON=@NPCAction
 //impede de atirar pedras muito rapidamente
@@ -462,7 +440,6 @@ if (<action>==071)
 endif
 
 ON=@NPCACTFIGHT
-
 SETMEMORY <DEF.memory_fight>,<SRC>
 
 if <npcai_cancharge> && (<distance <src>> > 2)
@@ -496,7 +473,7 @@ ON=@GETHIT
 //serv.log [EPVM] <name>
 SETMEMORY <DEF.memory_harmedby>,<SRC>
 //Posso usar potions?
-if (<CAN>&MT_USEHANDS) && (!<istevent.e_undead>) && (<R<INT>> > 25)
+if (<CAN>&MT_USEHANDS) && (<NPC>!=brain_undead) && (<R<INT>> > 25)
     //Tenho poção de heal? Preciso usar? 
     if (<restest 1 i_bottle_yellow>) && (<hits> < <eval <maxhits>/3>)
         timerf <R1,3>,f_NPC_AI_Use,i_bottle_yellow,1
@@ -519,32 +496,32 @@ if (<flags>&statf_freeze|statf_stone)
 endif
 
 
-////[COMMENT comentario]
-////SRC=char sendo visto
-////default=NPC vendo
-//on=@NPCLookAtChar
-//
-////NPC vendo NPC?
-//if <src.npc>
-//    //nao esta usando nenhuma skill?  if (<action> < 0) || (<action> > 54)
-//    //nao esta em warmode?
-//    if !(<flags>&statf_war)
-//        //nao antagonicos?
-//        if ( <karma> >= 0 ) && ( <src.karma> >= -1000 )
-//        
-//        elif ( <karma> <= 0 ) && ( <src.karma> <= 1000 )
-//        
-//        else    //antagonicos
-//            LOCAL.dkarma=<eval <ABSVAL <karma>>-<ABSVAL <src.karma>>>
-//            if <LOCAL.dkarma> > 1000    //precisa ter um karma 1000 maior para atacar
-//                if (<CanSeeLos <src>>)
-//                    attack <src>
-//                endif
-//            endif
-//        endif
-//    endif
-//endif
-//
+//[COMMENT comentario]
+//SRC=char sendo visto
+//default=NPC vendo
+on=@NPCLookAtChar
+
+//NPC vendo NPC?
+if <src.npc>
+    //nao esta usando nenhuma skill?  if (<action> < 0) || (<action> > 54)
+    //nao esta em warmode?
+    if !(<flags>&statf_war)
+        //nao antagonicos?
+        if ( <karma> >= 0 ) && ( <src.karma> >= -1000 )
+        
+        elif ( <karma> <= 0 ) && ( <src.karma> <= 1000 )
+        
+        else    //antagonicos
+            LOCAL.dkarma=<eval <ABSVAL <karma>>-<ABSVAL <src.karma>>>
+            if <LOCAL.dkarma> > 1000    //precisa ter um karma 1000 maior para atacar
+                if (<CanSeeLos <src>>)
+                    attack <src>
+                endif
+            endif
+        endif
+    endif
+endif
+
 //*****************************************************************************
 // e_manadrain_far
 //*****************************************************************************
@@ -558,23 +535,6 @@ if <NPCCanPower> && (<R1000> < <FOCUS>)
     f_NPC_AI_PowerDelay 30
     f_NPC_POW_Manadrain_Far
 endif
-
-//*****************************************************************************
-// e_gato
-//*****************************************************************************
-[EVENTS e_gato]
-
-ON=@NPCLookAtChar
-dorand 300
-sfx 02A4
-sfx 02A5
-sfx 02A6
-sfx 069
-sfx 06A
-sfx 06B
-sfx 06C
-sfx 06D
-enddo
 
 //*****************************************************************************
 // e_manadrain
@@ -736,7 +696,7 @@ endif
 return 0
 
 on=@GetHit
-if (<argn2>&dam_cold) //antes era dam_cold_old
+if (<argn2>&dam_cold_old)
  dorand 3
   say=@021  *parece imune*
   say=@021  *intacto*
@@ -799,7 +759,7 @@ if (<argn2>&dam_fire)
  hits=<hits>+<argn1>
  return 1
 endif
-if (<argn2>&dam_cold) //dam_cold_old
+if (<argn2>&dam_cold_old)
  argn1=<argn1>*10/7
 endif
 return 0
@@ -811,7 +771,7 @@ if (<temp_get> < 0)
  new.attr 092
  new.timer={8 12}
  new.emotered evaporou
- //serv.log evaporou <uid> <eval <temp_get>>oC (<p>)
+ serv.log evaporou <uid> <eval <temp_get>>oC (<p>)
  remove
  return 1
 endif
@@ -821,14 +781,14 @@ ON=@Death
 // Create death explosion to damage those nearby.
 NEWITEM=i_fx_explode
 new.emotered explode
-new.TYPE=T_EXPLOSION
-new.ATTR=ATTR_MOVE_NEVER | ATTR_DECAY
-new.LINK=<uid>
-new.morex=10 // damage
-new.morey=090 // wFlags DAMAGE_GENERAL
-new.morez=4 // iDist
-new.p=<p>
-new.TIMERD=5 // immediate decay
+act.TYPE=T_EXPLOSION
+act.ATTR=ATTR_MOVE_NEVER | ATTR_CAN_DECAY
+act.LINK=<uid>
+act.morex=10 // damage
+act.morey=090 // wFlags DAMAGE_GENERAL
+act.morez=4 // iDist
+act.p=<p>
+act.TIMERD=5 // immediate decay
 SFX 011d
 remove
 return 1
@@ -934,20 +894,20 @@ elif (<act.oint> > 80)
 elif (<act.weapon.type>==t_weapon_bow) || (<act.weapon.type>==t_weapon_xbow)
  
  //[ARQUEIRO] Seria bom morphar para esqueleto?
- //if !(<tag0.dam_pierce>&dam_pierce) && (!<restest 1 i_spl_polymorph>) && (<necromancy> > 82.5) && (<mana> > 40)
- // argn1=215 //poly para esqueleto
-  //argn3=1  //Rapidin
- //else //[ARQUEIRO] Não posso ser esqueleto
+ if !(<tag0.dam_pierce>&dam_pierce) && (!<restest 1 i_spl_polymorph>) && (<necromancy> > 82.5) && (<mana> > 40)
+  argn1=215 //poly para esqueleto
+  argn3=1  //Rapidin
+ else //[ARQUEIRO] Não posso ser esqueleto
   if (<act.distance> > 1) && (<mana> > <eval <serv.spell.s_choque_mental.manause>*2>) && (!<R0,3>)
    argn1=214    //Choque mental
   elif (!<R0,3>)
    argn1=204    //Envelhecer
-  //elif (<R0,1>)
-   //argn1=200    //Cansar músculos
+  elif (<R0,1>)
+   argn1=200    //Cansar músculos
   else
    argn1=201    //Dom Negro
   endif
- //endif
+ endif
 
 //O oponente é um possível guerreiro?
 elif (<act.ostr> > 85)
@@ -967,7 +927,11 @@ elif (<act.ostr> > 85)
     argn1=206   //Infestação, pra descolar o oponente
    //Senta o rodo então!
    else
+    if (!<R2>)
+     argn1=200    //Cansar músculos
+    else
      argn1=201    //Dom Negro
+    endif
    endif
    
   //Longe de mim?
@@ -992,8 +956,8 @@ elif (<act.ostr> > 85)
      argn1=214    //Choque mental
     elif (!<R0,3>)
      argn1=204    //Envelhecer
-    //elif (<R0,1>)
-     //argn1=200    //Cansar músculos
+    elif (<R0,1>)
+     argn1=200    //Cansar músculos
     else
      argn1=201    //Dom Negro
     endif
@@ -1019,9 +983,9 @@ else //Não consigo determinar melhor estratégia
  elif (!<R0,3>)
   argn1=204    //Envelhecer
  elif !(<tag0.cast_flag>&<DEF.flag_cast_spawn>) && (!<R2>)
-  argn1=206    //Infestação
- //elif (<R0,2>)
- // argn1=200    //Cansar músculos
+  argn1=106    //Infestação
+ elif (<R0,2>)
+  argn1=200    //Cansar músculos
  else
   argn1=201    //Dom Negro
  endif
@@ -1041,16 +1005,16 @@ if (<CAN>&mt_usehands)
 endif
 
 //**************
-on=@SpellSuccess
+on=@SkillSuccess
 //**************
-if (<argn1> >= 200) && <argn1> <= 220)
+if (<argn>==<DEF.SKILL_NECROMANCY>)
  local.flags=<serv.spell.<actarg1>.flags>
  if (<local.flags>&SPELLFLAG_SUMMON)
-  tag0.cast_flag |= <def.flag_cast_spawn>
-  timerf <DURATIONSPELL <actarg1>,<necromancy>,<uid>> tag0.cast_flag&= ~<def.flag_cast_spawn>
+  tag0.cast_flags |= <def.flag_cast_spawn>
+  timerf <DURATIONSPELL <actarg1>,<necromancy>,<uid>> tag0.cast_flags &= ~<def.flag_cast_spawn>
  elif <actarg1>==217 || <actarg1>==213
-  tag0.cast_flag |= <def.flag_cast_op>
-  timerf <DURATIONSPELL <actarg1>,<necromancy>,<uid>> tag0.cast_flag&= ~<def.flag_cast_op>
+  tag0.cast_flags |= <def.flag_cast_op>
+  timerf <DURATIONSPELL <actarg1>,<necromancy>,<uid>> tag0.cast_flags &= ~<def.flag_cast_op>
  endif
 endif
 
@@ -1180,17 +1144,16 @@ endif
 
 
 //**************
-on=@SpellSuccess
+on=@SkillSuccess
 //**************
-if (<argn1> >= 100) && <argn1> <= 120)
 if (<argn>==<DEF.SKILL_MAGERY>)
  local.flags=<serv.spell.<actarg1>.flags>
  if (<local.flags>&SPELLFLAG_SUMMON)
-  tag0.cast_flag |= <def.flag_cast_spawn>
-  timerf <DURATIONSPELL <actarg1>,<magery>,<uid>> tag0.cast_flag&= ~<def.flag_cast_spawn>
+  tag0.cast_flags |= <def.flag_cast_spawn>
+  timerf <DURATIONSPELL <actarg1>,<magery>,<uid>> tag0.cast_flags &= ~<def.flag_cast_spawn>
  elif <actarg1>==217 || <actarg1>==213
-  tag0.cast_flag |= <def.flag_cast_op>
-  timerf <DURATIONSPELL <actarg1>,<magery>,<uid>> tag0.cast_flag&= ~<def.flag_cast_op>
+  tag0.cast_flags |= <def.flag_cast_op>
+  timerf <DURATIONSPELL <actarg1>,<magery>,<uid>> tag0.cast_flags &= ~<def.flag_cast_op>
  endif
 endif
 
@@ -1278,7 +1241,7 @@ elif (!<tag0.turn>)
    END
   
   //[BUFF/DEBUFF - perto] Eh undead?
-  elif (<act.istevent.e_undead>
+  elif (<act.npc>==brain_undead)
    argn1=161    //Julgamento
    DORAND <eval <focus>/69.0>
     argn1=152   //Exorcisar
@@ -1362,16 +1325,16 @@ endif
 //serv.log castando <serv.spell.<argn1>.name> d:<dargn2> t:<dargn3> ad:<dACTDIFF> t:<dtag0.turn>
 
 //**************
-on=@SpellSuccess
+on=@SkillSuccess
 //**************
-if (<argn1> >= 150) && <argn1> <= 170)
+if (<argn>==<DEF.SKILL_FOCUS>)
  local.flags=<serv.spell.<actarg1>.flags>
  if (<local.flags>&SPELLFLAG_SUMMON)
-  tag0.cast_flag |= <def.flag_cast_spawn>
-  timerf <DURATIONSPELL <actarg1>,<FOCUS>,<uid>> tag0.cast_flag&= ~<def.flag_cast_spawn>
+  tag0.cast_flags |= <def.flag_cast_spawn>
+  timerf <DURATIONSPELL <actarg1>,<FOCUS>,<uid>> tag0.cast_flags &= ~<def.flag_cast_spawn>
  elif (<local.flags>&SPELLFLAG_GOOD)
-  tag0.cast_flag |= <def.flag_cast_buffself>
-  timerf <DURATIONSPELL <actarg1>,<FOCUS>,<uid>> tag0.cast_flag&= ~<def.flag_cast_buffself>
+  tag0.cast_flags |= <def.flag_cast_buffself>
+  timerf <DURATIONSPELL <actarg1>,<FOCUS>,<uid>> tag0.cast_flags &= ~<def.flag_cast_buffself>
  endif
 endif
 
@@ -1539,17 +1502,17 @@ if (<CAN>&mt_usehands)
 endif
 
 //**************
-on=@SpellSuccess
+on=@SkillSuccess
 //**************
 //tag.NPC_CanCast=<eval <serv.time>+70-(<int>/5)>
-if (<argn1> >= 200) && <argn1> <= 220)
+if (<argn>==<DEF.SKILL_SPELLWEAVING>)
  local.flags=<serv.spell.<actarg1>.flags>
  if (<local.flags>&SPELLFLAG_SUMMON)
-  tag0.cast_flag |= <def.flag_cast_spawn>
-  timerf <DURATIONSPELL <actarg1>,<spellweaving>,<uid>> tag0.cast_flag&= ~<def.flag_cast_spawn>
+  tag0.cast_flags |= <def.flag_cast_spawn>
+  timerf <DURATIONSPELL <actarg1>,<spellweaving>,<uid>> tag0.cast_flags &= ~<def.flag_cast_spawn>
  elif (<local.flags>&SPELLFLAG_GOOD)
-  tag0.cast_flag |= <def.flag_cast_buffself>
-  timerf <DURATIONSPELL <actarg1>,<SPELLWEAVING>,<uid>> tag0.cast_flag&= ~<def.flag_cast_buffself>
+  tag0.cast_flags |= <def.flag_cast_buffself>
+  timerf <DURATIONSPELL <actarg1>,<SPELLWEAVING>,<uid>> tag0.cast_flags &= ~<def.flag_cast_buffself>
  endif
  if (<actarg1>==s_resistencia_frio) && (<rescold> > 60)
   tag.damcold=
@@ -1590,96 +1553,6 @@ endif
 //*****************************************************************************
 //*****************************************************************************
 
-//*****************************************************************************
-// e_lobo
-//*****************************************************************************
-[EVENTS e_lobo]
-on=@gethit
-    if (<hitpoints>) < 50) && (<hitpoints>) > 30)
-    src.sysmessageorange O lobo começa a se preparar para uivar.
-        if !(<IsEvent.e_foge>) && (<hitpoints>) < 35) && !(<R6>)
-        emotered Uiva
-        sfx 0569
-        serv.newnpc <defname>
-        new.events +e_foge
-        new.movenear <src> 5
-        endif
-    endif
-
-//*****************************************************************************
-// e_morde
-//*****************************************************************************    
-[EVENTS e_morde]    
-on=@hit
-IF !(<R8>)
-emotered Morde e puxa
-f_sm_bleed
-ENDIF
-
-//*****************************************************************************
-// e_batef
-//*****************************************************************************    
-[EVENTS e_batef]    
-on=@hit
-IF !(<R8>)
-emotered bate forte
-    sfx 051C
-    argn1 += <eval <argn1>*2>
-    src.damage <argn1>
-    return 1
-ENDIF
-
-//*****************************************************************************
-// e_gduplo
-//*****************************************************************************
-[EVENTS e_gduplo]    
-on=@hit
-IF !(<R9>)
-emotered ataque duplo
-    src.damage <argn1>
-    timerf 1,bark,2
-    src.damage <argn1>
-    return 1
-ENDIF
-
-//*****************************************************************************
-// e_foge
-//*****************************************************************************
-[EVENTS e_foge]
-on=@CombatDelete
-    emotered Foge
-    timerf 5, remove
-on=@CombatEnd
-    emotered Foge
-    timerf 5, remove
-    
-//*****************************************************************************
-// e_herding
-//*****************************************************************************
-//[EVENTS e_herding]
-//on=@NPCLookAtChar
-//if  (<CanseeLos <src>>) && (<src.brain> == 0)
-//    if (<belltest <src.herding>,<taming>,15>) || (<belltest <src.spellweaving>,<taming>,15>)
-//        //src.sysmessageblue <Name> te olha com certo respeito.
-//        //return 0
-//    else 
-//        attack <src>
-//    endif
-//endif
-    
-//*****************************************************************************
-// e_fuga
-//*****************************************************************************    
-//[EVENTS e_fuga]
-//ON=@NPCLOOKATCHAR
-//FLEE 10
-//
-//ON=@GETHIT
-//
-//FLEE 10
-//
-//ON=@HITTRY
-//FLEE 10
 //*****************************************************************************
 // e_reaper
 //*****************************************************************************
@@ -3730,10 +3603,4 @@ if !<src.tag0.npc_ban>
     attack <src>
 endif
 
-//*****************************************************************************
-// e_suicideHit (morre ao dar o primeiro hit)
-//*****************************************************************************
-[EVENTS e_suicideHit]
-on=@hit
-remove
 [EOF]
