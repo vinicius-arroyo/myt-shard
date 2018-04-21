@@ -436,15 +436,7 @@ endif
 //***********************************************************
 //Limpa todas as magias do player <default> da DB
 [FUNCTION mage_wipeSpells]
-DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<dUID>;"
-for w 0 <eval <DB.ROW.NUMROWS>>
- if (!<IsEmpty <DB.ROW.<dlocal.w>.spellid>>)
-	local.spelldel=<DB.ROW.<dlocal.w>.spellid>
-	DB.EXECUTE="DELETE FROM spellbooks WHERE player=<dUID> AND spellid=<dlocal.spelldel>;"
-	//serv.log <DB.ROW.<dlocal.w>.spellid> 
- endif
-end
-return 0
+return 1
 //DB.QUERY="DELETE FROM spellbooks WHERE player=<eval <UID>>';"
 
 //***********************************************************
@@ -511,8 +503,7 @@ DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<dUID> ORDER BY diff ASC;"
 tag.spells=;<serv.spell.<DB.ROW.0.spellid>.defname>;
 for r 1 <eval <DB.ROW.NUMROWS>-1>
  if (!<IsEmpty <DB.ROW.<dlocal.r>.spellid>>)
-	tag.spells .=<serv.spell.<DB.ROW.<dlocal.r>.spellid>.defname>;
-	//serv.log <serv.spell.<DB.ROW.<dlocal.r>.spellid>.defname>
+  tag.spells .=<serv.spell.<DB.ROW.0.spellid>.defname>;
  endif
 end
 
@@ -523,13 +514,15 @@ end
 [FUNCTION mage_forgetSpell]
 local.spellid=<mage_GetSpellNumber <argv0>>
 
-DB.EXECUTE="DELETE FROM spellbooks WHERE player=<dUID> AND spellid=<dlocal.spellid>"
+DB.EXECUTE="DELETE FROM spellbooks WHERE player=<dUID> AND spellid=<dlocal.spell>";
 mage_loadSpells
   
 [FUNCTION mage_KnowSpell]
 //Checa na DB local se o jogador conhece a dada spell
 DB.QUERY="SELECT spellid FROM spellbooks WHERE player=<dUID> AND spellid=<eval <mage_GetSpellNumber <argv0>>>;"
 RETURN <DB.ROW.NUMROWS>
+
+
 
 //*******************************************************************************
 //
@@ -864,7 +857,7 @@ return 6
 // mage_SpellSelect <argn1>, <argn2>, <argn3> (do @SpellSelect)
 //*************************************************************
 
-[COMMENT mage_SpellSelect] //existe uma duplicada dessa parte q é a que realmente esta ativa em events.scp em torno da linha 1100
+[COMMENT mage_SpellSelect]
 IF (<IsGM>)
  return 6//Proceder como o de normal
 ENDIF
@@ -880,16 +873,17 @@ ENDIF
 //Guarda se o char sabe a spell e quam é a spell
 tag.mage_know=<mage_knowSpell <argn1>>
 tag.mage_spellid=<argn1>
+
 //Define bônus/penalidade por modalidade de cast (WoP, wand/orb, scroll)
 if (<argo>==<uid>)      //Mago castando sozinho
  tag.mage_source=<DEF.MAGE_SELF>
  if !(<tag0.mage_know>)
-  argn2=(<argn2>*250)/100       //consimir 250% mais de mana
+  argn2=(<argn2>*125)/100       //consimir 25% mais de mana
  endif
 else
  tag.mage_uid=<argo>            //Salva item
  argn2=0                        //Castando por item. Não usar mana.
- if (<argo.type>==t_wand)//Mago castando por varinha ou gema ou tem memory spk_mage (caso de polys)
+ if (<argo.type>==t_wand)//Mago castando por varinha ou gema
   tag.mage_source=<DEF.MAGE_WAND>
  else
   if (<argo.type>==t_SCROLL)//Mago castando por pergaminho
@@ -1690,15 +1684,10 @@ argn -= 1
 src.<argn> -= 125
 
 [FUNCTION test_allspells]
-for s 100 300
+for s 100 349
  if (<serv.spell.<dlocal.s>>)
-	if (!<IsEmpty <serv.spell.<dlocal.s>.defname>>)
-		//serv.log mage_addspell <serv.spell.<dlocal.s>.defname>
-		src.mage_addspell <dlocal.s>
-		//serv.log mage_addspell <dlocal.s>
-	else
-	return 0
-	endif
+//  serv.log mage_addspell <serv.spell.<dlocal.s>.defname>
+  src.mage_addspell <serv.spell.<dlocal.s>.defname>
  endif
  local.c += 1
 end
